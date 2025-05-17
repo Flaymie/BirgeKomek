@@ -22,6 +22,11 @@ yarn-error.log*
 /build
 /coverage
 
+# рабочие файлы
+roadmap.md
+TODO.md
+NOTES.md
+
 # редакторы
 .idea/
 .vscode/
