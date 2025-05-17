@@ -1,7 +1,7 @@
 {
   "name": "peerhelp-backend",
   "version": "0.1.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "author": "flaymie",
   "license": "MIT",
   "type": "module",
