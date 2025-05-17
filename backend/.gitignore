@@ -1,0 +1,33 @@
+# зависимости
+node_modules/
+package-lock.json
+yarn.lock
+
+# переменные окружения
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# логи
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# папки сборки/генерации
+/dist
+/build
+/coverage
+
+# редакторы
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db 
