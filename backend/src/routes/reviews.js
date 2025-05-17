@@ -1,4 +1,5 @@
 import express from 'express';
+import { body, validationResult, param } from 'express-validator';
 import Review from '../models/Review.js';
 import Request from '../models/Request.js';
 import User from '../models/User.js';
@@ -6,9 +7,42 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/reviews/helper/{helperId}:
+ *   get:
+ *     summary: Получить все отзывы о конкретном помощнике
+ *     tags: [Reviews]
+ *     parameters:
+ *       - in: path
+ *         name: helperId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID пользователя-помощника
+ *     responses:
+ *       200:
+ *         description: Список отзывов о помощнике
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Review'
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
 // получить отзывы для хелпера
-router.get('/helper/:helperId', async (req, res) => {
+router.get('/helper/:helperId', [
+  param('helperId').isMongoId().withMessage('Неверный формат ID')
+], async (req, res) => {
   try {
+    // Проверяем результаты валидации
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
     const { helperId } = req.params;
     
     const reviews = await Review.find({ helperId })
@@ -23,14 +57,76 @@ router.get('/helper/:helperId', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/reviews:
+ *   post:
+ *     summary: Создать новый отзыв о помощнике
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - requestId
+ *               - rating
+ *             properties:
+ *               requestId:
+ *                 type: string
+ *                 description: ID заявки, по которой оставляется отзыв
+ *               rating:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 description: Оценка от 1 до 5
+ *               comment:
+ *                 type: string
+ *                 description: Текстовый комментарий к отзыву (опционально)
+ *     responses:
+ *       201:
+ *         description: Отзыв успешно создан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Review'
+ *       400:
+ *         description: Некорректные данные или отзыв уже существует
+ *       401:
+ *         description: Требуется авторизация
+ *       403:
+ *         description: Нет прав на создание отзыва
+ *       404:
+ *         description: Заявка не найдена
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
 // создать отзыв на хелпера
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, [
+  body('requestId')
+    .notEmpty().withMessage('ID заявки обязателен')
+    .isMongoId().withMessage('Неверный формат ID заявки'),
+  
+  body('rating')
+    .isInt({ min: 1, max: 5 }).withMessage('Рейтинг должен быть от 1 до 5'),
+  
+  body('comment')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('Комментарий не должен превышать 500 символов')
+], async (req, res) => {
   try {
-    const { requestId, rating, comment } = req.body;
-    
-    if (!requestId || !rating) {
-      return res.status(400).json({ msg: 'Не все поля заполнены' });
+    // Проверяем результаты валидации
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
+    
+    // Извлекаем только нужные поля
+    const { requestId, rating, comment } = req.body;
     
     // проверяем существование и статус заявки
     const request = await Request.findById(requestId);
