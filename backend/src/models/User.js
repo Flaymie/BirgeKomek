@@ -49,6 +49,10 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Review'
   }],
+  helperSubjects: [{
+    type: String,
+    trim: true
+  }],
   createdAt: {
     type: Date,
     default: Date.now

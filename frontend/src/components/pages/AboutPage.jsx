@@ -3,113 +3,100 @@ import { Link } from 'react-router-dom';
 
 const AboutPage = () => {
   return (
-    <div className="bg-white py-12">
-      <div className="container-custom">
-        <h1 className="text-3xl font-bold mb-8" data-aos="fade-up">О проекте "Бірге Көмек"</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          <div data-aos="fade-right" data-aos-delay="100">
-            <h2 className="text-2xl font-semibold mb-4">Наша миссия</h2>
-            <p className="text-gray-700 mb-4">
-              Мы создаем сообщество взаимопомощи для школьников Казахстана, где каждый может получить поддержку в учебе 
-              и поделиться своими знаниями с другими. Мы верим, что совместное обучение - это путь к лучшим результатам.
-            </p>
-            <p className="text-gray-700">
-              Наша цель - сделать образование доступнее и эффективнее через взаимодействие между учениками, 
-              создавая пространство, где помощь всегда рядом.
-            </p>
-          </div>
-          
-          <div className="relative h-64 md:h-auto" data-aos="fade-left" data-aos-delay="200">
-            <img 
-              src="/images/mission.jpg" 
-              alt="Школьники помогают друг другу" 
-              className="rounded-lg shadow-lg w-full h-full object-cover"
-            />
-          </div>
-        </div>
-        
-        <div className="mb-12" data-aos="fade-up" data-aos-delay="100">
-          <h2 className="text-2xl font-semibold mb-4">Почему "Бірге Көмек"?</h2>
-          <p className="text-gray-700 mb-4">
-            "Бірге Көмек" в переводе с казахского означает "Помощь вместе". Это отражает суть нашего проекта - 
-            объединение усилий школьников для взаимной поддержки в образовании.
-          </p>
-          <p className="text-gray-700">
-            Мы создали платформу, которая соединяет тех, кто ищет помощь, с теми, кто готов помочь. 
-            Это не просто сервис - это сообщество, где каждый может быть и учеником, и учителем.
+    <div className="bg-white">
+      {/* Герой-секция */}
+      <div className="relative bg-gradient-to-r from-primary-600 to-primary-800 py-16 sm:py-24">
+        <div className="container-custom text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">О нас</h1>
+          <p className="mt-6 max-w-3xl mx-auto text-xl text-primary-100">
+            Помогаем школьникам Казахстана учиться вместе и поддерживать друг друга
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <div className="bg-blue-50 p-6 rounded-lg shadow" data-aos="fade-up" data-aos-delay="100">
-            <h3 className="text-xl font-semibold mb-3">Для учеников</h3>
-            <p className="text-gray-700">
-              Получайте помощь по любому предмету школьной программы. Задавайте вопросы, делитесь трудностями 
-              и находите тех, кто поможет разобраться в сложных темах.
+      </div>
+
+      {/* Наша миссия */}
+      <div className="py-16 bg-white">
+        <div className="container-custom">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Наша миссия</h2>
+            <p className="text-lg text-gray-600 mb-6">
+              Бірге Көмек создан для того, чтобы объединить школьников Казахстана в едином образовательном пространстве, 
+              где каждый может получить помощь и сам помочь другим в учебе.
             </p>
-          </div>
-          
-          <div className="bg-green-50 p-6 rounded-lg shadow" data-aos="fade-up" data-aos-delay="200">
-            <h3 className="text-xl font-semibold mb-3">Для помощников</h3>
-            <p className="text-gray-700">
-              Делитесь своими знаниями, помогайте другим и развивайте свои навыки объяснения. 
-              Помогая другим, вы лучше усваиваете материал сами.
+            <p className="text-lg text-gray-600 mb-6">
+              Мы верим, что современное образование должно быть доступным для всех, независимо от места проживания и 
+              финансовых возможностей. Наша платформа даёт возможность учащимся разных школ обмениваться знаниями, 
+              опытом и учебными материалами.
             </p>
-          </div>
-          
-          <div className="bg-purple-50 p-6 rounded-lg shadow" data-aos="fade-up" data-aos-delay="300">
-            <h3 className="text-xl font-semibold mb-3">Для всех</h3>
-            <p className="text-gray-700">
-              Создавайте связи с единомышленниками, формируйте группы по интересам и учебным предметам, 
-              обменивайтесь полезными материалами и ресурсами.
+            <p className="text-lg text-gray-600">
+              Помогая друг другу, школьники не только закрепляют свои знания, но и развивают важные социальные навыки: 
+              эмпатию, коммуникацию и командную работу.
             </p>
           </div>
         </div>
-        
-        <div className="mb-12" data-aos="fade-up" data-aos-delay="100">
-          <h2 className="text-2xl font-semibold mb-4">Наши ценности</h2>
-          <ul className="list-disc pl-6 space-y-2 text-gray-700">
-            <li><strong>Взаимоуважение</strong> - мы ценим вклад каждого участника сообщества</li>
-            <li><strong>Доступность</strong> - образование должно быть доступно для всех</li>
-            <li><strong>Качество</strong> - мы стремимся к высокому уровню помощи и поддержки</li>
-            <li><strong>Сотрудничество</strong> - вместе мы можем достичь большего</li>
-            <li><strong>Инновации</strong> - мы постоянно совершенствуем нашу платформу</li>
-          </ul>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          <div className="relative h-64 md:h-auto" data-aos="fade-right" data-aos-delay="100">
-            <img 
-              src="/images/team.jpg" 
-              alt="Наша команда" 
-              className="rounded-lg shadow-lg w-full h-full object-cover"
-            />
-          </div>
+      </div>
+
+      {/* Наши ценности */}
+      <div className="py-16 bg-gray-50">
+        <div className="container-custom">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Наши ценности</h2>
           
-          <div data-aos="fade-left" data-aos-delay="200">
-            <h2 className="text-2xl font-semibold mb-4">Наша команда</h2>
-            <p className="text-gray-700 mb-4">
-              Мы - команда молодых специалистов, увлеченных идеей улучшения образования в Казахстане. 
-              Среди нас есть педагоги, разработчики, дизайнеры и бывшие школьники, которые на собственном опыте 
-              знают о трудностях в обучении.
-            </p>
-            <p className="text-gray-700">
-              Мы объединились, чтобы создать платформу, которая решает реальные проблемы школьников 
-              и делает процесс обучения более эффективным и увлекательным.
-            </p>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Доступность</h3>
+              <p className="text-gray-600">
+                Мы стремимся сделать образование доступным для всех школьников Казахстана, независимо от их местоположения и материальных возможностей.
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Сообщество</h3>
+              <p className="text-gray-600">
+                Мы создаем дружественное сообщество, где каждый может найти единомышленников и получить поддержку в обучении.
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300">
+              <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Безопасность</h3>
+              <p className="text-gray-600">
+                Мы обеспечиваем безопасное пространство для обмена знаниями, где уважаются права и достоинство каждого участника.
+              </p>
+            </div>
           </div>
         </div>
-        
-        <div className="text-center" data-aos="fade-up" data-aos-delay="100">
-          <h2 className="text-2xl font-semibold mb-4">Присоединяйтесь к нам!</h2>
-          <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
-            Станьте частью сообщества "Бірге Көмек" и вместе мы сделаем образование лучше. 
-            Регистрируйтесь, задавайте вопросы, помогайте другим и растите вместе с нами!
+      </div>
+
+
+      {/* CTA */}
+      <div className="py-16 bg-primary-600">
+        <div className="container-custom text-center">
+          <h2 className="text-3xl font-bold text-white mb-6">Присоединяйтесь к нам!</h2>
+          <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
+            Станьте частью сообщества взаимопомощи школьников и начните делиться знаниями уже сегодня
           </p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300">
-            Зарегистрироваться
-          </button>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link to="/register" className="btn bg-white text-primary-600 hover:bg-primary-50 font-semibold px-6 py-3 hover:scale-105 transition-all transform">
+              Зарегистрироваться
+            </Link>
+            <Link to="/requests" className="btn border-2 border-white text-white hover:bg-white/10 font-semibold px-6 py-3 hover:scale-105 transition-all transform">
+              Посмотреть запросы
+            </Link>
+          </div>
         </div>
       </div>
     </div>

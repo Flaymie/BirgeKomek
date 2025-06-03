@@ -4,255 +4,154 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'PeerHelp API',
+      title: 'Бірге Көмек API',
       version: '1.0.0',
-      description: 'API для платформы взаимопомощи между школьниками',
-      contact: {
-        name: 'flaymie',
-      },
+      description: 'Документация API для платформы взаимопомощи школьников Бірге Көмек',
     },
     servers: [
       {
-        url: 'http://localhost:5050',
-        description: 'Локальный сервер разработки',
+        url: 'http://localhost:5050', // Адрес вашего сервера
+        description: 'Локальный сервер для разработки'
       },
+      // Можно добавить другие серверы (например, для продакшена)
     ],
     components: {
       securitySchemes: {
-        bearerAuth: {
+        bearerAuth: { // Имя схемы безопасности
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
+          bearerFormat: 'JWT', // Указываем формат токена
+        }
       },
       schemas: {
         User: {
           type: 'object',
           properties: {
-            _id: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            username: {
-              type: 'string',
-              example: 'petya2005'
-            },
-            email: {
-              type: 'string',
-              format: 'email',
-              example: 'petya@example.com'
-            },
-            phone: {
-              type: 'string',
-              example: '+77001234567'
-            },
+            _id: { type: 'string', example: '60d21b4667d0d8992e610c84' },
+            username: { type: 'string', example: 'testuser' },
+            email: { type: 'string', format: 'email', example: 'test@example.com' },
+            phone: { type: 'string', example: '+77001234567' },
             roles: {
               type: 'object',
               properties: {
-                student: {
-                  type: 'boolean',
-                  example: true
-                },
-                helper: {
-                  type: 'boolean',
-                  example: true
-                }
+                student: { type: 'boolean', example: true },
+                helper: { type: 'boolean', example: false },
+              },
+            },
+            grade: { type: 'integer', example: 9 },
+            points: { type: 'integer', example: 150 },
+            rating: { type: 'number', format: 'float', example: 4.5 },
+            reviews: {
+              type: 'array',
+              items: {
+                type: 'string', // ID отзывов
+                example: '60d21b4967d0d8992e610c85'
               }
             },
-            grade: {
-              type: 'integer',
-              example: 9
+            helperSubjects: { 
+              type: 'array',
+              items: { 
+                type: 'string',
+                example: 'Математика' 
+              },
+              description: 'Предметы, по которым пользователь может помогать'
             },
-            points: {
-              type: 'integer',
-              example: 125
-            },
-            rating: {
-              type: 'number',
-              format: 'float',
-              example: 4.8
-            },
-            createdAt: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
         },
         Request: {
           type: 'object',
           properties: {
-            _id: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            title: {
-              type: 'string',
-              example: 'Помогите с теоремой Пифагора'
-            },
-            description: {
-              type: 'string',
-              example: 'Не понимаю, как применить теорему Пифагора для решения этой задачи...'
-            },
-            subject: {
-              type: 'string',
-              example: 'Математика'
-            },
-            grade: {
-              type: 'integer',
-              example: 8
-            },
-            topic: {
-              type: 'string',
-              example: 'Геометрия'
-            },
-            format: {
-              type: 'string',
-              enum: ['text', 'call', 'chat', 'meet'],
-              example: 'chat'
-            },
+            _id: { type: 'string' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            subject: { type: 'string' },
+            grade: { type: 'integer' },
+            topic: { type: 'string' },
+            format: { type: 'string', enum: ['text', 'call', 'chat', 'meet'] },
             time: {
               type: 'object',
               properties: {
-                start: {
-                  type: 'string',
-                  format: 'date-time'
-                },
-                end: {
-                  type: 'string',
-                  format: 'date-time'
-                }
-              }
+                start: { type: 'string', format: 'date-time' },
+                end: { type: 'string', format: 'date-time' },
+              },
             },
-            author: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            helper: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c86'
-            },
-            status: {
-              type: 'string',
-              enum: ['open', 'assigned', 'completed', 'cancelled'],
-              example: 'open'
-            },
-            isUrgent: {
-              type: 'boolean',
-              example: false
-            },
-            createdAt: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
+            author: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
+            helper: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
+            status: { type: 'string', enum: ['open', 'assigned', 'completed', 'cancelled'] },
+            isUrgent: { type: 'boolean' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
         },
         Message: {
           type: 'object',
           properties: {
-            _id: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            requestId: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            sender: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            content: {
-              type: 'string',
-              example: 'Привет! Я готов помочь с задачей.'
-            },
-            attachments: {
-              type: 'array',
-              items: {
-                type: 'string'
-              },
-              example: ['https://example.com/file.pdf']
-            },
-            readBy: {
-              type: 'array',
-              items: {
-                type: 'string'
-              },
-              example: ['60d21b4967d0d8992e610c85']
-            },
-            createdAt: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
+            _id: { type: 'string' },
+            requestId: { type: 'string' }, // ID заявки
+            sender: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
+            content: { type: 'string' },
+            attachments: { type: 'array', items: { type: 'string' } },
+            readBy: { type: 'array', items: { type: 'string' } }, // Массив ID пользователей, прочитавших сообщение
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
         },
         Review: {
           type: 'object',
           properties: {
-            _id: {
+            _id: { type: 'string' },
+            requestId: { type: 'string' }, // ID заявки
+            reviewerId: { $ref: '#/components/schemas/User' }, // Ссылка на схему User (кто оставил отзыв)
+            helperId: { $ref: '#/components/schemas/User' }, // Ссылка на схему User (о ком отзыв)
+            rating: { type: 'integer', minimum: 1, maximum: 5 },
+            comment: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        Notification: { // Новая схема для уведомлений
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '60f123abc123def456abc789' },
+            user: { type: 'string', description: 'ID пользователя, которому адресовано уведомление', example: '60d21b4667d0d8992e610c84' },
+            type: {
               type: 'string',
-              example: '60d21b4967d0d8992e610c85'
+              enum: ['new_request_for_subject', 'request_assigned_to_you', 'request_taken_by_helper', 'new_message_in_request', 'request_marked_completed', 'new_review_for_you', 'request_status_changed'],
+              description: 'Тип уведомления',
+              example: 'new_message_in_request'
             },
-            requestId: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
+            title: { type: 'string', description: 'Заголовок уведомления', example: 'Новое сообщение в заявке "Помощь по алгебре"' },
+            message: { type: 'string', description: 'Детальное сообщение (опционально)', example: 'Пользователь @helper123 ответил вам.' },
+            link: { type: 'string', description: 'Ссылка для перехода (например, на заявку)', example: '/requests/60f123456abcdef123456789' },
+            isRead: { type: 'boolean', description: 'Статус прочтения', default: false },
+            relatedEntity: {
+              type: 'object',
+              properties: {
+                requestId: { type: 'string', example: '60f123456abcdef123456789' },
+                userId: { type: 'string', example: '60d21b4667d0d8992e610c84' }
+              }
             },
-            reviewerId: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c85'
-            },
-            helperId: {
-              type: 'string',
-              example: '60d21b4967d0d8992e610c86'
-            },
-            rating: {
-              type: 'integer',
-              minimum: 1,
-              maximum: 5,
-              example: 5
-            },
-            comment: {
-              type: 'string',
-              example: 'Очень хорошо объяснил, все понятно!'
-            },
-            createdAt: {
-              type: 'string',
-              format: 'date-time'
-            }
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
           }
         }
-      }
+      },
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
     tags: [
-      {
-        name: 'Auth',
-        description: 'Регистрация и авторизация',
-      },
-      {
-        name: 'Requests',
-        description: 'Управление заявками на помощь',
-      },
-      {
-        name: 'Messages',
-        description: 'Сообщения и чат между пользователями',
-      },
-      {
-        name: 'Reviews',
-        description: 'Отзывы и рейтинги помощников',
-      },
-      {
-        name: 'Users',
-        description: 'Управление профилями пользователей',
-      },
+      { name: 'Auth', description: 'Аутентификация пользователей' },
+      { name: 'Users', description: 'Управление профилями пользователей' },
+      { name: 'Requests', description: 'Управление заявками на помощь' },
+      { name: 'Messages', description: 'Обмен сообщениями в рамках заявок' },
+      { name: 'Reviews', description: 'Отзывы и рейтинг пользователей' },
+      { name: 'Notifications', description: 'Управление уведомлениями пользователей' },
+      { name: 'Statistics', description: 'Статистика и аналитика по платформе' },
     ],
   },
-  apis: ['./src/routes/*.js'], // пути до файлов с маршрутами
+  apis: ['./src/routes/*.js'], // Указываем путь к файлам с JSDoc аннотациями
 };
 
-const specs = swaggerJsdoc(options);
+const swaggerSpecs = swaggerJsdoc(options);
 
-export default specs; 
+export default swaggerSpecs; 

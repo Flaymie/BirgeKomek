@@ -11,6 +11,9 @@ import authRoutes from './routes/auth.js';
 import requestRoutes from './routes/requests.js';
 import messageRoutes from './routes/messages.js';
 import reviewRoutes from './routes/reviews.js';
+import userRoutes from './routes/users.js';
+import notificationRoutes from './routes/notifications.js';
+import statsRoutes from './routes/stats.js';
 
 dotenv.config();
 
@@ -41,7 +44,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // документация API
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { 
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'PeerHelp API Docs'
+  customSiteTitle: 'Бірге Көмек API Docs'
 }));
 
 // роуты
@@ -49,6 +52,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/stats', statsRoutes);
 
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {
@@ -69,7 +75,7 @@ app.use((err, req, res, next) => {
 
 // простой тест что сервак живой
 app.get('/', (req, res) => {
-  res.send('PeerHelp API запущен');
+  res.send('Бірге Көмек API запущен');
 });
 
 // обработка 404

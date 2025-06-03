@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+  
+  /* Добавляем плавные переходы для всех элементов */
+  * {
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* Плавные переходы при загрузке страницы */
+  .page-enter {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  
+  .page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 300ms, transform 300ms;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded font-medium transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-500 text-white hover:bg-primary-600 hover:shadow-md focus:ring-primary-500;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary-500 text-white hover:bg-secondary-600 hover:shadow-md focus:ring-secondary-500;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-300;
+  }
+  
+  /* Стили для полей ввода с анимацией */
+  .form-input {
+    @apply appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm transition-all duration-200;
+  }
+  
+  .form-input-error {
+    @apply appearance-none rounded-md relative block w-full px-3 py-2 border border-red-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:z-10 sm:text-sm transition-all duration-200;
+  }
+  
+  /* Стили для подсказок с плавным появлением */
+  .form-hint {
+    @apply mt-1 text-sm text-red-600 opacity-0 transition-opacity duration-200;
+  }
+  
+  .form-hint-show {
+    @apply opacity-100;
+  }
+  
+  /* Анимация для загрузки */
+  .loading-pulse {
+    @apply animate-pulse;
+  }
+  
+  /* Плавное появление страниц */
+  .page-container {
+    @apply animate-fadeIn;
+  }
+}
+
+/* Определение keyframes для анимаций */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+  
+  .hover-scale {
+    @apply transition-transform duration-300 hover:scale-105;
+  }
+}
