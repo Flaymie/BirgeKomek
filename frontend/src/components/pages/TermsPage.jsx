@@ -4,24 +4,24 @@ const TermsPage = () => {
   return (
     <div className="bg-white py-12">
       <div className="container-custom">
-        <h1 className="text-3xl font-bold mb-8">Условия использования</h1>
+        <h1 className="text-3xl font-bold mb-8" data-aos="fade-up">Условия использования</h1>
         
         <div className="prose max-w-none">
-          <p className="mb-6">
+          <p className="mb-6" data-aos="fade-up" data-aos-delay="100">
             Последнее обновление: 20 мая 2025 года
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">1. Принятие условий</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">1. Принятие условий</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Добро пожаловать на платформу "Бірге Көмек". Используя нашу платформу, вы соглашаетесь соблюдать эти Условия использования. 
             Если вы не согласны с этими условиями, пожалуйста, не используйте нашу платформу.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">2. Описание услуг</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">2. Описание услуг</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             "Бірге Көмек" - это платформа для взаимопомощи школьников Казахстана в учебе. Мы предоставляем возможность:
           </p>
-          <ul className="list-disc pl-6 mb-6">
+          <ul className="list-disc pl-6 mb-6" data-aos="fade-up" data-aos-delay="250">
             <li className="mb-2">Создавать запросы на помощь по учебным предметам</li>
             <li className="mb-2">Предлагать свою помощь другим школьникам</li>
             <li className="mb-2">Общаться через встроенный чат</li>
@@ -29,20 +29,20 @@ const TermsPage = () => {
             <li className="mb-2">Делиться учебными материалами</li>
           </ul>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">3. Регистрация и аккаунт</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">3. Регистрация и аккаунт</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Для использования некоторых функций нашей платформы вам необходимо создать аккаунт. При регистрации вы соглашаетесь предоставить точную и полную информацию.
           </p>
-          <p className="mb-4">
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="250">
             Вы несете ответственность за сохранение конфиденциальности вашего пароля и за все действия, которые происходят под вашим аккаунтом. 
             Вы должны немедленно уведомить нас о любом несанкционированном использовании вашего аккаунта.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">4. Правила поведения</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">4. Правила поведения</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             При использовании нашей платформы вы соглашаетесь:
           </p>
-          <ul className="list-disc pl-6 mb-6">
+          <ul className="list-disc pl-6 mb-6" data-aos="fade-up" data-aos-delay="250">
             <li className="mb-2">Не нарушать законы Республики Казахстан и других применимых юрисдикций</li>
             <li className="mb-2">Не размещать оскорбительный, вредоносный, угрожающий или неприемлемый контент</li>
             <li className="mb-2">Не выдавать себя за другого человека или организацию</li>
@@ -51,60 +51,60 @@ const TermsPage = () => {
             <li className="mb-2">Не пытаться получить несанкционированный доступ к системам или данным платформы</li>
           </ul>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">5. Контент пользователей</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">5. Контент пользователей</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Вы сохраняете все права на контент, который вы размещаете на платформе. Однако, размещая контент, 
             вы предоставляете нам неисключительную, бесплатную, всемирную лицензию на использование, 
             воспроизведение, изменение, адаптацию, публикацию и распространение этого контента в связи с работой платформы.
           </p>
-          <p className="mb-4">
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="250">
             Мы оставляем за собой право удалять любой контент, который нарушает эти Условия использования 
             или который мы считаем неприемлемым по другим причинам.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">6. Ограничение ответственности</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">6. Ограничение ответственности</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Мы предоставляем платформу "как есть" и не даем никаких гарантий относительно ее работы или содержания. 
             Мы не несем ответственности за любые убытки или ущерб, возникшие в результате использования или невозможности использования нашей платформы.
           </p>
-          <p className="mb-4">
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="250">
             Мы не несем ответственности за действия других пользователей платформы или за качество помощи, 
             предоставляемой через платформу.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">7. Интеллектуальная собственность</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">7. Интеллектуальная собственность</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Все права интеллектуальной собственности на платформу и ее содержимое (за исключением контента пользователей) 
             принадлежат нам или нашим лицензиарам. Вы не имеете права копировать, изменять, распространять или использовать 
             в коммерческих целях любую часть платформы без нашего явного письменного разрешения.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">8. Прекращение доступа</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">8. Прекращение доступа</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Мы оставляем за собой право прекратить или приостановить ваш доступ к платформе без предварительного уведомления 
             по любой причине, включая нарушение этих Условий использования.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">9. Изменения в условиях использования</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">9. Изменения в условиях использования</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Мы можем изменять эти Условия использования время от времени. Мы уведомим вас о любых существенных изменениях, 
             разместив новые Условия на этой странице и обновив дату "последнего обновления" в начале документа.
           </p>
-          <p className="mb-4">
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="250">
             Продолжая использовать платформу после внесения изменений, вы соглашаетесь с обновленными Условиями использования.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">10. Применимое право</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">10. Применимое право</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Эти Условия использования регулируются и толкуются в соответствии с законодательством Республики Казахстан.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">11. Контактная информация</h2>
-          <p className="mb-4">
+          <h2 className="text-2xl font-semibold mt-8 mb-4" data-aos="fade-up" data-aos-delay="150">11. Контактная информация</h2>
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="200">
             Если у вас есть вопросы или предложения относительно наших Условий использования, 
             пожалуйста, свяжитесь с нами:
           </p>
-          <p className="mb-4">
+          <p className="mb-4" data-aos="fade-up" data-aos-delay="250">
             Email: info@birgekomek.kz<br />
             Телефон: +7 (777) 123-45-67<br />
             Адрес: г. Алматы, Казахстан
