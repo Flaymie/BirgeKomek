@@ -1,5 +1,5 @@
 import express from 'express';
-import { body, validationResult, param } from 'express-validator';
+import { body, validationResult, param, query } from 'express-validator'; // Добавил query
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import Request from '../models/Request.js';
@@ -30,12 +30,13 @@ const router = express.Router();
  *               $ref: '#/components/schemas/User'
  *       401:
  *         description: Не авторизован
+ *       404:
+ *         description: Пользователь не найден
  *       500:
  *         description: Внутренняя ошибка сервера
  */
 router.get('/me', protect, async (req, res) => {
   try {
-    // req.user добавляется middleware protect
     const user = await User.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({ msg: 'Пользователь не найден' });
@@ -77,6 +78,11 @@ router.get('/me', protect, async (req, res) => {
  *                 minimum: 1
  *                 maximum: 11
  *                 description: Новый класс ученика (опционально)
+ *               helperSubjects:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Список предметов, по которым пользователь готов помогать (опционально, для хелперов)
  *               currentPassword:
  *                 type: string
  *                 description: Текущий пароль (обязателен для смены email или пароля)
@@ -86,10 +92,6 @@ router.get('/me', protect, async (req, res) => {
  *     responses:
  *       200:
  *         description: Профиль успешно обновлен
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/User'
  *       400:
  *         description: Некорректные данные или ошибка валидации
  *       401:
@@ -100,7 +102,6 @@ router.get('/me', protect, async (req, res) => {
  *         description: Внутренняя ошибка сервера
  */
 router.put('/me', protect, [
-  // Валидация (опциональные поля)
   body('username')
     .optional()
     .trim()
@@ -114,10 +115,15 @@ router.put('/me', protect, [
   body('phone')
     .optional()
     .trim()
-    .matches(/^\+?[0-9]{10,15}$/).withMessage('Некорректный формат телефона'),
+    .matches(/^\+?[0-9]{10,15}$/).withMessage('Некорректный формат телефона (например, +77001234567)'),
   body('grade')
     .optional()
     .isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
+  body('helperSubjects')
+    .optional()
+    .isArray().withMessage('helperSubjects должен быть массивом')
+    .custom((subjects) => subjects.every(subject => typeof subject === 'string' && subject.trim() !== ''))
+    .withMessage('Все предметы в helperSubjects должны быть непустыми строками'),
   body('newPassword')
     .optional()
     .trim()
@@ -129,7 +135,7 @@ router.put('/me', protect, [
   }
 
   try {
-    const { username, email, phone, grade, currentPassword, newPassword } = req.body;
+    const { username, email, phone, grade, helperSubjects, currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
     const user = await User.findById(userId);
@@ -137,7 +143,6 @@ router.put('/me', protect, [
       return res.status(404).json({ msg: 'Пользователь не найден' });
     }
 
-    // Если изменяется email или пароль, нужен текущий пароль
     if (email || newPassword) {
       if (!currentPassword) {
         return res.status(400).json({ msg: 'Требуется текущий пароль для изменения email или пароля' });
@@ -148,40 +153,45 @@ router.put('/me', protect, [
       }
     }
 
-    // Обновление полей
-    if (username) {
-      // Проверка на уникальность нового username, если он меняется
-      if (username !== user.username) {
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-          return res.status(400).json({ msg: 'Имя пользователя уже занято' });
-        }
-        user.username = username;
+    if (username && username !== user.username) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        return res.status(400).json({ msg: 'Имя пользователя уже занято' });
       }
+      user.username = username;
     }
-    if (email) {
-      // Проверка на уникальность нового email, если он меняется
-      if (email !== user.email) {
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-          return res.status(400).json({ msg: 'Email уже занят' });
-        }
-        user.email = email;
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ msg: 'Email уже занят' });
       }
+      user.email = email;
     }
     if (phone) user.phone = phone;
     if (grade) user.grade = grade;
-    if (newPassword) user.password = newPassword; // Пароль будет захеширован pre-save хуком
+    if (newPassword) user.password = newPassword; 
+
+    if (helperSubjects) {
+        if (user.roles && user.roles.helper) { // Обновляем предметы только если пользователь - хелпер
+            user.helperSubjects = helperSubjects.map(s => s.trim()).filter(s => s);
+        } else if (helperSubjects.length > 0) {
+            // Если пользователь не хелпер, но пытается указать предметы, можно вернуть ошибку
+            // или просто проигнорировать, или автоматически сделать его хелпером (требует обсуждения)
+             return res.status(400).json({ msg: 'Пользователь не является хелпером. Нельзя обновить helperSubjects.' });
+        }
+    }
+
 
     const updatedUser = await user.save();
-    updatedUser.password = undefined; // Не возвращаем пароль
+    const userResponse = updatedUser.toObject();
+    delete userResponse.password;
 
-    res.json(updatedUser);
+    res.json(userResponse);
   } catch (err) {
     console.error('Ошибка при обновлении профиля:', err.message);
-    // Дополнительная проверка на ошибки дублирования от MongoDB (для email/username)
-    if (err.code === 11000) {
-        return res.status(400).json({ msg: 'Имя пользователя или email уже заняты.' });
+    if (err.code === 11000) { // Ошибка дублирования ключа MongoDB
+        const field = Object.keys(err.keyValue)[0];
+        return res.status(400).json({ msg: `Значение '${err.keyValue[field]}' для поля '${field}' уже занято.` });
     }
     res.status(500).send('Ошибка сервера');
   }
@@ -220,10 +230,14 @@ router.put('/me', protect, [
  *                    type: integer
  *                 rating:
  *                    type: number
+ *                 helperSubjects:
+ *                    type: array
+ *                    items: { type: 'string' }
+ *                 completedRequests:
+ *                    type: integer
  *                 createdAt:
  *                    type: string
  *                    format: date-time
- *                 // Можно добавить другие публичные поля, например, количество выполненных заявок
  *       400:
  *         description: Неверный формат ID
  *       404:
@@ -240,25 +254,28 @@ router.get('/:id', [
   }
 
   try {
-    const user = await User.findById(req.params.id).select('-password -email -phone -reviews'); // Исключаем приватные данные
+    const user = await User.findById(req.params.id).select('-password -email -phone -reviews'); 
 
     if (!user) {
       return res.status(404).json({ msg: 'Пользователь не найден' });
     }
-
-    // Подсчет количества выполненных заявок, если это хелпер
-    let completedRequestsCount = 0;
-    if (user.roles && user.roles.helper) {
-      completedRequestsCount = await Request.countDocuments({ helper: user._id, status: 'completed' });
-    }
     
-    // Преобразуем пользователя в объект, чтобы добавить новое поле
     const userObject = user.toObject();
-    userObject.completedRequests = completedRequestsCount;
+    userObject.completedRequests = 0; // Инициализируем
+
+    if (user.roles && user.roles.helper) {
+      userObject.completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
+    } else {
+      // Если не хелпер, возможно, не стоит показывать helperSubjects или установить в null/undefined
+      delete userObject.helperSubjects; 
+    }
 
     res.json(userObject);
   } catch (err) {
     console.error('Ошибка при получении публичного профиля:', err.message);
+    if (err.kind === 'ObjectId') {
+        return res.status(400).json({ msg: 'Неверный формат ID пользователя' });
+    }
     res.status(500).send('Ошибка сервера');
   }
 });
@@ -267,7 +284,7 @@ router.get('/:id', [
  * @swagger
  * /api/users/helpers:
  *   get:
- *     summary: Поиск помощников
+ *     summary: Поиск помощников (хелперов)
  *     tags: [Users]
  *     parameters:
  *       - in: query
@@ -287,7 +304,7 @@ router.get('/:id', [
  *         name: sortBy
  *         schema:
  *           type: string
- *           enum: [rating_desc, rating_asc, points_desc, points_asc]
+ *           enum: [rating_desc, rating_asc, points_desc, points_asc, createdAt_desc, createdAt_asc]
  *           default: rating_desc
  *         description: Поле и направление сортировки
  *       - in: query
@@ -301,6 +318,7 @@ router.get('/:id', [
  *         schema:
  *           type: integer
  *           default: 10
+ *           maximum: 100
  *         description: Количество результатов на странице
  *     responses:
  *       200:
@@ -321,7 +339,6 @@ router.get('/:id', [
  *                       points: { type: 'integer' }
  *                       helperSubjects: { type: 'array', items: { type: 'string' } }
  *                       completedRequests: { type: 'integer' }
- *                       // Можно добавить еще публичные поля при необходимости
  *                 totalPages: { type: 'integer' }
  *                 currentPage: { type: 'integer' }
  *                 totalHelpers: { type: 'integer' }
@@ -330,13 +347,12 @@ router.get('/:id', [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.get('/helpers', [
-  // Валидация параметров запроса
-  param('subject').optional().trim().isString(),
-  param('minRating').optional().isFloat({ min: 0, max: 5 }),
-  param('sortBy').optional().isIn(['rating_desc', 'rating_asc', 'points_desc', 'points_asc']),
-  param('page').optional().isInt({ min: 1 }),
-  param('limit').optional().isInt({ min: 1, max: 100 }),
+router.get('/helpers', [ // Изменено с router.get('/helpers', protect, [ на router.get('/helpers', [ так как этот эндпоинт публичный
+  query('subject').optional().trim().escape(),
+  query('minRating').optional().isFloat({ min: 0, max: 5 }).toFloat(),
+  query('sortBy').optional().isIn(['rating_desc', 'rating_asc', 'points_desc', 'points_asc', 'createdAt_desc', 'createdAt_asc']),
+  query('page').optional().isInt({ min: 1 }).toInt(),
+  query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -344,35 +360,33 @@ router.get('/helpers', [
   }
 
   try {
-    const { subject, minRating, sortBy, page = 1, limit = 10 } = req.query;
+    const { subject, minRating, sortBy = 'rating_desc', page = 1, limit = 10 } = req.query;
 
-    const query = { 'roles.helper': true };
+    const queryOptions = { 'roles.helper': true };
 
     if (subject) {
-      query.helperSubjects = { $in: [new RegExp(subject, 'i')] }; // Поиск без учета регистра
+      queryOptions.helperSubjects = { $in: [new RegExp(subject, 'i')] };
     }
-    if (minRating) {
-      query.rating = { $gte: parseFloat(minRating) };
+    if (minRating !== undefined) {
+      queryOptions.rating = { $gte: minRating };
     }
 
-    let sortOption = { rating: -1 }; // По умолчанию сортировка по убыванию рейтинга
+    const sortParams = {};
     if (sortBy) {
-      const parts = sortBy.split('_');
-      sortOption = { [parts[0]]: parts[1] === 'desc' ? -1 : 1 };
+        const parts = sortBy.split('_');
+        sortParams[parts[0]] = parts[1] === 'desc' ? -1 : 1;
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const helpersQuery = User.find(query)
-      .select('_id username rating points helperSubjects roles') // Выбираем только нужные поля
-      .sort(sortOption)
-      .skip(skip)
-      .limit(parseInt(limit));
+    const helpers = await User.find(queryOptions)
+      .select('_id username rating points helperSubjects roles.helper') 
+      .sort(sortParams)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(); 
+      
+    const totalHelpers = await User.countDocuments(queryOptions);
 
-    const helpers = await helpersQuery.lean(); // .lean() для производительности и возможности добавлять поля
-    const totalHelpers = await User.countDocuments(query);
-
-    // Добавляем количество выполненных заявок для каждого хелпера
     const helpersWithStats = await Promise.all(helpers.map(async (helper) => {
       const completedRequestsCount = await Request.countDocuments({ helper: helper._id, status: 'completed' });
       return {
@@ -384,7 +398,7 @@ router.get('/helpers', [
     res.json({
       helpers: helpersWithStats,
       totalPages: Math.ceil(totalHelpers / limit),
-      currentPage: parseInt(page),
+      currentPage: page,
       totalHelpers,
     });
 
@@ -394,4 +408,4 @@ router.get('/helpers', [
   }
 });
 
-export default router; 
+export default router;

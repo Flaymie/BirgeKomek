@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
@@ -33,6 +34,31 @@ app.use(helmet());
 
 // отключаем строку X-Powered-By
 app.disable('x-powered-by');
+
+// Настройка rate limiter для API (общая)
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 минут
+    max: 200, // Максимум 200 запросов с одного IP за 15 минут (увеличил немного)
+    standardHeaders: true, 
+    legacyHeaders: false, 
+    message: 'Слишком много запросов с вашего IP, попробуйте позже.',
+});
+app.use('/api', apiLimiter); 
+
+// Отдельный, более строгий rate limiter для эндпоинтов аутентификации
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 час
+    max: 10, // Максимум 10 попыток с одного IP за 1 час (увеличил для регистрации/восстановления)
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Слишком много попыток аутентификации с вашего IP, попробуйте через час.',
+    skip: (req, res) => req.path === '/api/auth/check' || req.path === '/api/auth/refresh-token', // Исключаем /check и /refresh-token из строгого лимита
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+// Если есть эндпоинт восстановления пароля, его тоже стоит добавить под authLimiter
+// app.use('/api/auth/forgot-password', authLimiter);
+// app.use('/api/auth/reset-password', authLimiter);
 
 // подрубаем к монге с безопасными настройками
 mongoose.connect(process.env.MONGODB_URI, {

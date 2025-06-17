@@ -30,7 +30,7 @@ const router = express.Router();
  *               properties:
  *                 totalUsers: { type: 'integer' }
  *                 totalHelpers: { type: 'integer' }
- *                 activeRequests: { type: 'integer' } // open or assigned
+ *                 activeRequests: { type: 'integer' } # open or assigned
  *                 completedRequests: { type: 'integer' }
  *                 totalRequests: { type: 'integer' }
  *       500:

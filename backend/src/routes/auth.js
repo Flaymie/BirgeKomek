@@ -100,7 +100,12 @@ router.post('/register', [
   
   body('grade')
     .optional()
-    .isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11')
+    .isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
+  body('helperSubjects')
+    .optional()
+    .isArray().withMessage('helperSubjects должен быть массивом')
+    .custom((subjects) => !subjects.some(s => typeof s !== 'string' || s.trim() === ''))
+    .withMessage('Все предметы в helperSubjects должны быть непустыми строками')
 ], async (req, res) => {
   try {
     // Проверяем результаты валидации
@@ -110,7 +115,7 @@ router.post('/register', [
     }
     
     // Извлекаем только нужные поля, а не весь req.body
-    const { username, email, password, phone, roles, grade } = req.body;
+    const { username, email, password, phone, roles, grade, helperSubjects } = req.body;
     
     // проверяем, что такой юзер ещё не существует
     const existing = await User.findOne({ 
@@ -130,7 +135,8 @@ router.post('/register', [
       password,
       phone,
       roles,
-      grade
+      grade,
+      helperSubjects: (roles && roles.helper && helperSubjects) ? helperSubjects : []
     });
     
     await user.save();

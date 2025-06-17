@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, currentUser, error: authError } = useAuth();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -11,6 +16,30 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  
+  // Если пользователь уже авторизован, перенаправляем на страницу запросов
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/requests');
+    }
+  }, [currentUser, navigate]);
+  
+  // Получаем сообщение из state при переходе на страницу
+  useEffect(() => {
+    if (location.state?.message) {
+      setAuthMessage(location.state.message);
+      // Очищаем state, чтобы при обновлении страницы сообщение исчезло
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Проверяем сообщение из sessionStorage (от перехватчика API)
+    const sessionMessage = sessionStorage.getItem('auth_message');
+    if (sessionMessage) {
+      setAuthMessage(sessionMessage);
+      sessionStorage.removeItem('auth_message');
+    }
+  }, [location]);
   
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -48,20 +77,23 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError('');
+    setAuthMessage('');
     
     if (!validate()) return;
     
     setIsLoading(true);
     
     try {
-      // Тут будет API запрос на авторизацию
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const success = await login({
+        email: formData.email,
+        password: formData.password
+      });
       
-      // Имитация успешного входа
-      console.log('Вход выполнен:', formData);
-      
-      // Редирект на главную после входа
-      // history.push('/');
+      if (success) {
+        navigate('/requests');
+      } else {
+        setGeneralError(authError || 'Произошла ошибка при входе');
+      }
     } catch (err) {
       setGeneralError('Неверный email или пароль');
       console.error('Ошибка входа:', err);
@@ -84,6 +116,22 @@ const LoginPage = () => {
             </Link>
           </p>
         </div>
+        
+        {/* Сообщение о необходимости авторизации */}
+        {authMessage && (
+          <div className="rounded-md bg-blue-50 p-4 animate-fadeIn">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-blue-800">{authMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {generalError && (

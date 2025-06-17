@@ -3,6 +3,7 @@ import { body, validationResult, param } from 'express-validator';
 import Message from '../models/Message.js';
 import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
+import { createAndSendNotification } from './notifications.js';
 
 const router = express.Router();
 
@@ -81,19 +82,12 @@ router.get('/:requestId', protect, [
 
 /**
  * @swagger
- * /api/messages/{requestId}:
+ * /api/messages:
  *   post:
  *     summary: Отправить новое сообщение в чат заявки
  *     tags: [Messages]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: requestId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID заявки
  *     requestBody:
  *       required: true
  *       content:
@@ -101,98 +95,96 @@ router.get('/:requestId', protect, [
  *           schema:
  *             type: object
  *             required:
+ *               - requestId
  *               - content
  *             properties:
- *               content:
- *                 type: string
- *                 description: Текст сообщения
- *               attachments:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: URL вложений (если есть)
+ *               requestId: { type: 'string', description: 'ID заявки' }
+ *               content: { type: 'string', description: 'Текст сообщения' }
+ *               attachments: { type: 'array', items: { type: 'string' }, description: 'Массив URL вложений (опционально)' }
  *     responses:
  *       201:
  *         description: Сообщение успешно отправлено
  *         content:
  *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Message'
+ *             schema: { $ref: '#/components/schemas/Message' }
  *       400:
- *         description: Пустое сообщение или некорректные данные
+ *         description: Ошибка валидации или неверные данные
  *       401:
- *         description: Требуется авторизация
+ *         description: Не авторизован
  *       403:
- *         description: Нет прав для отправки сообщений в этот чат
+ *         description: Доступ к чату заявки запрещен (пользователь не автор и не исполнитель)
  *       404:
  *         description: Заявка не найдена
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// отправить новое сообщение
-router.post('/:requestId', protect, [
-  param('requestId').isMongoId().withMessage('Неверный формат ID'),
-  body('content')
-    .optional()
-    .trim()
-    .isLength({ min: 1, max: 2000 }).withMessage('Сообщение должно быть от 1 до 2000 символов'),
-  body('attachments')
-    .optional()
-    .isArray().withMessage('Вложения должны быть массивом'),
-  body('attachments.*')
-    .optional()
-    .isURL().withMessage('Вложение должно быть URL')
+router.post('/', protect, [
+    body('requestId').isMongoId().withMessage('Неверный ID заявки'),
+    body('content').trim().notEmpty().escape().withMessage('Текст сообщения не может быть пустым'),
+    body('attachments').optional().isArray(),
+    body('attachments.*').optional().isURL().withMessage('Некорректный URL вложения')
 ], async (req, res) => {
-  try {
-    // Проверяем результаты валидации
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array() });
     }
-    
-    const { requestId } = req.params;
-    // Извлекаем только нужные поля
-    const { content, attachments } = req.body;
-    
-    if (!content && (!attachments || attachments.length === 0)) {
-      return res.status(400).json({ msg: 'Сообщение не может быть пустым' });
+
+    const { requestId, content, attachments } = req.body;
+    const senderId = req.user.id;
+
+    try {
+        const request = await Request.findById(requestId).populate('author').populate('helper');
+        if (!request) {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+
+        // Проверка, что отправитель является автором или назначенным исполнителем
+        const isAuthor = request.author && request.author._id.toString() === senderId;
+        const isHelper = request.helper && request.helper._id.toString() === senderId;
+
+        if (!isAuthor && !isHelper) {
+            return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
+        }
+
+        const newMessage = new Message({
+            requestId,
+            sender: senderId,
+            content,
+            attachments: attachments || [],
+            readBy: [senderId] // Отправитель автоматически прочитал сообщение
+        });
+
+        await newMessage.save();
+        const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id');
+
+        // Определяем получателя уведомления
+        let recipientId;
+        if (isAuthor && request.helper) {
+            recipientId = request.helper._id;
+        } else if (isHelper && request.author) {
+            recipientId = request.author._id;
+        }
+
+        if (recipientId) {
+            await createAndSendNotification({
+                user: recipientId,
+                type: 'new_message_in_request',
+                title: `Новое сообщение в заявке "${request.title}"`, 
+                message: `Пользователь ${req.user.username} написал: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+                link: `/requests/${requestId}`,
+                relatedEntity: { requestId: request._id, userId: senderId }
+            });
+        }
+
+        res.status(201).json(populatedMessage);
+
+    } catch (err) {
+        console.error('Ошибка при отправке сообщения:', err.message);
+        if (err.kind === 'ObjectId') {
+            return res.status(400).json({ msg: 'Неверный ID заявки для сообщения' });
+        }
+        res.status(500).send('Ошибка сервера');
     }
-    
-    // проверим, что запрос существует
-    const request = await Request.findById(requestId);
-    
-    if (!request) {
-      return res.status(404).json({ msg: 'Запрос не найден' });
-    }
-    
-    // проверяем, что юзер участвует в запросе
-    if (
-      request.author.toString() !== req.user._id.toString() && 
-      (request.helper ? request.helper.toString() !== req.user._id.toString() : true)
-    ) {
-      return res.status(403).json({ msg: 'Вы не можете писать в этот чат' });
-    }
-    
-    // создаем сообщение
-    const message = new Message({
-      requestId,
-      sender: req.user._id,
-      content,
-      attachments,
-      readBy: [req.user._id] // отправитель уже прочитал
-    });
-    
-    await message.save();
-    
-    // получаем с данными отправителя
-    const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'username');
-    
-    res.status(201).json(populatedMessage);
-  } catch (err) {
-    console.error('Ошибка при отправке сообщения:', err);
-    res.status(500).json({ msg: 'Не получилось отправить сообщение' });
-  }
 });
 
 /**

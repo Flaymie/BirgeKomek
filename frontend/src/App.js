@@ -8,6 +8,12 @@ import ForgotPasswordPage from './components/pages/ForgotPasswordPage';
 import AboutPage from './components/pages/AboutPage';
 import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
 import TermsPage from './components/pages/TermsPage';
+import NotFoundPage from './components/pages/NotFoundPage';
+import RequestsPage from './components/pages/RequestsPage';
+import RequestDetailPage from './components/pages/RequestDetailPage';
+import ProfilePage from './components/pages/ProfilePage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import './App.css';
@@ -38,22 +44,31 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <AnimationRefresh />
-      <Layout>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/privacy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          {/* Остальные маршруты добавим позже */}
-          <Route path="*" element={<div className="container-custom py-10 text-center"><h1 className="text-2xl">Страница не найдена 😢</h1></div>} />
-        </Routes>
-      </Layout>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AnimationRefresh />
+        <Layout>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/requests/:id" element={<RequestDetailPage />} />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
+            {/* Остальные маршруты добавим позже */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Layout>
+      </Router>
+    </AuthProvider>
   );
 }
 

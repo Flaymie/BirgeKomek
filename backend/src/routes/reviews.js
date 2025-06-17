@@ -117,6 +117,7 @@ router.post('/', protect, [
     .optional()
     .trim()
     .isLength({ max: 500 }).withMessage('Комментарий не должен превышать 500 символов')
+    .escape()
 ], async (req, res) => {
   try {
     // Проверяем результаты валидации

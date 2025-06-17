@@ -30,6 +30,14 @@ const userSchema = new mongoose.Schema({
     helper: {
       type: Boolean,
       default: false
+    },
+    moderator: {
+      type: Boolean,
+      default: false
+    },
+    admin: {
+      type: Boolean,
+      default: false
     }
   },
   grade: {

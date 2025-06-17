@@ -1,27 +1,38 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
+  const { register, currentUser } = useAuth();
+  
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
+    agreeTerms: false
   });
   
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Если пользователь уже авторизован, перенаправляем на страницу запросов
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/requests');
+    }
+  }, [currentUser, navigate]);
   
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
     
-    // Удаляем ошибку поля при изменении
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = {...prev};
@@ -34,12 +45,10 @@ const RegisterPage = () => {
   const validate = () => {
     const newErrors = {};
     
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Введите имя';
-    }
-    
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Введите фамилию';
+    if (!formData.username.trim()) {
+      newErrors.username = 'Введите имя пользователя';
+    } else if (formData.username.length < 3) {
+      newErrors.username = 'Имя пользователя должно быть не менее 3 символов';
     }
     
     if (!formData.email.trim()) {
@@ -51,11 +60,15 @@ const RegisterPage = () => {
     if (!formData.password) {
       newErrors.password = 'Введите пароль';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Пароль должен содержать минимум 6 символов';
+      newErrors.password = 'Пароль должен быть не менее 6 символов';
     }
     
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Пароли не совпадают';
+    }
+    
+    if (!formData.agreeTerms) {
+      newErrors.agreeTerms = 'Вы должны согласиться с условиями';
     }
     
     setErrors(newErrors);
@@ -65,23 +78,40 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError('');
+    setSuccessMessage('');
     
     if (!validate()) return;
     
     setIsLoading(true);
     
     try {
-      // Тут будет API запрос на регистрацию
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await register({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password
+      });
       
-      // Имитация успешной регистрации
-      console.log('Регистрация успешна:', formData);
-      
-      // Перенаправление на страницу входа после регистрации
-      // history.push('/login');
+      if (result.success) {
+        setSuccessMessage('Регистрация успешно завершена! Теперь вы можете войти в систему.');
+        // Очищаем форму
+        setFormData({
+          username: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          agreeTerms: false
+        });
+        
+        // Перенаправляем на страницу входа через 2 секунды
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setGeneralError(result.error || 'Произошла ошибка при регистрации');
+      }
     } catch (err) {
-      setGeneralError('Ошибка при регистрации. Попробуйте еще раз.');
       console.error('Ошибка регистрации:', err);
+      setGeneralError(err.message || 'Произошла ошибка при регистрации');
     } finally {
       setIsLoading(false);
     }
@@ -97,10 +127,25 @@ const RegisterPage = () => {
           <p className="mt-3 text-center text-sm text-gray-600 animate-slideUp">
             Уже есть аккаунт?{' '}
             <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors duration-300 hover:underline">
-              Войти
+              Войдите
             </Link>
           </p>
         </div>
+        
+        {successMessage && (
+          <div className="rounded-md bg-green-50 p-4 animate-fadeIn">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">{successMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {generalError && (
@@ -119,38 +164,21 @@ const RegisterPage = () => {
           )}
           
           <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">Имя</label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className={`form-input ${errors.firstName ? 'form-input-error' : ''}`}
-                  placeholder="Имя"
-                />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.firstName}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Фамилия</label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className={`form-input ${errors.lastName ? 'form-input-error' : ''}`}
-                  placeholder="Фамилия"
-                />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.lastName}</p>
-                )}
-              </div>
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                value={formData.username}
+                onChange={handleChange}
+                className={`form-input ${errors.username ? 'form-input-error' : ''}`}
+                placeholder="Имя пользователя"
+              />
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.username}</p>
+              )}
             </div>
             
             <div>
@@ -188,7 +216,7 @@ const RegisterPage = () => {
             </div>
             
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Подтвердите пароль</label>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Подтверждение пароля</label>
               <input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -203,6 +231,23 @@ const RegisterPage = () => {
                 <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.confirmPassword}</p>
               )}
             </div>
+            
+            <div className="flex items-center">
+              <input
+                id="agreeTerms"
+                name="agreeTerms"
+                type="checkbox"
+                checked={formData.agreeTerms}
+                onChange={handleChange}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-all duration-200"
+              />
+              <label htmlFor="agreeTerms" className="ml-2 block text-sm text-gray-900">
+                Я согласен с <Link to="/terms" className="text-indigo-600 hover:text-indigo-500 hover:underline">условиями использования</Link>
+              </label>
+            </div>
+            {errors.agreeTerms && (
+              <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.agreeTerms}</p>
+            )}
           </div>
           
           <div className="pt-4">

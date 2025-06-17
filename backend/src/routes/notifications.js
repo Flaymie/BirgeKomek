@@ -5,11 +5,45 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Объект для хранения активных SSE-клиентов (userId: response_object)
+const sseClients = {};
+
+// Функция для отправки уведомления конкретному пользователю через SSE
+function sendNotificationToClient(userId, notificationData) {
+  const client = sseClients[userId];
+  if (client) {
+    client.write(`event: new_notification\n`);
+    client.write(`data: ${JSON.stringify(notificationData)}\n\n`);
+  }
+}
+
+// Сервисная функция для создания и отправки уведомления
+// Эту функцию можно будет вызывать из других модулей (например, requests.js, messages.js)
+export async function createAndSendNotification({ user, type, title, message, link, relatedEntity }) {
+  try {
+    const notification = new Notification({
+      user,
+      type,
+      title,
+      message,
+      link,
+      relatedEntity
+    });
+    await notification.save();
+    sendNotificationToClient(user.toString(), notification); // Отправляем через SSE
+    return notification;
+  } catch (error) {
+    console.error('Ошибка при создании уведомления:', error);
+    // Тут можно добавить более сложную обработку ошибок, если нужно
+    return null;
+  }
+}
+
 /**
  * @swagger
  * tags:
  *   name: Notifications
- *   description: Управление уведомлениями пользователей
+ *   description: Управление уведомлениями пользователей и подписка на real-time обновления
  */
 
 /**
@@ -100,6 +134,60 @@ router.get('/', protect, [
         console.error('Ошибка при получении уведомлений:', err.message);
         res.status(500).send('Ошибка сервера');
     }
+});
+
+/**
+ * @swagger
+ * /api/notifications/subscribe:
+ *   get:
+ *     summary: Подписаться на получение уведомлений в реальном времени (SSE)
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Успешная подписка. Сервер будет отправлять события.
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *               example: "event: new_notification\ndata: {\"_id\":\"...\",\"message\":\"Новое сообщение!\"}\n\n"
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+router.get('/subscribe', protect, (req, res) => {
+  const userId = req.user.id;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders(); // Сразу отправляем заголовки, чтобы установить соединение
+
+  sseClients[userId] = res;
+
+  // Отправляем приветственное сообщение или первоначальные данные, если нужно
+  res.write('data: Подключение к потоку уведомлений установлено.\n\n');
+
+  // Обработка закрытия соединения клиентом
+  req.on('close', () => {
+    delete sseClients[userId];
+    res.end();
+    console.log(`Клиент ${userId} отписался от SSE уведомлений.`);
+  });
+
+  // Можно настроить периодическую отправку heartbeat для поддержания соединения
+  // const heartbeatInterval = setInterval(() => {
+  //   if (sseClients[userId]) {
+  //     sseClients[userId].write(':heartbeat\n\n'); // Пустой комментарий для heartbeat
+  //   }
+  // }, 30000); // каждые 30 секунд
+
+  // req.on('close', () => {
+  //   clearInterval(heartbeatInterval);
+  //   // ... остальная логика закрытия
+  // });
 });
 
 /**
