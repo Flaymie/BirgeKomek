@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { register, currentUser } = useAuth();
+  const { register, currentUser, login } = useAuth();
   
   const [formData, setFormData] = useState({
     username: '',
@@ -108,22 +108,22 @@ const RegisterPage = () => {
       const result = await register(userData);
       
       if (result.success) {
-        setSuccessMessage('Регистрация успешно завершена! Теперь вы можете войти в систему.');
-        // Очищаем форму
-        setFormData({
-          username: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-          role: 'student',
-          grade: '',
-          agreeTerms: false
+        // Сразу пытаемся войти
+        const loginResult = await login({
+          email: formData.email,
+          password: formData.password
         });
         
-        // Перенаправляем на страницу входа через 2 секунды
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        if (loginResult) {
+          // Если вход успешен, перенаправляем на страницу запросов
+          navigate('/requests');
+        } else {
+          // Если вход не удался, показываем сообщение
+          setSuccessMessage('Регистрация успешна, но не удалось войти автоматически. Пожалуйста, войдите вручную.');
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
+        }
       } else {
         setGeneralError(result.error || 'Произошла ошибка при регистрации');
       }
