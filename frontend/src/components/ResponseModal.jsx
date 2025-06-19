@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 const ResponseModal = ({ isOpen, onClose, requestId }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Если модальное окно не открыто, не рендерим его
   if (!isOpen) return null;
@@ -18,6 +19,7 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
     }
     
     setLoading(true);
+    setError(null);
     
     try {
       await responsesService.createResponse({
@@ -30,7 +32,29 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
       onClose();
     } catch (err) {
       console.error('Ошибка при отправке отклика:', err);
-      toast.error(err.response?.data?.msg || 'Произошла ошибка при отправке отклика');
+      
+      // Получаем более детальную информацию об ошибке
+      let errorMessage = 'Произошла ошибка при отправке отклика';
+      
+      if (err.response) {
+        // Если сервер вернул ответ с ошибкой
+        if (err.response.data && err.response.data.msg) {
+          errorMessage = err.response.data.msg;
+        } else {
+          errorMessage = `Ошибка ${err.response.status}: ${err.response.statusText}`;
+        }
+        
+        // Если ошибка связана с авторизацией
+        if (err.response.status === 401) {
+          errorMessage = 'Необходимо авторизоваться для отправки отклика';
+        }
+      } else if (err.request) {
+        // Если запрос был сделан, но ответ не получен
+        errorMessage = 'Сервер не отвечает, проверьте соединение';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -50,6 +74,12 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
             </svg>
           </button>
         </div>
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 mb-4">
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">

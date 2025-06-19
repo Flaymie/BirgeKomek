@@ -93,7 +93,12 @@ const responsesService = {
   
   // Отправить отклик на запрос
   createResponse: async (responseData) => {
-    return api.post('/responses', responseData);
+    // Проверяем формат данных и обеспечиваем правильную структуру
+    const payload = {
+      request: responseData.requestId, // Изменено с requestId на request
+      content: responseData.message,   // Изменено с message на content
+    };
+    return api.post('/responses', payload);
   },
   
   // Принять отклик
