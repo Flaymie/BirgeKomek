@@ -4,8 +4,8 @@ import { requestsService, responsesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
-import ResponseSection from '../responses/ResponseSection';
-import ResponseModal from '../responses/ResponseSection';
+import ResponseModal from '../ResponseModal';
+import ResponseCard from '../ResponseCard';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -16,6 +16,8 @@ const RequestDetailPage = () => {
   const [error, setError] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
+  const [responses, setResponses] = useState([]);
+  const [responsesLoading, setResponsesLoading] = useState(true);
   const { currentUser } = useAuth();
 
   // Определяем, откуда пришел пользователь
@@ -33,6 +35,13 @@ const RequestDetailPage = () => {
     fetchRequestDetails();
   }, [id, navigate]);
 
+  // Загрузка откликов для автора запроса
+  useEffect(() => {
+    if (request && isAuthor()) {
+      fetchResponses();
+    }
+  }, [request]);
+
   const fetchRequestDetails = async () => {
     setLoading(true);
     try {
@@ -44,13 +53,25 @@ const RequestDetailPage = () => {
       
       // Если ошибка 401 (Unauthorized), перенаправляем на логин
       if (err.response && err.response.status === 401) {
-        localStorage.removeItem('token'); // Удаляем невалидный токен
+        localStorage.removeItem('token');
         navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
         return;
       }
       
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
       setLoading(false);
+    }
+  };
+
+  const fetchResponses = async () => {
+    setResponsesLoading(true);
+    try {
+      const response = await responsesService.getResponsesForRequest(id);
+      setResponses(response.data);
+      setResponsesLoading(false);
+    } catch (err) {
+      console.error('Ошибка при получении откликов:', err);
+      setResponsesLoading(false);
     }
   };
 
@@ -70,6 +91,15 @@ const RequestDetailPage = () => {
       console.error('Ошибка при удалении запроса:', err);
       toast.error(err.response?.data?.msg || 'Произошла ошибка при удалении запроса');
     }
+  };
+
+  // Обработка действий с откликами (принятие/отклонение)
+  const handleResponseAction = (action, responseId) => {
+    if (action === 'accepted') {
+      navigate(`/requests/${id}/chat`);
+    }
+    // Обновляем список откликов после действия
+    fetchResponses();
   };
 
   const formatDate = (dateString) => {
@@ -100,19 +130,9 @@ const RequestDetailPage = () => {
   
   // Проверка, является ли пользователь хелпером
   const isHelper = () => {
-    console.log('Current User:', currentUser);
-    console.log('Current User Roles:', currentUser?.roles);
-    
-    // Более строгая проверка
-    const isHelperRole = currentUser?.roles?.helper === true;
-    const isModeratorRole = currentUser?.roles?.moderator === true;
-    const isAdminRole = currentUser?.roles?.admin === true;
-    
-    console.log('Is Helper Role:', isHelperRole);
-    console.log('Is Moderator Role:', isModeratorRole);
-    console.log('Is Admin Role:', isAdminRole);
-    
-    return isHelperRole || isModeratorRole || isAdminRole;
+    return currentUser?.roles?.helper === true || 
+           currentUser?.roles?.moderator === true || 
+           currentUser?.roles?.admin === true;
   };
   
   // Функция для безопасного отображения HTML
@@ -130,26 +150,6 @@ const RequestDetailPage = () => {
       .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
-  };
-
-  const handleSubmitResponse = async (message) => {
-    try {
-      await responsesService.createResponse(id, message);
-      toast.success('Отклик отправлен');
-    } catch (error) {
-      toast.error('Не удалось отправить отклик');
-      throw error;
-    }
-  };
-
-  const handleOpenResponseModal = () => {
-    console.error('ОТКРЫВАЕМ МОДАЛКУ ЖЕСТКО!');
-    console.error('Текущий пользователь:', JSON.stringify(currentUser, null, 2));
-    console.error('Статус запроса:', request?.status);
-    console.error('Является ли автором:', isAuthor());
-    
-    // Принудительное открытие
-    setIsResponseModalOpen(true);
   };
 
   if (loading) {
@@ -211,7 +211,7 @@ const RequestDetailPage = () => {
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 mb-6">
         {/* Баннер для создателя запроса */}
         {isAuthor() && (
           <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 flex items-center justify-between">
@@ -285,12 +285,22 @@ const RequestDetailPage = () => {
           
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Кнопка для хелперов - предложить помощь */}
-            {(request.status === 'open' && currentUser?.roles?.helper) && !isAuthor() && (
+            {request.status === 'open' && isHelper() && !isAuthor() && (
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={handleOpenResponseModal}
+                onClick={() => setIsResponseModalOpen(true)}
               >
                 Предложить помощь
+              </button>
+            )}
+            
+            {/* Кнопка для всех участников - перейти в чат */}
+            {request.status === 'in_progress' && (
+              <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                onClick={() => navigate(`/requests/${request._id}/chat`)}
+              >
+                Перейти в чат
               </button>
             )}
             
@@ -316,6 +326,41 @@ const RequestDetailPage = () => {
         </div>
       </div>
       
+      {/* Секция с откликами для автора запроса */}
+      {isAuthor() && request.status === 'open' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">Отклики на запрос</h2>
+          
+          {responsesLoading ? (
+            <div className="flex justify-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : responses.length > 0 ? (
+            <div>
+              {responses.map(response => (
+                <ResponseCard 
+                  key={response._id} 
+                  response={response} 
+                  isAuthor={isAuthor()} 
+                  onResponseAction={handleResponseAction} 
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              На ваш запрос пока нет откликов
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Модальное окно для отправки отклика */}
+      <ResponseModal 
+        isOpen={isResponseModalOpen} 
+        onClose={() => setIsResponseModalOpen(false)} 
+        requestId={id}
+      />
+      
       {/* Модальное окно подтверждения удаления */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -339,14 +384,6 @@ const RequestDetailPage = () => {
           </div>
         </div>
       )}
-
-      {/* Модальное окно для отклика */}
-      <ResponseModal 
-        isOpen={isResponseModalOpen}
-        onClose={() => setIsResponseModalOpen(false)}
-        requestId={id}
-        onSubmit={handleSubmitResponse}
-      />
     </div>
   );
 };

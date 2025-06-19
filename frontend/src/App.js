@@ -13,6 +13,8 @@ import RequestsPage from './components/pages/RequestsPage';
 import RequestDetailPage from './components/pages/RequestDetailPage';
 import ProfilePage from './components/pages/ProfilePage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import MyRequestsPage from './components/pages/MyRequestsPage';
+import EditRequestPage from './components/pages/EditRequestPage';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import './App.css';
@@ -55,7 +57,9 @@ function App() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/requests" element={<RequestsPage />} />
-          <Route path="/requests/:id" element={<RequestDetailPage />} />
+          <Route path="/my-requests" element={<MyRequestsPage />} />
+          <Route path="/request/:id" element={<RequestDetailPage />} />
+          <Route path="/request/:id/edit" element={<EditRequestPage />} />
           <Route path="/profile" element={
             <ProtectedRoute>
               <ProfilePage />

@@ -84,6 +84,29 @@ const requestsService = {
   }
 };
 
+// Сервис для работы с откликами на запросы
+const responsesService = {
+  // Получить все отклики для запроса
+  getResponsesForRequest: async (requestId) => {
+    return api.get(`/responses/request/${requestId}`);
+  },
+  
+  // Отправить отклик на запрос
+  createResponse: async (responseData) => {
+    return api.post('/responses', responseData);
+  },
+  
+  // Принять отклик
+  acceptResponse: async (responseId) => {
+    return api.post(`/responses/${responseId}/accept`);
+  },
+  
+  // Отклонить отклик
+  rejectResponse: async (responseId) => {
+    return api.post(`/responses/${responseId}/reject`);
+  }
+};
+
 // Сервис для работы с пользователями
 const usersService = {
   // Получить текущего пользователя
@@ -104,17 +127,6 @@ const usersService = {
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
     return api.put('/users/password', { currentPassword, newPassword });
-  },
-  
-  // Обновить роль пользователя
-  updateUserRole: async (role, value) => {
-    return api.put('/users/me/role', { role, value });
-  },
-  
-  // Получить текущего пользователя с полными данными
-  getCurrentUserWithFullData: async () => {
-    const response = await api.get('/users/me/full');
-    return response.data;
   }
 };
 
@@ -156,23 +168,6 @@ const messagesService = {
   // Отправить сообщение
   sendMessage: async (requestId, content) => {
     return api.post('/messages', { requestId, content });
-  }
-};
-
-const responsesService = {
-  // Создать отклик на запрос
-  createResponse: async (requestId, message) => {
-    return api.post('/responses', { requestId, message });
-  },
-  
-  // Получить отклики для конкретного запроса
-  getResponsesByRequest: async (requestId) => {
-    return api.get(`/responses/${requestId}`);
-  },
-  
-  // Обновить статус отклика
-  updateResponseStatus: async (responseId, status) => {
-    return api.put(`/responses/${responseId}/status`, { status });
   }
 };
 
