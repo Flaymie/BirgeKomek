@@ -88,27 +88,27 @@ const requestsService = {
 const responsesService = {
   // Получить все отклики для запроса
   getResponsesForRequest: async (requestId) => {
-    return api.get(`/responses/request/${requestId}`);
+    return api.get(`/responses/${requestId}`);
   },
   
   // Отправить отклик на запрос
   createResponse: async (responseData) => {
     // Проверяем формат данных и обеспечиваем правильную структуру
     const payload = {
-      request: responseData.requestId, // Изменено с requestId на request
-      content: responseData.message,   // Изменено с message на content
+      requestId: responseData.requestId,
+      message: responseData.message,
     };
     return api.post('/responses', payload);
   },
   
   // Принять отклик
   acceptResponse: async (responseId) => {
-    return api.post(`/responses/${responseId}/accept`);
+    return api.put(`/responses/${responseId}/status`, { status: 'accepted' });
   },
   
   // Отклонить отклик
   rejectResponse: async (responseId) => {
-    return api.post(`/responses/${responseId}/reject`);
+    return api.put(`/responses/${responseId}/status`, { status: 'rejected' });
   }
 };
 
