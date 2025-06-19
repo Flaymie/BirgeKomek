@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { requestsService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import DOMPurify from 'dompurify';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -8,6 +10,7 @@ const RequestDetailPage = () => {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     // Проверяем наличие токена при загрузке компонента
@@ -66,6 +69,30 @@ const RequestDetailPage = () => {
       default:
         return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">{status}</span>;
     }
+  };
+  
+  // Проверка, является ли пользователь хелпером
+  const isHelper = () => {
+    return currentUser?.roles?.helper === true || 
+           currentUser?.roles?.moderator === true || 
+           currentUser?.roles?.admin === true;
+  };
+  
+  // Функция для безопасного отображения HTML
+  const createMarkup = (html) => {
+    return { __html: DOMPurify.sanitize(html) };
+  };
+  
+  // Функция для преобразования текста с специальными символами в HTML
+  const formatDescription = (text) => {
+    if (!text) return '';
+    // Заменяем HTML-сущности на соответствующие символы
+    return text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
   };
 
   if (loading) {
@@ -153,7 +180,7 @@ const RequestDetailPage = () => {
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-2">Описание</h2>
             <div className="bg-gray-50 p-4 rounded-md">
-              <p className="text-gray-700 whitespace-pre-wrap">{request.description}</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{formatDescription(request.description)}</p>
             </div>
           </div>
           
@@ -180,7 +207,7 @@ const RequestDetailPage = () => {
           )}
           
           <div className="flex flex-col sm:flex-row gap-3">
-            {request.status === 'open' && (
+            {request.status === 'open' && isHelper() && (
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 onClick={() => navigate(`/requests/${request._id}/chat`)}

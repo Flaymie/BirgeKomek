@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import { SUBJECTS, URGENCY_LEVELS, URGENCY_LABELS } from '../../services/constants';
 
 const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const { currentUser } = useAuth();
@@ -12,7 +13,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     subject: '',
     grade: currentUser?.grade || '',
     deadline: '',
-    urgency: 'normal'
+    urgency: URGENCY_LEVELS.NORMAL
   });
   
   const [errors, setErrors] = useState({});
@@ -26,7 +27,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         subject: '',
         grade: currentUser?.grade || '',
         deadline: '',
-        urgency: 'normal'
+        urgency: URGENCY_LEVELS.NORMAL
       });
       setErrors({});
     }
@@ -88,7 +89,17 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     setIsSubmitting(true);
     
     try {
-      const response = await requestsService.createRequest(formData);
+      // Создаем копию данных формы для отправки
+      const requestData = {
+        ...formData,
+        // Убедимся, что специальные символы в описании не будут экранированы
+        description: formData.description
+          .replace(/</g, '<')
+          .replace(/>/g, '>')
+          .replace(/&/g, '&')
+      };
+      
+      const response = await requestsService.createRequest(requestData);
       
       toast.success('Запрос на помощь успешно создан!');
       onSuccess(response.data);
@@ -101,22 +112,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
       setIsSubmitting(false);
     }
   };
-  
-  // Предметы для выбора
-  const subjects = [
-    'Математика',
-    'Физика',
-    'Химия',
-    'Биология',
-    'История',
-    'География',
-    'Литература',
-    'Русский язык',
-    'Казахский язык',
-    'Английский язык',
-    'Информатика',
-    'Другое'
-  ];
   
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -201,7 +196,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
                     className={`w-full px-2 py-1 text-sm border ${errors.subject ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
                   >
                     <option value="">Выберите предмет</option>
-                    {subjects.map(subject => (
+                    {SUBJECTS.map(subject => (
                       <option key={subject} value={subject}>{subject}</option>
                     ))}
                   </select>
@@ -260,9 +255,9 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
                     onChange={handleChange}
                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="low">Низкая</option>
-                    <option value="normal">Средняя</option>
-                    <option value="high">Высокая</option>
+                    {Object.entries(URGENCY_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
