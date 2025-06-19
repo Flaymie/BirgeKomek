@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { requestsService } from '../../services/api';
+import { requestsService, baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { toast } from 'react-toastify';
@@ -49,6 +49,11 @@ const RequestsPage = () => {
       };
 
       console.log('Параметры запроса:', params);
+      console.log('URL запроса:', `${baseURL}/requests?` + 
+        Object.entries(params)
+          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+          .join('&')
+      );
 
       // Делаем запрос к API через сервис
       const response = await requestsService.getRequests(params);
@@ -57,6 +62,7 @@ const RequestsPage = () => {
       setLoading(false);
     } catch (err) {
       console.error('Ошибка при получении запросов:', err);
+      console.error('Детали ошибки:', err.response?.data);
       
       // Если ошибка 401 (Unauthorized), перенаправляем на логин
       if (err.response && err.response.status === 401) {

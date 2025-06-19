@@ -10,6 +10,9 @@ const api = axios.create({
   },
 });
 
+// Экспортируем базовый URL для использования в компонентах
+export const baseURL = API_URL;
+
 // Перехватчик для добавления токена к запросам
 api.interceptors.request.use(
   (config) => {
