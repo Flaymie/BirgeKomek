@@ -4,6 +4,9 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS, URGENCY_LEVELS, URGENCY_LABELS } from '../../services/constants';
 
+// Максимальное количество символов в описании
+const MAX_DESCRIPTION_LENGTH = 2000;
+
 const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,7 +15,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     description: '',
     subject: '',
     grade: currentUser?.grade || '',
-    deadline: '',
     urgency: URGENCY_LEVELS.NORMAL
   });
   
@@ -26,7 +28,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         description: '',
         subject: '',
         grade: currentUser?.grade || '',
-        deadline: '',
         urgency: URGENCY_LEVELS.NORMAL
       });
       setErrors({});
@@ -38,6 +39,12 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Ограничиваем длину описания
+    if (name === 'description' && value.length > MAX_DESCRIPTION_LENGTH) {
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -65,6 +72,8 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
       newErrors.description = 'Введите описание запроса';
     } else if (formData.description.length < 20) {
       newErrors.description = 'Описание должно содержать минимум 20 символов';
+    } else if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
+      newErrors.description = `Описание не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`;
     }
     
     if (!formData.subject) {
@@ -112,6 +121,11 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
       setIsSubmitting(false);
     }
   };
+  
+  // Вычисляем количество оставшихся символов в описании
+  const remainingChars = MAX_DESCRIPTION_LENGTH - formData.description.length;
+  // Определяем стиль счетчика символов (меняем на предупреждающий цвет, когда остается мало)
+  const charCounterClass = remainingChars <= 100 ? 'text-orange-500' : 'text-gray-500';
   
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -165,15 +179,21 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
               
               {/* Описание */}
               <div className="mb-2">
-                <label htmlFor="description" className="block text-xs font-medium text-gray-700 mb-1">
-                  Описание запроса*
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="description" className="block text-xs font-medium text-gray-700">
+                    Описание запроса*
+                  </label>
+                  <span className={`text-xs ${charCounterClass}`}>
+                    {remainingChars}/{MAX_DESCRIPTION_LENGTH}
+                  </span>
+                </div>
                 <textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  rows="2"
+                  rows="3"
+                  maxLength={MAX_DESCRIPTION_LENGTH}
                   className={`w-full px-2 py-1 text-sm border ${errors.description ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
                   placeholder="Опишите, с чем вам нужна помощь..."
                 ></textarea>
@@ -227,39 +247,22 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
               </div>
               
-              {/* Срок и срочность */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                <div>
-                  <label htmlFor="deadline" className="block text-xs font-medium text-gray-700 mb-1">
-                    Срок выполнения
-                  </label>
-                  <input
-                    type="date"
-                    id="deadline"
-                    name="deadline"
-                    value={formData.deadline}
-                    onChange={handleChange}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="urgency" className="block text-xs font-medium text-gray-700 mb-1">
-                    Срочность
-                  </label>
-                  <select
-                    id="urgency"
-                    name="urgency"
-                    value={formData.urgency}
-                    onChange={handleChange}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    {Object.entries(URGENCY_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
+              {/* Срочность */}
+              <div className="mb-2">
+                <label htmlFor="urgency" className="block text-xs font-medium text-gray-700 mb-1">
+                  Срочность
+                </label>
+                <select
+                  id="urgency"
+                  name="urgency"
+                  value={formData.urgency}
+                  onChange={handleChange}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  {Object.entries(URGENCY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
               </div>
             </form>
           </div>
