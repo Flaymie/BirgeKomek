@@ -86,7 +86,7 @@ const Header = () => {
                     <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
                       Мой профиль
                     </Link>
-                    <Link to="/requests" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
+                    <Link to="/my-requests" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
                       Мои запросы
                     </Link>
                     <button 
@@ -162,7 +162,7 @@ const Header = () => {
                 <Link to="/profile" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
                   Мой профиль
                 </Link>
-                <Link to="/requests" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
+                <Link to="/my-requests" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
                   Мои запросы
                 </Link>
                 <button 
