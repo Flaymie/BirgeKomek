@@ -16,7 +16,7 @@ const RequestsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filters, setFilters] = useState({
-    status: '',
+    status: REQUEST_STATUSES.OPEN, // По умолчанию только открытые запросы
     subject: '',
     search: ''
   });
@@ -39,21 +39,11 @@ const RequestsPage = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      // Формируем параметры запроса
+      // Формируем параметры запроса с обязательным параметром статуса
       const params = {
-        page: currentPage
+        page: currentPage,
+        status: filters.status // Всегда отправляем статус (по умолчанию "open")
       };
-      
-      // Добавляем статус только если он не пустой
-      if (filters.status && filters.status !== '') {
-        // Проверяем, является ли статус валидным значением из REQUEST_STATUSES
-        const isValidStatus = Object.values(REQUEST_STATUSES).includes(filters.status);
-        if (isValidStatus) {
-          params.status = filters.status;
-        } else {
-          console.warn('Невалидный статус:', filters.status);
-        }
-      }
       
       // Добавляем остальные параметры
       if (filters.subject) params.subject = filters.subject;
@@ -133,22 +123,15 @@ const RequestsPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Заголовок и кнопка создания */}
+    <div className="p-4 md:p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Запросы на помощь</h1>
-        
-        {currentUser && (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Создать запрос
-          </button>
-        )}
+        <h1 className="text-2xl font-bold text-gray-800">Открытые запросы на помощь</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Создать запрос
+        </button>
       </div>
       
       {/* Фильтры */}
@@ -165,22 +148,6 @@ const RequestsPage = () => {
               placeholder="Поиск по заголовку или описанию"
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
-          </div>
-          
-          <div className="w-full md:w-1/4">
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
-            <select
-              id="status"
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Все статусы</option>
-              {Object.entries(REQUEST_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
           </div>
           
           <div className="w-full md:w-1/4">
