@@ -169,4 +169,59 @@ const ResponseSection = ({ requestId, requestAuthor, requestStatus }) => {
   );
 };
 
+const ResponseModal = ({ isOpen, onClose, requestId, onSubmit }) => {
+  const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!message.trim()) {
+      toast.error('Напиши, как поможешь, бля');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await onSubmit(message);
+      setMessage('');
+      onClose();
+    } catch (error) {
+      toast.error('Не вышло отправить отклик, чё-то пошло не так');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <h2 className="text-xl font-bold mb-4">Предложить помощь</h2>
+        <textarea 
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Расскажи, как именно поможешь..."
+          className="w-full h-32 p-2 border rounded-md mb-4"
+          maxLength={500}
+        />
+        <div className="flex justify-end space-x-2">
+          <button 
+            onClick={onClose} 
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md"
+          >
+            Отмена
+          </button>
+          <button 
+            onClick={handleSubmit}
+            disabled={isLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            {isLoading ? 'Отправляем...' : 'Отправить'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default ResponseSection;

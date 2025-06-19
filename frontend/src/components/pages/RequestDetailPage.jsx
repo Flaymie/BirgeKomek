@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
 import ResponseSection from '../responses/ResponseSection';
+import ResponseModal from '../responses/ResponseSection';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -14,6 +15,7 @@ const RequestDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
   const { currentUser } = useAuth();
 
   // Определяем, откуда пришел пользователь
@@ -118,6 +120,16 @@ const RequestDetailPage = () => {
       .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
+  };
+
+  const handleSubmitResponse = async (message) => {
+    try {
+      await responsesService.createResponse(id, message);
+      toast.success('Отклик отправлен');
+    } catch (error) {
+      toast.error('Не удалось отправить отклик');
+      throw error;
+    }
   };
 
   if (loading) {
@@ -256,19 +268,9 @@ const RequestDetailPage = () => {
             {request.status === 'open' && isHelper() && !isAuthor() && (
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={() => navigate(`/requests/${request._id}/chat`)}
+                onClick={() => setIsResponseModalOpen(true)}
               >
                 Предложить помощь
-              </button>
-            )}
-            
-            {/* Кнопка для всех участников - перейти в чат */}
-            {request.status === 'in_progress' && (
-              <button 
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={() => navigate(`/requests/${request._id}/chat`)}
-              >
-                Перейти в чат
               </button>
             )}
             
@@ -318,11 +320,12 @@ const RequestDetailPage = () => {
         </div>
       )}
 
-      {/* Секция откликов */}
-      <ResponseSection 
-        requestId={id} 
-        requestAuthor={request?.author} 
-        requestStatus={request?.status}
+      {/* Модальное окно для отклика */}
+      <ResponseModal 
+        isOpen={isResponseModalOpen}
+        onClose={() => setIsResponseModalOpen(false)}
+        requestId={id}
+        onSubmit={handleSubmitResponse}
       />
     </div>
   );
