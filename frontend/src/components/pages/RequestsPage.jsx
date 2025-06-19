@@ -19,6 +19,22 @@ const RequestsPage = () => {
     subject: '',
     search: ''
   });
+  
+  // Список предметов для выбора (синхронизирован с CreateRequestModal)
+  const subjects = [
+    'Математика',
+    'Физика',
+    'Химия',
+    'Биология',
+    'История',
+    'География',
+    'Литература',
+    'Русский язык',
+    'Казахский язык',
+    'Английский язык',
+    'Информатика',
+    'Другое'
+  ];
 
   useEffect(() => {
     // Проверяем наличие токена при загрузке компонента
@@ -173,14 +189,9 @@ const RequestsPage = () => {
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="">Все предметы</option>
-              <option value="Математика">Математика</option>
-              <option value="Физика">Физика</option>
-              <option value="Химия">Химия</option>
-              <option value="Биология">Биология</option>
-              <option value="История">История</option>
-              <option value="Литература">Литература</option>
-              <option value="Английский">Английский</option>
-              <option value="Информатика">Информатика</option>
+              {subjects.map((subject) => (
+                <option key={subject} value={subject}>{subject}</option>
+              ))}
             </select>
           </div>
           
