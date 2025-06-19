@@ -183,9 +183,11 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
                   <label htmlFor="description" className="block text-xs font-medium text-gray-700">
                     Описание запроса*
                   </label>
-                  <span className={`text-xs ${charCounterClass}`}>
-                    {remainingChars}/{MAX_DESCRIPTION_LENGTH}
-                  </span>
+                  {remainingChars <= 100 && (
+                    <span className={`text-xs ${charCounterClass}`}>
+                      {formData.description.length}/{MAX_DESCRIPTION_LENGTH}
+                    </span>
+                  )}
                 </div>
                 <textarea
                   id="description"
