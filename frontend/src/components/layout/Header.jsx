@@ -4,6 +4,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
+// Флаг для проверки доступности API уведомлений
+const NOTIFICATIONS_ENABLED = false; // Временно отключаем уведомления
+
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -66,7 +69,7 @@ const Header = () => {
             </Link>
             
             {/* Иконка уведомлений для авторизованных пользователей */}
-            {currentUser && (
+            {currentUser && NOTIFICATIONS_ENABLED && (
               <NotificationBell />
             )}
             
@@ -133,7 +136,7 @@ const Header = () => {
             </Link>
             
             {/* Уведомления для мобильной версии */}
-            {currentUser && (
+            {currentUser && NOTIFICATIONS_ENABLED && (
               <div className="flex items-center">
                 <Link to="/notifications" className={`text-sm font-medium transition-colors duration-300 flex items-center ${isActive('/notifications')}`}>
                   <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

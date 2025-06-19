@@ -23,7 +23,12 @@ const NotificationBell = () => {
       setNotifications(sorted);
       setUnreadCount(sorted.length);
     } catch (error) {
-      console.error('Не удалось получить уведомления', error);
+      // Если API уведомлений еще не реализован (404), просто логируем ошибку без показа пользователю
+      if (error.response && error.response.status === 404) {
+        console.log('API уведомлений недоступен');
+      } else {
+        console.error('Не удалось получить уведомления', error);
+      }
     } finally {
       setIsLoading(false);
     }

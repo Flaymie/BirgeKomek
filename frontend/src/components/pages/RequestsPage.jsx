@@ -54,7 +54,8 @@ const RequestsPage = () => {
       // Формируем параметры запроса
       const params = {
         page: currentPage,
-        ...(filters.status && { status: filters.status }),
+        // Отправляем статус только если он не пустой
+        ...(filters.status && filters.status !== '' && { status: filters.status }),
         ...(filters.subject && { subject: filters.subject }),
         ...(filters.search && { search: filters.search })
       };
@@ -269,7 +270,7 @@ const RequestsPage = () => {
                   onClick={() => setIsModalOpen(true)}
                   className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
                 >
-                  Создать первый запрос
+                  Создать запрос
                 </button>
               )}
             </div>
