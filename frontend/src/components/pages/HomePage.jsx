@@ -95,7 +95,7 @@ const HomePage = () => {
             {['Математика', 'Физика', 'Химия', 'Биология', 'История', 'Литература', 'Информатика', 'Английский язык'].map((subject, idx) => (
               <Link 
                 key={idx}
-                to={`/subjects/${subject.toLowerCase()}`} 
+                to={`/requests?subject=${encodeURIComponent(subject)}`} 
                 className="bg-white hover:bg-primary-50 border border-gray-200 rounded-lg p-6 text-center transition-all duration-300 shadow-sm hover:shadow-md transform hover:translate-y-[-5px]"
               >
                 <h3 className="font-medium text-lg">{subject}</h3>

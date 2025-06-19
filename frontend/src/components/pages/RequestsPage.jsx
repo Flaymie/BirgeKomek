@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
@@ -8,6 +8,7 @@ import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from
 
 const RequestsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,14 +16,37 @@ const RequestsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Получаем параметры из URL (если есть)
+  const urlParams = new URLSearchParams(location.search);
+  const subjectFromUrl = urlParams.get('subject');
+  
   const [filters, setFilters] = useState({
     status: REQUEST_STATUSES.OPEN, // По умолчанию только открытые запросы
-    subject: '',
+    subject: subjectFromUrl || '',
     search: ''
   });
   
-  // Список предметов для выбора (синхронизирован с CreateRequestModal)
-  // Теперь импортируется из constants.js
+  // Обновляем URL при изменении фильтров
+  useEffect(() => {
+    const queryParams = new URLSearchParams();
+    
+    if (filters.subject) {
+      queryParams.set('subject', filters.subject);
+    }
+    
+    if (filters.search) {
+      queryParams.set('search', filters.search);
+    }
+    
+    // Обновляем URL без перезагрузки страницы
+    const newUrl = 
+      queryParams.toString() 
+        ? `${location.pathname}?${queryParams.toString()}` 
+        : location.pathname;
+    
+    navigate(newUrl, { replace: true });
+  }, [filters, location.pathname, navigate]);
   
   useEffect(() => {
     // Проверяем наличие токена при загрузке компонента
