@@ -403,43 +403,78 @@ const ProfilePage = () => {
   
   // Эффект для загрузки данных пользователя
   useEffect(() => {
+    let isMounted = true; // Флаг для предотвращения обновления состояния после размонтирования
+    const controller = new AbortController(); // Контроллер для отмены запроса
+    
     const loadData = async () => {
       try {
         setLoading(true);
         
         if (id) {
-          // Если есть ID в URL, загружаем публичный профиль по API
-          console.log('Загружаем публичный профиль по ID:', id);
-          
-          try {
-            const response = await axios.get(`http://localhost:5050/api/users/${id}`);
-            console.log('Загруженный профиль:', response.data);
-            setPublicProfile(response.data);
-          } catch (error) {
-            console.error('Ошибка при загрузке профиля:', error);
-            toast.error('Не удалось загрузить профиль пользователя');
+          // Проверяем что id является числом
+          if (!/^\d+$/.test(id)) {
+            toast.error('Некорректный ID пользователя');
+            setLoading(false);
+            return;
           }
           
+          // Если есть ID в URL, загружаем публичный профиль по API
+          try {
+            const response = await axios.get(`http://localhost:5050/api/users/${id}`, {
+              signal: controller.signal, // Добавляем сигнал для возможности отмены запроса
+              validateStatus: function (status) {
+                return status < 500; // Принимаем только статусы меньше 500
+              }
+            });
+            
+            if (!isMounted) return;
+            
+            if (response.status === 200) {
+              setPublicProfile(response.data);
+            } else {
+              // Обрабатываем 400, 404 и другие ошибки клиента
+              toast.error('Пользователь не найден или недоступен');
+              setPublicProfile(null);
+            }
+          } catch (error) {
+            if (!isMounted) return;
+            
+            // Если запрос не был отменен, показываем ошибку
+            if (!axios.isCancel(error)) {
+              console.error('Ошибка при загрузке профиля:', error);
+              toast.error('Не удалось загрузить профиль пользователя');
+            }
+          }
         } else if (currentUser) {
           // Если нет ID, но пользователь авторизован, загружаем его профиль
-          setProfileData({
-            username: currentUser.username || '',
-            email: currentUser.email || '',
-            phone: currentUser.phone ? formatPhoneNumber(currentUser.phone) : '',
-            location: currentUser.location || '',
-            bio: currentUser.bio || '',
-            grade: currentUser.grade || ''
-          });
+          if (isMounted) {
+            setProfileData({
+              username: currentUser.username || '',
+              email: currentUser.email || '',
+              phone: currentUser.phone ? formatPhoneNumber(currentUser.phone) : '',
+              location: currentUser.location || '',
+              bio: currentUser.bio || '',
+              grade: currentUser.grade || ''
+            });
+          }
         } else {
           // Если пользователь не авторизован и нет ID, перенаправляем на логин
           navigate('/login', { state: { message: 'Пожалуйста, войдите в систему для доступа к профилю' } });
         }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     loadData();
+    
+    // Функция очистки для отмены запроса при размонтировании
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [id, currentUser, navigate]);
   
   // Форматирование телефонного номера
@@ -677,8 +712,32 @@ const ProfilePage = () => {
     return <Loader />;
   }
   
-  // Если есть ID в URL, показываем публичный профиль
-  if (id && publicProfile) {
+  // Если есть ID в URL, показываем публичный профиль или сообщение об ошибке
+  if (id) {
+    // Если профиль не найден, показываем специальное сообщение
+    if (!publicProfile) {
+      return (
+        <Container>
+          <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden p-6 text-center">
+            <div className="flex flex-col items-center justify-center py-12">
+              <svg className="h-24 w-24 text-red-400 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14h.01M20 4L4 20m16-16l1 11-11-1" />
+              </svg>
+              <h2 className="text-2xl font-semibold text-gray-700 mb-4">Профиль не найден</h2>
+              <p className="text-gray-500 mb-8">Запрашиваемый профиль пользователя не существует или был удален.</p>
+              <button 
+                onClick={() => navigate('/')} 
+                className="btn btn-primary"
+              >
+                На главную
+              </button>
+            </div>
+          </div>
+        </Container>
+      );
+    }
+    
+    // Если профиль найден, показываем его
     return (
       <UserProfileView 
         profile={publicProfile} 
