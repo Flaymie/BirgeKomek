@@ -15,6 +15,7 @@ import reviewRoutes from './routes/reviews.js';
 import userRoutes from './routes/users.js';
 import notificationRoutes from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
+import responseRoutes from './routes/responses.js';
 
 dotenv.config();
 
@@ -81,6 +82,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/responses', responseRoutes);
 
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {

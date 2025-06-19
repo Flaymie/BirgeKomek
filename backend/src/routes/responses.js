@@ -1,0 +1,245 @@
+import express from 'express';
+import { body, param, validationResult } from 'express-validator';
+import Response from '../models/Response.js';
+import Request from '../models/Request.js';
+import { protect } from '../middleware/auth.js';
+import { createAndSendNotification } from './notifications.js';
+
+const router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Responses
+ *   description: Управление откликами на запросы помощи
+ */
+
+/**
+ * @swagger
+ * /api/responses:
+ *   post:
+ *     summary: Создать отклик на запрос
+ *     tags: [Responses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               requestId:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Отклик успешно создан
+ *       400:
+ *         description: Ошибка валидации
+ *       403:
+ *         description: Недостаточно прав
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/', protect, [
+  body('requestId').isMongoId().withMessage('Некорректный ID запроса'),
+  body('message')
+    .trim()
+    .isLength({ min: 10, max: 500 })
+    .withMessage('Сообщение должно быть от 10 до 500 символов')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { requestId, message } = req.body;
+    const helper = req.user._id;
+
+    // Проверяем существование запроса
+    const request = await Request.findById(requestId);
+    if (!request) {
+      return res.status(404).json({ msg: 'Запрос не найден' });
+    }
+
+    // Проверяем, что текущий пользователь - хелпер
+    if (!req.user.roles.helper) {
+      return res.status(403).json({ msg: 'Только хелперы могут откликаться' });
+    }
+
+    // Проверяем, что хелпер еще не откликался на этот запрос
+    const existingResponse = await Response.findOne({ 
+      request: requestId, 
+      helper: helper 
+    });
+
+    if (existingResponse) {
+      return res.status(400).json({ msg: 'Вы уже откликались на этот запрос' });
+    }
+
+    // Создаем новый отклик
+    const newResponse = new Response({
+      request: requestId,
+      helper: helper,
+      message: message,
+      status: 'pending'
+    });
+
+    await newResponse.save();
+
+    // Создаем уведомление для автора запроса
+    await createAndSendNotification({
+      user: request.author,
+      type: 'request_taken_by_helper',
+      title: 'Новый отклик на ваш запрос',
+      message: `${req.user.username} откликнулся на ваш запрос "${request.title}"`,
+      link: `/request/${requestId}`,
+      relatedEntity: {
+        requestId: requestId,
+        userId: helper
+      }
+    });
+
+    res.status(201).json(newResponse);
+  } catch (error) {
+    console.error('Ошибка при создании отклика:', error);
+    res.status(500).json({ msg: 'Ошибка сервера при создании отклика' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/responses/{requestId}:
+ *   get:
+ *     summary: Получить все отклики для конкретного запроса
+ *     tags: [Responses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Список откликов
+ *       403:
+ *         description: Недостаточно прав
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/:requestId', protect, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    // Проверяем существование и права доступа к запросу
+    const request = await Request.findById(requestId);
+    if (!request) {
+      return res.status(404).json({ msg: 'Запрос не найден' });
+    }
+
+    // Проверяем, что пользователь либо автор запроса, либо хелпер
+    if (request.author.toString() !== req.user._id.toString() && 
+        !req.user.roles.helper) {
+      return res.status(403).json({ msg: 'Недостаточно прав' });
+    }
+
+    const responses = await Response.find({ request: requestId })
+      .populate('helper', 'username avatar');
+
+    res.json(responses);
+  } catch (error) {
+    console.error('Ошибка при получении откликов:', error);
+    res.status(500).json({ msg: 'Ошибка сервера при получении откликов' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/responses/{responseId}/status:
+ *   put:
+ *     summary: Обновить статус отклика
+ *     tags: [Responses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: responseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: ['accepted', 'rejected']
+ *     responses:
+ *       200:
+ *         description: Статус отклика обновлен
+ *       400:
+ *         description: Некорректный статус
+ *       403:
+ *         description: Недостаточно прав
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.put('/:responseId/status', protect, [
+  param('responseId').isMongoId().withMessage('Некорректный ID отклика'),
+  body('status')
+    .isIn(['accepted', 'rejected'])
+    .withMessage('Некорректный статус')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { responseId } = req.params;
+    const { status } = req.body;
+
+    const response = await Response.findById(responseId)
+      .populate('request')
+      .populate('helper');
+
+    if (!response) {
+      return res.status(404).json({ msg: 'Отклик не найден' });
+    }
+
+    // Проверяем, что текущий пользователь - автор запроса
+    if (response.request.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: 'Недостаточно прав' });
+    }
+
+    response.status = status;
+    await response.save();
+
+    // Создаем уведомление для хелпера
+    await createAndSendNotification({
+      user: response.helper._id,
+      type: 'request_status_changed',
+      title: 'Статус вашего отклика изменен',
+      message: `Ваш отклик на запрос "${response.request.title}" ${status === 'accepted' ? 'принят' : 'отклонен'}`,
+      link: `/request/${response.request._id}`,
+      relatedEntity: {
+        requestId: response.request._id
+      }
+    });
+
+    res.json(response);
+  } catch (error) {
+    console.error('Ошибка при обновлении статуса отклика:', error);
+    res.status(500).json({ msg: 'Ошибка сервера при обновлении статуса' });
+  }
+});
+
+export default router; 
