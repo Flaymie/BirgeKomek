@@ -41,12 +41,23 @@ const RequestsPage = () => {
     try {
       // Формируем параметры запроса
       const params = {
-        page: currentPage,
-        // Отправляем статус только если он не пустой
-        ...(filters.status && filters.status !== '' && { status: filters.status }),
-        ...(filters.subject && { subject: filters.subject }),
-        ...(filters.search && { search: filters.search })
+        page: currentPage
       };
+      
+      // Добавляем статус только если он не пустой
+      if (filters.status && filters.status !== '') {
+        // Проверяем, является ли статус валидным значением из REQUEST_STATUSES
+        const isValidStatus = Object.values(REQUEST_STATUSES).includes(filters.status);
+        if (isValidStatus) {
+          params.status = filters.status;
+        } else {
+          console.warn('Невалидный статус:', filters.status);
+        }
+      }
+      
+      // Добавляем остальные параметры
+      if (filters.subject) params.subject = filters.subject;
+      if (filters.search) params.search = filters.search;
 
       console.log('Параметры запроса:', params);
       console.log('URL запроса:', `${baseURL}/requests?` + 
