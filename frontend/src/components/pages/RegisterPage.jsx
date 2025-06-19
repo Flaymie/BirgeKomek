@@ -11,6 +11,8 @@ const RegisterPage = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    role: 'student', // По умолчанию - студент
+    grade: '', // Класс
     agreeTerms: false
   });
   
@@ -67,6 +69,10 @@ const RegisterPage = () => {
       newErrors.confirmPassword = 'Пароли не совпадают';
     }
     
+    if (!formData.grade) {
+      newErrors.grade = 'Выберите класс';
+    }
+    
     if (!formData.agreeTerms) {
       newErrors.agreeTerms = 'Вы должны согласиться с условиями';
     }
@@ -85,11 +91,21 @@ const RegisterPage = () => {
     setIsLoading(true);
     
     try {
-      const result = await register({
+      // Подготавливаем данные для отправки на сервер
+      const userData = {
         username: formData.username,
         email: formData.email,
-        password: formData.password
-      });
+        password: formData.password,
+        grade: parseInt(formData.grade),
+        roles: {
+          student: true, // Все пользователи по умолчанию студенты
+          helper: formData.role === 'helper' // Хелпер только если выбрана роль "helper"
+        }
+      };
+      
+      console.log('Отправляемые данные:', userData);
+      
+      const result = await register(userData);
       
       if (result.success) {
         setSuccessMessage('Регистрация успешно завершена! Теперь вы можете войти в систему.');
@@ -99,6 +115,8 @@ const RegisterPage = () => {
           email: '',
           password: '',
           confirmPassword: '',
+          role: 'student',
+          grade: '',
           agreeTerms: false
         });
         
@@ -230,6 +248,84 @@ const RegisterPage = () => {
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.confirmPassword}</p>
               )}
+            </div>
+            
+            <div>
+              <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1">
+                Класс
+              </label>
+              <select
+                id="grade"
+                name="grade"
+                value={formData.grade}
+                onChange={handleChange}
+                className={`form-select ${errors.grade ? 'form-input-error' : ''}`}
+              >
+                <option value="">Выберите класс</option>
+                {[...Array(11)].map((_, i) => (
+                  <option key={i+1} value={i+1}>{i+1} класс</option>
+                ))}
+              </select>
+              {errors.grade && (
+                <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.grade}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Роль на платформе
+              </label>
+              <div className="space-y-3">
+                <div className="relative flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="student"
+                      name="role"
+                      type="radio"
+                      value="student"
+                      checked={formData.role === 'student'}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="student" className="font-medium text-gray-700 group relative cursor-pointer">
+                      Ученик
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute z-10 bg-gray-800 text-white text-xs rounded py-1 px-2 left-0 -bottom-8 w-52">
+                        Можно создавать запросы о помощи
+                      </div>
+                    </label>
+                    <div className="text-gray-500">
+                      <span>Можно создавать запросы о помощи</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="relative flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="helper"
+                      name="role"
+                      type="radio"
+                      value="helper"
+                      checked={formData.role === 'helper'}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="helper" className="font-medium text-gray-700 group relative cursor-pointer">
+                      Помощник (хелпер)
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute z-10 bg-gray-800 text-white text-xs rounded py-1 px-2 left-0 -bottom-8 w-52">
+                        Можно помогать другим и создавать запросы
+                      </div>
+                    </label>
+                    <div className="text-gray-500">
+                      <span>Можно помогать другим и создавать запросы</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div className="flex items-center">

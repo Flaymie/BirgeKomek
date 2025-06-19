@@ -720,9 +720,6 @@ const ProfilePage = () => {
         <Container>
           <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden p-6 text-center">
             <div className="flex flex-col items-center justify-center py-12">
-              <svg className="h-24 w-24 text-red-400 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14h.01M20 4L4 20m16-16l1 11-11-1" />
-              </svg>
               <h2 className="text-2xl font-semibold text-gray-700 mb-4">Профиль не найден</h2>
               <p className="text-gray-500 mb-8">Запрашиваемый профиль пользователя не существует или был удален.</p>
               <button 

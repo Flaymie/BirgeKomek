@@ -100,7 +100,18 @@ const RequestsPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Запросы на помощь</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Запросы на помощь</h1>
+        <Link 
+          to="/create-request"
+          className="btn btn-primary"
+        >
+          <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+          Создать запрос
+        </Link>
+      </div>
       
       {/* Фильтры */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">

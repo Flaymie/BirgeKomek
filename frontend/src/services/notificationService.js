@@ -1,7 +1,17 @@
 import axios from 'axios';
-import { getAuthHeader } from './auth';
 
 const API_URL = 'http://localhost:5050/api';
+
+// Функция для получения хедера авторизации
+export const getAuthHeader = () => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  
+  if (user && user.token) {
+    return { 'x-auth-token': user.token };
+  } else {
+    return {};
+  }
+};
 
 /**
  * Получение списка непрочитанных уведомлений пользователя

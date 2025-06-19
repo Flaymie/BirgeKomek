@@ -15,7 +15,7 @@ const Layout = ({ children }) => {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow animate-fadeIn">
+      <main className="flex-grow animate-fadeIn pt-24">
         {children}
       </main>
       <Footer />

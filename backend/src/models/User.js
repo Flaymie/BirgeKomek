@@ -22,6 +22,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  location: {
+    type: String,
+    trim: true
+  },
+  bio: {
+    type: String,
+    trim: true
+  },
   roles: {
     student: {
       type: Boolean,

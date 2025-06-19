@@ -84,6 +84,53 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Функция для обновления профиля пользователя
+  const updateProfile = async (userData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('Отправка данных на сервер:', JSON.stringify(userData));
+      const response = await usersService.updateProfile(userData);
+      console.log('Ответ сервера:', response);
+      setCurrentUser({...currentUser, ...response.data});
+      setLoading(false);
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('Ошибка обновления профиля:', err);
+      console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));
+      
+      // Более детальная обработка ошибок
+      let errorMessage = 'Ошибка при обновлении профиля';
+      if (err.response) {
+        if (err.response.data.errors && err.response.data.errors.length > 0) {
+          errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
+        } else if (err.response.data.msg) {
+          errorMessage = err.response.data.msg;
+        }
+      }
+      
+      setError(errorMessage);
+      setLoading(false);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Функция для обновления пароля пользователя
+  const updatePassword = async (currentPassword, newPassword) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await usersService.updatePassword(currentPassword, newPassword);
+      setLoading(false);
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('Ошибка обновления пароля:', err);
+      setError(err.response?.data?.msg || 'Ошибка при обновлении пароля');
+      setLoading(false);
+      return { success: false, error: err.response?.data?.msg || 'Ошибка при обновлении пароля' };
+    }
+  };
+
   // Функция для выхода пользователя
   const logout = () => {
     authService.logout();
@@ -97,6 +144,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateProfile,
+    updatePassword,
     generateAvatarColor
   };
 

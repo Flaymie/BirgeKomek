@@ -96,6 +96,11 @@ const usersService = {
   // Обновить профиль пользователя
   updateProfile: async (userData) => {
     return api.put('/users/me', userData);
+  },
+  
+  // Обновить пароль пользователя
+  updatePassword: async (currentPassword, newPassword) => {
+    return api.put('/users/password', { currentPassword, newPassword });
   }
 };
 

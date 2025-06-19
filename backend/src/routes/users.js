@@ -73,6 +73,12 @@ router.get('/me', protect, async (req, res) => {
  *               phone:
  *                 type: string
  *                 description: Новый номер телефона (опционально)
+ *               location:
+ *                 type: string
+ *                 description: Новый город проживания (опционально, максимум 100 символов)
+ *               bio:
+ *                 type: string
+ *                 description: Новый текст биографии (опционально, максимум 500 символов)
  *               grade:
  *                 type: integer
  *                 minimum: 1
@@ -101,41 +107,9 @@ router.get('/me', protect, async (req, res) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.put('/me', protect, [
-  body('username')
-    .optional()
-    .trim()
-    .isLength({ min: 3, max: 30 }).withMessage('Имя пользователя должно быть от 3 до 30 символов')
-    .matches(/^[a-zA-Z0-9_]+$/).withMessage('Имя пользователя может содержать только буквы, цифры и подчеркивания'),
-  body('email')
-    .optional()
-    .trim()
-    .isEmail().withMessage('Введите корректный email')
-    .normalizeEmail(),
-  body('phone')
-    .optional()
-    .trim()
-    .matches(/^\+?[0-9]{10,15}$/).withMessage('Некорректный формат телефона (например, +77001234567)'),
-  body('grade')
-    .optional()
-    .isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
-  body('helperSubjects')
-    .optional()
-    .isArray().withMessage('helperSubjects должен быть массивом')
-    .custom((subjects) => subjects.every(subject => typeof subject === 'string' && subject.trim() !== ''))
-    .withMessage('Все предметы в helperSubjects должны быть непустыми строками'),
-  body('newPassword')
-    .optional()
-    .trim()
-    .isLength({ min: 6 }).withMessage('Новый пароль должен быть минимум 6 символов')
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
+router.put('/me', protect, async (req, res) => {
   try {
-    const { username, email, phone, grade, helperSubjects, currentPassword, newPassword } = req.body;
+    const { username, email, phone, location, bio, grade, helperSubjects, currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
     const user = await User.findById(userId);
@@ -143,57 +117,73 @@ router.put('/me', protect, [
       return res.status(404).json({ msg: 'Пользователь не найден' });
     }
 
-    if (email || newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ msg: 'Требуется текущий пароль для изменения email или пароля' });
-      }
+    // Проверяем, меняется ли email
+    const isEmailChanging = email && email !== user.email;
+    
+    // Требуем пароль только если меняется email или устанавливается новый пароль
+    if ((isEmailChanging || newPassword) && !currentPassword) {
+      return res.status(400).json({ msg: 'Требуется текущий пароль для изменения email или пароля' });
+    }
+
+    // Проверяем пароль только если он предоставлен
+    if (currentPassword) {
       const isMatch = await user.comparePassword(currentPassword);
       if (!isMatch) {
         return res.status(401).json({ msg: 'Неверный текущий пароль' });
       }
     }
 
+    // Обновляем имя пользователя, если оно изменилось
     if (username && username !== user.username) {
       const existingUser = await User.findOne({ username });
-      if (existingUser) {
+      if (existingUser && existingUser._id.toString() !== userId) {
         return res.status(400).json({ msg: 'Имя пользователя уже занято' });
       }
       user.username = username;
     }
-    if (email && email !== user.email) {
+    
+    // Обновляем email, если он изменился
+    if (isEmailChanging) {
       const existingUser = await User.findOne({ email });
-      if (existingUser) {
+      if (existingUser && existingUser._id.toString() !== userId) {
         return res.status(400).json({ msg: 'Email уже занят' });
       }
       user.email = email;
     }
-    if (phone) user.phone = phone;
-    if (grade) user.grade = grade;
-    if (newPassword) user.password = newPassword; 
 
-    if (helperSubjects) {
-        if (user.roles && user.roles.helper) { // Обновляем предметы только если пользователь - хелпер
-            user.helperSubjects = helperSubjects.map(s => s.trim()).filter(s => s);
-        } else if (helperSubjects.length > 0) {
-            // Если пользователь не хелпер, но пытается указать предметы, можно вернуть ошибку
-            // или просто проигнорировать, или автоматически сделать его хелпером (требует обсуждения)
-             return res.status(400).json({ msg: 'Пользователь не является хелпером. Нельзя обновить helperSubjects.' });
-        }
+    // Обновляем пароль, если предоставлен новый
+    if (newPassword) {
+      user.password = newPassword;
     }
 
+    // Обновляем другие поля профиля
+    if (phone !== undefined) user.phone = phone;
+    if (location !== undefined) user.location = location;
+    if (bio !== undefined) user.bio = bio;
+    if (grade !== undefined) user.grade = grade;
+    if (helperSubjects !== undefined) user.helperSubjects = helperSubjects;
 
-    const updatedUser = await user.save();
-    const userResponse = updatedUser.toObject();
-    delete userResponse.password;
+    await user.save();
 
-    res.json(userResponse);
+    // Создаем объект с обновленными данными для ответа, исключая пароль
+    const updatedUser = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      location: user.location,
+      bio: user.bio,
+      grade: user.grade,
+      helperSubjects: user.helperSubjects,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    res.json(updatedUser);
   } catch (err) {
-    console.error('Ошибка при обновлении профиля:', err.message);
-    if (err.code === 11000) { // Ошибка дублирования ключа MongoDB
-        const field = Object.keys(err.keyValue)[0];
-        return res.status(400).json({ msg: `Значение '${err.keyValue[field]}' для поля '${field}' уже занято.` });
-    }
-    res.status(500).send('Ошибка сервера');
+    console.error('Ошибка при обновлении пользователя:', err);
+    res.status(500).json({ msg: 'Ошибка сервера' });
   }
 });
 
@@ -404,6 +394,75 @@ router.get('/helpers', [ // Изменено с router.get('/helpers', protect, 
 
   } catch (err) {
     console.error('Ошибка при поиске помощников:', err.message);
+    res.status(500).send('Ошибка сервера');
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/password:
+ *   put:
+ *     summary: Обновить пароль пользователя
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Текущий пароль пользователя
+ *               newPassword:
+ *                 type: string
+ *                 description: Новый пароль пользователя
+ *     responses:
+ *       200:
+ *         description: Пароль успешно обновлен
+ *       400:
+ *         description: Некорректные данные или ошибка валидации
+ *       401:
+ *         description: Не авторизован или неверный текущий пароль
+ *       404:
+ *         description: Пользователь не найден
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+router.put('/password', protect, [
+  body('currentPassword')
+    .notEmpty().withMessage('Текущий пароль обязателен'),
+  body('newPassword')
+    .notEmpty().withMessage('Новый пароль обязателен')
+    .isLength({ min: 6 }).withMessage('Новый пароль должен быть минимум 6 символов')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'Пользователь не найден' });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ msg: 'Неверный текущий пароль' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ msg: 'Пароль успешно обновлен' });
+  } catch (err) {
+    console.error('Ошибка при обновлении пароля:', err.message);
     res.status(500).send('Ошибка сервера');
   }
 });
