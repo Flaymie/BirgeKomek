@@ -34,8 +34,13 @@ const EditRequestPage = () => {
       return;
     }
     
+    // Если пользователь еще не загружен, не делаем запрос
+    if (!currentUser) {
+      return;
+    }
+    
     fetchRequestData();
-  }, [id, navigate]);
+  }, [id, navigate, currentUser]);
   
   const fetchRequestData = async () => {
     setLoading(true);
@@ -44,7 +49,7 @@ const EditRequestPage = () => {
       const requestData = response.data;
       
       // Проверяем, является ли текущий пользователь автором запроса
-      if (currentUser._id !== requestData.author._id) {
+      if (!currentUser || currentUser._id !== requestData.author._id) {
         setError('У вас нет прав на редактирование этого запроса');
         setLoading(false);
         return;
@@ -176,7 +181,7 @@ const EditRequestPage = () => {
   // Определяем стиль счетчика символов (меняем на предупреждающий цвет, когда остается мало)
   const charCounterClass = remainingChars <= 100 ? 'text-orange-500' : 'text-gray-500';
   
-  if (loading) {
+  if (loading || !currentUser) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="flex justify-center items-center py-12">
