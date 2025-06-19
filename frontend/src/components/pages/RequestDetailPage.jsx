@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { requestsService } from '../../services/api';
+import { requestsService, responsesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
+import ResponseSection from '../responses/ResponseSection';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -316,6 +317,13 @@ const RequestDetailPage = () => {
           </div>
         </div>
       )}
+
+      {/* Секция откликов */}
+      <ResponseSection 
+        requestId={id} 
+        requestAuthor={request?.author} 
+        requestStatus={request?.status}
+      />
     </div>
   );
 };

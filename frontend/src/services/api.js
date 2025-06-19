@@ -148,10 +148,28 @@ const messagesService = {
   }
 };
 
+const responsesService = {
+  // Создать отклик на запрос
+  createResponse: async (requestId, message) => {
+    return api.post('/responses', { requestId, message });
+  },
+  
+  // Получить отклики для конкретного запроса
+  getResponsesByRequest: async (requestId) => {
+    return api.get(`/responses/${requestId}`);
+  },
+  
+  // Обновить статус отклика
+  updateResponseStatus: async (responseId, status) => {
+    return api.put(`/responses/${responseId}/status`, { status });
+  }
+};
+
 export {
   api,
   requestsService,
   usersService,
   authService,
-  messagesService
+  messagesService,
+  responsesService
 }; 
