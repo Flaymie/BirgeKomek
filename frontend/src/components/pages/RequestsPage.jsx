@@ -4,6 +4,7 @@ import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { toast } from 'react-toastify';
+import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
 const RequestsPage = () => {
   const navigate = useNavigate();
@@ -15,27 +16,14 @@ const RequestsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filters, setFilters] = useState({
-    status: 'open',
+    status: '',
     subject: '',
     search: ''
   });
   
   // Список предметов для выбора (синхронизирован с CreateRequestModal)
-  const subjects = [
-    'Математика',
-    'Физика',
-    'Химия',
-    'Биология',
-    'История',
-    'География',
-    'Литература',
-    'Русский язык',
-    'Казахский язык',
-    'Английский язык',
-    'Информатика',
-    'Другое'
-  ];
-
+  // Теперь импортируется из constants.js
+  
   useEffect(() => {
     // Проверяем наличие токена при загрузке компонента
     const token = localStorage.getItem('token');
@@ -60,6 +48,8 @@ const RequestsPage = () => {
         ...(filters.search && { search: filters.search })
       };
 
+      console.log('Параметры запроса:', params);
+
       // Делаем запрос к API через сервис
       const response = await requestsService.getRequests(params);
       setRequests(response.data.requests);
@@ -82,11 +72,13 @@ const RequestsPage = () => {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFilters(prev => ({ ...prev, [name]: value }));
     setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
+  };
+  
+  const handleSearchChange = (e) => {
+    setFilters(prev => ({ ...prev, search: e.target.value }));
+    setCurrentPage(1);
   };
 
   const handleSearchSubmit = (e) => {
@@ -105,19 +97,14 @@ const RequestsPage = () => {
     });
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'open':
-        return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Открыта</span>;
-      case 'in_progress':
-        return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">В процессе</span>;
-      case 'closed':
-        return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">Закрыта</span>;
-      case 'cancelled':
-        return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Отменена</span>;
-      default:
-        return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">{status}</span>;
-    }
+  // Получение класса для статуса
+  const getStatusClass = (status) => {
+    return STATUS_COLORS[status] || { bg: 'bg-gray-100', text: 'text-gray-800' };
+  };
+  
+  // Получение названия статуса
+  const getStatusLabel = (status) => {
+    return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
   };
   
   // Обработчик успешного создания запроса
@@ -173,10 +160,9 @@ const RequestsPage = () => {
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="">Все статусы</option>
-              <option value="open">Открытые</option>
-              <option value="in_progress">В процессе</option>
-              <option value="closed">Закрытые</option>
-              <option value="cancelled">Отмененные</option>
+              {Object.entries(REQUEST_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
           </div>
           
@@ -190,7 +176,7 @@ const RequestsPage = () => {
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="">Все предметы</option>
-              {subjects.map((subject) => (
+              {SUBJECTS.map((subject) => (
                 <option key={subject} value={subject}>{subject}</option>
               ))}
             </select>
@@ -231,7 +217,9 @@ const RequestsPage = () => {
                       <h2 className="text-lg font-semibold text-gray-900 line-clamp-2">
                         {request.title}
                       </h2>
-                      {getStatusBadge(request.status)}
+                      <span className={`px-2 py-1 ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text} rounded-full text-xs font-medium`}>
+                        {getStatusLabel(request.status)}
+                      </span>
                     </div>
                     
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
