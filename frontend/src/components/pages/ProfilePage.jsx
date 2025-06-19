@@ -411,13 +411,6 @@ const ProfilePage = () => {
         setLoading(true);
         
         if (id) {
-          // Проверяем что id является числом
-          if (!/^\d+$/.test(id)) {
-            toast.error('Некорректный ID пользователя');
-            setLoading(false);
-            return;
-          }
-          
           // Если есть ID в URL, загружаем публичный профиль по API
           try {
             const response = await axios.get(`http://localhost:5050/api/users/${id}`, {
