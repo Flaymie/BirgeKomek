@@ -12,6 +12,7 @@ import RequestsPage from './components/pages/RequestsPage';
 import ProfilePage from './components/pages/ProfilePage';
 import CreateRequestPage from './components/pages/CreateRequestPage';
 import RequestDetailPage from './components/pages/RequestDetailPage';
+import EditRequestPage from './components/pages/EditRequestPage';
 import NotificationsPage from './components/pages/NotificationsPage';
 import MyRequestsPage from './components/pages/MyRequestsPage';
 import { ToastContainer } from 'react-toastify';
@@ -38,6 +39,7 @@ const App = () => {
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/create-request" element={<CreateRequestPage />} />
             <Route path="/request/:id" element={<RequestDetailPage />} />
+            <Route path="/request/:id/edit" element={<EditRequestPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/my-requests" element={<MyRequestsPage />} />
           </Route>
