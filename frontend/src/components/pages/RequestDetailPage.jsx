@@ -142,6 +142,16 @@ const RequestDetailPage = () => {
     }
   };
 
+  const handleOpenResponseModal = () => {
+    console.error('ОТКРЫВАЕМ МОДАЛКУ ЖЕСТКО!');
+    console.error('Текущий пользователь:', JSON.stringify(currentUser, null, 2));
+    console.error('Статус запроса:', request?.status);
+    console.error('Является ли автором:', isAuthor());
+    
+    // Принудительное открытие
+    setIsResponseModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-12">
@@ -275,18 +285,10 @@ const RequestDetailPage = () => {
           
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Кнопка для хелперов - предложить помощь */}
-            {request.status === 'open' && isHelper() && !isAuthor() && (
+            {(request.status === 'open' && currentUser?.roles?.helper) && !isAuthor() && (
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={() => {
-                  console.log('Кнопка нажата');
-                  console.log('Можно ли открыть модалку:', 
-                    request.status === 'open', 
-                    isHelper(), 
-                    !isAuthor()
-                  );
-                  setIsResponseModalOpen(true);
-                }}
+                onClick={handleOpenResponseModal}
               >
                 Предложить помощь
               </button>

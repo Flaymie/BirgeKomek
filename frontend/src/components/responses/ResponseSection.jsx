@@ -173,6 +173,14 @@ const ResponseModal = ({ isOpen, onClose, requestId, onSubmit }) => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Если модалка не открыта, возвращаем null
+  if (!isOpen) {
+    console.error('МОДАЛКА НЕ ОТКРЫТА');
+    return null;
+  }
+
+  console.error('МОДАЛКА ТОЧНО РЕНДЕРИТСЯ');
+
   const handleSubmit = async () => {
     if (!message.trim()) {
       toast.error('Напиши, как поможешь, бля');
@@ -190,8 +198,6 @@ const ResponseModal = ({ isOpen, onClose, requestId, onSubmit }) => {
       setIsLoading(false);
     }
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
