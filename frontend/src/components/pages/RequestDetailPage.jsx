@@ -100,9 +100,19 @@ const RequestDetailPage = () => {
   
   // Проверка, является ли пользователь хелпером
   const isHelper = () => {
-    return currentUser?.roles?.helper === true || 
-           currentUser?.roles?.moderator === true || 
-           currentUser?.roles?.admin === true;
+    console.log('Current User:', currentUser);
+    console.log('Current User Roles:', currentUser?.roles);
+    
+    // Более строгая проверка
+    const isHelperRole = currentUser?.roles?.helper === true;
+    const isModeratorRole = currentUser?.roles?.moderator === true;
+    const isAdminRole = currentUser?.roles?.admin === true;
+    
+    console.log('Is Helper Role:', isHelperRole);
+    console.log('Is Moderator Role:', isModeratorRole);
+    console.log('Is Admin Role:', isAdminRole);
+    
+    return isHelperRole || isModeratorRole || isAdminRole;
   };
   
   // Функция для безопасного отображения HTML
@@ -268,7 +278,15 @@ const RequestDetailPage = () => {
             {request.status === 'open' && isHelper() && !isAuthor() && (
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={() => setIsResponseModalOpen(true)}
+                onClick={() => {
+                  console.log('Кнопка нажата');
+                  console.log('Можно ли открыть модалку:', 
+                    request.status === 'open', 
+                    isHelper(), 
+                    !isAuthor()
+                  );
+                  setIsResponseModalOpen(true);
+                }}
               >
                 Предложить помощь
               </button>

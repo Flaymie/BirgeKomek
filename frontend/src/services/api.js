@@ -104,6 +104,17 @@ const usersService = {
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
     return api.put('/users/password', { currentPassword, newPassword });
+  },
+  
+  // Обновить роль пользователя
+  updateUserRole: async (role, value) => {
+    return api.put('/users/me/role', { role, value });
+  },
+  
+  // Получить текущего пользователя с полными данными
+  getCurrentUserWithFullData: async () => {
+    const response = await api.get('/users/me/full');
+    return response.data;
   }
 };
 
