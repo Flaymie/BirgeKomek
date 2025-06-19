@@ -89,6 +89,9 @@ const Header = () => {
                     <Link to="/my-requests" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
                       Мои запросы
                     </Link>
+                    <Link to="/chats" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
+                      Чаты
+                    </Link>
                     <button 
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
@@ -164,6 +167,9 @@ const Header = () => {
                 </Link>
                 <Link to="/my-requests" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
                   Мои запросы
+                </Link>
+                <Link to="/chats" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
+                  Чаты
                 </Link>
                 <button 
                   onClick={handleLogout}

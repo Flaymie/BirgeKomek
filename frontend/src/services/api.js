@@ -173,6 +173,43 @@ const messagesService = {
   // Отправить сообщение
   sendMessage: async (requestId, content) => {
     return api.post('/messages', { requestId, content });
+  },
+  
+  // Отправить сообщение с вложением
+  sendMessageWithAttachment: async (requestId, content, file) => {
+    const formData = new FormData();
+    formData.append('requestId', requestId);
+    formData.append('content', content);
+    formData.append('attachment', file);
+    
+    return api.post('/messages/attachment', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+  
+  // Отметить сообщения как прочитанные
+  markAsRead: async (requestId) => {
+    return api.post(`/messages/${requestId}/read`);
+  },
+  
+  // Получить список чатов пользователя
+  getUserChats: async () => {
+    return api.get('/chats');
+  }
+};
+
+// Сервис для работы с чатами
+const chatsService = {
+  // Получить список чатов пользователя
+  getUserChats: async () => {
+    return api.get('/chats');
+  },
+  
+  // Получить количество непрочитанных сообщений
+  getUnreadCount: async () => {
+    return api.get('/chats/unread');
   }
 };
 
@@ -182,5 +219,6 @@ export {
   usersService,
   authService,
   messagesService,
-  responsesService
+  responsesService,
+  chatsService
 }; 

@@ -16,6 +16,7 @@ import EditRequestPage from './components/pages/EditRequestPage';
 import NotificationsPage from './components/pages/NotificationsPage';
 import MyRequestsPage from './components/pages/MyRequestsPage';
 import ChatPage from './components/pages/ChatPage';
+import ChatsPage from './components/pages/ChatsPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -42,6 +43,7 @@ const App = () => {
             <Route path="/request/:id" element={<RequestDetailPage />} />
             <Route path="/request/:id/edit" element={<EditRequestPage />} />
             <Route path="/requests/:id/chat" element={<ChatPage />} />
+            <Route path="/chats" element={<ChatsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/my-requests" element={<MyRequestsPage />} />
           </Route>

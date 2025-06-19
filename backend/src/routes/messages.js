@@ -1,11 +1,59 @@
 import express from 'express';
 import { body, validationResult, param } from 'express-validator';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import Message from '../models/Message.js';
 import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
 
 const router = express.Router();
+
+// Настройка хранилища для загрузки файлов
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/attachments';
+    // Создаем директорию, если она не существует
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Генерируем уникальное имя файла
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueSuffix + ext);
+  }
+});
+
+// Фильтр для проверки типов файлов
+const fileFilter = (req, file, cb) => {
+  // Разрешенные типы файлов
+  const allowedTypes = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Неподдерживаемый тип файла'), false);
+  }
+};
+
+// Настройка загрузчика
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10 МБ
+  }
+});
 
 /**
  * @swagger
@@ -244,6 +292,112 @@ router.post('/:requestId/read', protect, [
     res.json({ updated: result.modifiedCount });
   } catch (err) {
     console.error('Ошибка при пометке сообщений прочитанными:', err);
+    res.status(500).json({ msg: 'Что-то пошло не так' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/messages/attachment:
+ *   post:
+ *     summary: Отправить сообщение с вложением
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: formData
+ *         name: requestId
+ *         type: string
+ *         required: true
+ *         description: ID запроса
+ *       - in: formData
+ *         name: content
+ *         type: string
+ *         description: Текст сообщения (опционально)
+ *       - in: formData
+ *         name: attachment
+ *         type: file
+ *         required: true
+ *         description: Файл вложения (до 10 МБ)
+ *     responses:
+ *       201:
+ *         description: Сообщение с вложением успешно отправлено
+ *       400:
+ *         description: Ошибка валидации или неверные данные
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Доступ запрещен
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+router.post('/attachment', protect, upload.single('attachment'), async (req, res) => {
+  try {
+    const { requestId, content } = req.body;
+    const file = req.file;
+    
+    if (!requestId) {
+      return res.status(400).json({ msg: 'ID запроса обязателен' });
+    }
+    
+    if (!file) {
+      return res.status(400).json({ msg: 'Файл не загружен' });
+    }
+    
+    // Проверяем существование запроса
+    const request = await Request.findById(requestId).populate('author').populate('helper');
+    
+    if (!request) {
+      return res.status(404).json({ msg: 'Запрос не найден' });
+    }
+    
+    // Проверка, что отправитель является автором или назначенным исполнителем
+    const isAuthor = request.author && request.author._id.toString() === req.user._id.toString();
+    const isHelper = request.helper && request.helper._id.toString() === req.user._id.toString();
+    
+    if (!isAuthor && !isHelper) {
+      return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
+    }
+    
+    // Формируем URL для доступа к файлу
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/attachments/${file.filename}`;
+    
+    // Создаем новое сообщение
+    const newMessage = new Message({
+      requestId,
+      sender: req.user._id,
+      content: content || '',
+      attachments: [fileUrl],
+      readBy: [req.user._id] // Отправитель автоматически прочитал сообщение
+    });
+    
+    await newMessage.save();
+    const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id');
+    
+    // Определяем получателя уведомления
+    let recipientId;
+    if (isAuthor && request.helper) {
+      recipientId = request.helper._id;
+    } else if (isHelper && request.author) {
+      recipientId = request.author._id;
+    }
+    
+    if (recipientId) {
+      await createAndSendNotification({
+        user: recipientId,
+        type: 'new_message_in_request',
+        title: `Новое сообщение с вложением в заявке "${request.title}"`,
+        message: `Пользователь ${req.user.username} отправил вложение${content ? ': ' + content.substring(0, 50) + (content.length > 50 ? '...' : '') : ''}`,
+        link: `/requests/${requestId}`,
+        relatedEntity: { requestId: request._id, userId: req.user._id }
+      });
+    }
+    
+    res.status(201).json(populatedMessage);
+  } catch (err) {
+    console.error('Ошибка при отправке сообщения с вложением:', err);
     res.status(500).json({ msg: 'Что-то пошло не так' });
   }
 });

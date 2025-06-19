@@ -1,56 +1,55 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getUnreadNotifications, markAllNotificationsAsRead } from '../../services/notificationService';
+import { chatsService } from '../../services/api';
 import { toast } from 'react-toastify';
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  const fetchNotifications = async () => {
+  const fetchUnreadNotifications = async () => {
     try {
-      setIsLoading(true);
-      const data = await getUnreadNotifications();
-      
-      // Отсортируем по дате (новые сверху)
-      const sorted = data.sort((a, b) => {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-      
-      setNotifications(sorted);
-      setUnreadCount(sorted.length);
-    } catch (error) {
-      // Если API уведомлений еще не реализован (404), просто логируем ошибку без показа пользователю
-      if (error.response && error.response.status === 404) {
-        console.log('API уведомлений недоступен');
-      } else {
-        console.error('Не удалось получить уведомления', error);
-      }
-    } finally {
-      setIsLoading(false);
+      setLoading(true);
+      const response = await getUnreadNotifications();
+      setNotifications(response.data.notifications);
+      setUnreadCount(response.data.notifications.length);
+      setLoading(false);
+    } catch (err) {
+      console.error('Ошибка при получении уведомлений:', err);
+      setLoading(false);
     }
   };
-
-  // Загружаем уведомления при монтировании компонента
+  
+  const fetchUnreadMessagesCount = async () => {
+    try {
+      const response = await chatsService.getUnreadCount();
+      setUnreadMessagesCount(response.data.unreadCount);
+    } catch (err) {
+      console.error('Ошибка при получении количества непрочитанных сообщений:', err);
+    }
+  };
+  
   useEffect(() => {
-    fetchNotifications();
+    fetchUnreadNotifications();
+    fetchUnreadMessagesCount();
     
-    // Интервал обновления каждые 60 секунд
     const interval = setInterval(() => {
-      fetchNotifications();
+      fetchUnreadNotifications();
+      fetchUnreadMessagesCount();
     }, 60000);
     
     return () => clearInterval(interval);
   }, []);
   
-  // Закрываем дропдаун при клике вне его области
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
+        setIsOpen(false);
       }
     };
     
@@ -60,145 +59,169 @@ const NotificationBell = () => {
     };
   }, []);
   
-  const handleToggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-  
   const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead();
-      setUnreadCount(0);
       setNotifications(prevNotifications => 
         prevNotifications.map(notification => ({
           ...notification,
-          read: true
+          isRead: true
         }))
       );
+      setUnreadCount(0);
       toast.success('Все уведомления отмечены как прочитанные');
-    } catch (error) {
-      console.error('Ошибка при отметке уведомлений', error);
+    } catch (err) {
+      console.error('Ошибка при отметке уведомлений как прочитанных:', err);
       toast.error('Не удалось отметить уведомления как прочитанные');
     }
   };
   
-  // Функция для форматирования времени
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    const diffInHours = Math.abs(now - date) / 36e5;
     
-    if (diffMins < 60) {
-      return `${diffMins} мин. назад`;
-    } else if (diffHours < 24) {
-      return `${diffHours} ч. назад`;
-    } else if (diffDays < 7) {
-      return `${diffDays} д. назад`;
+    if (diffInHours < 24) {
+      return new Intl.DateTimeFormat('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } else if (diffInHours < 48) {
+      return 'Вчера';
     } else {
-      return date.toLocaleDateString();
+      return new Intl.DateTimeFormat('ru-RU', {
+        day: '2-digit',
+        month: '2-digit'
+      }).format(date);
     }
   };
   
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'message':
-        return (
-          <svg className="w-4 h-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'request':
-        return (
-          <svg className="w-4 h-4 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'system':
-      default:
-        return (
-          <svg className="w-4 h-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-          </svg>
-        );
-    }
-  };
+  const totalUnreadCount = unreadCount + unreadMessagesCount;
 
   return (
-    <div ref={dropdownRef} className="relative">
-      <button 
-        onClick={handleToggleDropdown}
-        className="relative p-1 text-gray-700 hover:text-indigo-600 transition-colors duration-300 rounded-full focus:outline-none"
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative p-1 rounded-full text-gray-600 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
-        <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <span className="sr-only">Просмотреть уведомления</span>
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         
-        {/* Счетчик непрочитанных */}
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">
-            {unreadCount > 9 ? '9+' : unreadCount}
+        {totalUnreadCount > 0 && (
+          <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center transform -translate-y-1/2 translate-x-1/2">
+            {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
           </span>
         )}
       </button>
       
-      {/* Выпадающее меню с уведомлениями */}
-      {isDropdownOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50">
-          <div className="p-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="font-medium text-gray-800">Уведомления</h3>
+      {isOpen && (
+        <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-50">
+          <div className="py-2 px-4 flex justify-between items-center bg-gray-50 rounded-t-md">
+            <h3 className="text-sm font-medium text-gray-900">Уведомления</h3>
             {unreadCount > 0 && (
-              <button 
+              <button
                 onClick={handleMarkAllAsRead}
-                className="text-xs text-indigo-600 hover:text-indigo-800 focus:outline-none"
+                className="text-xs text-indigo-600 hover:text-indigo-800"
               >
-                Отметить всё как прочитанное
+                Отметить все как прочитанные
               </button>
             )}
           </div>
           
+          {unreadMessagesCount > 0 && (
+            <div className="py-2 px-4 bg-blue-50">
+              <Link
+                to="/chats"
+                className="flex items-center py-2 hover:bg-blue-100 rounded-md px-2 -mx-2"
+                onClick={() => setIsOpen(false)}
+              >
+                <div className="flex-shrink-0 mr-3">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    У вас {unreadMessagesCount} {unreadMessagesCount === 1 ? 'непрочитанное сообщение' : 
+                    unreadMessagesCount < 5 ? 'непрочитанных сообщения' : 'непрочитанных сообщений'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Нажмите, чтобы перейти к чатам
+                  </p>
+                </div>
+              </Link>
+            </div>
+          )}
+          
           <div className="max-h-60 overflow-y-auto">
-            {isLoading ? (
-              <div className="flex justify-center items-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
+            {loading ? (
+              <div className="py-4 text-center">
+                <div className="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-indigo-500"></div>
+                <p className="text-sm text-gray-500 mt-1">Загрузка уведомлений...</p>
               </div>
             ) : notifications.length > 0 ? (
-              <div>
-                {notifications.map((notification) => (
-                  <Link 
-                    to={notification.link || '/notifications'} 
-                    key={notification._id} 
-                    className={`block px-4 py-2 hover:bg-gray-50 transition-colors duration-150 ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
-                  >
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0 mt-1">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                      <div className="ml-3 flex-1">
-                        <p className={`text-sm ${notification.read ? 'text-gray-800' : 'font-medium text-gray-900'}`}>
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatTime(notification.createdAt)}
-                        </p>
+              notifications.map(notification => (
+                <Link
+                  key={notification._id}
+                  to={notification.link || '#'}
+                  className={`block px-4 py-3 hover:bg-gray-50 ${!notification.isRead ? 'bg-indigo-50' : ''}`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mr-3">
+                      <div className={`h-8 w-8 rounded-full ${!notification.isRead ? 'bg-indigo-100' : 'bg-gray-100'} flex items-center justify-center`}>
+                        {notification.type.includes('message') ? (
+                          <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          </svg>
+                        ) : notification.type.includes('review') ? (
+                          <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        ) : notification.type.includes('request') ? (
+                          <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                        )}
                       </div>
                     </div>
-                  </Link>
-                ))}
-              </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${!notification.isRead ? 'text-indigo-900' : 'text-gray-900'}`}>
+                        {notification.title}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatDate(notification.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))
             ) : (
-              <div className="py-4 px-4 text-center text-gray-500 text-sm">
-                Нет новых уведомлений
+              <div className="py-6 text-center">
+                <svg className="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <p className="text-sm text-gray-500 mt-2">Нет новых уведомлений</p>
               </div>
             )}
           </div>
           
-          <div className="p-2 bg-gray-50 border-t border-gray-200 text-center">
-            <Link 
-              to="/notifications" 
-              className="text-sm text-indigo-600 hover:text-indigo-800"
-              onClick={() => setIsDropdownOpen(false)}
+          <div className="py-2 px-4 bg-gray-50 rounded-b-md">
+            <Link
+              to="/notifications"
+              className="block text-center text-sm text-indigo-600 hover:text-indigo-800"
+              onClick={() => setIsOpen(false)}
             >
               Просмотреть все уведомления
             </Link>
