@@ -51,17 +51,12 @@ const Header = () => {
         <div className="flex justify-between items-center">
           {/* Логотип */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
-              <span className="text-white font-bold text-xl">БК</span>
-            </div>
+            <img src="/img/logo.png" alt="Бірге Көмек" className="w-10 h-10" />
             <span className="text-xl font-bold text-gray-900">Бірге Көмек</span>
           </Link>
           
           {/* Навигация для десктопа */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/" className={`text-sm font-medium transition-colors duration-300 ${isActive('/')}`}>
-              Главная
-            </Link>
             <Link to="/requests" className={`text-sm font-medium transition-colors duration-300 ${isActive('/requests')}`}>
               Запросы
             </Link>
@@ -124,9 +119,6 @@ const Header = () => {
         {/* Мобильное меню */}
         <div className={`md:hidden transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
           <div className="flex flex-col space-y-4 pt-2 pb-4">
-            <Link to="/" className={`text-sm font-medium transition-colors duration-300 ${isActive('/')}`}>
-              Главная
-            </Link>
             <Link to="/requests" className={`text-sm font-medium transition-colors duration-300 ${isActive('/requests')}`}>
               Запросы
             </Link>
