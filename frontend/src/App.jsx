@@ -1,56 +1,68 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import Layout from './components/layout/Layout';
-import RequireAuth from './components/auth/RequireAuth';
-import HomePage from './components/pages/HomePage';
-import AboutPage from './components/pages/AboutPage';
-import RegisterPage from './components/pages/RegisterPage';
-import LoginPage from './components/pages/LoginPage';
-import ForgotPasswordPage from './components/pages/ForgotPasswordPage';
-import ResetPasswordPage from './components/pages/ResetPasswordPage';
-import RequestsPage from './components/pages/RequestsPage';
-import ProfilePage from './components/pages/ProfilePage';
-import CreateRequestPage from './components/pages/CreateRequestPage';
-import RequestDetailPage from './components/pages/RequestDetailPage';
-import EditRequestPage from './components/pages/EditRequestPage';
-import NotificationsPage from './components/pages/NotificationsPage';
-import MyRequestsPage from './components/pages/MyRequestsPage';
-import ChatPage from './components/pages/ChatPage';
-import ChatsPage from './components/pages/ChatsPage';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const App = () => {
-  return (
-    <>
-      <ToastContainer position="top-right" autoClose={5000} />
-      <Layout>
-        <Routes>
-          {/* Публичные маршруты */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          <Route path="/requests" element={<RequestsPage />} />
-          
-          {/* Защищенные маршруты */}
-          <Route element={<RequireAuth />}>
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
-            <Route path="/create-request" element={<CreateRequestPage />} />
-            <Route path="/request/:id" element={<RequestDetailPage />} />
-            <Route path="/request/:id/edit" element={<EditRequestPage />} />
-            <Route path="/requests/:id/chat" element={<ChatPage />} />
-            <Route path="/chats" element={<ChatsPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/my-requests" element={<MyRequestsPage />} />
-          </Route>
-        </Routes>
-      </Layout>
-    </>
-  );
+// Компоненты
+import Header from './components/layout/Header';
+import Footer from './components/layout/Footer';
+import Register from './components/auth/Register';
+import Login from './components/auth/Login';
+
+// Страницы
+import HomePage from './components/pages/HomePage';
+import AboutPage from './components/pages/AboutPage';
+import ProfilePage from './components/pages/ProfilePage';
+import ChatPage from './components/pages/ChatPage';
+import NotificationsPage from './components/pages/NotificationsPage';
+import RequestFeedPage from './components/pages/RequestFeedPage';
+import RequestDetailPage from './components/pages/RequestDetailPage';
+import CreateRequestPage from './components/pages/CreateRequestPage';
+
+// Утилита для защищенных роутов
+const PrivateRoute = ({ children }) => {
+  const { currentUser, loading } = useAuth();
+  if (loading) {
+    return <div>Загрузка...</div>; // Или спиннер
+  }
+  return currentUser ? children : <Navigate to="/login" replace />;
 };
+
+function App() {
+  return (
+    <AuthProvider>
+      <SocketProvider>
+        <Router>
+          <div className="flex flex-col min-h-screen bg-gray-50">
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              <ToastContainer position="bottom-right" autoClose={4000} hideProgressBar={false} />
+              <Routes>
+                {/* Публичные роуты */}
+                <Route path="/" element={<HomePage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/requests" element={<RequestFeedPage />} />
+                <Route path="/request/:id" element={<RequestDetailPage />} />
+                
+                {/* Приватные роуты */}
+                <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+                <Route path="/chat/:id" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
+                <Route path="/notifications" element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
+                <Route path="/create-request" element={<PrivateRoute><CreateRequestPage/></PrivateRoute>} />
+                
+                {/* TODO: Добавить страницу 404 */}
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </SocketProvider>
+    </AuthProvider>
+  );
+}
 
 export default App; 

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5050/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 // Создаем экземпляр axios с базовым URL
 const api = axios.create({
@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Экспортируем базовый URL для использования в компонентах
@@ -132,14 +133,29 @@ const usersService = {
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
     return api.put('/users/password', { currentPassword, newPassword });
-  }
+  },
+
+  uploadAvatar: async (formData) => {
+    const response = await api.put('/users/avatar', formData, {
+      headers: {
+        // Axios сам поставит 'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  },
 };
 
 // Сервис для работы с аутентификацией
 const authService = {
   // Регистрация
   register: async (userData) => {
-    return api.post('/auth/register', userData);
+    const response = await api.post('/users/register', userData, {
+      headers: {
+        // Axios сам установит правильный Content-Type для FormData
+        // 'Content-Type': 'multipart/form-data',
+      }
+    });
+    return response.data;
   },
   
   // Вход
@@ -213,6 +229,24 @@ const chatsService = {
   }
 };
 
+// Сервис для работы с уведомлениями
+const notificationsService = {
+  // Получить все уведомления
+  getNotifications: async () => {
+    return api.get('/notifications');
+  },
+  
+  // Получить количество непрочитанных уведомлений
+  getUnreadCount: async () => {
+    return api.get('/notifications/unread');
+  },
+
+  // Пометить все уведомления как прочитанные
+  markAllAsRead: async () => {
+    return api.put('/notifications/read-all');
+  },
+};
+
 export {
   api,
   requestsService,
@@ -220,5 +254,6 @@ export {
   authService,
   messagesService,
   responsesService,
-  chatsService
+  chatsService,
+  notificationsService
 }; 

@@ -1,102 +1,183 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { requestsService, messagesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
+import { requestsService, messagesService } from '../../services/api';
 import { toast } from 'react-toastify';
+import { PaperAirplaneIcon, PaperClipIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+
+// Новый, улучшенный компонент сообщения с аватаркой
+const Message = ({ msg, isOwnMessage }) => {
+  // Проверяем, является ли вложение картинкой
+  const isImage = (attachmentUrl) => {
+    return attachmentUrl && /\.(jpeg|jpg|gif|png)$/i.test(attachmentUrl);
+  };
+
+  // Функция для генерации URL аватара
+  const getAvatarUrl = (sender) => {
+    // Безопасная проверка, если вдруг нет отправителя
+    if (!sender || !sender.username) return `https://ui-avatars.com/api/?name=?&background=random&color=fff`;
+    
+    return sender.avatar
+      ? `http://192.168.1.87:5050${sender.avatar}`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(sender.username)}&background=random&color=fff`;
+  };
+
+  // Защита от редких случаев, когда сообщение есть, а отправителя нет (например, при ошибке populate)
+  if (!msg.sender) {
+    return (
+      <div className="text-center text-gray-400 text-sm my-2">Сообщение загружается...</div>
+    );
+  }
+
+  return (
+    <div className={`flex items-end gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0">
+        <img
+          src={getAvatarUrl(msg.sender)}
+          alt={msg.sender.username}
+          className="w-8 h-8 rounded-full"
+        />
+      </Link>
+
+      <div className={`rounded-lg px-4 py-2 max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+        {msg.attachment && (
+          <div className="mb-2">
+            {isImage(msg.attachment) ? (
+              <img src={`http://192.168.1.87:5050${msg.attachment}`} alt="Вложение" className="rounded-lg max-w-full h-auto" />
+            ) : (
+              <a href={`http://192.168.1.87:5050${msg.attachment}`} target="_blank" rel="noopener noreferrer" className="flex items-center p-2 bg-gray-500 bg-opacity-30 rounded-lg hover:bg-opacity-50">
+                <PaperClipIcon className="h-5 w-5 mr-2" />
+                <span>{msg.attachment.split('/').pop()}</span>
+              </a>
+            )}
+          </div>
+        )}
+        <p className="break-words">{msg.content}</p>
+        <div className={`text-xs mt-1 ${isOwnMessage ? 'text-indigo-200' : 'text-gray-500'}`}>
+          {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ChatPage = () => {
-  const { id } = useParams();
-  const [request, setRequest] = useState(null);
+  const { id: requestId } = useParams();
+  const { currentUser } = useAuth();
+  const socket = useSocket();
+  
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [requestDetails, setRequestDetails] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState(null);
-  const { currentUser } = useAuth();
-  const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  
-  // Функция для загрузки данных запроса
-  const fetchRequestDetails = async () => {
+  const [error, setError] = useState('');
+  const [attachment, setAttachment] = useState(null);
+
+  const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const isScrolledToBottom = useRef(true);
+
+  // Получаем первоначальные данные (инфо о запросе и старые сообщения)
+  const fetchInitialData = useCallback(async () => {
+    if (!requestId) return;
+    setLoading(true);
+    setError('');
     try {
-      const response = await requestsService.getRequestById(id);
-      setRequest(response.data);
+      const [detailsRes, messagesRes] = await Promise.all([
+        requestsService.getRequestById(requestId),
+        messagesService.getMessages(requestId)
+      ]);
+      setRequestDetails(detailsRes.data);
+      setMessages(messagesRes.data);
     } catch (err) {
-      console.error('Ошибка при получении данных запроса:', err);
-      setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
-    }
-  };
-  
-  // Функция для загрузки сообщений
-  const fetchMessages = async () => {
-    try {
-      const response = await messagesService.getMessages(id);
-      setMessages(response.data);
-      // Отмечаем сообщения как прочитанные
-      await messagesService.markAsRead(id);
-    } catch (err) {
-      console.error('Ошибка при получении сообщений:', err);
-      setError(err.response?.data?.msg || 'Произошла ошибка при загрузке сообщений');
+      setError('Произошла ошибка при загрузке чата.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [requestId]);
 
-  // Загружаем данные при монтировании компонента
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await fetchRequestDetails();
-      await fetchMessages();
-    };
-    
-    loadData();
-    
-    // Настраиваем интервал для периодической проверки новых сообщений
-    const interval = setInterval(fetchMessages, 5000);
-    
-    return () => clearInterval(interval);
-  }, [id]);
-  
-  // Прокручиваем к последнему сообщению при загрузке или добавлении новых
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  // Эффект для авто-прокрутки
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    // Прокручиваем вниз только если пользователь уже был внизу,
+    // чтобы не мешать ему читать историю.
+    if (isScrolledToBottom.current) {
+      scrollToBottom();
     }
-  }, [messages]);
+  }, [messages]); // Запускается каждый раз при изменении сообщений
+
+  // Настройка Socket.IO
+  useEffect(() => {
+    if (!socket) return; // Если сокет еще не подключен, выходим
+
+    // Присоединяемся к комнате чата
+    socket.emit('join_chat', requestId);
+
+    // ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
+    const markMessagesAsRead = async () => {
+      try {
+        await messagesService.markAsRead(requestId);
+      } catch (err) {
+        console.error('Ошибка при пометке сообщений как прочитанных:', err);
+      }
+    };
+    markMessagesAsRead();
+    
+    // Слушаем новые сообщения
+    const handleNewMessage = (message) => {
+      if (message.requestId === requestId) { // Убедимся, что сообщение для этого чата
+        if (chatContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+          isScrolledToBottom.current = scrollHeight - scrollTop <= clientHeight + 10;
+        }
+        setMessages((prevMessages) => [...prevMessages, message]);
+      }
+    };
+
+    socket.on('new_message', handleNewMessage);
+    
+    // Обработка ошибок сокета (можно оставить, если есть специфичные для чата ошибки)
+    const handleConnectError = (err) => {
+      console.error('Socket connection error:', err.message);
+      toast.error('Не удалось подключиться к чату.');
+    };
+    socket.on('connect_error', handleConnectError);
+
+    // Отключаемся от слушателей при размонтировании компонента или смене сокета/requestId
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('connect_error', handleConnectError);
+      // Не нужно вызывать socket.disconnect() здесь, так как он глобальный
+    };
+  }, [socket, requestId]);
   
-  // Функция для отправки сообщения
+  // Функция для плавной прокрутки вниз
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  // Умная прокрутка, которая не мешает пользователю
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const atBottom = scrollHeight - scrollTop <= clientHeight + 50; // +50px погрешность
+    isScrolledToBottom.current = atBottom;
+  };
+  
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
-    if (!newMessage.trim() && !selectedFile) {
-      toast.error('Введите сообщение или выберите файл');
-      return;
+    if ((newMessage.trim() || attachment) && socket) {
+      socket.emit('send_message', {
+        requestId: requestId,
+        content: newMessage,
+      });
     }
     
-    setSending(true);
-    
-    try {
-      if (selectedFile) {
-        // Отправка сообщения с вложением
-        await messagesService.sendMessageWithAttachment(id, newMessage, selectedFile);
-      } else {
-        // Отправка обычного текстового сообщения
-        await messagesService.sendMessage(id, newMessage);
-      }
-      
-      setNewMessage('');
-      setSelectedFile(null);
-      
-      // Обновляем список сообщений
-      await fetchMessages();
-    } catch (err) {
-      console.error('Ошибка при отправке сообщения:', err);
-      toast.error('Не удалось отправить сообщение. Пожалуйста, попробуйте еще раз.');
-    } finally {
-      setSending(false);
-    }
+    setNewMessage('');
+    setAttachment(null);
   };
   
   // Обработчик выбора файла
@@ -108,7 +189,7 @@ const ChatPage = () => {
         toast.error('Размер файла не должен превышать 10 МБ');
         return;
       }
-      setSelectedFile(file);
+      setAttachment(file);
     }
   };
   
@@ -126,11 +207,11 @@ const ChatPage = () => {
   
   // Проверяем, является ли пользователь участником чата
   const isParticipant = () => {
-    if (!request || !currentUser) return false;
+    if (!requestDetails || !currentUser) return false;
     
     return (
-      request.author._id === currentUser._id || 
-      (request.helper && request.helper._id === currentUser._id)
+      requestDetails.author._id === currentUser._id || 
+      (requestDetails.helper && requestDetails.helper._id === currentUser._id)
     );
   };
 
@@ -162,7 +243,7 @@ const ChatPage = () => {
     );
   }
 
-  if (!request) {
+  if (!requestDetails) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16">
         <div className="text-center">
@@ -204,13 +285,13 @@ const ChatPage = () => {
         <div className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold">{request.title}</h1>
+              <h1 className="text-xl font-bold">{requestDetails.title}</h1>
               <p className="text-sm text-gray-500">
-                {request.subject} • {request.grade} класс
+                {requestDetails.subject} • {requestDetails.grade} класс
               </p>
             </div>
             <Link 
-              to={`/request/${id}`}
+              to={`/request/${requestId}`}
               className="text-sm text-indigo-600 hover:text-indigo-800"
             >
               К деталям запроса
@@ -218,18 +299,18 @@ const ChatPage = () => {
           </div>
           <div className="flex items-center mt-2 text-sm text-gray-500">
             <span>Участники: </span>
-            <span className="ml-1 font-medium">{request.author.username}</span>
-            {request.helper && (
+            <span className="ml-1 font-medium">{requestDetails.author.username}</span>
+            {requestDetails.helper && (
               <>
                 <span className="mx-1">и</span>
-                <span className="font-medium">{request.helper.username}</span>
+                <span className="font-medium">{requestDetails.helper.username}</span>
               </>
             )}
           </div>
         </div>
         
         {/* Область сообщений */}
-        <div className="p-4 h-[60vh] overflow-y-auto">
+        <div ref={chatContainerRef} className="p-4 h-[60vh] overflow-y-auto">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -240,62 +321,9 @@ const ChatPage = () => {
           ) : (
             <div className="space-y-4">
               {messages.map((message) => (
-                <div 
-                  key={message._id} 
-                  className={`flex ${message.sender._id === currentUser._id ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div 
-                    className={`max-w-[70%] rounded-lg p-3 ${
-                      message.sender._id === currentUser._id 
-                        ? 'bg-indigo-100 text-indigo-900' 
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-center mb-1">
-                      <span className="font-medium text-sm">
-                        {message.sender.username}
-                      </span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        {formatDate(message.createdAt)}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="mt-2">
-                        {message.attachments.map((attachment, index) => {
-                          // Определяем тип файла по расширению
-                          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(attachment);
-                          
-                          return isImage ? (
-                            <img 
-                              key={index}
-                              src={attachment} 
-                              alt="Вложение" 
-                              className="max-w-full max-h-40 rounded-md cursor-pointer"
-                              onClick={() => window.open(attachment, '_blank')}
-                            />
-                          ) : (
-                            <a 
-                              key={index}
-                              href={attachment} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="flex items-center text-indigo-600 hover:text-indigo-800"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                              </svg>
-                              Скачать файл
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <Message key={message._id} msg={message} isOwnMessage={message.sender?._id === currentUser?._id} />
               ))}
-              <div ref={messagesEndRef} />
+              <div ref={chatEndRef} />
             </div>
           )}
         </div>
@@ -306,17 +334,15 @@ const ChatPage = () => {
             <div className="flex items-center">
               <button
                 type="button"
-                onClick={() => fileInputRef.current.click()}
+                onClick={() => document.getElementById('attachment-input').click()}
                 className="p-2 text-gray-500 hover:text-indigo-600"
                 title="Прикрепить файл"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                </svg>
+                <PaperClipIcon className="w-5 h-5" />
               </button>
               <input
                 type="file"
-                ref={fileInputRef}
+                id="attachment-input"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -326,42 +352,15 @@ const ChatPage = () => {
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Введите сообщение..."
                 className="flex-1 border border-gray-300 rounded-l-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                disabled={sending}
               />
               <button
                 type="submit"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-r-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-                disabled={sending || (!newMessage.trim() && !selectedFile)}
+                disabled={!newMessage.trim() && !attachment}
               >
-                {sending ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                  </div>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                  </svg>
-                )}
+                Отправить
               </button>
             </div>
-            
-            {/* Показываем выбранный файл */}
-            {selectedFile && (
-              <div className="flex items-center bg-gray-50 p-2 rounded-md">
-                <span className="text-sm text-gray-700 truncate flex-1">
-                  {selectedFile.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFile(null)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                </button>
-              </div>
-            )}
           </form>
         </div>
       </div>

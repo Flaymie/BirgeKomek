@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
@@ -105,40 +106,56 @@ router.post('/register', [
     .optional()
     .isArray().withMessage('helperSubjects должен быть массивом')
     .custom((subjects) => !subjects.some(s => typeof s !== 'string' || s.trim() === ''))
-    .withMessage('Все предметы в helperSubjects должны быть непустыми строками')
+    .withMessage('Все предметы в helperSubjects должны быть непустыми строками'),
+  body('role', 'Роль обязательна').isIn(['student', 'helper']),
+  body('subjects').optional().isArray().withMessage('Предметы должны быть массивом'),
 ], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { username, email, password, phone, grade, helperSubjects, role, subjects } = req.body;
+
   try {
-    // Проверяем результаты валидации
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ msg: 'Пользователь с таким email уже существует' });
     }
-    
-    // Извлекаем только нужные поля, а не весь req.body
-    const { username, email, password, phone, roles, grade, helperSubjects } = req.body;
-    
-    // проверяем, что такой юзер ещё не существует
-    const existing = await User.findOne({ 
-      $or: [{ email }, { username }] 
-    });
-    
-    if (existing) {
-      return res.status(400).json({ 
-        msg: 'Пользователь с таким email или username уже есть' 
-      });
+
+    user = await User.findOne({ username });
+    if (user) {
+      return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
     }
-    
-    // Создаем новый объект пользователя с валидированными данными
-    const user = new User({
+
+    const newUser = {
       username,
       email,
       password,
       phone,
-      roles,
-      grade,
-      helperSubjects: (roles && roles.helper && helperSubjects) ? helperSubjects : []
-    });
-    
+      role,
+    };
+
+    if (role === 'student') {
+      if (!grade) {
+        return res.status(400).json({ msg: 'Класс обязателен для ученика' });
+      }
+      newUser.grade = grade;
+    }
+
+    if (role === 'helper') {
+      if (subjects && subjects.length > 0) {
+        newUser.subjects = subjects;
+      } else {
+        newUser.subjects = [];
+      }
+    }
+
+    user = new User(newUser);
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+
     await user.save();
     
     // создаем токен

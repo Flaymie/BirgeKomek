@@ -7,6 +7,10 @@ import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
+import http from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
 import requestRoutes from './routes/requests.js';
@@ -16,25 +20,64 @@ import userRoutes from './routes/users.js';
 import notificationRoutes from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
 import responseRoutes from './routes/responses.js';
+import chatRoutes from './routes/chats.js';
+import Message from './models/Message.js';
+import { createAndSendNotification } from './routes/notifications.js';
+import Request from './models/Request.js';
+import User from './models/User.js';
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://192.168.1.87:3000',
+      'http://192.168.1.87:5173'
+    ],
+    methods: ['GET', 'POST']
+  }
+});
+
 const PORT = process.env.PORT || 5050;
 
 // мидлвари
-app.use(cors());
-app.use(express.json({ limit: '10kb' })); // ограничение размера JSON
-app.use(morgan('dev'));
-
-// защита от NoSQL инъекций
+app.use(express.json());
 app.use(mongoSanitize());
-
-// установка безопасных HTTP заголовков
 app.use(helmet());
+
+const whitelist = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://192.168.1.87:3000',
+  'http://192.168.1.87:5173',
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Для запросов без origin (например, с мобильных приложений или curl)
+    if (!origin) return callback(null, true);
+    if (whitelist.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
 
 // отключаем строку X-Powered-By
 app.disable('x-powered-by');
+
+// Карта для хранения онлайн пользователей. Ключ - userId, значение - timestamp последнего пинга
+const onlineUsers = new Map();
 
 // Настройка rate limiter для API (общая)
 const apiLimiter = rateLimit({
@@ -79,10 +122,105 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes(onlineUsers));
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/responses', responseRoutes);
+app.use('/api/chats', chatRoutes);
+
+// Socket.IO логика
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: Token not provided'));
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return next(new Error('Authentication error: Invalid token'));
+    }
+    socket.user = decoded; // Сохраняем данные пользователя в сокете
+    next();
+  });
+});
+
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.user.id}`);
+  onlineUsers.set(socket.user.id, new Date());
+  User.findByIdAndUpdate(socket.user.id, { lastSeen: new Date() }).exec();
+
+  socket.on('user_ping', () => {
+    onlineUsers.set(socket.user.id, new Date());
+  });
+
+  socket.on('join_chat', (requestId) => {
+    socket.join(requestId);
+    console.log(`User ${socket.user.id} joined chat for request ${requestId}`);
+  });
+
+  socket.on('send_message', async (data) => {
+    const { requestId, content, attachment } = data;
+
+    if (!requestId) {
+      console.error('Socket: Error - requestId is missing in received data');
+      return socket.emit('message_error', { error: 'Request ID is missing.' });
+    }
+
+    try {
+      const request = await Request.findById(requestId).lean();
+      if (!request) {
+        return socket.emit('message_error', { error: 'Request not found.' });
+      }
+
+      const senderId = socket.user.id;
+      const isAuthor = request.author.toString() === senderId;
+      const recipientId = isAuthor ? request.helper : request.author;
+      
+      const message = new Message({
+        requestId: requestId,
+        sender: senderId,
+        content,
+      });
+      await message.save();
+      await message.populate('sender', 'username avatar');
+
+      io.to(requestId).emit('new_message', message);
+      
+      if (recipientId) {
+        const senderUser = await User.findById(senderId).lean();
+        await createAndSendNotification({
+          user: recipientId,
+          type: 'new_message_in_request',
+          title: `Новое сообщение в чате: "${request.title}"`,
+          message: `${senderUser.username}: ${content.substring(0, 50)}...`,
+          link: `/requests/${requestId}/chat`, // ПРАВИЛЬНАЯ ССЫЛКА
+          relatedEntity: { requestId: requestId, userId: senderId }
+        });
+      }
+    } catch (error) {
+      console.error('Socket: Error sending message:', error);
+      socket.emit('message_error', { error: 'Failed to send message' });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.user.id}`);
+    onlineUsers.delete(socket.user.id);
+    User.findByIdAndUpdate(socket.user.id, { lastSeen: new Date() }).exec();
+  });
+});
+
+// Периодическая проверка "мертвых душ"
+setInterval(() => {
+  const now = new Date();
+  const timeout = 90 * 1000; // 1.5 минуты
+  onlineUsers.forEach((timestamp, userId) => {
+    if (now - timestamp > timeout) {
+      console.log(`User ${userId} timed out.`);
+      onlineUsers.delete(userId);
+      User.findByIdAndUpdate(userId, { lastSeen: new Date(timestamp) }).exec();
+    }
+  });
+}, 60 * 1000); // Проверять каждую минуту
 
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {
@@ -111,7 +249,8 @@ app.use((req, res) => {
   res.status(404).json({ msg: 'Не найдено ничего' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+// Запускаем сервер
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Сервер запущен на порту ${PORT} и слушает на всех интерфейсах.`);
   console.log(`Документация API доступна по адресу http://localhost:${PORT}/api-docs`);
 }); 

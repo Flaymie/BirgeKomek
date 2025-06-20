@@ -3,7 +3,29 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
-import axios from 'axios';
+import { usersService } from '../../services/api';
+import AvatarInput from '../common/AvatarInput';
+import { UserCircleIcon } from '@heroicons/react/24/solid';
+
+// Функция для форматирования времени "last seen"
+const formatLastSeen = (dateString) => {
+  if (!dateString) return 'давно';
+  
+  const now = new Date();
+  const lastSeen = new Date(dateString);
+  const diffSeconds = Math.round((now - lastSeen) / 1000);
+  const diffMinutes = Math.round(diffSeconds / 60);
+  const diffHours = Math.round(diffMinutes / 60);
+  const diffDays = Math.round(diffHours / 24);
+
+  if (diffMinutes < 1) return 'только что';
+  if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
+  if (diffHours < 24) return `${diffHours} ч. назад`;
+  if (diffDays === 1) return 'вчера';
+  if (diffDays < 30) return `${diffDays} д. назад`;
+  
+  return new Intl.DateTimeFormat('ru-RU').format(lastSeen);
+};
 
 // Компонент загрузки
 const LoadingOverlay = ({ className }) => (
@@ -37,7 +59,70 @@ const getRoleText = (profile) => {
   return 'Ученик';
 };
 
-// Компонент просмотра профиля другого пользователя
+// ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
+const subjectOptions = [
+  { value: 'Математика', label: 'Математика' },
+  { value: 'Физика', label: 'Физика' },
+  { value: 'Химия', label: 'Химия' },
+  { value: 'Биология', label: 'Биология' },
+  { value: 'История', label: 'История' },
+  { value: 'География', label: 'География' },
+  { value: 'Литература', label: 'Литература' },
+  { value: 'Русский язык', label: 'Русский язык' },
+  { value: 'Казахский язык', label: 'Казахский язык' },
+  { value: 'Английский язык', label: 'Английский язык' },
+  { value: 'Информатика', label: 'Информатика' },
+  { value: 'Другое', label: 'Другое' },
+];
+
+// === НОВЫЙ КОМПОНЕНТ СТАТИСТИКИ ===
+const ProfileStats = ({ profile }) => {
+  if (!profile || !profile.roles) return null;
+
+  // Если хелпер, показываем его статистику
+  if (profile.roles.helper) {
+    return (
+      <div className="border-t border-gray-200 pt-4 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div>
+            <p className="text-lg font-semibold text-indigo-600">{profile.rating ? profile.rating.toFixed(1) : 'Н/Д'}</p>
+            <p className="text-sm text-gray-500">Рейтинг</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-indigo-600">{profile.completedRequests || 0}</p>
+            <p className="text-sm text-gray-500">Выполнено</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-indigo-600">{profile.points || 0}</p>
+            <p className="text-sm text-gray-500">Баллы</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
+            <p className="text-sm text-gray-500">Класс</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Если ученик, показываем его статистику
+  return (
+    <div className="border-t border-gray-200 pt-4 mt-6">
+      <div className="grid grid-cols-2 gap-4 text-center">
+        <div>
+          <p className="text-lg font-semibold text-indigo-600">{profile.createdRequests || 0}</p>
+          <p className="text-sm text-gray-500">Создано запросов</p>
+        </div>
+        <div>
+          <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
+          <p className="text-sm text-gray-500">Класс</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
 const UserProfileView = ({ profile, currentUser, onBack }) => {
   if (!profile) return null;
   
@@ -57,8 +142,21 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
                 </div>
                 <div>
                   <h2 className="text-xl font-medium text-gray-900">{profile.username}</h2>
-                  <p className="text-gray-500">На платформе с {new Date(profile.createdAt).toLocaleDateString()}</p>
-                  <div className="mt-1">
+                  <div className="flex items-center mt-1">
+                    {profile.isOnline ? (
+                      <span className="flex items-center text-sm text-green-600">
+                        <span className="h-2 w-2 mr-1.5 bg-green-500 rounded-full"></span>
+                        Онлайн
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-sm text-gray-500">
+                        <span className="h-2 w-2 mr-1.5 bg-gray-400 rounded-full"></span>
+                        Был(а) в сети {formatLastSeen(profile.lastSeen)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 mt-1">На платформе с {new Date(profile.createdAt).toLocaleDateString()}</p>
+                  <div className="mt-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       profile.roles && profile.roles.helper 
                         ? 'bg-indigo-100 text-indigo-800' 
@@ -93,11 +191,11 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
                 {profile.roles && profile.roles.helper && (
                   <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-1">Помощь в предметах</h3>
-                    {profile.helperSubjects && profile.helperSubjects.length > 0 ? (
+                    {profile.subjects && profile.subjects.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {profile.helperSubjects.map((subject, index) => (
+                        {profile.subjects.map((subject, index) => (
                           <span key={index} className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">
-                            {subject}
+                            {subjectOptions.find(s => s.value === subject)?.label || subject}
                           </span>
                         ))}
                       </div>
@@ -108,26 +206,7 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
                 )}
               </div>
               
-              <div className="border-t border-gray-200 pt-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-lg font-semibold text-indigo-600">{profile.rating ? profile.rating.toFixed(1) : 'Н/Д'}</p>
-                    <p className="text-sm text-gray-500">Рейтинг</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-indigo-600">{profile.completedRequests || 0}</p>
-                    <p className="text-sm text-gray-500">Выполнено</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-indigo-600">{profile.points || 0}</p>
-                    <p className="text-sm text-gray-500">Баллы</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
-                    <p className="text-sm text-gray-500">Класс</p>
-                  </div>
-                </div>
-              </div>
+              <ProfileStats profile={profile} />
             </div>
           </div>
           
@@ -147,7 +226,7 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
   );
 };
 
-// Компонент редактирования профиля пользователя
+// === ИСПРАВЛЕННЫЙ КОМПОНЕНТ РЕДАКТИРОВАНИЯ ПРОФИЛЯ ===
 const ProfileEditor = ({ 
   profileData, 
   profileErrors, 
@@ -156,213 +235,183 @@ const ProfileEditor = ({
   isProfileLoading, 
   handleProfileChange, 
   handleProfileSubmit,
-  currentUser
+  currentUser,
+  handleSubjectsChange
 }) => {
+  const handlePhoneChange = (e) => {
+    const value = e.target.value;
+    let digits = value.replace(/\D/g, '');
+
+    if (digits.length === 0) {
+      handleProfileChange({ target: { name: 'phone', value: '' } });
+      return;
+    }
+
+    if (digits.startsWith('8')) {
+      digits = '7' + digits.substring(1);
+    }
+    
+    if (!digits.startsWith('7')) {
+      digits = '7' + digits;
+    }
+
+    digits = digits.substring(0, 11);
+    const numberPart = digits.substring(1);
+
+    let formatted = '+7';
+    if (numberPart.length > 0) {
+      formatted = `+7 (${numberPart.substring(0, 3)}`;
+    }
+    if (numberPart.length >= 4) {
+      formatted += `) ${numberPart.substring(3, 6)}`;
+    }
+    if (numberPart.length >= 7) {
+      formatted += `-${numberPart.substring(6, 8)}`;
+    }
+    if (numberPart.length >= 9) {
+      formatted += `-${numberPart.substring(8, 10)}`;
+    }
+
+    handleProfileChange({ target: { name: 'phone', value: formatted } });
+  };
+
   return (
     <Container>
       <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="px-4 py-5 sm:p-6">
           <h1 className="text-2xl font-semibold text-gray-900 mb-6">Мой профиль</h1>
           
-          <div className="grid grid-cols-1 gap-6">
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
-              {/* Информация о роли и классе */}
-              <div className="mb-6 pb-4 border-b border-gray-200">
-                <div className="flex items-center">
-                  <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
-                    <span className="text-2xl font-semibold text-indigo-600">
-                      {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '?'}
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            {/* Информация о роли и классе */}
+            <div className="mb-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
+                  <span className="text-2xl font-semibold text-indigo-600">
+                    {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '?'}
+                  </span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">{currentUser.username}</h2>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      currentUser.roles && currentUser.roles.helper 
+                        ? 'bg-indigo-100 text-indigo-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {getRoleText(currentUser)}
                     </span>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-medium text-gray-900">{currentUser.username}</h2>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        currentUser.roles && currentUser.roles.helper 
-                          ? 'bg-indigo-100 text-indigo-800' 
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {getRoleText(currentUser)}
+                    {currentUser.grade && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {currentUser.grade} класс
                       </span>
-                      {currentUser.grade && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          {currentUser.grade} класс
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
-              
-              <h2 className="text-xl font-medium text-gray-900 mb-4">Личные данные</h2>
-              
-              <form onSubmit={handleProfileSubmit} className="space-y-4">
-                {profileSuccess && (
-                  <div className="bg-green-50 p-4 rounded-md">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.707a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-green-800">{profileSuccess}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {profileError && (
-                  <div className="bg-red-50 p-4 rounded-md">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-red-800">{profileError}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                      Имя пользователя
-                    </label>
-                    <input
-                      type="text"
-                      id="username"
-                      name="username"
-                      value={profileData.username}
-                      onChange={handleProfileChange}
-                      className={`form-input ${profileErrors.username ? 'form-input-error' : ''}`}
-                    />
-                    {profileErrors.username && (
-                      <p className="mt-1 text-sm text-red-600">{profileErrors.username}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange}
-                      className={`form-input bg-gray-100 ${profileErrors.email ? 'form-input-error' : ''}`}
-                      disabled
-                      readOnly
-                    />
-                    {profileErrors.email && (
-                      <p className="mt-1 text-sm text-red-600">{profileErrors.email}</p>
-                    )}
-                    <p className="mt-1 text-xs text-gray-500">Для изменения email обратитесь в поддержку</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                      Телефон
-                    </label>
-                    <input
-                      type="text"
-                      id="phone"
-                      name="phone"
-                      value={profileData.phone}
-                      onChange={handleProfileChange}
-                      className={`form-input ${profileErrors.phone ? 'form-input-error' : ''}`}
-                      placeholder="+7 (___) ___-__-__"
-                    />
-                    {profileErrors.phone && (
-                      <p className="mt-1 text-sm text-red-600">{profileErrors.phone}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                      Город
-                    </label>
-                    <input
-                      type="text"
-                      id="location"
-                      name="location"
-                      value={profileData.location}
-                      onChange={handleProfileChange}
-                      className="form-input"
-                      placeholder="Например: Алматы"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1">
-                      Класс
-                    </label>
-                    <select
-                      id="grade"
-                      name="grade"
-                      value={profileData.grade || ''}
-                      onChange={handleProfileChange}
-                      className={`form-select ${profileErrors.grade ? 'form-input-error' : ''}`}
-                    >
-                      <option value="">Выберите класс</option>
-                      {[...Array(11)].map((_, i) => (
-                        <option key={i+1} value={i+1}>{i+1} класс</option>
-                      ))}
-                    </select>
-                    {profileErrors.grade && (
-                      <p className="mt-1 text-sm text-red-600">{profileErrors.grade}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    {/* Пустая ячейка для выравнивания сетки */}
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                    О себе
-                  </label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    rows="3"
-                    value={profileData.bio}
-                    onChange={handleProfileChange}
-                    className="form-textarea"
-                    placeholder="Расскажите немного о себе..."
-                  ></textarea>
-                </div>
-                
-                <div className="flex items-center justify-end">
-                  <button
-                    type="submit"
-                    className={classNames(
-                      "btn btn-primary",
-                      isProfileLoading && "opacity-75 cursor-not-allowed"
-                    )}
-                    disabled={isProfileLoading}
-                  >
-                    {isProfileLoading ? (
-                      <>
-                        <LoadingOverlay className="w-5 h-5 mr-2" /> Сохранение...
-                      </>
-                    ) : (
-                      "Сохранить изменения"
-                    )}
-                  </button>
-                </div>
-              </form>
             </div>
+            
+            <h2 className="text-xl font-medium text-gray-900 my-4">Личные данные</h2>
+            
+            <form onSubmit={handleProfileSubmit} className="space-y-6">
+              {profileSuccess && (
+                <div className="bg-green-50 p-4 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.707a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">{profileSuccess}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {profileError && (
+                <div className="bg-red-50 p-4 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-red-800">{profileError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
+                  <input type="text" name="username" id="username" value={profileData.username || ''} onChange={handleProfileChange} className="mt-1 form-input" />
+                  {profileErrors?.username && <p className="mt-1 text-sm text-red-600">{profileErrors.username}</p>}
+                </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+                  <input type="email" name="email" id="email" value={profileData.email || ''} className="mt-1 form-input bg-gray-100 cursor-not-allowed" disabled readOnly />
+                  <p className="mt-1 text-xs text-gray-500">Email нельзя изменить.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Телефон</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    id="phone"
+                    value={profileData.phone || ''}
+                    onChange={handlePhoneChange}
+                    className="mt-1 form-input"
+                    placeholder="+7 (___) ___-__-__"
+                    maxLength="18"
+                  />
+                </div>
+                 <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
+                  <input type="text" name="location" id="location" value={profileData.location || ''} onChange={handleProfileChange} className="mt-1 form-input" placeholder="Например: Алматы"/>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
+                  <select id="grade" name="grade" value={profileData.grade || ''} onChange={handleProfileChange} className="mt-1 form-select w-full">
+                    <option value="">Выберите класс</option>
+                    {[...Array(11)].map((_, i) => (<option key={i + 1} value={i + 1}>{i + 1} класс</option>))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="bio" className="block text-sm font-medium text-gray-700">О себе</label>
+                <textarea id="bio" name="bio" rows="3" value={profileData.bio || ''} onChange={handleProfileChange} className="mt-1 form-textarea w-full" placeholder="Расскажите немного о себе..."></textarea>
+              </div>
+              
+              {/* ЧЕКБОКСЫ */}
+              {currentUser.roles && currentUser.roles.helper && (
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Предметы, в которых вы помогаете</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border border-gray-200 rounded-md">
+                    {subjectOptions.map((option) => (
+                      <div key={option.value} className="flex items-center">
+                        <input id={`subject-${option.value}`} name={option.value} type="checkbox" checked={(profileData.subjects || []).includes(option.value)} onChange={handleSubjectsChange} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"/>
+                        <label htmlFor={`subject-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">{option.label}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center justify-end">
+                <button type="submit" className={classNames("btn btn-primary", isProfileLoading && "opacity-75 cursor-not-allowed")} disabled={isProfileLoading}>
+                  {isProfileLoading ? (<> <LoadingOverlay className="w-5 h-5 mr-2" /> Сохранение... </>) : ("Сохранить изменения")}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -372,401 +421,72 @@ const ProfileEditor = ({
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // Получаем ID из URL
-  const { currentUser, updateProfile, updatePassword, logout } = useAuth();
-  
-  const [profileData, setProfileData] = useState({
-    username: '',
-    email: '',
-    phone: '',
-    location: '',
-    bio: '',
-    grade: ''
-  });
-  
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  
-  const [profileErrors, setProfileErrors] = useState({});
-  const [passwordErrors, setPasswordErrors] = useState({});
-  const [isProfileLoading, setIsProfileLoading] = useState(false);
-  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
-  const [profileError, setProfileError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [publicProfile, setPublicProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Эффект для загрузки данных пользователя
+  const { currentUser, updateUser, loading: authLoading } = useAuth();
+  const [profileData, setProfileData] = useState(currentUser);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    let isMounted = true; // Флаг для предотвращения обновления состояния после размонтирования
-    const controller = new AbortController(); // Контроллер для отмены запроса
-    
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        if (id) {
-          // Если есть ID в URL, загружаем публичный профиль по API
-          try {
-            const response = await axios.get(`http://localhost:5050/api/users/${id}`, {
-              signal: controller.signal, // Добавляем сигнал для возможности отмены запроса
-              validateStatus: function (status) {
-                return status < 500; // Принимаем только статусы меньше 500
-              }
-            });
-            
-            if (!isMounted) return;
-            
-            if (response.status === 200) {
-              setPublicProfile(response.data);
-            } else {
-              // Обрабатываем 400, 404 и другие ошибки клиента
-              toast.error('Пользователь не найден или недоступен');
-              setPublicProfile(null);
-            }
-          } catch (error) {
-            if (!isMounted) return;
-            
-            // Если запрос не был отменен, показываем ошибку
-            if (!axios.isCancel(error)) {
-              console.error('Ошибка при загрузке профиля:', error);
-              toast.error('Не удалось загрузить профиль пользователя');
-            }
-          }
-        } else if (currentUser) {
-          // Если нет ID, но пользователь авторизован, загружаем его профиль
-          if (isMounted) {
-            setProfileData({
-              username: currentUser.username || '',
-              email: currentUser.email || '',
-              phone: currentUser.phone ? formatPhoneNumber(currentUser.phone) : '',
-              location: currentUser.location || '',
-              bio: currentUser.bio || '',
-              grade: currentUser.grade || ''
-            });
-          }
-        } else {
-          // Если пользователь не авторизован и нет ID, перенаправляем на логин
-          navigate('/login', { state: { message: 'Пожалуйста, войдите в систему для доступа к профилю' } });
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-    
-    loadData();
-    
-    // Функция очистки для отмены запроса при размонтировании
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [id, currentUser, navigate]);
-  
-  // Форматирование телефонного номера
-  const formatPhoneNumber = (phoneNumber) => {
-    if (!phoneNumber) return '';
+    setProfileData(currentUser);
+  }, [currentUser]);
 
-    // Удалим все нецифровые символы
-    let digitsOnly = phoneNumber.replace(/\D/g, '');
+  const handleAvatarChange = (file) => {
+    setAvatarFile(file);
+  };
 
-    // Проверим на российский формат
-    if (digitsOnly.length === 11 && (digitsOnly[0] === '7' || digitsOnly[0] === '8')) {
-      return `+7 (${digitsOnly.slice(1, 4)}) ${digitsOnly.slice(4, 7)}-${digitsOnly.slice(7, 9)}-${digitsOnly.slice(9, 11)}`;
+  const handleSaveChanges = async () => {
+    if (!avatarFile) {
+      toast.info('Чтобы сохранить, сначала выберите новый аватар');
+      return;
     }
 
-    // Для других форматов просто вернем очищенную строку
-    return digitsOnly;
-  };
-  
-  const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    
-    // Если это телефон, применяем маску ввода
-    if (name === 'phone') {
-      // Очищаем от всех нецифровых символов
-      let digitsOnly = value.replace(/\D/g, '');
-      
-      // Ограничиваем до 11 цифр (для России)
-      if (digitsOnly.length > 11) {
-        digitsOnly = digitsOnly.slice(0, 11);
-      }
-      
-      // Форматируем телефон
-      let formattedPhone = '';
-      if (digitsOnly.length > 0) {
-        if (digitsOnly.length === 11 && (digitsOnly[0] === '7' || digitsOnly[0] === '8')) {
-          formattedPhone = `+7 (${digitsOnly.slice(1, 4) || ''}`;
-          if (digitsOnly.length > 4) {
-            formattedPhone += `) ${digitsOnly.slice(4, 7) || ''}`;
-          }
-          if (digitsOnly.length > 7) {
-            formattedPhone += `-${digitsOnly.slice(7, 9) || ''}`;
-          }
-          if (digitsOnly.length > 9) {
-            formattedPhone += `-${digitsOnly.slice(9, 11) || ''}`;
-          }
-        } else {
-          formattedPhone = digitsOnly;
-        }
-      }
-      
-      setProfileData((prev) => ({
-        ...prev,
-        [name]: formattedPhone,
-      }));
-    } else {
-      setProfileData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
-    
-    // Сбрасываем ошибку для поля, которое изменяется
-    if (profileErrors[name]) {
-      setProfileErrors((prev) => ({
-        ...prev,
-        [name]: '',
-      }));
-    }
-  };
-  
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    if (passwordErrors[name]) {
-      setPasswordErrors(prev => {
-        const newErrors = {...prev};
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
-  
-  const validateProfileForm = () => {
-    const errors = {};
-    
-    if (!profileData.username.trim()) {
-      errors.username = 'Имя пользователя обязательно';
-    } else if (profileData.username.length < 3) {
-      errors.username = 'Имя пользователя должно содержать не менее 3 символов';
-    }
-    
-    // Телефон необязателен, но если указан, проверяем формат
-    if (profileData.phone) {
-      const phoneDigits = profileData.phone.replace(/\D/g, '');
-      if (phoneDigits.length < 10) {
-        errors.phone = 'Телефон должен содержать не менее 10 цифр';
-      }
-    }
-    
-    setProfileErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
-  const validatePasswordForm = () => {
-    const newErrors = {};
-    
-    if (!passwordData.currentPassword) {
-      newErrors.currentPassword = 'Введите текущий пароль';
-    }
-    
-    if (!passwordData.newPassword) {
-      newErrors.newPassword = 'Введите новый пароль';
-    } else if (passwordData.newPassword.length < 6) {
-      newErrors.newPassword = 'Пароль должен быть не менее 6 символов';
-    }
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      newErrors.confirmPassword = 'Пароли не совпадают';
-    }
-    
-    setPasswordErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault();
-    setProfileSuccess('');
-    setProfileError('');
-    
-    if (!validateProfileForm()) return;
-    
-    setIsProfileLoading(true);
-    
-    // Подготавливаем данные для отправки
-    const dataToSend = {
-      username: profileData.username.trim(),
-      location: profileData.location.trim(),
-      bio: profileData.bio.trim(),
-      grade: profileData.grade ? parseInt(profileData.grade) : null
-    };
-    
-    // Очищаем телефон от форматирования для отправки на сервер
-    if (profileData.phone) {
-      const cleanPhone = profileData.phone.replace(/\D/g, '');
-      if (cleanPhone.length === 11 && (cleanPhone[0] === '7' || cleanPhone[0] === '8')) {
-        dataToSend.phone = '+' + cleanPhone.substring(1);
-      } else if (cleanPhone.length > 0) {
-        dataToSend.phone = cleanPhone;
-      } else {
-        dataToSend.phone = '';
-      }
-    } else {
-      dataToSend.phone = '';
-    }
-    
-    console.log('Отправляемые данные:', JSON.stringify(dataToSend));
-    
+    setLoading(true);
     try {
-      const result = await updateProfile(dataToSend);
-      console.log('Ответ сервера:', result);
-      
-      if (result.success) {
-        setProfileSuccess('Профиль успешно обновлен');
-        toast.success('Профиль успешно обновлен');
-        
-        // Обновляем данные в форме с форматированием телефона
-        setProfileData(prev => ({
-          ...prev,
-          ...result.data,
-          grade: result.data.grade || '',
-          phone: result.data.phone ? formatPhoneNumber(result.data.phone) : ''
-        }));
-      } else {
-        setProfileError(result.error || 'Ошибка при обновлении профиля');
-        toast.error(result.error || 'Ошибка при обновлении профиля');
-      }
-    } catch (err) {
-      console.error('Ошибка обновления профиля:', err);
-      console.error('Детали ошибки:', err.response?.data);
-      setProfileError(err.message || 'Ошибка при обновлении профиля');
-      toast.error(err.message || 'Ошибка при обновлении профиля');
+      await updateUser(profileData, avatarFile);
+      setAvatarFile(null);
+    } catch (error) {
+      console.error('Ошибка на странице профиля:', error);
     } finally {
-      setIsProfileLoading(false);
+      setLoading(false);
     }
   };
-  
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
-    setPasswordSuccess('');
-    setPasswordError('');
-    
-    if (!validatePasswordForm()) return;
-    
-    setIsPasswordLoading(true);
-    
-    try {
-      const result = await updatePassword(
-        passwordData.currentPassword,
-        passwordData.newPassword
-      );
-      
-      if (result.success) {
-        setPasswordSuccess('Пароль успешно обновлен');
-        // Очищаем форму пароля
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      } else {
-        setPasswordError(result.error || 'Ошибка при обновлении пароля');
-      }
-    } catch (err) {
-      console.error('Ошибка обновления пароля:', err);
-      setPasswordError(err.message || 'Ошибка при обновлении пароля');
-    } finally {
-      setIsPasswordLoading(false);
-    }
-  };
-  
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (err) {
-      console.error('Ошибка при выходе:', err);
-    }
-  };
-  
-  if (loading) {
-    return <Loader />;
+
+  if (authLoading || !currentUser) {
+    return <div className="text-center p-8">Загрузка данных пользователя...</div>;
   }
-  
-  // Если есть ID в URL, показываем публичный профиль или сообщение об ошибке
-  if (id) {
-    // Если профиль не найден, показываем специальное сообщение
-    if (!publicProfile) {
-      return (
-        <Container>
-          <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden p-6 text-center">
-            <div className="flex flex-col items-center justify-center py-12">
-              <h2 className="text-2xl font-semibold text-gray-700 mb-4">Профиль не найден</h2>
-              <p className="text-gray-500 mb-8">Запрашиваемый профиль пользователя не существует или был удален.</p>
-              <button 
-                onClick={() => navigate('/')} 
-                className="btn btn-primary"
+
+  return (
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="bg-white p-6 rounded-2xl shadow-lg max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">Редактирование профиля</h1>
+        <div className="flex flex-col items-center space-y-5">
+          <AvatarInput 
+            defaultAvatarUrl={currentUser?.avatar ? `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${currentUser.avatar}` : null}
+            onFileChange={handleAvatarChange} 
+          />
+          
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold text-gray-900">{currentUser.username}</h2>
+            <p className="text-gray-600 mt-1">{currentUser.email}</p>
+            <span className="mt-2 inline-block bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-2.5 py-0.5 rounded">
+              {currentUser.role}
+            </span>
+          </div>
+
+          {avatarFile && (
+            <div className="w-full pt-4 border-t border-gray-200">
+              <button
+                onClick={handleSaveChanges}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out disabled:bg-indigo-400"
+                disabled={loading}
               >
-                На главную
+                {loading ? 'Сохранение...' : 'Сохранить новый аватар'}
               </button>
             </div>
-          </div>
-        </Container>
-      );
-    }
-    
-    // Если профиль найден, показываем его
-    return (
-      <UserProfileView 
-        profile={publicProfile} 
-        currentUser={currentUser} 
-        onBack={() => navigate(-1)} 
-      />
-    );
-  }
-  
-  // Если нет ID, показываем форму редактирования своего профиля
-  if (!id && currentUser) {
-    return (
-      <ProfileEditor
-        profileData={profileData}
-        profileErrors={profileErrors}
-        profileSuccess={profileSuccess}
-        profileError={profileError}
-        isProfileLoading={isProfileLoading}
-        handleProfileChange={handleProfileChange}
-        handleProfileSubmit={handleProfileSubmit}
-        currentUser={currentUser}
-      />
-    );
-  }
-  
-  // Если что-то пошло не так, показываем сообщение
-  return (
-    <Container>
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden p-6 text-center">
-        <h2 className="text-xl font-medium text-red-600 mb-4">Профиль не найден</h2>
-        <p className="text-gray-600 mb-6">Запрашиваемый профиль не существует или у вас нет к нему доступа</p>
-        <button 
-          onClick={() => navigate('/')} 
-          className="btn btn-primary"
-        >
-          На главную
-        </button>
+          )}
+        </div>
       </div>
-    </Container>
+    </div>
   );
 };
 

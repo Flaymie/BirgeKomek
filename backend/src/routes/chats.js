@@ -64,6 +64,8 @@ router.get('/', protect, async (req, res) => {
       status: { $in: ['assigned', 'in_progress', 'completed'] }
     }).populate('author', 'username').populate('helper', 'username');
     
+    console.log(`Найдено ${requests.length} запросов для пользователя ${userId}`);
+    
     // Получаем ID всех найденных запросов
     const requestIds = requests.map(req => req._id);
     
@@ -75,42 +77,70 @@ router.get('/', protect, async (req, res) => {
         .populate('sender', 'username')
         .lean();
       
-      // Если сообщений нет, пропускаем этот чат
-      if (!lastMessage) return null;
-      
-      // Получаем количество непрочитанных сообщений
-      const unreadCount = await Message.countDocuments({
-        requestId,
-        sender: { $ne: userId },
-        readBy: { $ne: userId }
-      });
-      
-      // Находим соответствующий запрос
+      // Если сообщений нет, но запрос имеет статус assigned/in_progress, все равно показываем чат
       const request = requests.find(req => req._id.toString() === requestId.toString());
       
-      return {
-        requestId: request._id,
-        title: request.title,
-        subject: request.subject,
-        grade: request.grade,
-        status: request.status,
-        author: request.author,
-        helper: request.helper,
-        lastMessage: {
-          _id: lastMessage._id,
-          content: lastMessage.content,
-          sender: lastMessage.sender,
-          createdAt: lastMessage.createdAt,
-          hasAttachments: lastMessage.attachments && lastMessage.attachments.length > 0
-        },
-        unreadCount
-      };
+      if (!lastMessage && request.status !== 'completed') {
+        // Создаем фиктивное "системное" сообщение для отображения чата
+        const defaultMessage = {
+          _id: 'system_' + requestId,
+          content: 'Начните общение',
+          sender: { username: 'Система' },
+          createdAt: request.updatedAt || request.createdAt,
+          hasAttachments: false
+        };
+        
+        // Получаем количество непрочитанных сообщений (должно быть 0)
+        const unreadCount = 0;
+        
+        return {
+          requestId: request._id,
+          title: request.title,
+          subject: request.subject,
+          grade: request.grade,
+          status: request.status,
+          author: request.author,
+          helper: request.helper,
+          lastMessage: defaultMessage,
+          unreadCount
+        };
+      }
+      
+      // Если есть сообщения, обрабатываем как обычно
+      if (lastMessage) {
+        // Получаем количество непрочитанных сообщений
+        const unreadCount = await Message.countDocuments({
+          requestId,
+          sender: { $ne: userId },
+          readBy: { $ne: userId }
+        });
+        
+        return {
+          requestId: request._id,
+          title: request.title,
+          subject: request.subject,
+          grade: request.grade,
+          status: request.status,
+          author: request.author,
+          helper: request.helper,
+          lastMessage: {
+            _id: lastMessage._id,
+            content: lastMessage.content,
+            sender: lastMessage.sender,
+            createdAt: lastMessage.createdAt,
+            hasAttachments: lastMessage.attachments && lastMessage.attachments.length > 0
+          },
+          unreadCount
+        };
+      }
+      
+      return null;
     });
     
     // Ждем выполнения всех промисов
     let chats = await Promise.all(chatPromises);
     
-    // Фильтруем null значения (запросы без сообщений)
+    // Фильтруем null значения (запросы без сообщений и не в статусе assigned/in_progress)
     chats = chats.filter(chat => chat !== null);
     
     // Сортируем по дате последнего сообщения (сначала новые)

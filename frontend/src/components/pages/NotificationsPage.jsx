@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { notificationsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { getAllNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../../services/notificationService';
 import { toast } from 'react-toastify';
 
 // Компонент для отображения сообщения о загрузке
@@ -24,20 +24,16 @@ const EmptyState = () => (
   </div>
 );
 
-// Компонент одного уведомления
-const NotificationItem = ({ notification, onRead, onDelete }) => {
+// Упрощенный компонент одного уведомления
+const NotificationItem = ({ notification }) => {
   const navigate = useNavigate();
   
-  const handleClick = async () => {
-    if (!notification.read) {
-      await onRead(notification._id);
-    }
-    
+  const handleClick = () => {
     if (notification.link) {
       navigate(notification.link);
     }
   };
-  
+
   const getIcon = () => {
     switch (notification.type) {
       case 'message':
@@ -66,8 +62,7 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
         );
     }
   };
-  
-  // Форматирование даты
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString('ru-RU', { 
@@ -80,35 +75,15 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
   };
   
   return (
-    <div className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ${notification.read ? 'bg-white' : 'bg-blue-50'}`}>
+    <div 
+      onClick={handleClick}
+      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150 border-l-4 ${notification.read ? 'border-transparent' : 'border-indigo-500'}`}
+    >
       <div className="flex items-start">
         {getIcon()}
-        
-        <div className="ml-4 flex-1" onClick={handleClick}>
-          <div className="flex justify-between items-start">
-            <p className={`text-sm ${notification.read ? 'text-gray-900' : 'font-medium text-gray-900'}`}>
-              {notification.message}
-            </p>
-            <div className="flex items-center">
-              {!notification.read && (
-                <span className="inline-block w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
-              )}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(notification._id);
-                }}
-                className="text-gray-400 hover:text-red-500 focus:outline-none"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            {formatDate(notification.createdAt)}
-          </p>
+        <div className="ml-4 flex-1">
+          <p className="text-sm text-gray-800">{notification.message}</p>
+          <p className="text-xs text-gray-500 mt-1">{formatDate(notification.createdAt)}</p>
         </div>
       </div>
     </div>
@@ -116,193 +91,51 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
 };
 
 const NotificationsPage = () => {
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
-  
-  // Если пользователь не авторизован, перенаправляем на страницу входа
+  const { markNotificationsAsRead } = useAuth();
+
   useEffect(() => {
-    if (!currentUser) {
-      navigate('/login', { state: { message: 'Пожалуйста, войдите в систему для просмотра уведомлений' } });
-    }
-  }, [currentUser, navigate]);
-  
-  // Загрузка уведомлений
-  const loadNotifications = async (pageNum = 1, append = false) => {
-    try {
+    const fetchAndMarkNotifications = async () => {
       setLoading(true);
-      const data = await getAllNotifications(pageNum, 10);
-      
-      if (data && data.notifications) {
-        if (append) {
-          setNotifications(prev => [...prev, ...data.notifications]);
-        } else {
-          setNotifications(data.notifications);
-        }
+      try {
+        // Сначала получаем уведомления
+        const response = await notificationsService.getNotifications();
+        setNotifications(response.data.notifications || []);
         
-        setHasMore(data.pagination && data.pagination.hasNextPage);
-        setTotalCount(data.pagination?.total || 0);
-        setUnreadCount(data.unreadCount || 0);
+        // Затем помечаем их как прочитанные (на бэкенде)
+        await notificationsService.markAllAsRead();
+        
+        // И обновляем счетчик в UI (в AuthContext)
+        markNotificationsAsRead();
+        
+      } catch (err) {
+        toast.error('Ошибка при загрузке уведомлений.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Ошибка при загрузке уведомлений:', err);
-      setError('Не удалось загрузить уведомления');
-      toast.error('Ошибка при загрузке уведомлений');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Загружаем уведомления при монтировании компонента
-  useEffect(() => {
-    if (currentUser) {
-      loadNotifications();
-    }
-  }, [currentUser]);
-  
-  // Загрузка следующей страницы
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadNotifications(nextPage, true);
-  };
-  
-  // Отметка уведомления как прочитанное
-  const handleMarkAsRead = async (id) => {
-    try {
-      await markNotificationAsRead(id);
-      
-      // Обновляем локальный список
-      setNotifications(prevState => 
-        prevState.map(notification => 
-          notification._id === id
-            ? { ...notification, read: true }
-            : notification
-        )
-      );
-      
-      // Обновляем счетчик непрочитанных
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Ошибка при отметке уведомления как прочитанное:', error);
-      toast.error('Не удалось отметить уведомление как прочитанное');
-    }
-  };
-  
-  // Отметка всех уведомлений как прочитанные
-  const handleMarkAllAsRead = async () => {
-    try {
-      await markAllNotificationsAsRead();
-      
-      // Обновляем локальный список
-      setNotifications(prevState => 
-        prevState.map(notification => ({ ...notification, read: true }))
-      );
-      
-      // Обновляем счетчик непрочитанных
-      setUnreadCount(0);
-      
-      toast.success('Все уведомления отмечены как прочитанные');
-    } catch (error) {
-      console.error('Ошибка при отметке всех уведомлений как прочитанные:', error);
-      toast.error('Не удалось отметить все уведомления как прочитанные');
-    }
-  };
-  
-  // Удаление уведомления
-  const handleDeleteNotification = async (id) => {
-    try {
-      await deleteNotification(id);
-      
-      // Обновляем локальный список
-      const updatedNotifications = notifications.filter(notification => notification._id !== id);
-      setNotifications(updatedNotifications);
-      setTotalCount(prev => prev - 1);
-      
-      // Если удалили непрочитанное, обновляем счетчик
-      const wasUnread = notifications.find(n => n._id === id)?.read === false;
-      if (wasUnread) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
-      
-      toast.success('Уведомление удалено');
-    } catch (error) {
-      console.error('Ошибка при удалении уведомления:', error);
-      toast.error('Не удалось удалить уведомление');
-    }
-  };
-  
-  // Если пользователь не авторизован, ничего не рендерим
-  if (!currentUser) {
-    return null;
-  }
-  
+    };
+    
+    fetchAndMarkNotifications();
+  }, [markNotificationsAsRead]);
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        {/* Заголовок */}
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Уведомления</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Всего: {totalCount}, Непрочитанных: {unreadCount}
-            </p>
-          </div>
-          
-          {unreadCount > 0 && (
-            <button
-              onClick={handleMarkAllAsRead}
-              className="btn btn-outline btn-sm"
-            >
-              Отметить все как прочитанные
-            </button>
-          )}
+    <div className="container mx-auto px-4 py-12 mt-16 max-w-3xl">
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h1 className="text-2xl font-bold text-gray-900">Уведомления</h1>
         </div>
         
-        {/* Список уведомлений */}
-        <div className="divide-y divide-gray-200">
-          {loading && page === 1 ? (
+        <div className="divide-y divide-gray-100">
+          {loading ? (
             <Loader />
           ) : notifications.length > 0 ? (
-            <>
-              {notifications.map(notification => (
-                <NotificationItem 
-                  key={notification._id}
-                  notification={notification}
-                  onRead={handleMarkAsRead}
-                  onDelete={handleDeleteNotification}
-                />
-              ))}
-              
-              {/* Кнопка "Загрузить еще" */}
-              {hasMore && (
-                <div className="p-4 text-center">
-                  <button
-                    onClick={loadMore}
-                    disabled={loading}
-                    className="btn btn-outline btn-sm"
-                  >
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Загрузка...
-                      </>
-                    ) : (
-                      'Загрузить еще'
-                    )}
-                  </button>
-                </div>
-              )}
-            </>
+            notifications.map(notification => (
+              <NotificationItem 
+                key={notification._id}
+                notification={notification}
+              />
+            ))
           ) : (
             <EmptyState />
           )}

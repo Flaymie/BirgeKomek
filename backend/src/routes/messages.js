@@ -249,50 +249,26 @@ router.post('/', protect, [
  *         required: true
  *         schema:
  *           type: string
- *         description: ID заявки
  *     responses:
  *       200:
- *         description: Сообщения успешно отмечены как прочитанные
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 updated:
- *                   type: integer
- *                   description: Количество обновленных сообщений
- *       401:
- *         description: Требуется авторизация
- *       500:
- *         description: Внутренняя ошибка сервера
+ *         description: Сообщения отмечены как прочитанные
  */
-// отметить сообщения как прочитанные
-router.post('/:requestId/read', protect, [
-  param('requestId').isMongoId().withMessage('Неверный формат ID')
-], async (req, res) => {
+router.post('/:requestId/read', protect, async (req, res) => {
   try {
-    // Проверяем результаты валидации
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    
     const { requestId } = req.params;
-    
-    // обновляем все сообщения, которые еще не прочитаны пользователем
-    const result = await Message.updateMany(
-      { 
-        requestId,
-        readBy: { $ne: req.user._id },
-        sender: { $ne: req.user._id } // не обновляем свои сообщения
-      },
-      { $addToSet: { readBy: req.user._id } }
+    const userId = req.user._id;
+
+    await Message.updateMany(
+      { requestId: requestId, readBy: { $ne: userId } },
+      { $addToSet: { readBy: userId } }
     );
     
-    res.json({ updated: result.modifiedCount });
-  } catch (err) {
-    console.error('Ошибка при пометке сообщений прочитанными:', err);
-    res.status(500).json({ msg: 'Что-то пошло не так' });
+    // Здесь мы не отправляем ответ, так как это просто фоновая операция
+    res.status(200).send();
+
+  } catch (error) {
+    console.error('Ошибка при пометке сообщений как прочитанных:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
   }
 });
 

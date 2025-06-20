@@ -12,11 +12,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
+    match: [/.+\@.+\..+/, 'Пожалуйста, введите корректный email']
   },
   password: {
     type: String,
-    required: true
+    required: [true, 'Пароль обязателен'],
+    minlength: [6, 'Пароль должен быть не менее 6 символов']
   },
   phone: {
     type: String,
@@ -49,9 +51,8 @@ const userSchema = new mongoose.Schema({
     }
   },
   grade: {
-    type: Number,
-    min: 1,
-    max: 11
+    type: String,
+    required: function() { return this.roles.student; }
   },
   points: {
     type: Number,
@@ -65,10 +66,18 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Review'
   }],
-  helperSubjects: [{
+  subjects: {
+    type: [String],
+    default: []
+  },
+  avatar: {
     type: String,
-    trim: true
-  }],
+    default: null
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now
+  },
   createdAt: {
     type: Date,
     default: Date.now

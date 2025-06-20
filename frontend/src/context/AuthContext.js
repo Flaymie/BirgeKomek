@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { authService, usersService } from '../services/api';
+import { authService, usersService, notificationsService, baseURL } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -20,7 +21,21 @@ export const AuthProvider = ({ children }) => {
     return `hsl(${hue}, 70%, 80%)`;
   };
 
-  // Загрузка данных пользователя при инициализации
+  const fetchUnreadCount = async () => {
+    try {
+      // На бэке роут GET /unread возвращает массив непрочитанных, поэтому считаем их длину
+      const response = await notificationsService.getUnreadCount();
+      setUnreadNotifications(response.data.notifications.length);
+    } catch (err) {
+      console.error('Не удалось загрузить количество уведомлений', err);
+    }
+  };
+
+  const markNotificationsAsRead = () => {
+    setUnreadNotifications(0);
+  };
+
+  // Загрузка данных пользователя
   useEffect(() => {
     const loadUser = async () => {
       const token = localStorage.getItem('token');
@@ -32,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await usersService.getCurrentUser();
         setCurrentUser(response.data);
+        await fetchUnreadCount(); // Загружаем счетчик после загрузки юзера
       } catch (err) {
         console.error('Ошибка при загрузке пользователя:', err);
         // Если токен недействителен, удаляем его
@@ -46,6 +62,37 @@ export const AuthProvider = ({ children }) => {
 
     loadUser();
   }, []);
+  
+  // Управление SSE-соединением для real-time уведомлений
+  useEffect(() => {
+    let eventSource;
+    if (currentUser) {
+      const token = localStorage.getItem('token');
+      // Прямое использование EventSource, так как axios не подходит для SSE
+      eventSource = new EventSource(`${baseURL}/notifications/subscribe?token=${token}`);
+
+      eventSource.onopen = () => {
+        console.log('SSE-соединение установлено.');
+      };
+
+      eventSource.addEventListener('new_notification', (event) => {
+        // const notification = JSON.parse(event.data);
+        setUnreadNotifications(prev => prev + 1);
+      });
+
+      eventSource.onerror = (err) => {
+        console.error('Ошибка SSE-соединения:', err);
+        eventSource.close();
+      };
+
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [currentUser]);
 
   // Функция для входа пользователя
   const login = async (credentials) => {
@@ -135,6 +182,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     authService.logout();
     setCurrentUser(null);
+    setUnreadNotifications(0); // Сбрасываем счетчик при выходе
   };
 
   const value = {
@@ -146,7 +194,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     updatePassword,
-    generateAvatarColor
+    generateAvatarColor,
+    unreadNotifications,
+    markNotificationsAsRead
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

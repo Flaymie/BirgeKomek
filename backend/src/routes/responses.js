@@ -50,8 +50,11 @@ router.post('/', protect, [
     .isLength({ min: 10, max: 500 })
     .withMessage('Сообщение должно быть от 10 до 500 символов')
 ], async (req, res) => {
+  console.log('Получен POST запрос на /api/responses:', req.body);
+  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('Ошибки валидации:', errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
@@ -59,6 +62,8 @@ router.post('/', protect, [
     const { requestId, message } = req.body;
     const helper = req.user._id;
 
+    console.log('Данные отклика:', { requestId, message, helper });
+    
     // Проверяем существование запроса
     const request = await Request.findById(requestId);
     if (!request) {
@@ -223,7 +228,32 @@ router.put('/:responseId/status', protect, [
     response.status = status;
     await response.save();
 
-    // Создаем уведомление для хелпера
+    // Если отклик принят, обновляем статус запроса и назначаем хелпера
+    if (status === 'accepted') {
+      const request = await Request.findById(response.request._id);
+      if (request) {
+        request.status = 'in_progress';
+        request.helper = response.helper._id;
+        await request.save();
+        
+        console.log(`Запрос ${request._id} обновлен: статус изменен на in_progress, назначен хелпер ${response.helper._id}`);
+        
+        // Отправляем уведомление автору запроса о том, что хелпер назначен
+        await createAndSendNotification({
+            user: request.author,
+            type: 'request_assigned_to_you',
+            title: 'Помощник назначен!',
+            message: `Пользователь ${response.helper.username} был назначен помощником по вашему запросу "${request.title}".`,
+            link: `/requests/${request._id}/chat`,
+            relatedEntity: {
+                requestId: request._id,
+                userId: response.helper._id
+            }
+        });
+      }
+    }
+
+    // Создаем уведомление для хелпера о статусе его отклика
     await createAndSendNotification({
       user: response.helper._id,
       type: 'request_status_changed',
@@ -231,7 +261,8 @@ router.put('/:responseId/status', protect, [
       message: `Ваш отклик на запрос "${response.request.title}" ${status === 'accepted' ? 'принят' : 'отклонен'}`,
       link: `/request/${response.request._id}`,
       relatedEntity: {
-        requestId: response.request._id
+        requestId: response.request._id,
+        userId: req.user._id
       }
     });
 

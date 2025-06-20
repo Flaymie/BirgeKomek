@@ -50,7 +50,7 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'assigned', 'completed', 'cancelled'],
+    enum: ['open', 'in_progress', 'completed', 'closed', 'cancelled'],
     default: 'open'
   },
   isUrgent: {

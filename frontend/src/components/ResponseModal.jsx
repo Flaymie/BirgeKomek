@@ -22,6 +22,8 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
     setError(null);
     
     try {
+      console.log('Отправляем отклик с данными:', { requestId, message });
+      
       await responsesService.createResponse({
         requestId,
         message
@@ -33,6 +35,13 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
     } catch (err) {
       console.error('Ошибка при отправке отклика:', err);
       
+      // Выводим подробную информацию об ошибке для отладки
+      if (err.response) {
+        console.error('Данные ответа:', err.response.data);
+        console.error('Статус ответа:', err.response.status);
+        console.error('Заголовки ответа:', err.response.headers);
+      }
+      
       // Получаем более детальную информацию об ошибке
       let errorMessage = 'Произошла ошибка при отправке отклика';
       
@@ -40,6 +49,8 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
         // Если сервер вернул ответ с ошибкой
         if (err.response.data && err.response.data.msg) {
           errorMessage = err.response.data.msg;
+        } else if (err.response.data && err.response.data.errors) {
+          errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
         } else {
           errorMessage = `Ошибка ${err.response.status}: ${err.response.statusText}`;
         }
