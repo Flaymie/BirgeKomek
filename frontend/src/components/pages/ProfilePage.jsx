@@ -4,8 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
 import { usersService } from '../../services/api';
-import AvatarInput from '../common/AvatarInput';
-import { UserCircleIcon } from '@heroicons/react/24/solid';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -421,72 +419,106 @@ const ProfileEditor = ({
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { currentUser, updateUser, loading: authLoading } = useAuth();
-  const [profileData, setProfileData] = useState(currentUser);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const { id } = useParams();
+  const { currentUser, updateProfile } = useAuth();
+
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profileErrors, setProfileErrors] = useState({});
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileError, setProfileError] = useState('');
 
   useEffect(() => {
-    setProfileData(currentUser);
-  }, [currentUser]);
+    const fetchUserData = async () => {
+      // Это для просмотра чужих профилей
+      setLoading(true);
+      try {
+        const response = await usersService.getUserById(id);
+        setProfileData(response.data);
+      } catch (err) {
+        setError('Не удалось загрузить данные профиля.');
+        toast.error('Не удалось загрузить данные профиля.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleAvatarChange = (file) => {
-    setAvatarFile(file);
-  };
-
-  const handleSaveChanges = async () => {
-    if (!avatarFile) {
-      toast.info('Чтобы сохранить, сначала выберите новый аватар');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await updateUser(profileData, avatarFile);
-      setAvatarFile(null);
-    } catch (error) {
-      console.error('Ошибка на странице профиля:', error);
-    } finally {
+    if (id) {
+      fetchUserData();
+    } else if (currentUser) {
+      // Это для своего профиля, используем данные из контекста
+      setProfileData(currentUser);
       setLoading(false);
     }
+  }, [id, currentUser]);
+  
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  if (authLoading || !currentUser) {
-    return <div className="text-center p-8">Загрузка данных пользователя...</div>;
+  const handleSubjectsChange = (e) => {
+    const { name, checked } = e.target;
+    setProfileData(prev => {
+      const subjects = prev.subjects || [];
+      if (checked) {
+        return { ...prev, subjects: [...subjects, name] };
+      } else {
+        return { ...prev, subjects: subjects.filter(subj => subj !== name) };
+      }
+    });
+  };
+  
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setIsProfileLoading(true);
+    setProfileSuccess('');
+    setProfileError('');
+    
+    try {
+      await updateProfile(profileData);
+      toast.success('Профиль успешно обновлен!');
+      setProfileSuccess('Профиль успешно обновлен!');
+    } catch (err) {
+      toast.error('Ошибка при обновлении профиля');
+      setProfileError('Ошибка при обновлении профиля');
+    } finally {
+      setIsProfileLoading(false);
+    }
+  };
+  
+  if (loading || !profileData) {
+    return <Loader />;
+  }
+  
+  if (error) {
+      return <div>{error}</div>;
   }
 
+  if (id) {
+    return (
+      <UserProfileView 
+        profile={profileData} 
+        currentUser={currentUser} 
+        onBack={() => navigate(-1)} 
+      />
+    );
+  }
+  
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="bg-white p-6 rounded-2xl shadow-lg max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">Редактирование профиля</h1>
-        <div className="flex flex-col items-center space-y-5">
-          <AvatarInput 
-            defaultAvatarUrl={currentUser?.avatar ? `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${currentUser.avatar}` : null}
-            onFileChange={handleAvatarChange} 
-          />
-          
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-900">{currentUser.username}</h2>
-            <p className="text-gray-600 mt-1">{currentUser.email}</p>
-            <span className="mt-2 inline-block bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-2.5 py-0.5 rounded">
-              {currentUser.role}
-            </span>
-          </div>
-
-          {avatarFile && (
-            <div className="w-full pt-4 border-t border-gray-200">
-              <button
-                onClick={handleSaveChanges}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out disabled:bg-indigo-400"
-                disabled={loading}
-              >
-                {loading ? 'Сохранение...' : 'Сохранить новый аватар'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <ProfileEditor
+      profileData={profileData}
+      profileErrors={profileErrors}
+      profileSuccess={profileSuccess}
+      profileError={profileError}
+      isProfileLoading={isProfileLoading}
+      handleProfileChange={handleProfileChange}
+      handleProfileSubmit={handleProfileSubmit}
+      currentUser={profileData}
+      handleSubjectsChange={handleSubjectsChange}
+    />
   );
 };
 

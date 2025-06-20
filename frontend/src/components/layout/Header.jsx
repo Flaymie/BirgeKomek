@@ -1,22 +1,17 @@
 "use client"
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
-import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 // Флаг для проверки доступности API уведомлений
 const NOTIFICATIONS_ENABLED = true; // Включаем уведомления
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const { currentUser, logout } = useAuth();
-  const navigate = useNavigate();
-  const menuRef = useRef(null);
   
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -41,27 +36,18 @@ const Header = () => {
     closeMenu();
   }, [location]);
   
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async (e) => {
+    e.preventDefault();
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Ошибка при выходе:', err);
+    }
   };
   
   const isActive = (path) => {
     return location.pathname === path ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600';
   };
-  
-  // Закрытие меню по клику вне его
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-  
-  const avatarUrl = currentUser?.avatar ? `${API_BASE_URL}${currentUser.avatar}` : null;
   
   return (
     <header className={`fixed w-full z-30 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md py-2' : 'bg-white/80 backdrop-blur-sm py-4'}`}>
@@ -88,17 +74,6 @@ const Header = () => {
             )}
             
             {currentUser ? (
-              <div className="relative" ref={menuRef}>
-                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="focus:outline-none">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Аватар" className="w-10 h-10 rounded-full object-cover" />
-                  ) : (
-                    <UserCircleIcon className="w-10 h-10 text-gray-500" />
-                  )}
-                </button>
-                {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-20">
-                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Профиль</Link>
               <div className="relative group">
                 <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
                   <span>{currentUser.username || 'Профиль'}</span>

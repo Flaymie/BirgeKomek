@@ -3,7 +3,6 @@ import { body, validationResult, param, query } from 'express-validator'; // Д�
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import Request from '../models/Request.js';
-import { uploadAvatar } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -471,77 +470,6 @@ export default (onlineUsers) => {
       res.status(500).send('Ошибка сервера');
     }
   });
-
-  /**
-   * @swagger
-   * /api/users/avatar:
-   *   put:
-   *     summary: Обновить аватар пользователя
-   *     tags: [Users]
-   *     security:
-   *       - bearerAuth: []
-   *     consumes:
-   *       - multipart/form-data
-   *     parameters:
-   *       - in: formData
-   *         name: avatar
-   *         type: file
-   *         required: true
-   *         description: Файл изображения для загрузки.
-   *     responses:
-   *       200:
-   *         description: Аватар успешно обновлен
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 avatar:
-   *                   type: string
-   *                   description: URL нового аватара.
-   *       400:
-   *         description: Файл не предоставлен или не является изображением
-   *       500:
-   *         description: Ошибка сервера
-   */
-  router.put('/avatar', protect, (req, res) => {
-    uploadAvatar(req, res, async (err) => {
-      if (err) {
-        // Ошибки multer (например, неверный тип файла или размер)
-        return res.status(400).json({ msg: err.message });
-      }
-      if (!req.file) {
-        return res.status(400).json({ msg: 'Файл аватара не предоставлен.' });
-      }
-
-      try {
-        // Путь к файлу, который будет сохранен в БД
-        // Заменяем обратные слэши (для Windows) на прямые
-        const avatarPath = `/${req.file.path.replace(/\\/g, '/')}`;
-
-        const user = await User.findByIdAndUpdate(
-          req.user.id,
-          { avatar: avatarPath },
-          { new: true }
-        );
-
-        if (!user) {
-          return res.status(404).json({ msg: 'Пользователь не найден.' });
-        }
-
-        res.json({ avatar: user.avatar });
-      } catch (error) {
-        console.error('Ошибка при обновлении аватара:', error);
-        res.status(500).json({ msg: 'Ошибка сервера при обновлении аватара.' });
-      }
-    });
-  });
-
-  // Мы передаем middleware uploadAvatar в роут регистрации.
-  // Он будет пытаться найти поле 'avatar' в запросе.
-  // Если оно есть, он обработает файл и добавит req.file.
-  // Если его нет, он просто пропустит запрос дальше.
-  router.post('/register', uploadAvatar, registerUser);
 
   return router;
 };
