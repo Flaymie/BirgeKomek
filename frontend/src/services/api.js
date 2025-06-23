@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const SERVER_URL = 'http://192.168.1.87:5050';
+const SERVER_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 const API_URL = `${SERVER_URL}/api`;
 
 // Создаем экземпляр axios с базовым URL

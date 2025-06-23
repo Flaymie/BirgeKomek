@@ -10,8 +10,8 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:5050', // Адрес вашего сервера
-        description: 'Локальный сервер для разработки'
+        url: process.env.REACT_APP_API_URL, // Адрес вашего сервера
+        description: 'Адрес вашего сервера'
       },
       // Можно добавить другие серверы (например, для продакшена)
     ],

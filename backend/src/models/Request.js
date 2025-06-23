@@ -53,10 +53,6 @@ const requestSchema = new mongoose.Schema({
     enum: ['open', 'in_progress', 'completed', 'closed', 'cancelled'],
     default: 'open'
   },
-  isUrgent: {
-    type: Boolean,
-    default: false
-  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -41,9 +41,9 @@ const io = new Server(server, {
   cors: {
     origin: [
       'http://localhost:3000',
-      'http://localhost:5173',
+      'http://localhost:5050',
       'http://192.168.1.87:3000',
-      'http://192.168.1.87:5173'
+      'http://192.168.1.87:5050'
     ],
     methods: ['GET', 'POST']
   }
@@ -58,9 +58,9 @@ app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: fa
 
 const whitelist = [
   'http://localhost:3000',
-  'http://localhost:5173',
+  'http://localhost:5050',
   'http://192.168.1.87:3000',
-  'http://192.168.1.87:5173',
+  'http://192.168.1.87:5050',
 ];
 
 const corsOptions = {
@@ -80,8 +80,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Раздача статичных файлов из папки uploads - УДАЛЯЕМ ЭТОТ СПОСОБ
-// app.use('/uploads', express.static('uploads'));
 
 // НОВЫЙ, НАДЕЖНЫЙ РОУТ ДЛЯ РАЗДАЧИ ФАЙЛОВ
 // Он будет обрабатывать запросы вида /uploads/avatars/filename.png
@@ -269,18 +267,7 @@ setInterval(() => {
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Что-то пошло не так на сервере';
-  
-  // не показываем стек ошибок в продакшене
-  const error = process.env.NODE_ENV === 'development' 
-    ? { message, stack: err.stack } 
-    : { message };
-    
-  res.status(statusCode).json({ 
-    success: false, 
-    error 
-  });
+  res.status(500).send({ error: 'Что-то пошло не так!' });
 });
 
 // простой тест что сервак живой
@@ -295,6 +282,6 @@ app.use((req, res) => {
 
 // Запускаем сервер
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Сервер запущен на порту ${PORT} и слушает на всех интерфейсах.`);
+  console.log(`Сервер запущен на http://0.0.0.0:${PORT}`);
   console.log(`Документация API доступна по адресу http://localhost:${PORT}/api-docs`);
 }); 

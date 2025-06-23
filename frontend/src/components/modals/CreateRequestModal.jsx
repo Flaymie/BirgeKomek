@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { SUBJECTS, URGENCY_LEVELS, URGENCY_LABELS } from '../../services/constants';
+import { SUBJECTS } from '../../services/constants';
+import { AnimatePresence, motion } from 'framer-motion';
+import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
 
 // Максимальное количество символов в описании
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -15,7 +17,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     description: '',
     subject: '',
     grade: currentUser?.grade || '',
-    urgency: URGENCY_LEVELS.NORMAL
   });
   
   const [errors, setErrors] = useState({});
@@ -28,7 +29,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         description: '',
         subject: '',
         grade: currentUser?.grade || '',
-        urgency: URGENCY_LEVELS.NORMAL
       });
       setErrors({});
     }
@@ -62,15 +62,11 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.title.trim()) {
-      newErrors.title = 'Введите заголовок запроса';
-    } else if (formData.title.length < 5) {
+    if (!formData.title.trim() || formData.title.length < 5) {
       newErrors.title = 'Заголовок должен содержать минимум 5 символов';
     }
     
-    if (!formData.description.trim()) {
-      newErrors.description = 'Введите описание запроса';
-    } else if (formData.description.length < 20) {
+    if (!formData.description.trim() || formData.description.length < 20) {
       newErrors.description = 'Описание должно содержать минимум 20 символов';
     } else if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
       newErrors.description = `Описание не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`;
@@ -98,17 +94,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     setIsSubmitting(true);
     
     try {
-      // Создаем копию данных формы для отправки
-      const requestData = {
-        ...formData,
-        // Убедимся, что специальные символы в описании не будут экранированы
-        description: formData.description
-          .replace(/</g, '<')
-          .replace(/>/g, '>')
-          .replace(/&/g, '&')
-      };
-      
-      const response = await requestsService.createRequest(requestData);
+      const response = await requestsService.createRequest(formData);
       
       toast.success('Запрос на помощь успешно создан!');
       onSuccess(response.data);
@@ -128,175 +114,116 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const charCounterClass = remainingChars <= 100 ? 'text-orange-500' : 'text-gray-500';
   
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Затемнение фона */}
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" 
-        onClick={onClose}
-      ></div>
-      
-      {/* Модальное окно */}
-      <div className="flex items-center justify-center min-h-screen py-10 px-4">
-        <div 
-          className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-auto max-h-[80vh] flex flex-col"
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Заголовок */}
-          <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-base font-medium text-gray-900">Создание запроса</h3>
-            <button 
-              type="button"
-              className="text-gray-400 hover:text-gray-500"
-              onClick={onClose}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={onClose}
+          />
           
-          {/* Форма с прокруткой */}
-          <div className="overflow-y-auto px-3 py-2">
-            <form>
-              {/* Заголовок запроса */}
-              <div className="mb-2">
-                <label htmlFor="title" className="block text-xs font-medium text-gray-700 mb-1">
-                  Заголовок запроса*
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className={`w-full px-2 py-1 text-sm border ${errors.title ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                  placeholder="Например: Помощь с решением уравнений"
-                />
-                {errors.title && (
-                  <p className="mt-1 text-xs text-red-600">{errors.title}</p>
-                )}
-              </div>
-              
-              {/* Описание */}
-              <div className="mb-2">
-                <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="description" className="block text-xs font-medium text-gray-700">
-                    Описание запроса*
-                  </label>
-                  {remainingChars <= 100 && (
-                    <span className={`text-xs ${charCounterClass}`}>
-                      {formData.description.length}/{MAX_DESCRIPTION_LENGTH}
-                    </span>
-                  )}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="relative bg-white rounded-2xl shadow-xl max-w-xl w-full max-h-[90vh] flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-lg">
+                  <DocumentPlusIcon className="h-6 w-6" />
                 </div>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows="3"
-                  maxLength={MAX_DESCRIPTION_LENGTH}
-                  className={`w-full px-2 py-1 text-sm border ${errors.description ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                  placeholder="Опишите, с чем вам нужна помощь..."
-                ></textarea>
-                {errors.description && (
-                  <p className="mt-1 text-xs text-red-600">{errors.description}</p>
-                )}
-              </div>
-              
-              {/* Предмет и класс */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                 <div>
-                  <label htmlFor="subject" className="block text-xs font-medium text-gray-700 mb-1">
-                    Предмет*
-                  </label>
-                  <select
-                    id="subject"
-                    name="subject"
-                    value={formData.subject}
+                  <h3 className="text-xl font-bold text-gray-900">Новый запрос о помощи</h3>
+                  <p className="text-sm text-gray-500">Заполните детали, и мы найдем вам помощника</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 rounded-full">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            {/* Form Body */}
+            <div className="overflow-y-auto p-5 space-y-4">
+              <form id="create-request-form" onSubmit={handleSubmit}>
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Заголовок</label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
                     onChange={handleChange}
-                    className={`w-full px-2 py-1 text-sm border ${errors.subject ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                  >
-                    <option value="">Выберите предмет</option>
-                    {SUBJECTS.map(subject => (
-                      <option key={subject} value={subject}>{subject}</option>
-                    ))}
-                  </select>
-                  {errors.subject && (
-                    <p className="mt-1 text-xs text-red-600">{errors.subject}</p>
-                  )}
+                    className={`w-full px-4 py-2 text-base border ${errors.title ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
+                    placeholder="Например: Помощь с домашним заданием по алгебре"
+                  />
+                  {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
                 </div>
                 
                 <div>
-                  <label htmlFor="grade" className="block text-xs font-medium text-gray-700 mb-1">
-                    Класс*
-                  </label>
-                  <select
-                    id="grade"
-                    name="grade"
-                    value={formData.grade}
+                  <div className="flex justify-between items-center mb-1">
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Подробное описание</label>
+                    <span className={`text-sm font-medium ${charCounterClass}`}>{remainingChars}</span>
+                  </div>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
                     onChange={handleChange}
-                    className={`w-full px-2 py-1 text-sm border ${errors.grade ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                  >
-                    <option value="">Выберите класс</option>
-                    {[...Array(11)].map((_, i) => (
-                      <option key={i+1} value={i+1}>{i+1} класс</option>
-                    ))}
-                  </select>
-                  {errors.grade && (
-                    <p className="mt-1 text-xs text-red-600">{errors.grade}</p>
-                  )}
+                    rows="4"
+                    maxLength={MAX_DESCRIPTION_LENGTH}
+                    className={`w-full px-4 py-2 text-base border ${errors.description ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
+                    placeholder="Опишите вашу проблему как можно подробнее..."
+                  />
+                  {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                 </div>
-              </div>
-              
-              {/* Срочность */}
-              <div className="mb-2">
-                <label htmlFor="urgency" className="block text-xs font-medium text-gray-700 mb-1">
-                  Срочность
-                </label>
-                <select
-                  id="urgency"
-                  name="urgency"
-                  value={formData.urgency}
-                  onChange={handleChange}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  {Object.entries(URGENCY_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </form>
-          </div>
-          
-          {/* Кнопки действий (фиксированные внизу) */}
-          <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex justify-end space-x-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-2 py-1 text-xs border border-gray-300 rounded-md font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              Отмена
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-2 py-1 text-xs border border-transparent rounded-md shadow-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Создание...
-                </span>
-              ) : 'Создать запрос'}
-            </button>
-          </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">Предмет</label>
+                    <select id="subject" name="subject" value={formData.subject} onChange={handleChange} className={`w-full px-4 py-2 text-base border ${errors.subject ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}>
+                      <option value="" disabled>Выберите предмет</option>
+                      {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {errors.subject && <p className="mt-1 text-sm text-red-600">{errors.subject}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
+                    <select id="grade" name="grade" value={formData.grade} onChange={handleChange} className={`w-full px-4 py-2 text-base border ${errors.grade ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}>
+                      <option value="" disabled>Выберите класс</option>
+                      {[...Array(11)].map((_, i) => <option key={i+1} value={i+1}>{i+1} класс</option>)}
+                    </select>
+                    {errors.grade && <p className="mt-1 text-sm text-red-600">{errors.grade}</p>}
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+              <button type="button" onClick={onClose} className="px-5 py-2 text-base font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+                Отмена
+              </button>
+              <button
+                type="submit"
+                form="create-request-form"
+                disabled={isSubmitting}
+                className="ml-3 px-5 py-2 text-base font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSubmitting ? 'Отправка...' : 'Создать запрос'}
+                {!isSubmitting && <PaperAirplaneIcon className="h-5 w-5" />}
+              </button>
+            </div>
+          </motion.div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 };
 

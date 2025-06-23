@@ -46,10 +46,6 @@ const router = express.Router();
  *         schema: { type: 'string' }
  *         description: Фильтр по ID помощника
  *       - in: query
- *         name: isUrgent
- *         schema: { type: 'boolean' }
- *         description: Фильтр по срочности
- *       - in: query
  *         name: search
  *         schema: { type: 'string' }
  *         description: Поиск по названию и описанию заявки
@@ -86,7 +82,6 @@ router.get('/', protect, [
     query('status').optional().isIn(['open', 'assigned', 'completed', 'cancelled']),
     query('authorId').optional().isMongoId(),
     query('helperId').optional().isMongoId(),
-    query('isUrgent').optional().isBoolean().toBoolean(),
     query('search').optional().trim().escape(),
     query('sortBy').optional().isIn(['createdAt_desc', 'createdAt_asc', 'updatedAt_desc', 'updatedAt_asc'])
 ], async (req, res) => {
@@ -96,7 +91,7 @@ router.get('/', protect, [
     }
 
     try {
-        const { page = 1, limit = 10, subject, grade, status, authorId, helperId, isUrgent, search, sortBy = 'createdAt_desc' } = req.query;
+        const { page = 1, limit = 10, subject, grade, status, authorId, helperId, search, sortBy = 'createdAt_desc' } = req.query;
 
         const filters = {};
         if (subject) filters.subject = { $regex: subject, $options: 'i' };
@@ -105,7 +100,6 @@ router.get('/', protect, [
         else filters.status = 'open'; // По умолчанию только открытые, если статус не задан
         if (authorId) filters.author = authorId;
         if (helperId) filters.helper = helperId;
-        if (isUrgent !== undefined) filters.isUrgent = isUrgent;
 
         if (search) {
             filters.$or = [
@@ -164,7 +158,6 @@ router.get('/', protect, [
  *               grade: { type: 'integer', minimum: 1, maximum: 11 }
  *               topic: { type: 'string', nullable: true }
  *               format: { type: 'string', enum: ['text', 'call', 'chat', 'meet'], default: 'chat' }
- *               isUrgent: { type: 'boolean', default: false }
  *     responses:
  *       201:
  *         description: Заявка успешно создана
@@ -179,8 +172,7 @@ router.post('/', protect, [
     body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
     body('grade').isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
     body('topic').optional().trim().escape(),
-    body('format').optional().isIn(['text', 'call', 'chat', 'meet']).withMessage('Недопустимый формат помощи'),
-    body('isUrgent').optional().isBoolean()
+    body('format').optional().isIn(['text', 'call', 'chat', 'meet']).withMessage('Недопустимый формат помощи')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -188,7 +180,7 @@ router.post('/', protect, [
     }
 
     try {
-        const { title, description, subject, grade, topic, format, isUrgent } = req.body;
+        const { title, description, subject, grade, topic, format } = req.body;
         const author = req.user.id;
 
         const request = new Request({
@@ -198,7 +190,6 @@ router.post('/', protect, [
             grade,
             topic,
             format,
-            isUrgent,
             author
         });
         await request.save();
@@ -626,7 +617,6 @@ router.post('/:id/cancel', protect, [
  *               grade: { type: 'integer', minimum: 1, maximum: 11 }
  *               topic: { type: 'string', nullable: true }
  *               format: { type: 'string', enum: ['text', 'call', 'chat', 'meet'] }
- *               isUrgent: { type: 'boolean' }
  *     responses:
  *       200: { description: 'Заявка успешно обновлена' }
  *       400: { description: 'Ошибка валидации' }
@@ -638,10 +628,9 @@ router.put('/:id', protect, [
     body('title').optional().trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').optional().trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').optional().trim().notEmpty().withMessage('Предмет не может быть пустым, если указан'),
-    body('grade').optional().isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
-    body('topic').optional().trim().escape(),
-    body('format').optional().isIn(['text', 'call', 'chat', 'meet']).withMessage('Недопустимый формат помощи'),
-    body('isUrgent').optional().isBoolean()
+    body('grade').optional().isInt({ min: 1, max: 11 }),
+    body('topic').optional({ nullable: true }).trim().escape(),
+    body('format').optional({ nullable: true }).isIn(['text', 'call', 'chat', 'meet'])
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -660,7 +649,7 @@ router.put('/:id', protect, [
 
         // Обновляем только те поля, которые пришли в запросе
         const updates = {};
-        const allowedFields = ['title', 'description', 'subject', 'grade', 'topic', 'format', 'isUrgent'];
+        const allowedFields = ['title', 'description', 'subject', 'grade', 'topic', 'format'];
         for (const key in req.body) {
             if (allowedFields.includes(key) && req.body[key] !== undefined) {
                 updates[key] = req.body[key];

@@ -89,13 +89,13 @@ const NotificationBell = () => {
             Уведомления
           </div>
           <div className="max-h-72 overflow-y-auto">
-            {loading ? (
-              <div className="p-4 text-center text-sm text-gray-500">Загрузка...</div>
-            ) : notifications.length > 0 ? (
-              notifications.map(n => <NotificationItem key={n._id} notification={n} closeDropdown={() => setIsOpen(false)} />)
-            ) : (
-              <div className="p-4 text-center text-sm text-gray-500">Новых уведомлений нет.</div>
-            )}
+          {loading ? (
+            <div className="p-4 text-center text-sm text-gray-500">Загрузка...</div>
+          ) : notifications.length > 0 ? (
+            notifications.map(n => <NotificationItem key={n._id} notification={n} closeDropdown={() => setIsOpen(false)} />)
+          ) : (
+            <div className="p-4 text-center text-sm text-gray-500">Новых уведомлений нет.</div>
+          )}
           </div>
           <Link
             to="/notifications"

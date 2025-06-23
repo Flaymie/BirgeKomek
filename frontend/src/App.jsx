@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import RequireAuth from './components/auth/RequireAuth';
 import HomePage from './components/pages/HomePage';
@@ -19,13 +19,18 @@ import ChatPage from './components/pages/ChatPage';
 import ChatsPage from './components/pages/ChatsPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import CreateRequestModal from './components/modals/CreateRequestModal';
+import { useModal } from './context/ModalContext';
 
 const App = () => {
+  const location = useLocation();
+  const { isOpen, closeModal, onSuccess } = useModal();
+
   return (
     <>
       <ToastContainer position="top-right" autoClose={5000} />
       <Layout>
-        <Routes>
+        <Routes location={location} key={location.pathname}>
           {/* Публичные маршруты */}
           <Route path="/" element={<HomePage />} />
           <Route path="/about" element={<AboutPage />} />
@@ -49,6 +54,11 @@ const App = () => {
           </Route>
         </Routes>
       </Layout>
+      <CreateRequestModal
+        isOpen={isOpen}
+        onClose={closeModal}
+        onSuccess={onSuccess}
+      />
     </>
   );
 };

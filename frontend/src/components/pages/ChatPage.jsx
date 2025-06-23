@@ -5,7 +5,8 @@ import { useSocket } from '../../context/SocketContext';
 import { requestsService, messagesService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { toast } from 'react-toastify';
-import { PaperClipIcon } from '@heroicons/react/24/solid';
+import { PaperClipIcon, ArrowLeftIcon, ArrowUpCircleIcon, ArrowDownCircleIcon } from '@heroicons/react/24/solid';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Новый, улучшенный компонент сообщения с аватаркой
 const Message = ({ msg, isOwnMessage }) => {
@@ -22,7 +23,13 @@ const Message = ({ msg, isOwnMessage }) => {
   }
 
   return (
-    <div className={`flex items-end gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className={`flex items-end gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
+    >
       <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0">
         <img
           src={formatAvatarUrl(msg.sender)}
@@ -49,7 +56,7 @@ const Message = ({ msg, isOwnMessage }) => {
           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -64,10 +71,11 @@ const ChatPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attachment, setAttachment] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState('');
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
-  const chatEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-  const isScrolledToBottom = useRef(true);
+  const previousScrollHeight = useRef(null);
 
   // Получаем первоначальные данные (инфо о запросе и старые сообщения)
   const fetchInitialData = useCallback(async () => {
@@ -81,6 +89,12 @@ const ChatPage = () => {
       ]);
       setRequestDetails(detailsRes.data);
       setMessages(messagesRes.data);
+      // После первой загрузки сразу скроллим в самый низ
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 0);
     } catch (err) {
       setError('Произошла ошибка при загрузке чата.');
     } finally {
@@ -92,14 +106,43 @@ const ChatPage = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // Эффект для авто-прокрутки
+  // НОВАЯ, НАДЕЖНАЯ ЛОГИКА СКРОЛЛА
   useEffect(() => {
-    // Прокручиваем вниз только если пользователь уже был внизу,
-    // чтобы не мешать ему читать историю.
-    if (isScrolledToBottom.current) {
-      scrollToBottom();
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+      // Показываем кнопку, если пользователь отскроллил вверх больше чем на 300px
+      setShowScrollDown(scrollHeight - scrollTop > clientHeight + 300);
+    };
+
+    chatContainer.addEventListener('scroll', handleScroll);
+    return () => chatContainer.removeEventListener('scroll', handleScroll);
+  }, []);
+  
+  // Эффект, который сохраняет позицию скролла при получении новых сообщений
+  useEffect(() => {
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer || previousScrollHeight.current === null) {
+      previousScrollHeight.current = chatContainer?.scrollHeight;
+      return;
+    };
+
+    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+    
+    // Проверяем, был ли пользователь внизу ПЕРЕД добавлением новых сообщений
+    const wasScrolledToBottom = previousScrollHeight.current - scrollTop <= clientHeight + 10;
+
+    if (wasScrolledToBottom) {
+      // Если да - плавно скроллим к новому низу
+      chatContainer.scrollTo({ top: scrollHeight, behavior: 'smooth' });
     }
-  }, [messages]); // Запускается каждый раз при изменении сообщений
+    
+    // Обновляем высоту для следующего рендера
+    previousScrollHeight.current = scrollHeight;
+
+  }, [messages]);
 
   // Настройка Socket.IO
   useEffect(() => {
@@ -120,11 +163,7 @@ const ChatPage = () => {
     
     // Слушаем новые сообщения
     const handleNewMessage = (message) => {
-      if (message.requestId === requestId) { // Убедимся, что сообщение для этого чата
-        if (chatContainerRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-          isScrolledToBottom.current = scrollHeight - scrollTop <= clientHeight + 10;
-        }
+      if (message.requestId === requestId) {
         setMessages((prevMessages) => [...prevMessages, message]);
       }
     };
@@ -146,35 +185,79 @@ const ChatPage = () => {
     };
   }, [socket, requestId]);
   
-  // Функция для плавной прокрутки вниз
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if ((newMessage.trim() || attachment) && socket) {
-      socket.emit('send_message', {
-        requestId: requestId,
-        content: newMessage,
+  const scrollToBottom = (behavior = 'smooth') => {
+    const chatContainer = chatContainerRef.current;
+    if (chatContainer) {
+      chatContainer.scrollTo({
+        top: chatContainer.scrollHeight,
+        behavior: behavior,
       });
     }
-    
-    setNewMessage('');
-    setAttachment(null);
   };
   
   // Обработчик выбора файла
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Проверяем размер файла (максимум 10 МБ)
       if (file.size > 10 * 1024 * 1024) {
         toast.error('Размер файла не должен превышать 10 МБ');
         return;
       }
       setAttachment(file);
+      // Создаем превью для картинки
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachmentPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setAttachmentPreview(''); // Сбрасываем превью, если файл не картинка
+      }
     }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if ((!newMessage.trim() && !attachment) || !socket) return;
+  
+    try {
+      if (attachment) {
+        const formData = new FormData();
+        formData.append('requestId', requestId);
+        formData.append('content', newMessage);
+        formData.append('attachment', attachment);
+        
+        // Вместо отправки через сокет, отправляем через API
+        const res = await messagesService.sendMessageWithAttachment(
+          requestId,
+          newMessage,
+          attachment
+        );
+  
+        // После успешной отправки через API, можно опционально
+        // эмитить событие через сокет, чтобы другие клиенты обновились,
+        // если бэкенд не делает этого сам.
+        // Но обычно бэкенд после сохранения сам рассылает сообщение всем в комнату.
+
+      } else {
+        // Отправка простого текстового сообщения через сокет
+        socket.emit('send_message', {
+          requestId: requestId,
+          content: newMessage,
+        });
+      }
+    
+      setNewMessage('');
+      setAttachment(null);
+      setAttachmentPreview('');
+    } catch (error) {
+      toast.error('Ошибка при отправке сообщения');
+      console.error("Failed to send message:", error);
+    }
+    
+    // Принудительно и мгновенно скроллим вниз после СВОЕЙ отправки
+    setTimeout(() => scrollToBottom('auto'), 0);
   };
   
   // Проверяем, является ли пользователь участником чата
@@ -251,93 +334,105 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-16">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-        {/* Заголовок чата */}
-        <div className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
+    <div className="container mx-auto px-4 py-8 mt-12 md:mt-16">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-[85vh] relative">
+        {/* Шапка чата */}
+        <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold">{requestDetails.title}</h1>
+              <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <p className="text-sm text-gray-500">
                 {requestDetails.subject} • {requestDetails.grade} класс
               </p>
             </div>
             <Link 
               to={`/request/${requestId}`}
-              className="text-sm text-indigo-600 hover:text-indigo-800"
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
             >
               К деталям запроса
             </Link>
           </div>
-          <div className="flex items-center mt-2 text-sm text-gray-500">
-            <span>Участники: </span>
-            <span className="ml-1 font-medium">{requestDetails.author.username}</span>
+          <div className="mt-2 text-sm">
+            <div className="flex items-center">
+              <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
+              <span className="font-semibold text-gray-800 truncate">{requestDetails.author.username}</span>
+            </div>
             {requestDetails.helper && (
-              <>
-                <span className="mx-1">и</span>
-                <span className="font-medium">{requestDetails.helper.username}</span>
-              </>
+              <div className="flex items-center mt-1">
+                <span className="font-medium text-gray-500 w-16 flex-shrink-0">Хелпер:</span>
+                <span className="font-semibold text-gray-800 truncate">{requestDetails.helper.username}</span>
+              </div>
             )}
           </div>
-        </div>
+        </header>
         
-        {/* Область сообщений */}
-        <div ref={chatContainerRef} className="p-4 h-[60vh] overflow-y-auto">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-              </svg>
-              <p className="text-gray-500">Здесь пока нет сообщений. Начните общение!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <Message key={message._id} msg={message} isOwnMessage={message.sender?._id === currentUser?._id} />
-              ))}
-              <div ref={chatEndRef} />
-            </div>
+        {/* Основная область чата */}
+        <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <Message key={msg._id} msg={msg} isOwnMessage={currentUser && msg.sender._id === currentUser._id} />
+            ))}
+          </AnimatePresence>
+        </main>
+
+        {/* Кнопка "Вниз" */}
+        <AnimatePresence>
+          {showScrollDown && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={() => scrollToBottom()}
+              className="absolute bottom-24 right-6 bg-indigo-600 text-white rounded-full p-2 shadow-lg z-20 hover:bg-indigo-700"
+            >
+              <ArrowDownCircleIcon className="h-7 w-7" />
+            </motion.button>
           )}
-        </div>
-        
-        {/* Форма отправки сообщения */}
-        <div className="p-4 border-t border-gray-200">
-          <form onSubmit={handleSendMessage} className="flex flex-col space-y-2">
-            <div className="flex items-center">
-              <button
-                type="button"
-                onClick={() => document.getElementById('attachment-input').click()}
-                className="p-2 text-gray-500 hover:text-indigo-600"
-                title="Прикрепить файл"
-              >
-                <PaperClipIcon className="w-5 h-5" />
-              </button>
+        </AnimatePresence>
+
+        {/* Форма ввода сообщения */}
+        <footer className="bg-white border-t border-gray-200 p-4 rounded-b-lg">
+          <div className="mx-auto max-w-4xl">
+            {attachmentPreview && (
+              <div className="mb-2 p-2 bg-gray-100 rounded-lg relative w-24 h-24">
+                <img src={attachmentPreview} alt="Превью" className="w-full h-full object-cover rounded-md" />
+                <button 
+                  onClick={() => { setAttachment(null); setAttachmentPreview(''); }} 
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs"
+                >&times;</button>
+              </div>
+            )}
+            <form onSubmit={handleSendMessage} className="flex items-center gap-3">
               <input
                 type="file"
-                id="attachment-input"
-                onChange={handleFileChange}
+                id="file-upload"
                 className="hidden"
+                onChange={handleFileChange}
               />
+              <label htmlFor="file-upload" className="cursor-pointer text-gray-500 hover:text-gray-700">
+                <PaperClipIcon className="h-6 w-6" />
+              </label>
               <input
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Введите сообщение..."
-                className="flex-1 border border-gray-300 rounded-l-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Напишите сообщение..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                autoComplete="off"
               />
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-r-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
                 disabled={!newMessage.trim() && !attachment}
+                className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
               >
-                Отправить
+                <ArrowUpCircleIcon className="h-6 w-6" />
               </button>
-            </div>
-          </form>
-        </div>
+            </form>
+          </div>
+        </footer>
       </div>
     </div>
   );
 };
 
-export default ChatPage; 
+export default ChatPage;

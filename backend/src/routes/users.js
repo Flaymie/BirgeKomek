@@ -260,10 +260,10 @@ export default (onlineUsers) => {
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-
+      
       // Определяем онлайн-статус
       const isOnline = onlineUsers.has(userId);
-
+      
       // Получаем статистику по заявкам (как и раньше)
       const requestsAsAuthor = await Request.countDocuments({ author: userId });
       const requestsAsHelper = await Request.countDocuments({ helper: userId, status: 'completed' });

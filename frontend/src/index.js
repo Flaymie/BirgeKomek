@@ -5,6 +5,7 @@ import './index.css';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ModalProvider } from './context/ModalContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import reportWebVitals from './reportWebVitals';
@@ -15,7 +16,9 @@ root.render(
     <BrowserRouter>
       <AuthProvider>
         <SocketProvider>
-          <App />
+          <ModalProvider>
+            <App />
+          </ModalProvider>
         </SocketProvider>
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       </AuthProvider>
