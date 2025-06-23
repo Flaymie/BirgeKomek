@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
 import { usersService } from '../../services/api';
+import { formatAvatarUrl } from '../../services/avatarUtils';
+import AvatarUpload from '../layout/AvatarUpload';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -132,11 +134,13 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
           
           <div className="grid grid-cols-1 gap-6">
             <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center mb-6">
-                <div className="h-20 w-20 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
-                  <span className="text-3xl font-semibold text-indigo-600">
-                    {profile.username ? profile.username.charAt(0).toUpperCase() : '?'}
-                  </span>
+              <div className="flex flex-col md:flex-row items-center mb-6">
+                <div className="mb-4 md:mb-0 md:mr-6">
+                  <AvatarUpload 
+                    currentAvatar={formatAvatarUrl(profile)} 
+                    size="lg" 
+                    editable={false} 
+                  />
                 </div>
                 <div>
                   <h2 className="text-xl font-medium text-gray-900">{profile.username}</h2>
@@ -273,6 +277,11 @@ const ProfileEditor = ({
     handleProfileChange({ target: { name: 'phone', value: formatted } });
   };
 
+  // Обработчик изменения аватара
+  const handleAvatarChange = (avatarUrl) => {
+    handleProfileChange({ target: { name: 'avatar', value: avatarUrl } });
+  };
+
   return (
     <Container>
       <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
@@ -280,30 +289,28 @@ const ProfileEditor = ({
           <h1 className="text-2xl font-semibold text-gray-900 mb-6">Мой профиль</h1>
           
           <div className="bg-white p-4 rounded-lg border border-gray-200">
-            {/* Информация о роли и классе */}
+            {/* Загрузка аватара */}
             <div className="mb-6 pb-4 border-b border-gray-200">
-              <div className="flex items-center">
-                <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
-                  <span className="text-2xl font-semibold text-indigo-600">
-                    {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '?'}
+              <div className="flex flex-col items-center">
+                <AvatarUpload 
+                  currentAvatar={formatAvatarUrl(profileData)}
+                  onAvatarChange={handleAvatarChange}
+                  size="xl"
+                />
+                <h2 className="text-lg font-medium text-gray-900 mt-4">{profileData.username}</h2>
+                <div className="mt-1 flex flex-wrap gap-2 justify-center">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    profileData.roles && profileData.roles.helper 
+                      ? 'bg-indigo-100 text-indigo-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {getRoleText(profileData)}
                   </span>
-                </div>
-                <div>
-                  <h2 className="text-lg font-medium text-gray-900">{currentUser.username}</h2>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      currentUser.roles && currentUser.roles.helper 
-                        ? 'bg-indigo-100 text-indigo-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {getRoleText(currentUser)}
+                  {profileData.grade && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      {profileData.grade} класс
                     </span>
-                    {currentUser.grade && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {currentUser.grade} класс
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -476,6 +483,7 @@ const ProfilePage = () => {
     setIsProfileLoading(true);
     setProfileSuccess('');
     setProfileError('');
+    setProfileErrors({}); // Очищаем старые ошибки
     
     try {
       await updateProfile(profileData);

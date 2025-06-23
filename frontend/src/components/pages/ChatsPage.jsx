@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { chatsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
+import { formatAvatarUrl } from '../../services/avatarUtils';
 
 const ChatsPage = () => {
   const [chats, setChats] = useState([]);
@@ -118,13 +119,17 @@ const ChatsPage = () => {
               <div className="flex justify-between items-center mt-4">
                 <div className="flex items-center">
                   <div className="flex -space-x-2 overflow-hidden">
-                    <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center">
-                      {chat.author.username.charAt(0).toUpperCase()}
-                    </div>
+                    <img 
+                      className="inline-block h-8 w-8 rounded-full ring-2 ring-white"
+                      src={formatAvatarUrl(chat.author)}
+                      alt={chat.author.username}
+                    />
                     {chat.helper && (
-                      <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center">
-                        {chat.helper.username.charAt(0).toUpperCase()}
-                      </div>
+                      <img
+                        className="inline-block h-8 w-8 rounded-full ring-2 ring-white"
+                        src={formatAvatarUrl(chat.helper)}
+                        alt={chat.helper.username}
+                      />
                     )}
                   </div>
                   <span className="ml-3 text-sm text-gray-500">

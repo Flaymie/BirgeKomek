@@ -251,25 +251,34 @@ export default (onlineUsers) => {
     }
 
     try {
-      // Ищем пользователя и выбираем только публичные поля
-      const user = await User.findById(req.params.id)
-        .select('username roles grade points rating subjects createdAt lastSeen')
-        .lean(); // .lean() для производительности и чтобы можно было добавить свои поля
+      const userId = req.params.id;
+      
+      const user = await User.findById(userId)
+        .select('username roles grade points rating subjects completedRequests createdAt lastSeen avatar bio location')
+        .lean();
 
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-      
-      // Просто проверяем, есть ли юзер в списке онлайн
-      user.isOnline = onlineUsers.has(user._id.toString());
-      
-      // TODO: Посчитать количество выполненных запросов (если нужно)
-      user.completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
 
-      res.json(user);
+      // Определяем онлайн-статус
+      const isOnline = onlineUsers.has(userId);
+
+      // Получаем статистику по заявкам (как и раньше)
+      const requestsAsAuthor = await Request.countDocuments({ author: userId });
+      const requestsAsHelper = await Request.countDocuments({ helper: userId, status: 'completed' });
+
+      res.json({
+        ...user,
+        isOnline,
+        stats: {
+          requestsAsAuthor,
+          requestsAsHelper
+        }
+      });
     } catch (err) {
-      console.error('Ошибка при получении профиля пользователя:', err);
-      res.status(500).json({ msg: 'Ошибка сервера' });
+      console.error('Ошибка при получении профиля пользователя:', err.message);
+      res.status(500).send('Ошибка сервера');
     }
   });
 

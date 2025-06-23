@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import AvatarUpload from '../layout/AvatarUpload';
 
 // ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
 const subjectOptions = [
@@ -27,6 +28,7 @@ const RegisterPage = () => {
     password2: '',
     role: 'student', // по умолчанию ученик
     grade: '',
+    avatar: '', // добавляем поле для аватарки
   });
   const [subjects, setSubjects] = useState([]); // отдельное состояние для предметов
 
@@ -36,6 +38,11 @@ const RegisterPage = () => {
   const { register } = useAuth();
   
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  // Обработчик изменения аватара
+  const handleAvatarChange = (avatarUrl) => {
+    setFormData({ ...formData, avatar: avatarUrl });
+  };
 
   const handleSubjectChange = (e) => {
     const { name, checked } = e.target;
@@ -48,8 +55,26 @@ const RegisterPage = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    
+    // Валидация формы перед отправкой
+    if (!username || !email || !password) {
+      toast.error('Все обязательные поля должны быть заполнены');
+      console.error('Пустые обязательные поля:', { username, email, password });
+      return;
+    }
+    
     if (password !== password2) {
       toast.error('Пароли не совпадают');
+      return;
+    }
+    
+    if (role === 'student' && !grade) {
+      toast.error('Укажите ваш класс');
+      return;
+    }
+    
+    if (role === 'helper' && subjects.length === 0) {
+      toast.error('Выберите хотя бы один предмет');
       return;
     }
     
@@ -61,6 +86,7 @@ const RegisterPage = () => {
         student: role === 'student',
         helper: role === 'helper'
       },
+      avatar: formData.avatar, // Добавляем аватар в регистрационные данные
     };
     
     if (role === 'student') {
@@ -72,12 +98,47 @@ const RegisterPage = () => {
     }
 
     try {
-      await register(registrationData);
+      // Выводим данные регистрации для отладки
+      console.log('Отправляемые данные регистрации:', JSON.stringify(registrationData));
+      
+      const result = await register(registrationData);
+      console.log('Результат регистрации:', result);
+      
+      if (result && result.success) {
       toast.success('Регистрация прошла успешно! Теперь можете войти.');
       navigate('/login');
+      } else {
+        // Если регистрация не удалась, но ошибки не были выброшены
+        const errorMsg = result?.error || 'Произошла ошибка при регистрации. Попробуйте еще раз.';
+        toast.error(errorMsg);
+        console.error('Ошибка регистрации:', errorMsg);
+      }
     } catch (err) {
+      console.error('Исключение при регистрации:', err);
+      
+      // Подробное логирование ошибки
+      if (err.response) {
+        console.error('Данные ответа:', err.response.data);
+        console.error('Статус ответа:', err.response.status);
+        console.error('Заголовки ответа:', err.response.headers);
+        
+        // Если сервер вернул массив ошибок, показываем их все
+        if (err.response.data && err.response.data.errors && Array.isArray(err.response.data.errors)) {
+          err.response.data.errors.forEach(error => {
+            console.error(`Ошибка поля ${error.path}: ${error.msg}`);
+            toast.error(`${error.msg}`);
+          });
+        } else {
       const errorMsg = err.response?.data?.msg || err.response?.data?.errors?.[0]?.msg || 'Ошибка регистрации';
       toast.error(errorMsg);
+        }
+      } else if (err.request) {
+        console.error('Запрос был отправлен, но ответ не получен', err.request);
+        toast.error('Не удалось получить ответ от сервера. Проверьте подключение к интернету.');
+      } else {
+        console.error('Ошибка при настройке запроса:', err.message);
+        toast.error(`Ошибка: ${err.message}`);
+      }
     }
   };
 
@@ -90,6 +151,19 @@ const RegisterPage = () => {
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={onSubmit}>
+          {/* Выбор аватара */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 text-center mb-2">
+              Ваша фотография (необязательно)
+            </label>
+            <AvatarUpload 
+              currentAvatar={formData.avatar}
+              onAvatarChange={handleAvatarChange}
+              size="lg"
+              isRegistration={true}
+            />
+          </div>
+          
           <div>
             <label htmlFor="username" className="sr-only">Имя пользователя</label>
             <input

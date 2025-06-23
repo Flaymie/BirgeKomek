@@ -75,7 +75,20 @@ const Header = () => {
             
             {currentUser ? (
               <div className="relative group">
-                <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
+                <button className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
+                  {currentUser.formattedAvatar ? (
+                    <img 
+                      src={currentUser.formattedAvatar}
+                      alt={currentUser.username}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <span className="text-indigo-600 font-bold">
+                        {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
+                      </span>
+                    </div>
+                  )}
                   <span>{currentUser.username || 'Профиль'}</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
@@ -155,11 +168,19 @@ const Header = () => {
             {currentUser ? (
               <>
                 <div className="flex items-center space-x-2 mb-2">
+                  {currentUser.formattedAvatar ? (
+                    <img 
+                      src={currentUser.formattedAvatar}
+                      alt={currentUser.username}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
                   <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
                     <span className="text-indigo-600 font-bold">
                       {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
                     </span>
                   </div>
+                  )}
                   <span className="text-sm font-medium text-gray-900">{currentUser.username || 'Пользователь'}</span>
                 </div>
                 <Link to="/profile" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">

@@ -10,6 +10,8 @@ import swaggerUi from 'swagger-ui-express';
 import http from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
@@ -21,12 +23,17 @@ import notificationRoutes from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
 import responseRoutes from './routes/responses.js';
 import chatRoutes from './routes/chats.js';
+import uploadRoutes from './routes/upload.js';
 import Message from './models/Message.js';
 import { createAndSendNotification } from './routes/notifications.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
 
 dotenv.config();
+
+// Это нужно для __dirname в ES-модулях
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -47,7 +54,7 @@ const PORT = process.env.PORT || 5050;
 // мидлвари
 app.use(express.json());
 app.use(mongoSanitize());
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
 
 const whitelist = [
   'http://localhost:3000',
@@ -72,6 +79,31 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Раздача статичных файлов из папки uploads - УДАЛЯЕМ ЭТОТ СПОСОБ
+// app.use('/uploads', express.static('uploads'));
+
+// НОВЫЙ, НАДЕЖНЫЙ РОУТ ДЛЯ РАЗДАЧИ ФАЙЛОВ
+// Он будет обрабатывать запросы вида /uploads/avatars/filename.png
+app.get('/uploads/:folder/:filename', (req, res) => {
+  const { folder, filename } = req.params;
+
+  // Простая проверка безопасности
+  if (filename.includes('..') || folder.includes('..')) {
+    return res.status(400).send('Invalid path');
+  }
+  
+  // Строим абсолютный путь к файлу
+  const filePath = path.join(__dirname, '..', 'uploads', folder, filename);
+
+  // Отправляем файл. Express сам выставит нужные заголовки.
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error(`Ошибка отправки файла: ${filePath}`, err);
+      res.status(404).send('Resource not found');
+    }
+  });
+});
 
 // отключаем строку X-Powered-By
 app.disable('x-powered-by');
@@ -127,6 +159,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/responses', responseRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Socket.IO логика
 io.use((socket, next) => {
@@ -144,12 +177,19 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.user.id}`);
-  onlineUsers.set(socket.user.id, new Date());
+  console.log(`[Socket.IO] User connected: ${socket.user.id}`);
+  // Добавляем пользователя в онлайн с текущим временем
+  onlineUsers.set(socket.user.id, Date.now());
+  
+  // Разово обновляем lastSeen при подключении, для надежности
   User.findByIdAndUpdate(socket.user.id, { lastSeen: new Date() }).exec();
 
+  // Слушаем пинги от клиента
   socket.on('user_ping', () => {
-    onlineUsers.set(socket.user.id, new Date());
+    // Просто обновляем временную метку, когда приходит пинг
+    if (onlineUsers.has(socket.user.id)) {
+      onlineUsers.set(socket.user.id, Date.now());
+    }
   });
 
   socket.on('join_chat', (requestId) => {
@@ -203,24 +243,28 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.user.id}`);
+    console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
+    // Удаляем пользователя из онлайн списка
     onlineUsers.delete(socket.user.id);
+    // Обновляем время последнего онлайна в базе
     User.findByIdAndUpdate(socket.user.id, { lastSeen: new Date() }).exec();
   });
 });
 
 // Периодическая проверка "мертвых душ"
 setInterval(() => {
-  const now = new Date();
-  const timeout = 90 * 1000; // 1.5 минуты
+  const now = Date.now();
+  const timeout = 90 * 1000; // 1.5 минуты неактивности
+  
   onlineUsers.forEach((timestamp, userId) => {
     if (now - timestamp > timeout) {
-      console.log(`User ${userId} timed out.`);
       onlineUsers.delete(userId);
+      console.log(`[Socket.IO Cleaner] Removed stale user: ${userId}`);
+      // Можно и здесь обновить lastSeen, но disconnect должен справляться
       User.findByIdAndUpdate(userId, { lastSeen: new Date(timestamp) }).exec();
     }
   });
-}, 60 * 1000); // Проверять каждую минуту
+}, 60 * 1000); // Проверка каждую минуту
 
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {

@@ -118,7 +118,7 @@ router.get('/:requestId', protect, [
     
     // получаем сообщения
     const messages = await Message.find({ requestId })
-      .populate('sender', 'username')
+      .populate('sender', 'username avatar')
       .sort({ createdAt: 1 });
     
     res.json(messages);
@@ -203,7 +203,7 @@ router.post('/', protect, [
         });
 
         await newMessage.save();
-        const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id');
+        const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
 
         // Определяем получателя уведомления
         let recipientId;
@@ -350,7 +350,7 @@ router.post('/attachment', protect, upload.single('attachment'), async (req, res
     });
     
     await newMessage.save();
-    const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id');
+    const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
     
     // Определяем получателя уведомления
     let recipientId;

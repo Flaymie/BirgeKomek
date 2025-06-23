@@ -121,8 +121,8 @@ router.get('/', protect, [
         }
 
         const requests = await Request.find(filters)
-            .populate('author', 'username _id rating')
-            .populate('helper', 'username _id rating')
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar')
             .sort(sortParams)
             .skip((page - 1) * limit)
             .limit(limit)
@@ -259,8 +259,8 @@ router.get('/:id', protect, [
     }
     try {
         const request = await Request.findById(req.params.id)
-            .populate('author', 'username _id rating')
-            .populate('helper', 'username _id rating');
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar');
         if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
         }

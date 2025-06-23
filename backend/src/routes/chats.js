@@ -62,7 +62,7 @@ router.get('/', protect, async (req, res) => {
       ],
       // Только запросы со статусом, где возможен чат
       status: { $in: ['assigned', 'in_progress', 'completed'] }
-    }).populate('author', 'username').populate('helper', 'username');
+    }).populate('author', 'username avatar').populate('helper', 'username avatar');
     
     console.log(`Найдено ${requests.length} запросов для пользователя ${userId}`);
     
@@ -74,7 +74,7 @@ router.get('/', protect, async (req, res) => {
       // Получаем последнее сообщение
       const lastMessage = await Message.findOne({ requestId })
         .sort({ createdAt: -1 })
-        .populate('sender', 'username')
+        .populate('sender', 'username avatar')
         .lean();
       
       // Если сообщений нет, но запрос имеет статус assigned/in_progress, все равно показываем чат

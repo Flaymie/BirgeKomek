@@ -76,6 +76,11 @@ export const createAndSendNotification = async ({ user, type, title, message, li
  *           type: integer
  *           default: 10
  *         description: Количество уведомлений на странице
+ *       - in: query
+ *         name: isRead
+ *         schema:
+ *           type: boolean
+ *         description: Фильтр по статусу прочтения (true, false или не указывать для всех)
  *     responses:
  *       200:
  *         description: Список уведомлений
@@ -84,23 +89,37 @@ router.get('/', protect, async (req, res) => {
   try {
     const userId = req.user.id;
     const page = parseInt(req.query.page) || 1;
-    // Используем лимит из запроса, по умолчанию - 10
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const notifications = await Notification.find({ user: userId })
+    const query = { user: userId };
+
+    // Добавляем фильтр по статусу прочтения, если он указан
+    if (req.query.isRead === 'true') {
+      query.isRead = true;
+    } else if (req.query.isRead === 'false') {
+      query.isRead = false;
+    }
+
+    const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    const total = await Notification.countDocuments({ user: userId });
+    const total = await Notification.countDocuments(query);
+
+    // Добавляем подсчет непрочитанных уведомлений в ответ
+    const unreadCount = req.query.isRead === undefined 
+      ? await Notification.countDocuments({ user: userId, isRead: false })
+      : (query.isRead === false ? total : await Notification.countDocuments({ user: userId, isRead: false }));
 
     res.json({
       notifications,
       totalPages: Math.ceil(total / limit),
-      currentPage: parseInt(page),
+      currentPage: page,
       total,
+      unreadCount, // <--- Cчетчик для иконки колокольчика
     });
   } catch (error) {
     console.error('Ошибка при получении уведомлений:', error);

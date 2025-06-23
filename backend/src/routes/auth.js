@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
+import uploadAvatar from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -51,6 +52,9 @@ const router = express.Router();
  *                 minimum: 1
  *                 maximum: 11
  *                 description: Класс ученика (1-11)
+ *               avatar:
+ *                 type: string
+ *                 description: URL аватара пользователя (опционально)
  *     responses:
  *       201:
  *         description: Пользователь успешно зарегистрирован
@@ -77,8 +81,9 @@ const router = express.Router();
  *         description: Внутренняя ошибка сервера
  */
 // регистрация
-router.post('/register', [
-  // Валидация входных данных
+router.post('/register', 
+  uploadAvatar,
+  [
   body('username')
     .trim()
     .not().isEmpty().withMessage('Имя пользователя обязательно')
@@ -108,14 +113,35 @@ router.post('/register', [
     .custom((subjects) => !subjects.some(s => typeof s !== 'string' || s.trim() === ''))
     .withMessage('Все предметы в helperSubjects должны быть непустыми строками'),
   body('role', 'Роль обязательна').isIn(['student', 'helper']),
-  body('subjects').optional().isArray().withMessage('Предметы должны быть массивом'),
-], async (req, res) => {
+    body('subjects').optional().custom((value) => {
+      try {
+        const subjects = JSON.parse(value);
+        if (!Array.isArray(subjects) || subjects.some(s => typeof s !== 'string')) {
+          throw new Error('Предметы должны быть массивом строк.');
+        }
+        return true;
+      } catch (e) {
+        if(Array.isArray(value)) return true;
+        throw new Error('Некорректный формат предметов.');
+      }
+    }),
+  ], 
+  async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { username, email, password, phone, grade, helperSubjects, role, subjects } = req.body;
+    const { username, email, password, phone, grade, role } = req.body;
+    let { subjects } = req.body;
+
+    if (subjects && typeof subjects === 'string') {
+      try {
+        subjects = JSON.parse(subjects);
+      } catch (e) {
+        return res.status(400).json({ msg: 'Некорректный формат предметов (ошибка JSON)' });
+      }
+    }
 
   try {
     let user = await User.findOne({ email });
@@ -134,6 +160,7 @@ router.post('/register', [
       password,
       phone,
       role,
+        avatar: req.file ? req.file.path : '',
     };
 
     if (role === 'student') {
@@ -158,14 +185,12 @@ router.post('/register', [
 
     await user.save();
     
-    // создаем токен
     const token = jwt.sign(
       { id: user._id }, 
       process.env.JWT_SECRET, 
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
     
-    // не возвращаем пароль
     user.password = undefined;
     
     res.status(201).json({
@@ -176,7 +201,8 @@ router.post('/register', [
     console.error('Ошибка регистрации:', err);
     res.status(500).json({ msg: 'Что-то сломалось при регистрации' });
   }
-});
+  }
+);
 
 /**
  * @swagger

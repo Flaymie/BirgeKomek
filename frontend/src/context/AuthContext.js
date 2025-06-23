@@ -1,5 +1,7 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { toast } from 'react-toastify';
 import { authService, usersService, notificationsService, baseURL } from '../services/api';
+import { formatAvatarUrl } from '../services/avatarUtils';
 
 const AuthContext = createContext();
 
@@ -9,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -21,18 +23,27 @@ export const AuthProvider = ({ children }) => {
     return `hsl(${hue}, 70%, 80%)`;
   };
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
-      // На бэке роут GET /unread возвращает массив непрочитанных, поэтому считаем их длину
-      const response = await notificationsService.getUnreadCount();
-      setUnreadNotifications(response.data.notifications.length);
+      // Бэкенд теперь отдает count в отдельном поле, используем его
+      const response = await notificationsService.getNotifications({ limit: 1 }); // limit: 1 для экономии
+      setUnreadCount(response.data.unreadCount || 0);
     } catch (err) {
       console.error('Не удалось загрузить количество уведомлений', err);
     }
-  };
+  }, []);
 
   const markNotificationsAsRead = () => {
-    setUnreadNotifications(0);
+    setUnreadCount(0);
+  };
+
+  // Обработка данных пользователя перед установкой в стейт
+  const processUserData = (userData) => {
+    if (!userData) return null;
+    return {
+      ...userData,
+      formattedAvatar: formatAvatarUrl(userData),
+    };
   };
 
   // Загрузка данных пользователя
@@ -46,7 +57,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const response = await usersService.getCurrentUser();
-        setCurrentUser(response.data);
+        setCurrentUser(processUserData(response.data));
         await fetchUnreadCount(); // Загружаем счетчик после загрузки юзера
       } catch (err) {
         console.error('Ошибка при загрузке пользователя:', err);
@@ -61,7 +72,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-  }, []);
+  }, [fetchUnreadCount]);
   
   // Управление SSE-соединением для real-time уведомлений
   useEffect(() => {
@@ -77,7 +88,14 @@ export const AuthProvider = ({ children }) => {
 
       eventSource.addEventListener('new_notification', (event) => {
         // const notification = JSON.parse(event.data);
-        setUnreadNotifications(prev => prev + 1);
+        // Просто инкрементируем счетчик, когда приходит новое уведомление
+        setUnreadCount(prev => prev + 1);
+        
+        // Можно добавить всплывашку тут
+        const notification = JSON.parse(event.data);
+        if (notification.title) {
+          toast.info(notification.title);
+        }
       });
 
       eventSource.onerror = (err) => {
@@ -104,12 +122,15 @@ export const AuthProvider = ({ children }) => {
       
       // Получаем данные пользователя
       const userResponse = await usersService.getCurrentUser();
-      setCurrentUser(userResponse.data);
+      setCurrentUser(processUserData(userResponse.data));
       setLoading(false);
+      toast.success('Вход выполнен успешно!');
       return true;
     } catch (err) {
       console.error('Ошибка входа:', err);
-      setError(err.response?.data?.msg || 'Ошибка при входе в систему');
+      const errorMessage = err.response?.data?.msg || 'Ошибка при входе в систему';
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
       return false;
     }
@@ -119,15 +140,90 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setLoading(true);
     setError(null);
+    
     try {
-      const response = await authService.register(userData);
+      console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
+      
+      // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
+      let processedUserData = { ...userData };
+      
+      if (userData.avatar) {
+        if (userData.avatar.startsWith('data:image')) {
+          console.log('AuthContext: В данных присутствует аватар в формате base64');
+          // Если аватар в base64, не нужно его загружать отдельно - просто отправляем
+          // Бэкенд должен распознать, что это base64, и обработать соответственно
+        } else {
+          console.log('AuthContext: В данных присутствует аватар в формате URL:', userData.avatar.substring(0, 100) + '...');
+        }
+      } else {
+        console.log('AuthContext: Аватар не предоставлен в данных регистрации');
+      }
+      
+      const response = await authService.register(processedUserData);
+      console.log('AuthContext: Ответ сервера о регистрации:', response);
+      
+      if (response && response.data) {
+        console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
+        
+        // Проверяем, содержит ли ответ токен, который нужно сохранить
+        if (response.data.token) {
+          console.log('AuthContext: Токен получен, сохраняем в localStorage');
+          localStorage.setItem('token', response.data.token);
+        }
+        
+        // Устанавливаем пользователя в стейт, если в ответе есть данные пользователя
+        if (response.data.user) {
+          console.log('AuthContext: Устанавливаем данные пользователя в стейт');
+          setCurrentUser(processUserData(response.data.user));
+          await fetchUnreadCount();
+        }
+        
       setLoading(false);
+        toast.success('Регистрация прошла успешно!');
       return { success: true, data: response.data };
-    } catch (err) {
-      console.error('Ошибка регистрации:', err);
-      setError(err.response?.data?.msg || 'Ошибка при регистрации');
+      } else {
+        console.error('AuthContext: Неожиданный формат ответа:', response);
+        setLoading(false);
+        throw new Error('Неожиданный формат ответа от сервера');
+      }
+    } catch (error) {
+      console.error('AuthContext: Ошибка при регистрации:', error);
+      
+      // Расширенное логирование информации об ошибке
+      if (error.response) {
+        console.error('AuthContext: Данные ошибки:', error.response.data);
+        console.error('AuthContext: Статус ошибки:', error.response.status);
+        console.error('AuthContext: Заголовки ответа:', error.response.headers);
+        
+        // Полезно для отладки - сериализуем полностью ответ об ошибке
+        try {
+          console.error('AuthContext: Полный объект ответа:', JSON.stringify(error.response));
+        } catch (e) {
+          console.error('AuthContext: Не удалось сериализовать объект ответа');
+        }
+      }
+      
+      const errorMessage = error.response?.data?.msg || error.message || 'Ошибка регистрации';
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
-      return { success: false, error: err.response?.data?.msg || 'Ошибка при регистрации' };
+      
+      return { 
+        success: false, 
+        error: errorMessage 
+      };
+    }
+  };
+
+  // Функция для обновления аватара пользователя
+  const updateAvatar = (avatarUrl) => {
+    if (currentUser) {
+      const updatedUser = { 
+        ...currentUser, 
+        avatar: avatarUrl,
+        formattedAvatar: formatAvatarUrl(avatarUrl, currentUser.username)
+      };
+      setCurrentUser(processUserData(updatedUser));
     }
   };
 
@@ -139,8 +235,12 @@ export const AuthProvider = ({ children }) => {
       console.log('Отправка данных на сервер:', JSON.stringify(userData));
       const response = await usersService.updateProfile(userData);
       console.log('Ответ сервера:', response);
-      setCurrentUser({...currentUser, ...response.data});
+      
+      const updatedUserData = processUserData({...currentUser, ...response.data});
+      setCurrentUser(updatedUserData);
+      
       setLoading(false);
+      toast.success('Профиль успешно обновлен!');
       return { success: true, data: response.data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);
@@ -157,6 +257,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
       return { success: false, error: errorMessage };
     }
@@ -182,20 +283,22 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     authService.logout();
     setCurrentUser(null);
-    setUnreadNotifications(0); // Сбрасываем счетчик при выходе
+    setUnreadCount(0); // Сбрасываем счетчик при выходе
   };
 
   const value = {
     currentUser,
     loading,
     error,
+    unreadCount,
+    setUnreadCount,
     login,
-    register,
     logout,
+    register,
     updateProfile,
     updatePassword,
+    updateAvatar,
     generateAvatarColor,
-    unreadNotifications,
     markNotificationsAsRead
   };
 

@@ -29,8 +29,10 @@ const MyRequestsPage = () => {
       return;
     }
     
+    if (currentUser) {
     fetchRequests();
-  }, [currentPage, filters, navigate]);
+    }
+  }, [currentPage, filters, navigate, currentUser]);
 
   const fetchRequests = async () => {
     setLoading(true);

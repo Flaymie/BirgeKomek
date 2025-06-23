@@ -1,18 +1,20 @@
 import axios from 'axios';
 
-const API_URL = 'http://192.168.1.87:5050/api';
+const SERVER_URL = 'http://192.168.1.87:5050';
+const API_URL = `${SERVER_URL}/api`;
 
 // Создаем экземпляр axios с базовым URL
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: API_URL,
+  // Не указываем Content-Type по умолчанию.
+  // Axios сам будет определять его в зависимости от данных:
+  // 'application/json' для объектов и 'multipart/form-data' для FormData.
   withCredentials: true,
 });
 
-// Экспортируем базовый URL для использования в компонентах
-export const baseURL = API_URL;
+// Экспортируем ОБА URL для разных нужд
+export const serverURL = SERVER_URL; // Для статики (картинки и т.д.)
+export const baseURL = API_URL;     // Для запросов к API
 
 // Перехватчик для добавления токена к запросам
 api.interceptors.request.use(
@@ -34,17 +36,18 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Если 401 - токен истек или невалидный
-    if (error.response && error.response.status === 401) {
-      // Удаляем невалидный токен
+    console.error('Перехват ошибки в api interceptor:', error.message);
+    if (error.response) {
+      console.error('Данные ответа:', error.response.data);
+      console.error('Статус ответа:', error.response.status);
+    }
+    
+    const isRegistrationPage = window.location.pathname.includes('/register');
+    
+    if (error.response && error.response.status === 401 && !isRegistrationPage) {
       localStorage.removeItem('token');
-      
-      // Проверяем, находимся ли мы уже на странице логина, чтобы избежать бесконечного редиректа
       if (!window.location.pathname.includes('/login')) {
-        // Сохраняем сообщение в sessionStorage для отображения на странице логина
         sessionStorage.setItem('auth_message', 'Сессия истекла, пожалуйста, авторизуйтесь снова');
-        
-        // Перенаправляем на страницу логина
         window.location.href = '/login';
       }
     }
@@ -138,30 +141,41 @@ const usersService = {
 
 // Сервис для работы с аутентификацией
 const authService = {
-  // Регистрация
   register: async (userData) => {
-    return api.post('/auth/register', userData);
+    try {
+      const formData = new FormData();
+      formData.append('username', userData.username);
+      formData.append('email', userData.email);
+      formData.append('password', userData.password);
+
+      if (userData.roles) {
+        if (userData.roles.student) {
+          formData.append('role', 'student');
+          if (userData.grade) formData.append('grade', userData.grade);
+        } else if (userData.roles.helper) {
+          formData.append('role', 'helper');
+          if (userData.subjects && userData.subjects.length > 0) {
+            formData.append('subjects', JSON.stringify(userData.subjects));
+          }
+        }
+      }
+
+      if (userData.avatar && userData.avatar.startsWith('data:image')) {
+        const base64Response = await fetch(userData.avatar);
+        const blob = await base64Response.blob();
+        formData.append('avatar', blob, 'avatar.jpg');
+      }
+
+      return api.post('/auth/register', formData);
+    } catch (error) {
+      console.error('Ошибка при регистрации в api.js:', error.response?.data || error.message);
+      throw error;
+    }
   },
-  
-  // Вход
-  login: async (credentials) => {
-    return api.post('/auth/login', credentials);
-  },
-  
-  // Выход
-  logout: () => {
-    localStorage.removeItem('token');
-  },
-  
-  // Восстановление пароля
-  forgotPassword: async (email) => {
-    return api.post('/auth/forgot-password', { email });
-  },
-  
-  // Сброс пароля
-  resetPassword: async (token, password) => {
-    return api.post('/auth/reset-password', { token, password });
-  }
+  login: (credentials) => api.post('/auth/login', credentials),
+  logout: () => localStorage.removeItem('token'),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
 };
 
 // Сервис для работы с сообщениями
@@ -183,11 +197,8 @@ const messagesService = {
     formData.append('content', content);
     formData.append('attachment', file);
     
-    return api.post('/messages/attachment', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    // Axios сам установит правильный Content-Type с boundary
+    return api.post('/messages/attachment', formData);
   },
   
   // Отметить сообщения как прочитанные

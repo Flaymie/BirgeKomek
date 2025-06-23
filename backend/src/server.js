@@ -6,6 +6,7 @@ import reviewRoutes from './routes/reviews.js';
 import responseRoutes from './routes/responses.js';
 import notificationRoutes from './routes/notifications.js';
 import chatRoutes from './routes/chats.js';
+import uploadRoutes from './routes/upload.js';
 
 // Подключение маршрутов API
 app.use('/api/requests', requestRoutes);
@@ -16,6 +17,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/responses', responseRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Статические файлы
 app.use('/uploads', express.static('uploads')); 

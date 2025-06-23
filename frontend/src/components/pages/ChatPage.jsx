@@ -3,24 +3,15 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { requestsService, messagesService } from '../../services/api';
+import { formatAvatarUrl } from '../../services/avatarUtils';
 import { toast } from 'react-toastify';
-import { PaperAirplaneIcon, PaperClipIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { PaperClipIcon } from '@heroicons/react/24/solid';
 
 // Новый, улучшенный компонент сообщения с аватаркой
 const Message = ({ msg, isOwnMessage }) => {
   // Проверяем, является ли вложение картинкой
   const isImage = (attachmentUrl) => {
     return attachmentUrl && /\.(jpeg|jpg|gif|png)$/i.test(attachmentUrl);
-  };
-
-  // Функция для генерации URL аватара
-  const getAvatarUrl = (sender) => {
-    // Безопасная проверка, если вдруг нет отправителя
-    if (!sender || !sender.username) return `https://ui-avatars.com/api/?name=?&background=random&color=fff`;
-    
-    return sender.avatar
-      ? `http://192.168.1.87:5050${sender.avatar}`
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(sender.username)}&background=random&color=fff`;
   };
 
   // Защита от редких случаев, когда сообщение есть, а отправителя нет (например, при ошибке populate)
@@ -34,7 +25,7 @@ const Message = ({ msg, isOwnMessage }) => {
     <div className={`flex items-end gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
       <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0">
         <img
-          src={getAvatarUrl(msg.sender)}
+          src={formatAvatarUrl(msg.sender)}
           alt={msg.sender.username}
           className="w-8 h-8 rounded-full"
         />
@@ -44,9 +35,9 @@ const Message = ({ msg, isOwnMessage }) => {
         {msg.attachment && (
           <div className="mb-2">
             {isImage(msg.attachment) ? (
-              <img src={`http://192.168.1.87:5050${msg.attachment}`} alt="Вложение" className="rounded-lg max-w-full h-auto" />
+              <img src={formatAvatarUrl(msg.attachment)} alt="Вложение" className="rounded-lg max-w-full h-auto" />
             ) : (
-              <a href={`http://192.168.1.87:5050${msg.attachment}`} target="_blank" rel="noopener noreferrer" className="flex items-center p-2 bg-gray-500 bg-opacity-30 rounded-lg hover:bg-opacity-50">
+              <a href={formatAvatarUrl(msg.attachment)} target="_blank" rel="noopener noreferrer" className="flex items-center p-2 bg-gray-500 bg-opacity-30 rounded-lg hover:bg-opacity-50">
                 <PaperClipIcon className="h-5 w-5 mr-2" />
                 <span>{msg.attachment.split('/').pop()}</span>
               </a>
@@ -160,13 +151,6 @@ const ChatPage = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
-  // Умная прокрутка, которая не мешает пользователю
-  const handleScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const atBottom = scrollHeight - scrollTop <= clientHeight + 50; // +50px погрешность
-    isScrolledToBottom.current = atBottom;
-  };
-  
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if ((newMessage.trim() || attachment) && socket) {
@@ -191,18 +175,6 @@ const ChatPage = () => {
       }
       setAttachment(file);
     }
-  };
-  
-  // Функция для форматирования даты
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
   };
   
   // Проверяем, является ли пользователь участником чата
