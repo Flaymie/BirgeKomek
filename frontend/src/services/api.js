@@ -198,12 +198,22 @@ const messagesService = {
     formData.append('attachment', file);
     
     // Axios сам установит правильный Content-Type с boundary
-    return api.post('/messages/attachment', formData);
+    return api.post('/messages/upload', formData);
   },
   
   // Отметить сообщения как прочитанные
   markAsRead: async (requestId) => {
     return api.post(`/messages/${requestId}/read`);
+  },
+  
+  // Редактировать сообщение
+  editMessage: async (messageId, content) => {
+    return api.put(`/messages/${messageId}`, { content });
+  },
+
+  // Удалить сообщение
+  deleteMessage: async (messageId) => {
+    return api.delete(`/messages/${messageId}`);
   },
   
   // Получить список чатов пользователя

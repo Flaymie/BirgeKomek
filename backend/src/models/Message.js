@@ -13,17 +13,27 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
+    required: function() {
+      // Контент обязателен, только если нет вложений
+      return !this.attachments || this.attachments.length === 0;
+    },
     trim: true
   },
   attachments: [{
-    type: String,
-    trim: true
+    fileUrl: { type: String, required: true },
+    fileName: { type: String, required: true },
+    fileType: { type: String },
+    fileSize: { type: Number },
+    width: { type: Number },
+    height: { type: Number }
   }],
   readBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  editedAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -25,11 +25,6 @@ const requestSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  format: {
-    type: String,
-    enum: ['text', 'call', 'chat', 'meet'],
-    default: 'chat'
-  },
   time: {
     start: {
       type: Date,

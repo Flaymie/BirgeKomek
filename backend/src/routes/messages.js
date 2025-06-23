@@ -3,10 +3,12 @@ import { body, validationResult, param } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import sizeOf from 'image-size';
 import Message from '../models/Message.js';
 import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
+import { io } from '../index.js';
 
 const router = express.Router();
 
@@ -28,21 +30,21 @@ const storage = multer.diskStorage({
   }
 });
 
-// Фильтр для проверки типов файлов
+// Фильтр для проверки типов файлов по РАСШИРЕНИЮ (более надежно)
 const fileFilter = (req, file, cb) => {
-  // Разрешенные типы файлов
-  const allowedTypes = [
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain'
-  ];
+  // Белый список разрешенных РАСШИРЕНИЙ
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rar', '.zip', '.7z', '.iso'];
   
-  if (allowedTypes.includes(file.mimetype)) {
+  // Получаем расширение файла
+  const fileExt = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedExtensions.includes(fileExt)) {
     cb(null, true);
   } else {
-    cb(new Error('Неподдерживаемый тип файла'), false);
+    // Отклоняем файл с кастомной ошибкой
+    const error = new Error(`Файлы с расширением ${fileExt} не поддерживаются.`);
+    error.code = 'UNSUPPORTED_FILE_TYPE';
+    cb(error, false);
   }
 };
 
@@ -224,6 +226,9 @@ router.post('/', protect, [
             });
         }
 
+        // Отправляем сообщение всем участникам чата через сокет
+        io.to(requestId).emit('new_message', populatedMessage);
+
         res.status(201).json(populatedMessage);
 
     } catch (err) {
@@ -274,7 +279,7 @@ router.post('/:requestId/read', protect, async (req, res) => {
 
 /**
  * @swagger
- * /api/messages/attachment:
+ * /api/messages/upload:
  *   post:
  *     summary: Отправить сообщение с вложением
  *     tags: [Messages]
@@ -309,72 +314,234 @@ router.post('/:requestId/read', protect, async (req, res) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.post('/attachment', protect, upload.single('attachment'), async (req, res) => {
-  try {
+// Создаем обертку для upload.single, чтобы ловить ошибки multer
+const uploadWithErrorHandler = (req, res, next) => {
+  const uploader = upload.single('attachment');
+  uploader(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ msg: 'Файл слишком большой. Максимальный размер - 10 МБ.' });
+      }
+      if (err.code === 'UNSUPPORTED_FILE_TYPE') {
+        return res.status(400).json({ msg: err.message });
+      }
+      // Другие ошибки multer
+      return res.status(400).json({ msg: 'Ошибка при загрузке файла.' });
+    }
+    next();
+  });
+};
+
+router.post('/upload', protect, uploadWithErrorHandler, [
+    body('requestId').isMongoId().withMessage('Неверный ID заявки'),
+    body('content').optional().trim().escape() // делаем контент опциональным
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { requestId, content } = req.body;
+    const senderId = req.user.id;
     const file = req.file;
-    
-    if (!requestId) {
-      return res.status(400).json({ msg: 'ID запроса обязателен' });
-    }
-    
+
     if (!file) {
-      return res.status(400).json({ msg: 'Файл не загружен' });
+        return res.status(400).json({ msg: 'Файл вложения отсутствует' });
     }
-    
-    // Проверяем существование запроса
-    const request = await Request.findById(requestId).populate('author').populate('helper');
-    
-    if (!request) {
-      return res.status(404).json({ msg: 'Запрос не найден' });
+
+    try {
+        const request = await Request.findById(requestId).populate('author helper');
+        if (!request) {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+        
+        const isAuthor = request.author && request.author._id.toString() === senderId;
+        const isHelper = request.helper && request.helper._id.toString() === senderId;
+
+        if (!isAuthor && !isHelper) {
+            // Важно удалить загруженный файл, если у пользователя нет прав
+            fs.unlinkSync(file.path);
+            return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
+        }
+        
+        // --- 2. Логика для определения размеров ---
+        const attachmentData = {
+            fileUrl: `/uploads/attachments/${file.filename}`,
+            fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'), // Правильное декодирование имени
+            fileType: file.mimetype,
+            fileSize: file.size,
+        };
+
+        if (file.mimetype.startsWith('image/')) {
+            try {
+                const dimensions = sizeOf(file.path);
+                attachmentData.width = dimensions.width;
+                attachmentData.height = dimensions.height;
+            } catch (err) {
+                console.error("Не удалось получить размеры изображения:", file.filename, err);
+                // Не прерываем процесс, просто не будет размеров
+            }
+        }
+        // --- Конец логики ---
+
+        const newMessage = new Message({
+            requestId,
+            sender: senderId,
+            content: content || '',
+            attachments: [attachmentData], // <-- 3. Сохраняем данные с размерами
+            readBy: [senderId]
+        });
+        
+        await newMessage.save();
+        const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
+        
+        // Отправляем сообщение всем участникам чата через сокет
+        io.to(requestId).emit('new_message', populatedMessage);
+        
+        let recipientId;
+        if (isAuthor && request.helper) {
+            recipientId = request.helper;
+        } else if (isHelper) {
+            recipientId = request.author;
+        }
+
+        if (recipientId) {
+            let notificationMessage = content ? `${content.substring(0, 50)}...` : `Прикреплен файл: ${file.originalname}`;
+            await createAndSendNotification({
+                user: recipientId,
+                type: 'new_message_in_request',
+                title: `Новое сообщение в заявке "${request.title}"`,
+                message: `Пользователь ${req.user.username} отправил сообщение: ${notificationMessage}`,
+                link: `/requests/${requestId}/chat`,
+                relatedEntity: { requestId: request._id, userId: senderId }
+            });
+        }
+        
+        res.status(201).json(populatedMessage);
+
+    } catch (err) {
+        console.error('Ошибка при отправке сообщения с вложением:', err);
+        res.status(500).send('Ошибка сервера');
     }
-    
-    // Проверка, что отправитель является автором или назначенным исполнителем
-    const isAuthor = request.author && request.author._id.toString() === req.user._id.toString();
-    const isHelper = request.helper && request.helper._id.toString() === req.user._id.toString();
-    
-    if (!isAuthor && !isHelper) {
-      return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
+});
+
+// --- РУЧКИ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ ---
+
+/**
+ * @swagger
+ * /api/messages/{messageId}:
+ *   put:
+ *     summary: Редактировать сообщение
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema: { type: 'string' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content: { type: 'string', description: 'Новый текст сообщения' }
+ *     responses:
+ *       200: { description: 'Сообщение обновлено' }
+ *       403: { description: 'Нет прав для редактирования' }
+ *       404: { description: 'Сообщение не найдено' }
+ */
+router.put('/:messageId', protect, [
+  param('messageId').isMongoId(),
+  body('content').trim().notEmpty().withMessage('Текст не может быть пустым')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const userId = req.user.id;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ msg: 'Сообщение не найдено' });
     }
-    
-    // Формируем URL для доступа к файлу
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/attachments/${file.filename}`;
-    
-    // Создаем новое сообщение
-    const newMessage = new Message({
-      requestId,
-      sender: req.user._id,
-      content: content || '',
-      attachments: [fileUrl],
-      readBy: [req.user._id] // Отправитель автоматически прочитал сообщение
-    });
-    
-    await newMessage.save();
-    const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
-    
-    // Определяем получателя уведомления
-    let recipientId;
-    if (isAuthor && request.helper) {
-      recipientId = request.helper._id;
-    } else if (isHelper && request.author) {
-      recipientId = request.author._id;
+
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ msg: 'Вы не можете редактировать чужие сообщения' });
     }
+
+    message.content = content;
+    message.editedAt = new Date();
     
-    if (recipientId) {
-      await createAndSendNotification({
-        user: recipientId,
-        type: 'new_message_in_request',
-        title: `Новое сообщение с вложением в заявке "${request.title}"`,
-        message: `Пользователь ${req.user.username} отправил вложение${content ? ': ' + content.substring(0, 50) + (content.length > 50 ? '...' : '') : ''}`,
-        link: `/requests/${requestId}`,
-        relatedEntity: { requestId: request._id, userId: req.user._id }
-      });
-    }
+    await message.save();
     
-    res.status(201).json(populatedMessage);
+    const populatedMessage = await Message.findById(messageId).populate('sender', 'username avatar');
+
+    io.to(message.requestId.toString()).emit('message_updated', populatedMessage);
+
+    res.json(populatedMessage);
   } catch (err) {
-    console.error('Ошибка при отправке сообщения с вложением:', err);
-    res.status(500).json({ msg: 'Что-то пошло не так' });
+    console.error('Ошибка при редактировании сообщения:', err);
+    res.status(500).send('Ошибка сервера');
+  }
+});
+
+/**
+ * @swagger
+ * /api/messages/{messageId}:
+ *   delete:
+ *     summary: Удалить сообщение
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema: { type: 'string' }
+ *     responses:
+ *       200: { description: 'Сообщение удалено' }
+ *       403: { description: 'Нет прав для удаления' }
+ *       404: { description: 'Сообщение не найдено' }
+ */
+router.delete('/:messageId', protect, [param('messageId').isMongoId()], async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user.id;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ msg: 'Сообщение не найдено' });
+    }
+
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ msg: 'Вы не можете удалять чужие сообщения' });
+    }
+
+    // "Мягкое" удаление - заменяем контент, удаляем вложения
+    message.content = 'Сообщение удалено';
+    message.attachments = [];
+    message.editedAt = new Date(); // Можно использовать как флаг "удаления"
+
+    await message.save();
+
+    const populatedMessage = await Message.findById(messageId).populate('sender', 'username avatar');
+
+    io.to(message.requestId.toString()).emit('message_updated', populatedMessage); // Используем тот же сокет
+
+    res.json({ msg: 'Сообщение успешно удалено' });
+  } catch (err) {
+    console.error('Ошибка при удалении сообщения:', err);
+    res.status(500).send('Ошибка сервера');
   }
 });
 

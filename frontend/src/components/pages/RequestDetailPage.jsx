@@ -232,7 +232,7 @@ const RequestDetailPage = () => {
             {getStatusBadge(request.status)}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 p-3 rounded-md">
               <span className="text-sm text-gray-500 block">Предмет</span>
               <span className="font-medium">{request.subject}</span>
@@ -241,14 +241,10 @@ const RequestDetailPage = () => {
               <span className="text-sm text-gray-500 block">Класс</span>
               <span className="font-medium">{request.grade}</span>
             </div>
-            <div className="bg-gray-50 p-3 rounded-md">
-              <span className="text-sm text-gray-500 block">Формат</span>
-              <span className="font-medium">{request.format === 'chat' ? 'Чат' : 'Видеозвонок'}</span>
-            </div>
           </div>
           
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Описание</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Описание</h2>
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-gray-700 whitespace-pre-wrap">{formatDescription(request.description)}</p>
             </div>

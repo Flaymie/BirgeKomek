@@ -157,7 +157,6 @@ router.get('/', protect, [
  *               subject: { type: 'string' }
  *               grade: { type: 'integer', minimum: 1, maximum: 11 }
  *               topic: { type: 'string', nullable: true }
- *               format: { type: 'string', enum: ['text', 'call', 'chat', 'meet'], default: 'chat' }
  *     responses:
  *       201:
  *         description: Заявка успешно создана
@@ -171,8 +170,7 @@ router.post('/', protect, [
     body('description').trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
     body('grade').isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
-    body('topic').optional().trim().escape(),
-    body('format').optional().isIn(['text', 'call', 'chat', 'meet']).withMessage('Недопустимый формат помощи')
+    body('topic').optional().trim().escape()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -180,7 +178,7 @@ router.post('/', protect, [
     }
 
     try {
-        const { title, description, subject, grade, topic, format } = req.body;
+        const { title, description, subject, grade, topic } = req.body;
         const author = req.user.id;
 
         const request = new Request({
@@ -189,7 +187,6 @@ router.post('/', protect, [
             subject,
             grade,
             topic,
-            format,
             author
         });
         await request.save();
@@ -616,7 +613,6 @@ router.post('/:id/cancel', protect, [
  *               subject: { type: 'string' }
  *               grade: { type: 'integer', minimum: 1, maximum: 11 }
  *               topic: { type: 'string', nullable: true }
- *               format: { type: 'string', enum: ['text', 'call', 'chat', 'meet'] }
  *     responses:
  *       200: { description: 'Заявка успешно обновлена' }
  *       400: { description: 'Ошибка валидации' }
@@ -629,8 +625,7 @@ router.put('/:id', protect, [
     body('description').optional().trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').optional().trim().notEmpty().withMessage('Предмет не может быть пустым, если указан'),
     body('grade').optional().isInt({ min: 1, max: 11 }),
-    body('topic').optional({ nullable: true }).trim().escape(),
-    body('format').optional({ nullable: true }).isIn(['text', 'call', 'chat', 'meet'])
+    body('topic').optional({ nullable: true }).trim().escape()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -649,7 +644,7 @@ router.put('/:id', protect, [
 
         // Обновляем только те поля, которые пришли в запросе
         const updates = {};
-        const allowedFields = ['title', 'description', 'subject', 'grade', 'topic', 'format'];
+        const allowedFields = ['title', 'description', 'subject', 'grade', 'topic'];
         for (const key in req.body) {
             if (allowedFields.includes(key) && req.body[key] !== undefined) {
                 updates[key] = req.body[key];

@@ -2,25 +2,104 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { requestsService, messagesService } from '../../services/api';
+import { requestsService, messagesService, serverURL } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { toast } from 'react-toastify';
-import { PaperClipIcon, ArrowLeftIcon, ArrowUpCircleIcon, ArrowDownCircleIcon } from '@heroicons/react/24/solid';
+import { 
+  PaperClipIcon, 
+  ArrowLeftIcon, 
+  ArrowUpCircleIcon, 
+  ArrowDownCircleIcon,
+  PhotoIcon, 
+  DocumentTextIcon, 
+  ArchiveBoxIcon,
+  XCircleIcon,
+  PencilIcon,
+  TrashIcon
+} from '@heroicons/react/24/solid';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useDropzone } from 'react-dropzone';
+import AttachmentModal from '../modals/AttachmentModal';
+import { downloadFile } from '../../services/downloadService';
 
-// Новый, улучшенный компонент сообщения с аватаркой
-const Message = ({ msg, isOwnMessage }) => {
-  // Проверяем, является ли вложение картинкой
-  const isImage = (attachmentUrl) => {
-    return attachmentUrl && /\.(jpeg|jpg|gif|png)$/i.test(attachmentUrl);
+// --- Хелперы для отображения вложений ---
+
+// Форматируем размер файла
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Подбираем иконку по типу файла
+const getFileIcon = (fileType) => {
+  if (!fileType) return <ArchiveBoxIcon className="h-8 w-8 text-gray-400" />;
+  if (fileType.startsWith('image/')) return <PhotoIcon className="h-8 w-8 text-blue-400" />;
+  if (fileType === 'application/pdf') return <DocumentTextIcon className="h-8 w-8 text-red-400" />;
+  // Проверяем на архивы
+  if (['application/vnd.rar', 'application/x-rar-compressed', 'application/zip', 'application/x-zip-compressed', 'application/x-7z-compressed'].includes(fileType)) {
+    return <ArchiveBoxIcon className="h-8 w-8 text-yellow-500" />;
+  }
+  return <DocumentTextIcon className="h-8 w-8 text-gray-400" />;
+};
+
+// Компонент для одного вложения (простой, без заглушек для фото)
+const Attachment = ({ file, isOwnMessage, onImageClick }) => {
+  const isImage = file.fileType && file.fileType.startsWith('image/');
+  const fileUrl = `${serverURL}${file.fileUrl}`;
+  
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleFileDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    await downloadFile(file);
+    setIsDownloading(false);
   };
 
-  // Защита от редких случаев, когда сообщение есть, а отправителя нет (например, при ошибке populate)
-  if (!msg.sender) {
+  if (isImage) {
+    // Просто показываем картинку, без всяких заглушек
     return (
-      <div className="text-center text-gray-400 text-sm my-2">Сообщение загружается...</div>
+      <div onClick={() => onImageClick(file)} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
+        <img src={fileUrl} alt={file.fileName} className="w-full h-auto object-cover" />
+      </div>
     );
   }
+
+  // Логика для обычных файлов (с индикатором загрузки)
+  const attachmentBg = isOwnMessage ? 'bg-indigo-400' : 'bg-gray-300';
+  const textColor = isOwnMessage ? 'text-indigo-100' : 'text-gray-600';
+
+  return (
+    <div className={`p-2 rounded-lg flex items-center gap-3 max-w-[280px] ${attachmentBg}`}>
+      <button 
+        onClick={handleFileDownload} 
+        disabled={isDownloading}
+        className="text-white bg-indigo-500 rounded-full p-2 hover:bg-indigo-600 transition-colors focus:outline-none disabled:bg-indigo-400 disabled:cursor-wait"
+      >
+        {isDownloading ? (
+           <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
+        ) : (
+          <ArrowDownCircleIcon className="h-6 w-6"/>
+        )}
+      </button>
+      <div className="overflow-hidden flex-1">
+        <p className={`font-medium truncate ${isOwnMessage ? 'text-white' : 'text-gray-800'}`}>{file.fileName}</p>
+        <p className={`text-sm ${textColor}`}>
+          {formatFileSize(file.fileSize)}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Новый компонент сообщения
+const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete }) => {
+  const hasAttachments = msg.attachments && msg.attachments.length > 0;
+  const isDeleted = msg.content === 'Сообщение удалено';
+  const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
 
   return (
     <motion.div
@@ -28,34 +107,47 @@ const Message = ({ msg, isOwnMessage }) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className={`flex items-end gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
+      className={`group flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
     >
-      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0">
-        <img
-          src={formatAvatarUrl(msg.sender)}
-          alt={msg.sender.username}
-          className="w-8 h-8 rounded-full"
-        />
+      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-end">
+        <img src={formatAvatarUrl(msg.sender)} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
       </Link>
-
-      <div className={`rounded-lg px-4 py-2 max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
-        {msg.attachment && (
-          <div className="mb-2">
-            {isImage(msg.attachment) ? (
-              <img src={formatAvatarUrl(msg.attachment)} alt="Вложение" className="rounded-lg max-w-full h-auto" />
-            ) : (
-              <a href={formatAvatarUrl(msg.attachment)} target="_blank" rel="noopener noreferrer" className="flex items-center p-2 bg-gray-500 bg-opacity-30 rounded-lg hover:bg-opacity-50">
-                <PaperClipIcon className="h-5 w-5 mr-2" />
-                <span>{msg.attachment.split('/').pop()}</span>
-              </a>
-            )}
+      
+      {/* Основной пузырь сообщения или просто картинка */}
+      <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
+        
+        {hasAttachments && !isDeleted && (
+          <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
+            {msg.attachments.map((file, index) => (
+              <Attachment key={index} file={file} isOwnMessage={isOwnMessage} onImageClick={onImageClick} />
+            ))}
           </div>
         )}
-        <p className="break-words">{msg.content}</p>
-        <div className={`text-xs mt-1 ${isOwnMessage ? 'text-indigo-200' : 'text-gray-500'}`}>
-          {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+
+        {msg.content && (
+           <div className={`break-words ${hasAttachments ? 'px-2 pb-1 pt-2' : 'px-3 py-2'}`}>
+            {msg.content}
+          </div>
+        )}
+        
+        {/* Timestamp - теперь с разными стилями */}
+        <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''}`}>
+           {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
+           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
+
+      {/* Иконки действий (появляются при наведении на всю строку) */}
+      {isOwnMessage && !isDeleted && (
+        <div className="self-center flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <button onClick={() => onEdit(msg)} title="Редактировать" className="p-1 text-gray-400 hover:text-gray-700">
+            <PencilIcon className="h-4 w-4" />
+          </button>
+          <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
+            <TrashIcon className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -71,8 +163,30 @@ const ChatPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attachment, setAttachment] = useState(null);
-  const [attachmentPreview, setAttachmentPreview] = useState('');
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [viewerFile, setViewerFile] = useState(null); // Для модалки просмотра картинок
+  const [editingMessage, setEditingMessage] = useState(null); // { id, content }
+  const [messageToDelete, setMessageToDelete] = useState(null); // { id }
+
+  // --- 2. Настройка Dropzone ---
+  const onDrop = useCallback((acceptedFiles) => {
+    // Берем только первый файл, т.к. логика под один аттач
+    const file = acceptedFiles[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Размер файла не должен превышать 10 МБ');
+        return;
+      }
+      setAttachment(file);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop,
+    noClick: true, // Отключаем открытие диалога по клику на dropzone
+    noKeyboard: true,
+    disabled: !!editingMessage, // Отключаем, когда редактируем сообщение
+  });
 
   const chatContainerRef = useRef(null);
   const previousScrollHeight = useRef(null);
@@ -105,6 +219,14 @@ const ChatPage = () => {
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+
+  // Скролл всей страницы вниз после загрузки
+  useEffect(() => {
+    if (!loading) {
+      // Плавный скролл всей страницы вниз после загрузки данных
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  }, [loading]);
 
   // НОВАЯ, НАДЕЖНАЯ ЛОГИКА СКРОЛЛА
   useEffect(() => {
@@ -168,7 +290,17 @@ const ChatPage = () => {
       }
     };
 
+    // Слушаем ОБНОВЛЕНИЕ сообщения (реакция на редактирование/удаление)
+    const handleUpdateMessage = (updatedMessage) => {
+      if (updatedMessage.requestId === requestId) {
+        setMessages((prevMessages) => 
+          prevMessages.map(msg => msg._id === updatedMessage._id ? updatedMessage : msg)
+        );
+      }
+    };
+
     socket.on('new_message', handleNewMessage);
+    socket.on('message_updated', handleUpdateMessage);
     
     // Обработка ошибок сокета (можно оставить, если есть специфичные для чата ошибки)
     const handleConnectError = (err) => {
@@ -180,6 +312,7 @@ const ChatPage = () => {
     // Отключаемся от слушателей при размонтировании компонента или смене сокета/requestId
     return () => {
       socket.off('new_message', handleNewMessage);
+      socket.off('message_updated', handleUpdateMessage);
       socket.off('connect_error', handleConnectError);
       // Не нужно вызывать socket.disconnect() здесь, так как он глобальный
     };
@@ -195,7 +328,7 @@ const ChatPage = () => {
     }
   };
   
-  // Обработчик выбора файла
+  // Обработчик выбора файла (оставляем для кнопки-скрепки)
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -204,16 +337,6 @@ const ChatPage = () => {
         return;
       }
       setAttachment(file);
-      // Создаем превью для картинки
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setAttachmentPreview(reader.result);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setAttachmentPreview(''); // Сбрасываем превью, если файл не картинка
-      }
     }
   };
 
@@ -250,7 +373,6 @@ const ChatPage = () => {
     
       setNewMessage('');
       setAttachment(null);
-      setAttachmentPreview('');
     } catch (error) {
       toast.error('Ошибка при отправке сообщения');
       console.error("Failed to send message:", error);
@@ -260,6 +382,43 @@ const ChatPage = () => {
     setTimeout(() => scrollToBottom('auto'), 0);
   };
   
+  // --- Новые хендлеры для редактирования/удаления ---
+
+  const handleStartEdit = (message) => {
+    setEditingMessage({ id: message._id, content: message.content });
+    setNewMessage(message.content); // Заполняем поле ввода для редактирования
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setNewMessage(''); // Очищаем поле ввода
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingMessage || !newMessage.trim()) return;
+    try {
+      await messagesService.editMessage(editingMessage.id, newMessage);
+      // Обновление в UI придет через сокет
+      handleCancelEdit(); // Сбрасываем режим редактирования
+    } catch (err) {
+      toast.error('Не удалось отредактировать сообщение');
+      console.error("Edit failed:", err);
+    }
+  };
+  
+  const handleDeleteMessage = async () => {
+    if (!messageToDelete) return;
+    try {
+      await messagesService.deleteMessage(messageToDelete._id);
+       // Обновление в UI придет через сокет
+      setMessageToDelete(null);
+    } catch (err) {
+       toast.error('Не удалось удалить сообщение');
+       console.error("Delete failed:", err);
+    }
+  };
+
   // Проверяем, является ли пользователь участником чата
   const isParticipant = () => {
     if (!requestDetails || !currentUser) return false;
@@ -335,7 +494,29 @@ const ChatPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 mt-12 md:mt-16">
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-[85vh] relative">
+      <div className="mb-4">
+        <Link to="/chats" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Вернуться к списку чатов
+        </Link>
+      </div>
+
+      <div {...getRootProps()} className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-[85vh] relative focus:outline-none">
+        {/* --- 3. Оверлей для Drag-n-Drop --- */}
+        <AnimatePresence>
+        {isDragActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-indigo-500 bg-opacity-90 z-30 flex flex-col items-center justify-center rounded-lg"
+          >
+            <ArrowDownCircleIcon className="h-24 w-24 text-white animate-bounce" />
+            <p className="mt-4 text-2xl font-bold text-white">Перетащите файл сюда</p>
+          </motion.div>
+        )}
+        </AnimatePresence>
+
         {/* Шапка чата */}
         <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
           <div className="flex justify-between items-center">
@@ -370,7 +551,14 @@ const ChatPage = () => {
         <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
-              <Message key={msg._id} msg={msg} isOwnMessage={currentUser && msg.sender._id === currentUser._id} />
+              <Message 
+                key={msg._id} 
+                msg={msg} 
+                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                onImageClick={setViewerFile}
+                onEdit={handleStartEdit}
+                onDelete={setMessageToDelete}
+              />
             ))}
           </AnimatePresence>
         </main>
@@ -389,29 +577,37 @@ const ChatPage = () => {
             </motion.button>
           )}
         </AnimatePresence>
+        
+        {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
         {/* Форма ввода сообщения */}
         <footer className="bg-white border-t border-gray-200 p-4 rounded-b-lg">
           <div className="mx-auto max-w-4xl">
-            {attachmentPreview && (
-              <div className="mb-2 p-2 bg-gray-100 rounded-lg relative w-24 h-24">
-                <img src={attachmentPreview} alt="Превью" className="w-full h-full object-cover rounded-md" />
-                <button 
-                  onClick={() => { setAttachment(null); setAttachmentPreview(''); }} 
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs"
-                >&times;</button>
+            {attachment && !editingMessage && <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />}
+            
+            {/* Панель редактирования */}
+            {editingMessage && (
+              <div className="mb-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 rounded-r-lg flex justify-between items-center">
+                <div>
+                  <p className="font-bold">Редактирование</p>
+                  <p className="text-sm italic truncate">"{editingMessage.content}"</p>
+                </div>
+                <button onClick={handleCancelEdit} title="Отменить редактирование">
+                  <XCircleIcon className="h-6 w-6 text-yellow-600 hover:text-yellow-800"/>
+                </button>
               </div>
             )}
-            <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-              <input
-                type="file"
-                id="file-upload"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <label htmlFor="file-upload" className="cursor-pointer text-gray-500 hover:text-gray-700">
+
+            <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
+              <input {...getInputProps()} />
+              <button 
+                type="button" 
+                onClick={open} 
+                disabled={!!editingMessage}
+                className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300`}
+              >
                 <PaperClipIcon className="h-6 w-6" />
-              </label>
+              </button>
               <input
                 type="text"
                 value={newMessage}
@@ -431,8 +627,77 @@ const ChatPage = () => {
           </div>
         </footer>
       </div>
+
+      {/* Модальное окно подтверждения удаления */}
+      {messageToDelete && (
+         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <h3 className="text-lg font-bold">Удалить сообщение?</h3>
+            <p className="my-2 text-gray-600">Это действие нельзя будет отменить.</p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button 
+                onClick={() => setMessageToDelete(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+              >
+                Отмена
+              </button>
+              <button 
+                onClick={handleDeleteMessage}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ChatPage;
+// Новый компонент для превью вложения перед отправкой
+const AttachmentPreview = ({ file, onRemove }) => {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const isImage = file.type.startsWith('image/');
+
+  useEffect(() => {
+    if (isImage) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      // Освобождаем память при размонтировании
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [file, isImage]);
+
+  return (
+    <div className="relative mb-2 w-24"> {/* Обертка для позиционирования подсказки */}
+      <div 
+        className="group relative w-24 h-24 bg-gray-100 rounded-lg p-1"
+      >
+        {/* Кастомная подсказка */}
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs px-3 py-1.5 bg-gray-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap">
+          <span className="truncate">{file.name}</span>
+          {/* Маленький треугольник снизу */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+        </div>
+
+        {isImage ? (
+          <img src={previewUrl} alt="Превью" className="w-full h-full object-cover rounded-md" />
+        ) : (
+          <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
+            {getFileIcon(file.type)}
+          </div>
+        )}
+        <button
+          onClick={onRemove} 
+          className="absolute -top-2 -right-2 text-gray-500 hover:text-red-500 transition-colors"
+          title="Удалить вложение"
+        >
+          <XCircleIcon className="h-7 w-7 bg-white rounded-full" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ChatPage; 

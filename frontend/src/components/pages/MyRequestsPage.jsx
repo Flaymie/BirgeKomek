@@ -2,19 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { requestsService, baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { useModal } from '../../context/ModalContext';
+import CreateRequestModal from '../modals/CreateRequestModal';
 import { toast } from 'react-toastify';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
 const MyRequestsPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { openModal } = useModal();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [filters, setFilters] = useState({
     subject: '',
     search: ''
@@ -109,12 +109,10 @@ const MyRequestsPage = () => {
   
   // Обработчик успешного создания запроса
   const handleRequestCreated = (newRequest) => {
-    // Просто перезагружаем список для получения актуальных данных
+    // Добавляем новый запрос в начало списка
+    setRequests(prevRequests => [newRequest, ...prevRequests]);
+    // Перезагружаем список для получения актуальных данных
     fetchRequests();
-  };
-  
-  const handleCreateRequestClick = () => {
-    openModal({ onSuccess: handleRequestCreated });
   };
 
   return (
@@ -122,7 +120,7 @@ const MyRequestsPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Мои запросы</h1>
         <button
-          onClick={handleCreateRequestClick}
+          onClick={() => setIsModalOpen(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Создать запрос
@@ -231,17 +229,14 @@ const MyRequestsPage = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <h3 className="text-lg font-medium text-gray-900">У вас пока нет запросов</h3>
-              <p className="text-sm text-gray-500 mt-1">Самое время попросить о помощи!</p>
-              <div className="mt-6">
-                <button
-                  onClick={handleCreateRequestClick}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Создать запрос
-                </button>
-              </div>
+            <div className="bg-gray-50 rounded-lg p-8 text-center">
+              <p className="text-gray-600">У вас пока нет запросов</p>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Создать запрос
+              </button>
             </div>
           )}
 
@@ -285,6 +280,13 @@ const MyRequestsPage = () => {
           )}
         </>
       )}
+      
+      {/* Модальное окно создания запроса */}
+      <CreateRequestModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={handleRequestCreated} 
+      />
     </div>
   );
 };

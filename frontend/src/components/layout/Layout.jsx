@@ -8,9 +8,14 @@ const Layout = ({ children }) => {
   
   // Эффект для анимации при смене страницы
   useEffect(() => {
-    // Прокрутка наверх при переходе на новую страницу
-    window.scrollTo(0, 0);
+    // Не скроллить наверх для страницы чата, так как у нее своя логика скролла
+    if (!location.pathname.includes('/chat')) {
+      window.scrollTo(0, 0);
+    }
   }, [location.pathname]);
+  
+  // Не показывать футер на странице чата
+  const showFooter = !location.pathname.includes('/chat');
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -18,7 +23,7 @@ const Layout = ({ children }) => {
       <main className="flex-grow animate-fadeIn pt-24">
         {children}
       </main>
-      <Footer />
+      {showFooter && <Footer />}
     </div>
   );
 };
