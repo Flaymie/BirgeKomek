@@ -85,7 +85,9 @@ const ProfileStats = ({ profile }) => {
       <div className="border-t border-gray-200 pt-4 mt-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <div>
-            <p className="text-lg font-semibold text-indigo-600">{profile.rating ? profile.rating.toFixed(1) : 'Н/Д'}</p>
+            <p className="text-lg font-semibold text-indigo-600">
+              {typeof profile.rating === 'number' ? profile.rating.toFixed(1) : 'Н/Д'}
+            </p>
             <p className="text-sm text-gray-500">Рейтинг</p>
           </div>
           <div>
