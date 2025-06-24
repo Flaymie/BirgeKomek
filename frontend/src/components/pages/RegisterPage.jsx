@@ -52,6 +52,7 @@ const RegisterPage = () => {
   const [subjects, setSubjects] = useState([]); // отдельное состояние для предметов
   const [passwordScore, setPasswordScore] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
   
   // Состояния для асинхронной валидации
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle, loading, available, unavailable, error
@@ -133,19 +134,19 @@ const RegisterPage = () => {
   }, [debouncedEmail]);
 
   const handleChange = (e) => {
-    onChange(e);
-    if (e.target.name === 'password') {
-        const score = zxcvbn(e.target.value).score;
-        setPasswordScore(score);
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (name === 'password') {
+      setPasswordScore(zxcvbn(value).score);
     }
-    
-    if (e.target.name === 'username') {
-        setUsernameStatus('idle');
-        setUsernameError('');
+    if (name === 'username') {
+      setUsernameStatus('idle');
+      setUsernameError('');
     }
-    if (e.target.name === 'email') {
-        setEmailStatus('idle');
-        setEmailError('');
+    if (name === 'email') {
+      setEmailStatus('idle');
+      setEmailError('');
     }
   };
 
@@ -253,157 +254,161 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Создать аккаунт
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={onSubmit}>
-          {/* Выбор аватара */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 text-center mb-2">
-              Ваша фотография (необязательно)
-            </label>
-            <AvatarUpload 
-              currentAvatar={formData.avatar}
-              onAvatarChange={handleAvatarChange}
-              size="lg"
-              isRegistration={true}
-            />
-          </div>
-          
-          <div className="relative">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              value={username}
-              onChange={handleChange}
-              required
-              className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              placeholder="Имя пользователя"
-            />
-            <div className="absolute inset-y-0 right-0 top-6 pr-3 flex items-center pointer-events-none">
-              <ValidationIcon status={usernameStatus} />
-            </div>
-          </div>
-          {usernameStatus === 'unavailable' && <p className="text-xs text-red-600">{usernameError}</p>}
-          
-          <div className="relative">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={handleChange}
-              required
-              className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Email"
-            />
-            <div className="absolute inset-y-0 right-0 top-6 pr-3 flex items-center pointer-events-none">
-              <ValidationIcon status={emailStatus} />
-            </div>
-          </div>
-          {emailStatus === 'unavailable' && <p className="text-xs text-red-600">{emailError}</p>}
-          
-          <div className="relative">
-            <label htmlFor="password" className="sr-only">Пароль</label>
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={handleChange}
-              required
-              className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Пароль"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 top-6 pr-3 flex items-center text-gray-500"
-            >
-              {showPassword ? <EyeSlashIcon className="h-5 w-5"/> : <EyeIcon className="h-5 w-5"/>}
-            </button>
-          </div>
-          <PasswordStrengthMeter score={passwordScore} />
-          
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="role" className="sr-only">Роль</label>
-              <select
-                id="role"
-                name="role"
-                value={role}
-                onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              >
-                <option value="student">Я Ученик</option>
-                <option value="helper">Я Хелпер</option>
-              </select>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Создание аккаунта
+        </h2>
+      </div>
 
-          {(role === 'student' || role === 'helper') && (
-            <div>
-              <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
-              <select
-                id="grade"
-                name="grade"
-                value={grade}
-                onChange={handleChange}
-                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                <option value="">Не указан</option>
-                {[...Array(11)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>{i + 1} класс</option>
-                ))}
-              </select>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <form className="space-y-6" onSubmit={onSubmit}>
+            
+            <div className="flex flex-col items-center">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Фотография (необязательно)
+                </label>
+                <AvatarUpload 
+                  currentAvatar={formData.avatar}
+                  onAvatarChange={handleAvatarChange}
+                  size="lg"
+                />
             </div>
-          )}
-
-          {role === 'helper' && (
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Предметы, в которых вы можете помочь
-              </label>
-              <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
-                {subjectOptions.map((option) => (
-                  <div key={option.value} className="flex items-center">
-                    <input
-                      id={`subject-reg-${option.value}`}
-                      name={option.value}
-                      type="checkbox"
-                      checked={subjects.includes(option.value)}
-                      onChange={handleSubjectChange}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
+              <div className="mt-1 relative">
+                <input id="username" name="username" type="text" required value={username} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <ValidationIcon status={usernameStatus} />
+                </div>
+              </div>
+              {usernameStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{usernameError}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <div className="mt-1 relative">
+                <input id="email" name="email" type="email" required value={email} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <ValidationIcon status={emailStatus} />
+                </div>
+              </div>
+              {emailStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{emailError}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="password"className="block text-sm font-medium text-gray-700">Пароль</label>
+              <div className="mt-1 relative">
+                <input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
+              </div>
+              {formData.password && <PasswordStrengthMeter score={passwordScore} />}
+            </div>
+            
+            <div>
+              <label htmlFor="password2"className="block text-sm font-medium text-gray-700">Повторите пароль</label>
+              <div className="mt-1 relative">
+                <input id="password2" name="password2" type={showPassword2 ? 'text' : 'password'} required value={password2} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <button type="button" onClick={() => setShowPassword2(!showPassword2)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                  {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
               </div>
             </div>
-          )}
-          
-          <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Зарегистрироваться
-            </button>
+
+            <div className="rounded-md shadow-sm -space-y-px">
+              <div>
+                <label htmlFor="role" className="sr-only">Роль</label>
+                <select
+                  id="role"
+                  name="role"
+                  value={role}
+                  onChange={handleChange}
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                >
+                  <option value="student">Я Ученик</option>
+                  <option value="helper">Я Хелпер</option>
+                </select>
+              </div>
+            </div>
+
+            {(role === 'student' || role === 'helper') && (
+              <div>
+                <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
+                <select
+                  id="grade"
+                  name="grade"
+                  value={grade}
+                  onChange={handleChange}
+                  className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                >
+                  <option value="">Не указан</option>
+                  {[...Array(11)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1} класс</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {role === 'helper' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Предметы, в которых вы можете помочь
+                </label>
+                <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
+                  {subjectOptions.map((option) => (
+                    <div key={option.value} className="flex items-center">
+                      <input
+                        id={`subject-reg-${option.value}`}
+                        name={option.value}
+                        type="checkbox"
+                        checked={subjects.includes(option.value)}
+                        onChange={handleSubjectChange}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div>
+                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Зарегистрироваться
+                </button>
+            </div>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Уже есть аккаунт?</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <Link to="/login" className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Войти
+              </Link>
+            </div>
           </div>
-        </form>
-        <div className="text-sm text-center">
-          <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Уже есть аккаунт? Войти
-          </Link>
         </div>
       </div>
     </div>
