@@ -674,6 +674,97 @@ router.put('/:id', protect, [
     }
 });
 
+/**
+ * @swagger
+ * /api/requests/{id}/status:
+ *   put:
+ *     summary: Обновить статус заявки (например, завершить)
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string', description: 'ID заявки' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [open, assigned, in_progress, completed, cancelled, on_hold]
+ *                 description: Новый статус заявки
+ *     responses:
+ *       200:
+ *         description: Статус успешно обновлен
+ *       400:
+ *         description: Некорректные данные
+ *       403:
+ *         description: Нет прав для выполнения этого действия
+ *       404:
+ *         description: Заявка не найдена
+ */
+router.put('/:id/status', protect, [
+    param('id').isMongoId().withMessage('Неверный ID заявки'),
+    body('status').isIn(['open', 'assigned', 'in_progress', 'completed', 'cancelled', 'on_hold']).withMessage('Недопустимый статус')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const userId = req.user.id;
+        const userRoles = req.user.roles;
+
+        const request = await Request.findById(id);
+
+        if (!request) {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+
+        const isAuthor = request.author.toString() === userId;
+        const isHelper = request.helper && request.helper.toString() === userId;
+        const isAdminOrMod = userRoles.admin || userRoles.moderator;
+
+        // Определяем права на изменение статуса
+        if (!isAuthor && !isHelper && !isAdminOrMod) {
+            return res.status(403).json({ msg: 'У вас нет прав для изменения статуса этой заявки' });
+        }
+        
+        // Дополнительные проверки. Например, только автор или хелпер могут 'завершить' заявку
+        if (status === 'completed' && !isAuthor && !isHelper && !isAdminOrMod) {
+             return res.status(403).json({ msg: 'Только автор или исполнитель могут завершить заявку.' });
+        }
+
+
+        request.status = status;
+        // При завершении заявки фиксируем дату
+        if (status === 'completed') {
+            request.completedAt = new Date();
+        }
+
+        await request.save();
+        
+        const populatedRequest = await Request.findById(id)
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar')
+            .lean();
+
+        res.json(populatedRequest);
+
+    } catch (err) {
+        console.error('Ошибка при обновлении статуса заявки:', err.message);
+        res.status(500).send('Ошибка сервера');
+    }
+});
 
 /**
  * @swagger
