@@ -306,11 +306,13 @@ const ChatPage = () => {
     }, 3000); // 3 секунды бездействия
   };
 
-  // Скролл чата вниз после загрузки
+  // Скролл чата и страницы вниз после загрузки
   useEffect(() => {
     if (!loading && chatContainerRef.current) {
-      // Мгновенно скроллим в самый низ после загрузки сообщений
-      scrollToBottom('auto');
+      // Скроллим сам контейнер чата
+      scrollToBottom('auto'); 
+      // А также скроллим всю страницу, чтобы чат был в фокусе
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
     // Зависимость от `loading` гарантирует, что это выполнится один раз после загрузки
   }, [loading]);
