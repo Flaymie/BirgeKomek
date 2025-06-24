@@ -9,7 +9,7 @@ import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
-export default (onlineUsers) => {
+export default ({ onlineUsers, sseConnections }) => {
   /**
    * @swagger
    * tags:
@@ -113,31 +113,22 @@ export default (onlineUsers) => {
    */
   router.put('/me', protect, async (req, res) => {
     try {
-      const { username, email, phone, location, bio, grade, helperSubjects, currentPassword, newPassword } = req.body;
+      const { username, email, phone, location, bio, grade, subjects, currentPassword, newPassword } = req.body;
       const userId = req.user.id;
-
       const user = await User.findById(userId);
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-
-      // Проверяем, меняется ли email
       const isEmailChanging = email && email !== user.email;
-      
-      // Требуем пароль только если меняется email или устанавливается новый пароль
       if ((isEmailChanging || newPassword) && !currentPassword) {
         return res.status(400).json({ msg: 'Требуется текущий пароль для изменения email или пароля' });
       }
-
-      // Проверяем пароль только если он предоставлен
       if (currentPassword) {
         const isMatch = await user.comparePassword(currentPassword);
         if (!isMatch) {
           return res.status(401).json({ msg: 'Неверный текущий пароль' });
         }
       }
-
-      // Обновляем имя пользователя, если оно изменилось
       if (username && username !== user.username) {
         const existingUser = await User.findOne({ username });
         if (existingUser && existingUser._id.toString() !== userId) {
@@ -145,8 +136,6 @@ export default (onlineUsers) => {
         }
         user.username = username;
       }
-      
-      // Обновляем email, если он изменился
       if (isEmailChanging) {
         const existingUser = await User.findOne({ email });
         if (existingUser && existingUser._id.toString() !== userId) {
@@ -154,42 +143,17 @@ export default (onlineUsers) => {
         }
         user.email = email;
       }
-
-      // Обновляем пароль, если предоставлен новый
-      if (newPassword) {
-        user.password = newPassword;
-      }
-
-      // Обновляем другие поля профиля
+      if (newPassword) user.password = newPassword;
       if (phone !== undefined) user.phone = phone;
       if (location !== undefined) user.location = location;
       if (bio !== undefined) user.bio = bio;
       if (grade !== undefined) user.grade = grade;
-      
-      // ИСПРАВЛЕНО: Обновляем предметы хелпера, используя 'subjects'
-      if (req.body.subjects !== undefined && Array.isArray(req.body.subjects)) {
-        if(user.roles && user.roles.helper) {
-          user.subjects = req.body.subjects;
-        }
+      if (subjects !== undefined && Array.isArray(subjects) && user.roles?.helper) {
+        user.subjects = subjects;
       }
-
       await user.save();
-
-      // Создаем объект с обновленными данными для ответа
-      const updatedUser = {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
-        location: user.location,
-        bio: user.bio,
-        grade: user.grade,
-        subjects: user.subjects, // Возвращаем правильное поле
-        roles: user.roles,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      };
-
+      const updatedUser = user.toObject();
+      delete updatedUser.password;
       res.json(updatedUser);
     } catch (err) {
       console.error('Ошибка при обновлении пользователя:', err);
@@ -252,33 +216,16 @@ export default (onlineUsers) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
     try {
       const userId = req.params.id;
-      
-      const user = await User.findById(userId)
-        .select('username roles grade points rating subjects completedRequests createdAt lastSeen avatar bio location')
-        .lean();
-
+      const user = await User.findById(userId).select('-password').lean();
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-      
-      // Определяем онлайн-статус
       const isOnline = onlineUsers.has(userId);
-      
-      // Получаем статистику по заявкам (как и раньше)
-      const requestsAsAuthor = await Request.countDocuments({ author: userId });
-      const requestsAsHelper = await Request.countDocuments({ helper: userId, status: 'completed' });
-
-      res.json({
-        ...user,
-        isOnline,
-        stats: {
-          requestsAsAuthor,
-          requestsAsHelper
-        }
-      });
+      const createdRequests = await Request.countDocuments({ author: userId });
+      const completedRequests = await Request.countDocuments({ helper: userId, status: 'completed' });
+      res.json({ ...user, isOnline, createdRequests, completedRequests });
     } catch (err) {
       console.error('Ошибка при получении профиля пользователя:', err.message);
       res.status(500).send('Ошибка сервера');
@@ -581,38 +528,64 @@ export default (onlineUsers) => {
    *         description: Пользователь не найден
    */
   router.post('/:id/ban', protect, isAdmin, [
-      param('id').isMongoId().withMessage('Неверный ID пользователя'),
-      body('reason').trim().notEmpty().withMessage('Причина бана обязательна')
+    param('id').isMongoId().withMessage('Неверный ID пользователя'),
+    body('reason').notEmpty().withMessage('Причина бана обязательна')
   ], async (req, res) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const userToBan = await User.findById(req.params.id);
+
+      if (!userToBan) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+      
+      if (userToBan.roles.admin) {
+        return res.status(403).json({ msg: 'Нельзя забанить другого администратора' });
       }
 
-      try {
-          const userToBan = await User.findById(req.params.id);
-          if (!userToBan) {
-              return res.status(404).json({ msg: 'Пользователь не найден' });
-          }
+      userToBan.isBanned = true;
+      userToBan.banReason = req.body.reason;
+      userToBan.bannedAt = new Date();
+      await userToBan.save();
+      
+      // --- ЛОГИКА ПОСЛЕ БАНА ---
 
-          if (userToBan.roles.admin) {
-              return res.status(403).json({ msg: 'Нельзя забанить другого администратора' });
-          }
-
-          userToBan.isBanned = true;
-          userToBan.banReason = req.body.reason;
-          userToBan.bannedAt = new Date();
-          
-          await userToBan.save();
-          
-          // Можно добавить логику по отключению сокетов пользователя
-          // ...
-
-          res.json({ msg: `Пользователь ${userToBan.username} был забанен. Причина: ${req.body.reason}` });
-      } catch (err) {
-          console.error('Ошибка при бане пользователя:', err);
-          res.status(500).send('Ошибка сервера');
+      if (userToBan.roles.helper) {
+        await Request.updateMany(
+          { helper: userToBan._id, status: { $in: ['assigned', 'in_progress'] } },
+          { $set: { status: 'open', helper: null } }
+        );
       }
+
+      const userRequests = await Request.find({ 
+        author: userToBan._id, 
+        status: { $in: ['open', 'assigned', 'in_progress'] } 
+      });
+
+      if (userRequests.length > 0) {
+        const requestIds = userRequests.map(r => r._id);
+        
+        await Message.deleteMany({ request: { $in: requestIds } });
+        
+        await Request.deleteMany({ _id: { $in: requestIds } });
+      }
+
+      const userIdStr = userToBan._id.toString();
+      if (sseConnections && sseConnections[userIdStr]) {
+        const sseConnection = sseConnections[userIdStr];
+        sseConnection.write(`event: user_banned\n`);
+        sseConnection.write(`data: ${JSON.stringify({ reason: userToBan.banReason })}\n\n`);
+      }
+
+      res.json({ msg: 'Пользователь успешно забанен', user: userToBan });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send('Ошибка сервера');
+    }
   });
 
   /**

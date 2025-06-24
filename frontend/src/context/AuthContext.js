@@ -12,6 +12,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState('');
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -96,6 +98,16 @@ export const AuthProvider = ({ children }) => {
         if (notification.title) {
           toast.info(notification.title);
         }
+      });
+
+      // --- НОВЫЙ СЛУШАТЕЛЬ ДЛЯ БАНА ---
+      eventSource.addEventListener('user_banned', (event) => {
+        console.log('Получено событие о бане!');
+        const data = JSON.parse(event.data);
+        setBanReason(data.reason || 'Причина не указана.');
+        setIsBanned(true);
+        // Закрываем соединение, так как сессия будет прервана
+        eventSource.close(); 
       });
 
       eventSource.onerror = (err) => {
@@ -293,6 +305,8 @@ export const AuthProvider = ({ children }) => {
     authService.logout();
     setCurrentUser(null);
     setUnreadCount(0); // Сбрасываем счетчик при выходе
+    setIsBanned(false); // Сбрасываем статус бана при выходе
+    setBanReason('');
   };
 
   const value = {
@@ -300,6 +314,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     unreadCount,
+    isBanned,
+    banReason,
     setUnreadCount,
     login,
     logout,

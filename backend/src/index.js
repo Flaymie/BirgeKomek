@@ -19,17 +19,22 @@ import requestRoutes from './routes/requests.js';
 import messageRoutes from './routes/messages.js';
 import reviewRoutes from './routes/reviews.js';
 import userRoutes from './routes/users.js';
-import notificationRoutes from './routes/notifications.js';
+import notificationRoutes, { createAndSendNotification } from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
 import responseRoutes from './routes/responses.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
 import Message from './models/Message.js';
-import { createAndSendNotification } from './routes/notifications.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
 
 dotenv.config();
+
+// --- ОБЪЕКТЫ ДЛЯ ХРАНЕНИЯ СОСТОЯНИЯ ONLINE ---
+// Для SSE (уведомления о бане и т.д.)
+const sseConnections = {};
+// Для Socket.IO (статус "онлайн", чаты)
+const onlineUsers = new Map();
 
 // Это нужно для __dirname в ES-модулях
 const __filename = fileURLToPath(import.meta.url);
@@ -65,7 +70,6 @@ const whitelist = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Для запросов без origin (например, с мобильных приложений или curl)
     if (!origin) return callback(null, true);
     if (whitelist.indexOf(origin) !== -1) {
       callback(null, true);
@@ -79,7 +83,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
 
 // НОВЫЙ, НАДЕЖНЫЙ РОУТ ДЛЯ РАЗДАЧИ ФАЙЛОВ
 // Он будет обрабатывать запросы вида /uploads/avatars/filename.png
@@ -105,9 +108,6 @@ app.get('/uploads/:folder/:filename', (req, res) => {
 
 // отключаем строку X-Powered-By
 app.disable('x-powered-by');
-
-// Карта для хранения онлайн пользователей. Ключ - userId, значение - timestamp последнего пинга
-const onlineUsers = new Map();
 
 // Настройка rate limiter для API (общая)
 const apiLimiter = rateLimit({
@@ -152,8 +152,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/users', userRoutes(onlineUsers));
-app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes({ onlineUsers, sseConnections }));
+app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/responses', responseRoutes);
 app.use('/api/chats', chatRoutes);
@@ -225,7 +225,7 @@ io.on('connection', (socket) => {
       
       if (recipientId) {
         const senderUser = await User.findById(senderId).lean();
-        await createAndSendNotification({
+        await createAndSendNotification(sseConnections, {
           user: recipientId,
           type: 'new_message_in_request',
           title: `Новое сообщение в чате: "${request.title}"`,
