@@ -26,6 +26,25 @@ const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
     }
   };
   
+  if (!response.helper) {
+    return (
+       <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50 shadow-sm">
+         <div className="flex items-center mb-2">
+            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+              <span className="text-gray-500 font-bold">?</span>
+            </div>
+            <span className="text-gray-500 italic">Пользователь удален</span>
+         </div>
+         <div className="text-gray-500 italic whitespace-pre-line">
+           {response.message}
+         </div>
+         <div className="mt-2 text-xs text-gray-400">
+           {new Date(response.createdAt).toLocaleString('ru-RU')}
+         </div>
+       </div>
+    )
+  }
+  
   const getStatusBadge = () => {
     if (response.status === 'pending') {
       return null; // Для ожидающих откликов не показываем статус, так как понятно что они в ожидании
