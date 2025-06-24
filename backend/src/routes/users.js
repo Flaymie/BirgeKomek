@@ -3,6 +3,9 @@ import { body, validationResult, param, query } from 'express-validator'; // Д�
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import Request from '../models/Request.js';
+import Message from '../models/Message.js';
+import Review from '../models/Review.js';
+import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -477,6 +480,70 @@ export default (onlineUsers) => {
     } catch (err) {
       console.error('Ошибка при обновлении пароля:', err.message);
       res.status(500).send('Ошибка сервера');
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/users/me:
+   *   delete:
+   *     summary: Удалить аккаунт текущего пользователя
+   *     tags: [Users]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Аккаунт успешно удален
+   *       401:
+   *         description: Не авторизован
+   *       404:
+   *         description: Пользователь не найден
+   *       500:
+   *         description: Внутренняя ошибка сервера
+   */
+  router.delete('/me', protect, async (req, res) => {
+    try {
+      const userId = req.user._id;
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+
+      // 1. "Освободить" заявки, где пользователь был хелпером
+      await Request.updateMany(
+        { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
+        { $set: { status: 'open' }, $unset: { helper: 1 } }
+      );
+
+      // 2. Найти и удалить все заявки, созданные пользователем
+      const userRequests = await Request.find({ author: userId }).select('_id');
+      const requestIds = userRequests.map(r => r._id);
+
+      if (requestIds.length > 0) {
+        // Удаляем связанные с этими заявками сообщения и отзывы
+        await Message.deleteMany({ requestId: { $in: requestIds } });
+        await Review.deleteMany({ requestId: { $in: requestIds } });
+        // Удаляем сами заявки
+        await Request.deleteMany({ _id: { $in: requestIds } });
+      }
+
+      // 3. Удалить отзывы, написанные пользователем о других
+      await Review.deleteMany({ reviewerId: userId });
+      
+      // 4. Удалить все уведомления пользователя
+      await Notification.deleteMany({ user: userId });
+
+      // 5. Удалить самого пользователя
+      await User.findByIdAndDelete(userId);
+
+      // Можно также добавить логику для удаления аватара из хранилища, если он есть
+
+      res.status(200).json({ msg: 'Аккаунт и все связанные данные были успешно удалены.' });
+
+    } catch (err) {
+      console.error('Ошибка при удалении аккаунта:', err);
+      res.status(500).json({ msg: 'Ошибка сервера при удалении аккаунта.' });
     }
   });
 

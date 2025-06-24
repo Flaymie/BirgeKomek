@@ -6,6 +6,7 @@ import classNames from 'classnames';
 import { usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
+import DeleteAccountModal from '../modals/DeleteAccountModal';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -236,7 +237,8 @@ const ProfileEditor = ({
   handleProfileChange, 
   handleProfileSubmit,
   currentUser,
-  handleSubjectsChange
+  handleSubjectsChange,
+  onDeleteAccount
 }) => {
   const handlePhoneChange = (e) => {
     const value = e.target.value;
@@ -409,7 +411,10 @@ const ProfileEditor = ({
                 </div>
               )}
               
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-between">
+                 <button type="button" onClick={onDeleteAccount} className="text-sm text-red-600 hover:text-red-800 hover:underline">
+                    Удалить аккаунт
+                </button>
                 <button type="submit" className={classNames("btn btn-primary", isProfileLoading && "opacity-75 cursor-not-allowed")} disabled={isProfileLoading}>
                   {isProfileLoading ? (<> <LoadingOverlay className="w-5 h-5 mr-2" /> Сохранение... </>) : ("Сохранить изменения")}
                 </button>
@@ -425,7 +430,7 @@ const ProfileEditor = ({
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, logout } = useAuth();
 
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -434,6 +439,7 @@ const ProfilePage = () => {
   const [profileErrors, setProfileErrors] = useState({});
   const [profileSuccess, setProfileSuccess] = useState('');
   const [profileError, setProfileError] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -495,6 +501,19 @@ const ProfilePage = () => {
     }
   };
   
+  const handleDeleteAccount = async () => {
+    try {
+      await usersService.deleteAccount();
+      toast.success('Ваш аккаунт был успешно удален.');
+      logout();
+    } catch (err) {
+      toast.error(err.response?.data?.msg || 'Не удалось удалить аккаунт.');
+      console.error(err);
+    } finally {
+      setIsDeleteModalOpen(false);
+    }
+  };
+
   if (loading || !profileData) {
     return <Loader />;
   }
@@ -514,6 +533,7 @@ const ProfilePage = () => {
   }
   
   return (
+    <>
     <ProfileEditor
       profileData={profileData}
       profileErrors={profileErrors}
@@ -524,7 +544,15 @@ const ProfilePage = () => {
       handleProfileSubmit={handleProfileSubmit}
       currentUser={profileData}
       handleSubjectsChange={handleSubjectsChange}
+      onDeleteAccount={() => setIsDeleteModalOpen(true)}
     />
+    <DeleteAccountModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteAccount}
+        username={profileData.username}
+    />
+    </>
   );
 };
 

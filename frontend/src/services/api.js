@@ -152,6 +152,11 @@ const usersService = {
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
     return api.put('/users/password', { currentPassword, newPassword });
+  },
+
+  // Удалить свой аккаунт
+  deleteAccount: () => {
+    return api.delete('/users/me');
   }
 };
 
