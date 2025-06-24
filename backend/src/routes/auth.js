@@ -87,8 +87,8 @@ router.post('/register',
   body('username')
     .trim()
     .not().isEmpty().withMessage('Имя пользователя обязательно')
-    .isLength({ min: 3, max: 30 }).withMessage('Имя пользователя должно быть от 3 до 30 символов')
-    .matches(/^[a-zA-Z0-9_]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры и подчеркивания'),
+    .isLength({ min: 3, max: 10 }).withMessage('Имя пользователя должно быть от 3 до 10 символов')
+    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания'),
   
   body('email')
     .trim()

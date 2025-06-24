@@ -86,16 +86,27 @@ const RegisterPage = () => {
 
   // Валидация username
   useEffect(() => {
-    if (debouncedUsername.length < 3) {
-        setUsernameStatus('idle');
+    // Сначала валидация на фронте по символам
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (debouncedUsername && !usernameRegex.test(debouncedUsername)) {
+        setUsernameStatus('unavailable');
+        setUsernameError('Имя может содержать только латиницу, цифры, _ и -');
         return;
     }
+
+    if (debouncedUsername.length < 3) {
+        setUsernameStatus('idle');
+        setUsernameError(''); // Сбрасываем ошибку, если имя стало коротким
+        return;
+    }
+
     const checkUsername = async () => {
         setUsernameStatus('loading');
         try {
             const res = await authService.checkUsername(debouncedUsername);
             if (res.data.available) {
                 setUsernameStatus('available');
+                setUsernameError('');
             } else {
                 setUsernameStatus('unavailable');
                 setUsernameError('Это имя пользователя уже занято');
@@ -186,12 +197,13 @@ const RegisterPage = () => {
       avatar: formData.avatar, // Добавляем аватар в регистрационные данные
     };
     
-    if (role === 'student') {
-      registrationData.grade = grade;
-    }
-    
     if (role === 'helper') {
       registrationData.subjects = subjects;
+    }
+    
+    // Добавляем класс, если он указан, для любой роли
+    if (grade) {
+      registrationData.grade = grade;
     }
 
     try {
