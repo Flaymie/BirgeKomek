@@ -162,8 +162,11 @@ router.post('/register',
       email,
       password,
       phone,
-      role,
-        avatar: req.file ? req.file.path : '',
+      roles: {
+        student: role === 'student',
+        helper: role === 'helper',
+      },
+      avatar: req.file ? `/uploads/avatars/${req.file.filename}` : '',
     };
 
     if (role === 'student') {
