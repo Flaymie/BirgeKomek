@@ -18,7 +18,8 @@ const notificationSchema = new mongoose.Schema({
       'request_marked_completed',// Заявка отмечена как выполненная (и для автора, и для хелпера)
       'new_review_for_you',      // О тебе оставили новый отзыв (для хелпера)
       'request_status_changed',  // Общее изменение статуса заявки (напр. отменена)
-      'request_deleted',         // Заявка была удалена (для хелпера, если он был назначен)
+      'request_deleted_by_admin',         // Заявка была удалена (для хелпера, если он был назначен)
+      'request_edited_by_admin',
       'request_reopened_by_author', // Автор переоткрыл заявку (для хелпера)
       'request_reopened_by_you',    // Ты переоткрыл заявку (для автора)
       // Можно добавить другие типы по мере необходимости

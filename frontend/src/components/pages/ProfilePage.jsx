@@ -454,7 +454,7 @@ const ProfilePage = () => {
           setError('not_found');
         } else {
           setError('generic');
-          toast.error('Не удалось загрузить данные профиля.');
+        toast.error('Не удалось загрузить данные профиля.');
         }
       } finally {
         setLoading(false);
