@@ -150,7 +150,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-        </div>
+    </div>
       )}
     </motion.div>
   );
@@ -574,12 +574,12 @@ const ChatPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
-               <Link 
-                to={`/request/${requestId}`}
+            <Link 
+              to={`/request/${requestId}`}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
-              >
-                К деталям запроса
-              </Link>
+            >
+              К деталям запроса
+            </Link>
               {/* --- Новая кнопка завершения --- */}
               {isAuthor && isChatActive && (
                 <button
@@ -690,25 +690,25 @@ const ChatPage = () => {
 
                     <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
                       <input {...getInputProps()} />
-                      <button
-                        type="button"
+              <button
+                type="button"
                         onClick={open} 
                         disabled={!!editingMessage}
                         className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300`}
                       >
                         <PaperClipIcon className="h-6 w-6" />
-                      </button>
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+              </button>
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Напишите сообщение..."
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         autoComplete="off"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!newMessage.trim() && !attachment}
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() && !attachment}
                         className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
                       >
                         <ArrowUpCircleIcon className="h-6 w-6" />

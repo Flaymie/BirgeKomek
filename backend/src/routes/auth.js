@@ -88,7 +88,7 @@ router.post('/register',
     .trim()
     .not().isEmpty().withMessage('Имя пользователя обязательно')
     .isLength({ min: 3, max: 30 }).withMessage('Имя пользователя должно быть от 3 до 30 символов')
-    .matches(/^[a-zA-Z0-9_а-яА-ЯёЁ]+$/).withMessage('Имя пользователя может содержать только буквы, цифры и подчеркивания'),
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры и подчеркивания'),
   
   body('email')
     .trim()
@@ -171,6 +171,9 @@ router.post('/register',
     }
 
     if (role === 'helper') {
+      if (grade) {
+        newUser.grade = grade;
+      }
       if (subjects && subjects.length > 0) {
         newUser.subjects = subjects;
       } else {
@@ -307,6 +310,87 @@ router.post('/login', [
     console.error('Ошибка входа:', err);
     res.status(500).json({ msg: 'Что-то сломалось при входе' });
   }
+});
+
+// --- Новые роуты для валидации ---
+
+/**
+ * @swagger
+ * /api/auth/check-username:
+ *   post:
+ *     summary: Проверить доступность имени пользователя
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: Возвращает true, если имя доступно
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 available: { type: 'boolean' }
+ */
+router.post('/check-username', [
+    body('username').trim().notEmpty().withMessage('Имя пользователя не может быть пустым')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    try {
+        const user = await User.findOne({ username: req.body.username });
+        res.json({ available: !user });
+    } catch (e) {
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/auth/check-email:
+ *   post:
+ *     summary: Проверить доступность email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: Возвращает true, если email доступен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 available: { type: 'boolean' }
+ */
+router.post('/check-email', [
+    body('email').trim().isEmail().withMessage('Некорректный email')
+], async (req, res) => {
+     const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        // Отправляем false, если email невалидный, чтобы фронтенд показал ошибку формата
+        return res.json({ available: false, message: errors.array()[0].msg });
+    }
+    try {
+        const user = await User.findOne({ email: req.body.email });
+        res.json({ available: !user });
+    } catch (e) {
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
 });
 
 export default router; 
