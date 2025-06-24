@@ -418,6 +418,12 @@ const ChatPage = () => {
     e.preventDefault();
     if ((!newMessage.trim() && !attachment) || !socket) return;
 
+    // Перед отправкой гасим наш индикатор печати
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    socket.emit('user:typing', { chatId: requestId, isTyping: false });
+
     try {
       if (attachment) {
         await messagesService.sendMessageWithAttachment(
@@ -454,7 +460,14 @@ const ChatPage = () => {
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editingMessage || !newMessage.trim()) return;
+    if (!editingMessage || !newMessage.trim() || !socket) return;
+
+    // Гасим индикатор печати
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    socket.emit('user:typing', { chatId: requestId, isTyping: false });
+
     try {
       await messagesService.editMessage(editingMessage.id, newMessage);
       handleCancelEdit();
