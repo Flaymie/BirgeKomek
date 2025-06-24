@@ -334,24 +334,6 @@ const EditRequestPage = () => {
               </div>
             </div>
             
-            {/* Срочность */}
-            <div className="mb-6">
-              <label htmlFor="urgency" className="block text-sm font-medium text-gray-700 mb-2">
-                Срочность
-              </label>
-              <select
-                id="urgency"
-                name="urgency"
-                value={formData.urgency}
-                onChange={handleChange}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {Object.entries(URGENCY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            
             {/* Кнопки действий */}
             <div className="flex justify-end space-x-3">
               <Link

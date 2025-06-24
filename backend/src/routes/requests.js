@@ -11,7 +11,7 @@ const router = express.Router();
 // Middleware для проверки прав на редактирование/удаление
 const checkEditDeletePermission = async (req, res, next) => {
     try {
-        const request = await Request.findById(req.params.id);
+        const request = await Request.findById(req.params.id).populate('author', 'username _id');
         if (!request) {
             return res.status(404).json({ msg: 'Запрос не найден' });
         }
