@@ -8,7 +8,7 @@ import Message from '../models/Message.js';
 import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
-import { io } from '../index.js';
+import { io, getSocketIdByUserId } from '../index.js';
 
 const router = express.Router();
 
@@ -212,28 +212,34 @@ router.post('/', protect, [
             return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
         }
 
+        // Определяем получателя
+        const recipient = isAuthor ? request.helper : request.author;
+        const recipientSocketId = getSocketIdByUserId(recipient._id.toString());
+
         const newMessage = new Message({
             requestId,
             sender: senderId,
             content,
             attachments: attachments || [],
-            readBy: [senderId] // Отправитель автоматически прочитал сообщение
+            readBy: [senderId], // Отправитель автоматически прочитал
+            deliveredTo: recipientSocketId ? [recipient._id] : [] // Доставлено, если получатель онлайн
         });
 
         await newMessage.save();
         const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
 
-        // Определяем получателя уведомления
-        let recipientId;
-        if (isAuthor && request.helper) {
-            recipientId = request.helper._id;
-        } else if (isHelper && request.author) {
-            recipientId = request.author._id;
+        // Отправляем сообщение всем участникам чата через сокет
+        io.to(requestId).emit('new_message', populatedMessage);
+
+        // Если доставлено, сразу отправляем событие об этом
+        if (recipientSocketId) {
+             io.to(requestId).emit('message_delivered', { messageId: newMessage._id, userId: recipient._id });
         }
 
-        if (recipientId) {
+        // Уведомление
+        if (recipient) {
             await createAndSendNotification({
-                user: recipientId,
+                user: recipient._id,
                 type: 'new_message_in_request',
                 title: `Новое сообщение в заявке "${request.title}"`, 
                 message: `Пользователь ${req.user.username} написал: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
@@ -242,13 +248,10 @@ router.post('/', protect, [
             });
         }
 
-        // Отправляем сообщение всем участникам чата через сокет
-        io.to(requestId).emit('new_message', populatedMessage);
-
         res.status(201).json(populatedMessage);
 
     } catch (err) {
-        console.error('Ошибка при отправке сообщения:', err.message);
+        console.error('Ошибка при отправке сообщения:', err);
         if (err.kind === 'ObjectId') {
             return res.status(400).json({ msg: 'Неверный ID заявки для сообщения' });
         }
@@ -291,6 +294,89 @@ router.post('/:requestId/read', protect, async (req, res) => {
     console.error('Ошибка при пометке сообщений как прочитанных:', error);
     res.status(500).json({ msg: 'Ошибка сервера' });
   }
+});
+
+/**
+ * @swagger
+ * /api/messages/read:
+ *   post:
+ *     summary: Отметить сообщения в чате как прочитанные
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [requestId]
+ *             properties:
+ *               requestId: { type: 'string', description: 'ID заявки (чата)' }
+ *     responses:
+ *       200: { description: 'Сообщения отмечены как прочитанные' }
+ *       400: { description: 'Неверный ID заявки' }
+ *       403: { description: 'Нет доступа к чату' }
+ *       404: { description: 'Заявка не найдена' }
+ */
+router.post('/read', protect, [
+    body('requestId').isMongoId().withMessage('Неверный ID заявки')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const { requestId } = req.body;
+        const userId = req.user.id;
+
+        const request = await Request.findById(requestId);
+        if (!request) {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+        
+        const isParticipant = request.author.toString() === userId || (request.helper && request.helper.toString() === userId);
+        if (!isParticipant) {
+            return res.status(403).json({ msg: 'Вы не являетесь участником этого чата' });
+        }
+        
+        // Находим все сообщения в чате, которые пользователь еще не прочитал
+        // и которые были отправлены не им
+        const unreadMessages = await Message.find({
+            requestId,
+            sender: { $ne: userId },
+            readBy: { $nin: [userId] }
+        });
+
+        if (unreadMessages.length === 0) {
+            return res.status(200).json({ msg: 'Новых сообщений для прочтения нет' });
+        }
+
+        const messageIds = unreadMessages.map(msg => msg._id);
+
+        // Обновляем все найденные сообщения, добавляя ID пользователя в `readBy`
+        const updateResult = await Message.updateMany(
+            { _id: { $in: messageIds } },
+            { $addToSet: { readBy: userId, deliveredTo: userId } } // Добавляем и в readBy и в deliveredTo для консистентности
+        );
+
+        // Отправляем сокет-уведомление всем в комнате, что сообщения прочитаны
+        io.to(requestId).emit('messages_read', {
+            requestId,
+            readerId: userId,
+            messageIds
+        });
+
+        res.status(200).json({
+            msg: `Обновлено ${updateResult.nModified} сообщений`,
+            updatedIds: messageIds
+        });
+
+    } catch (err) {
+        console.error('Ошибка при пометке сообщений как прочитанных:', err);
+        res.status(500).send('Ошибка сервера');
+    }
 });
 
 /**

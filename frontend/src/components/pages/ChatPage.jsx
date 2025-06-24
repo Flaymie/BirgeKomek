@@ -26,6 +26,25 @@ import Rating from './Rating';
 import { downloadFile } from '../../services/downloadService';
 import ResolveConfirmationModal from '../modals/ResolveConfirmationModal';
 
+// --- Компонент для галочек статуса ---
+const MessageStatus = ({ message, currentUserId }) => {
+  if (message.sender._id !== currentUserId) {
+    return null; // Не показывать статус для входящих сообщений
+  }
+
+  const recipient = message.request?.author._id === currentUserId ? message.request?.helper : message.request?.author;
+  const isRead = message.readBy.includes(recipient?._id);
+  const isDelivered = message.deliveredTo.includes(recipient?._id);
+
+  if (isRead) {
+    return <CheckBadgeIcon className="h-5 w-5 text-blue-500" title="Прочитано" />;
+  }
+  if (isDelivered) {
+    return <CheckBadgeIcon className="h-5 w-5 text-gray-400" title="Доставлено" />; // Две серые галочки
+  }
+  return <CheckBadgeIcon className="h-5 w-5 text-gray-300" title="Отправлено" />; // Одна серая галочка
+};
+
 // --- Хелперы для отображения вложений ---
 
 // Форматируем размер файла
@@ -100,7 +119,7 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
 };
 
 // Новый компонент сообщения
-const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive }) => {
+const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive, currentUserId }) => {
   const hasAttachments = msg.attachments && msg.attachments.length > 0;
   const isDeleted = msg.content === 'Сообщение удалено';
   const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
@@ -139,6 +158,13 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
+        
+        {/* Статус сообщения */}
+        {isOwnMessage && !isDeleted && (
+           <div className="absolute -bottom-1 -right-1.5">
+             <MessageStatus message={msg} currentUserId={currentUserId} />
+           </div>
+        )}
       </div>
 
       {/* Иконки действий (появляются при наведении на всю строку) */}
@@ -241,6 +267,80 @@ const ChatPage = () => {
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+  
+  // --- ОСНОВНОЙ EFFECT ДЛЯ SOCKET.IO ---
+  useEffect(() => {
+    if (!socket || !requestId || !currentUser) return;
+
+    const markMessagesAsRead = async () => {
+      try {
+        await messagesService.markMessagesAsRead(requestId);
+        // Сокет-событие обновит UI у другого пользователя
+      } catch (error) {
+        console.error("Не удалось отметить сообщения как прочитанные:", error);
+      }
+    };
+    
+    // При входе в чат сразу помечаем все как прочитанное
+    markMessagesAsRead();
+
+    const handleNewMessage = (message) => {
+      if (message.requestId === requestId) {
+        setMessages(prev => [...prev, message]);
+        // Если мы в этом чате, сразу помечаем как прочитанное
+        if (document.hasFocus()) {
+          markMessagesAsRead();
+        }
+      }
+    };
+    
+    const handleUpdateMessage = (updatedMessage) => {
+      if (updatedMessage.requestId === requestId) {
+        setMessages(prev => prev.map(m => m._id === updatedMessage._id ? updatedMessage : m));
+      }
+    };
+    
+    const handleDeleteMessage = ({ messageId, requestId: resRequestId }) => {
+      if (resRequestId === requestId) {
+        setMessages(prev => prev.map(m => m._id === messageId ? { ...m, content: 'Сообщение удалено', attachments: [] } : m));
+      }
+    };
+    
+    // --- НОВЫЕ ОБРАБОТЧИКИ СТАТУСОВ ---
+    const handleMessageDelivered = ({ messageId, userId }) => {
+        setMessages(prev => prev.map(msg => 
+            msg._id === messageId 
+                ? { ...msg, deliveredTo: [...(msg.deliveredTo || []), userId] } 
+                : msg
+        ));
+    };
+
+    const handleMessagesRead = ({ readerId, messageIds }) => {
+        setMessages(prev => prev.map(msg => 
+            messageIds.includes(msg._id)
+                ? { ...msg, readBy: [...(msg.readBy || []), readerId] }
+                : msg
+        ));
+    };
+
+    // ... (старые обработчики)
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('update_message', handleUpdateMessage);
+    socket.on('delete_message', handleDeleteMessage);
+    socket.on('message_delivered', handleMessageDelivered);
+    socket.on('messages_read', handleMessagesRead);
+    // ... (старые подписки)
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('update_message', handleUpdateMessage);
+      socket.off('delete_message', handleDeleteMessage);
+      socket.off('message_delivered', handleMessageDelivered);
+      socket.off('messages_read', handleMessagesRead);
+      // ... (старые отписки)
+    };
+  }, [socket, requestId, currentUser]);
 
   // --- НОВАЯ ЛОГИКА ДЛЯ ИНДИКАТОРА ПЕЧАТИ ---
   useEffect(() => {
@@ -354,58 +454,6 @@ const ChatPage = () => {
     previousScrollHeight.current = scrollHeight;
 
   }, [messages]);
-
-  // Настройка Socket.IO
-  useEffect(() => {
-    if (!socket) return; // Если сокет еще не подключен, выходим
-
-    // Присоединяемся к комнате чата
-    socket.emit('join_chat', requestId);
-
-    // ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
-    const markMessagesAsRead = async () => {
-      try {
-        await messagesService.markAsRead(requestId);
-      } catch (err) {
-        console.error('Ошибка при пометке сообщений как прочитанных:', err);
-      }
-    };
-    markMessagesAsRead();
-
-    // Слушаем новые сообщения
-    const handleNewMessage = (message) => {
-      if (message.requestId === requestId) {
-        setMessages((prevMessages) => [...prevMessages, message]);
-      }
-    };
-
-    // Слушаем ОБНОВЛЕНИЕ сообщения (реакция на редактирование/удаление)
-    const handleUpdateMessage = (updatedMessage) => {
-      if (updatedMessage.requestId === requestId) {
-        setMessages((prevMessages) =>
-          prevMessages.map(msg => msg._id === updatedMessage._id ? updatedMessage : msg)
-        );
-      }
-    };
-
-    socket.on('new_message', handleNewMessage);
-    socket.on('message_updated', handleUpdateMessage);
-
-    // Обработка ошибок сокета (можно оставить, если есть специфичные для чата ошибки)
-    const handleConnectError = (err) => {
-      console.error('Socket connection error:', err.message);
-      toast.error('Не удалось подключиться к чату.');
-    };
-    socket.on('connect_error', handleConnectError);
-
-    // Отключаемся от слушателей при размонтировании компонента или смене сокета/requestId
-    return () => {
-      socket.off('new_message', handleNewMessage);
-      socket.off('message_updated', handleUpdateMessage);
-      socket.off('connect_error', handleConnectError);
-      // Не нужно вызывать socket.disconnect() здесь, так как он глобальный
-    };
-  }, [socket, requestId]);
 
   const scrollToBottom = (behavior = 'smooth') => {
     const chatContainer = chatContainerRef.current;
@@ -750,6 +798,7 @@ const ChatPage = () => {
                 onEdit={handleStartEdit}
                 onDelete={setMessageToDelete}
                 isChatActive={isChatActive || requestDetails.status === 'open'}
+                currentUserId={currentUser._id}
               />
             ))}
           </AnimatePresence>
