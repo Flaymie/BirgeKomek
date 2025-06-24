@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { toast } from 'react-toastify';
 import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
+import RequestList from '../shared/RequestList';
 
 const RequestsPage = () => {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ const RequestsPage = () => {
     fetchRequests();
   }, [currentPage, filters, navigate]);
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
       // Формируем параметры запроса с обязательным параметром статуса
@@ -99,22 +100,20 @@ const RequestsPage = () => {
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
       setLoading(false);
     }
-  };
+  }, [currentPage, filters]);
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-    setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const handleFilterChange = (newFilters) => {
+    // Сбрасываем страницу на первую при изменении фильтров
+    setCurrentPage(1);
+    setFilters(prev => ({ ...prev, ...newFilters }));
   };
   
-  const handleSearchChange = (e) => {
-    setFilters(prev => ({ ...prev, search: e.target.value }));
-    setCurrentPage(1);
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchRequests();
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
   };
 
   const formatDate = (dateString) => {

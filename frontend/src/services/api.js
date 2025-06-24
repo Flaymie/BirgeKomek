@@ -85,6 +85,16 @@ const requestsService = {
   // Назначить помощника
   assignHelper: async (requestId, helperId) => {
     return api.post(`/requests/${requestId}/assign/${helperId}`);
+  },
+
+  // --- Новая функция для обновления статуса ---
+  updateRequestStatus: (id, status) => {
+    return api.put(`/requests/${id}/status`, { status });
+  },
+
+  // Отклик на заявку
+  addResponse: (requestId, comment) => {
+    return api.post('/responses', { requestId, comment });
   }
 };
 
@@ -251,6 +261,19 @@ const notificationsService = {
   markAllAsRead: async () => {
     return api.put('/notifications/read-all');
   },
+};
+
+// --- Сервис для отзывов ---
+export const reviewsService = {
+  // Создать отзыв
+  createReview: (requestId, rating, comment) => {
+    return api.post('/reviews', { requestId, rating, comment });
+  },
+
+  // Получить отзывы для хелпера
+  getReviewsForHelper: (helperId) => {
+    return api.get(`/reviews/helper/${helperId}`);
+  }
 };
 
 export {

@@ -54,8 +54,27 @@ export const SocketProvider = ({ children }) => {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    if (socket) {
+      const handleNewNotification = (notification) => {
+        setUnreadCount(prev => prev + 1);
+      };
+      
+      socket.on('new_notification', handleNewNotification);
+
+      return () => {
+        socket.off('new_notification', handleNewNotification);
+      };
+    }
+  }, [socket]);
+
+  const value = {
+    socket,
+    setUnreadCount
+  };
+
   return (
-    <SocketContext.Provider value={socket}>
+    <SocketContext.Provider value={value}>
       {children}
     </SocketContext.Provider>
   );

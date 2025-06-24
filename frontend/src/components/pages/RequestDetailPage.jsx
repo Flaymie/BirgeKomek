@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, responsesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
 import ResponseModal from '../ResponseModal';
 import ResponseCard from '../ResponseCard';
+import ResponseList from '../shared/ResponseList';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -23,31 +24,12 @@ const RequestDetailPage = () => {
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
 
-  useEffect(() => {
-    // Проверяем наличие токена при загрузке компонента
-    const token = localStorage.getItem('token');
-    if (!token) {
-      // Если токена нет, перенаправляем на страницу логина
-      navigate('/login', { state: { message: 'Для просмотра деталей запроса необходимо авторизоваться' } });
-      return;
-    }
-    
-    fetchRequestDetails();
-  }, [id, navigate]);
-
-  // Загрузка откликов для автора запроса
-  useEffect(() => {
-    if (request && isAuthor()) {
-      fetchResponses();
-    }
-  }, [request]);
-
-  const fetchRequestDetails = async () => {
-    setLoading(true);
+  const fetchRequestDetails = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await requestsService.getRequestById(id);
       setRequest(response.data);
-      setLoading(false);
+      setError(null);
     } catch (err) {
       console.error('Ошибка при получении данных запроса:', err);
       
@@ -59,26 +41,36 @@ const RequestDetailPage = () => {
       }
       
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
+    } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
-  const fetchResponses = async () => {
-    setResponsesLoading(true);
-    try {
-      const response = await responsesService.getResponsesForRequest(id);
-      setResponses(response.data);
-      setResponsesLoading(false);
-    } catch (err) {
-      console.error('Ошибка при получении откликов:', err);
-      setResponsesLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchRequestDetails();
+  }, [fetchRequestDetails]);
 
-  // Проверка, является ли текущий пользователь автором запроса
-  const isAuthor = () => {
+  const isAuthor = useMemo(() => {
     return request && currentUser && request.author._id === currentUser._id;
-  };
+  }, [request, currentUser]);
+
+  const fetchResponses = useCallback(async () => {
+    if (isAuthor) {
+      try {
+        setResponsesLoading(true);
+        const response = await responsesService.getResponsesForRequest(id);
+        setResponses(response.data);
+      } catch (err) {
+        console.error('Ошибка при получении откликов:', err);
+      } finally {
+        setResponsesLoading(false);
+      }
+    }
+  }, [id, isAuthor]);
+
+  useEffect(() => {
+    fetchResponses();
+  }, [fetchResponses]);
 
   // Обработчик удаления запроса
   const handleDeleteRequest = async () => {
@@ -133,11 +125,6 @@ const RequestDetailPage = () => {
     return currentUser?.roles?.helper === true || 
            currentUser?.roles?.moderator === true || 
            currentUser?.roles?.admin === true;
-  };
-  
-  // Функция для безопасного отображения HTML
-  const createMarkup = (html) => {
-    return { __html: DOMPurify.sanitize(html) };
   };
   
   // Функция для преобразования текста с специальными символами в HTML
@@ -213,7 +200,7 @@ const RequestDetailPage = () => {
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 mb-6">
         {/* Баннер для создателя запроса */}
-        {isAuthor() && (
+        {isAuthor && (
           <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center">
               <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -256,7 +243,7 @@ const RequestDetailPage = () => {
                 <span className="text-sm text-gray-500 block">Автор</span>
                 <div className="flex items-center">
                   <span className="font-medium">{request.author.username}</span>
-                  {isAuthor() && (
+                  {isAuthor && (
                     <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                       Вы
                     </span>
@@ -281,7 +268,7 @@ const RequestDetailPage = () => {
           
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Кнопка для хелперов - предложить помощь */}
-            {request.status === 'open' && isHelper() && !isAuthor() && (
+            {request.status === 'open' && isHelper() && !isAuthor && (
               <button 
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 onClick={() => setIsResponseModalOpen(true)}
@@ -301,7 +288,7 @@ const RequestDetailPage = () => {
             )}
             
             {/* Кнопки для автора запроса */}
-            {isAuthor() && request.status === 'open' && (
+            {isAuthor && request.status === 'open' && (
               <>
                 <button 
                   className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
@@ -323,7 +310,7 @@ const RequestDetailPage = () => {
       </div>
       
       {/* Секция с откликами для автора запроса */}
-      {isAuthor() && request.status === 'open' && (
+      {isAuthor && request.status === 'open' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-xl font-bold mb-4">Отклики на запрос</h2>
           
@@ -337,7 +324,7 @@ const RequestDetailPage = () => {
                 <ResponseCard 
                   key={response._id} 
                   response={response} 
-                  isAuthor={isAuthor()} 
+                  isAuthor={isAuthor} 
                   onResponseAction={handleResponseAction} 
                 />
               ))}

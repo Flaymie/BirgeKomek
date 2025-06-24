@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { requestsService, messagesService, serverURL } from '../../services/api';
+import { requestsService, messagesService, reviewsService, serverURL } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { toast } from 'react-toastify';
 import { 
@@ -15,11 +15,15 @@ import {
   ArchiveBoxIcon,
   XCircleIcon,
   PencilIcon,
-  TrashIcon
+  TrashIcon,
+  CheckBadgeIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import AttachmentModal from '../modals/AttachmentModal';
+import CloseRequestModal from '../modals/CloseRequestModal';
+import Rating from './Rating';
 import { downloadFile } from '../../services/downloadService';
 
 // --- Хелперы для отображения вложений ---
@@ -31,7 +35,7 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+  };
 
 // Подбираем иконку по типу файла
 const getFileIcon = (fileType) => {
@@ -43,7 +47,7 @@ const getFileIcon = (fileType) => {
     return <ArchiveBoxIcon className="h-8 w-8 text-yellow-500" />;
   }
   return <DocumentTextIcon className="h-8 w-8 text-gray-400" />;
-};
+  };
 
 // Компонент для одного вложения (простой, без заглушек для фото)
 const Attachment = ({ file, isOwnMessage, onImageClick }) => {
@@ -96,7 +100,7 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
 };
 
 // Новый компонент сообщения
-const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete }) => {
+const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive }) => {
   const hasAttachments = msg.attachments && msg.attachments.length > 0;
   const isDeleted = msg.content === 'Сообщение удалено';
   const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
@@ -112,7 +116,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete }) => {
       <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-end">
         <img src={formatAvatarUrl(msg.sender)} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
       </Link>
-      
+
       {/* Основной пузырь сообщения или просто картинка */}
       <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
         
@@ -133,12 +137,12 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete }) => {
         {/* Timestamp - теперь с разными стилями */}
         <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''}`}>
            {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
-           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+          {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
 
       {/* Иконки действий (появляются при наведении на всю строку) */}
-      {isOwnMessage && !isDeleted && (
+      {isOwnMessage && !isDeleted && isChatActive && (
         <div className="self-center flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button onClick={() => onEdit(msg)} title="Редактировать" className="p-1 text-gray-400 hover:text-gray-700">
             <PencilIcon className="h-4 w-4" />
@@ -156,6 +160,7 @@ const ChatPage = () => {
   const { id: requestId } = useParams();
   const { currentUser } = useAuth();
   const socket = useSocket();
+  const navigate = useNavigate();
   
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -164,9 +169,11 @@ const ChatPage = () => {
   const [error, setError] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
-  const [viewerFile, setViewerFile] = useState(null); // Для модалки просмотра картинок
-  const [editingMessage, setEditingMessage] = useState(null); // { id, content }
-  const [messageToDelete, setMessageToDelete] = useState(null); // { id }
+  const [viewerFile, setViewerFile] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [messageToDelete, setMessageToDelete] = useState(null);
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+  const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
 
   // --- 2. Настройка Dropzone ---
   const onDrop = useCallback((acceptedFiles) => {
@@ -329,6 +336,7 @@ const ChatPage = () => {
   };
   
   // Обработчик выбора файла (оставляем для кнопки-скрепки)
+  /* // Эта функция пока не используется, но может понадобиться, если вернется кнопка-скрепка для мобильных
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -339,20 +347,21 @@ const ChatPage = () => {
       setAttachment(file);
     }
   };
-
+  */
+  
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if ((!newMessage.trim() && !attachment) || !socket) return;
   
     try {
       if (attachment) {
-        const formData = new FormData();
-        formData.append('requestId', requestId);
-        formData.append('content', newMessage);
-        formData.append('attachment', attachment);
+        // const formData = new FormData();
+        // formData.append('requestId', requestId);
+        // formData.append('content', newMessage);
+        // formData.append('attachment', attachment);
         
         // Вместо отправки через сокет, отправляем через API
-        const res = await messagesService.sendMessageWithAttachment(
+        /* const res = */ await messagesService.sendMessageWithAttachment(
           requestId,
           newMessage,
           attachment
@@ -418,7 +427,7 @@ const ChatPage = () => {
        console.error("Delete failed:", err);
     }
   };
-
+  
   // Проверяем, является ли пользователь участником чата
   const isParticipant = () => {
     if (!requestDetails || !currentUser) return false;
@@ -428,6 +437,44 @@ const ChatPage = () => {
       (requestDetails.helper && requestDetails.helper._id === currentUser._id)
     );
   };
+
+  // --- Новые хендлеры для закрытия и оценки ---
+
+  const handleUpdateRequestStatus = async (status) => {
+    try {
+      const res = await requestsService.updateRequestStatus(requestId, status);
+      setRequestDetails(res.data); // Обновляем детали заявки свежими данными с бэка
+      toast.success(`Статус заявки обновлен!`);
+      setIsCloseModalOpen(false);
+
+      if (status === 'open') {
+        // Если "не решено", перекидываем автора на страницу его запросов
+        toast.info('Помощник откреплен. Вы можете выбрать другого откликнувшегося.');
+        navigate('/requests');
+      }
+
+    } catch (err) {
+      toast.error(err.response?.data?.msg || 'Не удалось обновить статус заявки');
+      console.error(err);
+    }
+  };
+
+  const handleRatingSubmit = async (rating, comment) => {
+    try {
+      await reviewsService.createReview(requestId, rating, comment);
+      toast.success('Спасибо за ваш отзыв!');
+      setHasSubmittedReview(true); // Прячем форму после успешной отправки
+    } catch (err) {
+      toast.error(err.response?.data?.msg || 'Не удалось отправить отзыв');
+      console.error(err);
+      // Не выключаем isSubmitting в компоненте Rating, чтобы юзер не мог спамить
+    }
+  };
+
+  // Проверяем, является ли пользователь автором
+  const isAuthor = currentUser?._id === requestDetails?.author._id;
+  // Проверяем, активен ли чат
+  const isChatActive = requestDetails?.status === 'in_progress';
 
   if (loading) {
     return (
@@ -519,19 +566,31 @@ const ChatPage = () => {
 
         {/* Шапка чата */}
         <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-4">
             <div>
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <p className="text-sm text-gray-500">
                 {requestDetails.subject} • {requestDetails.grade} класс
               </p>
             </div>
-            <Link 
-              to={`/request/${requestId}`}
-              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
-            >
-              К деталям запроса
-            </Link>
+            <div className="flex items-center gap-4 flex-shrink-0">
+               <Link 
+                to={`/request/${requestId}`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
+              >
+                К деталям запроса
+              </Link>
+              {/* --- Новая кнопка завершения --- */}
+              {isAuthor && isChatActive && (
+                <button
+                  onClick={() => setIsCloseModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 transition-colors"
+                >
+                  <CheckBadgeIcon className="h-5 w-5" />
+                  <span>Завершить</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="mt-2 text-sm">
             <div className="flex items-center">
@@ -558,6 +617,7 @@ const ChatPage = () => {
                 onImageClick={setViewerFile}
                 onEdit={handleStartEdit}
                 onDelete={setMessageToDelete}
+                isChatActive={isChatActive}
               />
             ))}
           </AnimatePresence>
@@ -580,53 +640,103 @@ const ChatPage = () => {
         
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
-        {/* Форма ввода сообщения */}
-        <footer className="bg-white border-t border-gray-200 p-4 rounded-b-lg">
-          <div className="mx-auto max-w-4xl">
-            {attachment && !editingMessage && <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />}
-            
-            {/* Панель редактирования */}
-            {editingMessage && (
-              <div className="mb-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 rounded-r-lg flex justify-between items-center">
-                <div>
-                  <p className="font-bold">Редактирование</p>
-                  <p className="text-sm italic truncate">"{editingMessage.content}"</p>
-                </div>
-                <button onClick={handleCancelEdit} title="Отменить редактирование">
-                  <XCircleIcon className="h-6 w-6 text-yellow-600 hover:text-yellow-800"/>
-                </button>
-              </div>
-            )}
+        {/* --- Полностью переработанный футер чата --- */}
+        <footer className="bg-white border-t border-gray-200 rounded-b-lg">
+          {(() => {
+            // 1. Заявка выполнена, автор должен поставить оценку
+            if (isAuthor && requestDetails.status === 'completed' && !hasSubmittedReview) {
+              return <Rating onSubmit={handleRatingSubmit} />;
+            }
 
-            <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
-              <input {...getInputProps()} />
-              <button 
-                type="button" 
-                onClick={open} 
-                disabled={!!editingMessage}
-                className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300`}
-              >
-                <PaperClipIcon className="h-6 w-6" />
-              </button>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Напишите сообщение..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoComplete="off"
-              />
-              <button
-                type="submit"
-                disabled={!newMessage.trim() && !attachment}
-                className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
-              >
-                <ArrowUpCircleIcon className="h-6 w-6" />
-              </button>
-            </form>
-          </div>
+            // 2. Заявка выполнена и оценена, или просто выполнена (для хелпера)
+            if (requestDetails.status === 'completed') {
+              return (
+                <div className="p-4 text-center text-gray-500">
+                  <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
+                  <p className="font-semibold">Чат завершен</p>
+                  <p className="text-sm">Спасибо за участие!</p>
+                </div>
+              );
+            }
+
+            // 3. Заявка отменена
+            if (['cancelled', 'closed'].includes(requestDetails.status)) {
+              return (
+                 <div className="p-4 text-center text-gray-500">
+                  <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
+                  <p className="font-semibold">Чат закрыт</p>
+                </div>
+              );
+            }
+
+            // 4. Чат активен (статус 'in_progress'), показываем форму ввода
+            if (isChatActive) {
+              return (
+                <div className="p-4">
+                  <div className="mx-auto max-w-4xl">
+                     {attachment && !editingMessage && <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />}
+            
+                      {editingMessage && (
+                        <div className="mb-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 rounded-r-lg flex justify-between items-center">
+                          <div>
+                            <p className="font-bold">Редактирование</p>
+                            <p className="text-sm italic truncate">"{editingMessage.content}"</p>
+                          </div>
+                          <button onClick={handleCancelEdit} title="Отменить редактирование">
+                            <XCircleIcon className="h-6 w-6 text-yellow-600 hover:text-yellow-800"/>
+                          </button>
+                        </div>
+                      )}
+
+                    <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
+                      <input {...getInputProps()} />
+                      <button
+                        type="button"
+                        onClick={open} 
+                        disabled={!!editingMessage}
+                        className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300`}
+                      >
+                        <PaperClipIcon className="h-6 w-6" />
+                      </button>
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Напишите сообщение..."
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newMessage.trim() && !attachment}
+                        className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ArrowUpCircleIcon className="h-6 w-6" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              );
+            }
+            
+            // 5. По умолчанию (статус 'open', нет хелпера) показываем заглушку
+            return (
+              <div className="p-4 text-center text-gray-500">
+                <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
+                <p>Отправка сообщений станет доступна, когда хелпер примет заявку.</p>
+              </div>
+            );
+          })()}
         </footer>
       </div>
+      
+      {/* --- Модальное окно завершения --- */}
+      <CloseRequestModal 
+        isOpen={isCloseModalOpen}
+        onClose={() => setIsCloseModalOpen(false)}
+        onConfirm={() => handleUpdateRequestStatus('completed')}
+        onReject={() => handleUpdateRequestStatus('open')}
+      />
 
       {/* Модальное окно подтверждения удаления */}
       {messageToDelete && (

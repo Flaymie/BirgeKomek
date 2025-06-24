@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { requestsService, baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
-import { toast } from 'react-toastify';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
 const MyRequestsPage = () => {
@@ -34,7 +33,9 @@ const MyRequestsPage = () => {
     }
   }, [currentPage, filters, navigate, currentUser]);
 
-  const fetchRequests = async () => {
+  // Используем useCallback, чтобы функция не создавалась заново при каждом рендере
+  const fetchRequests = useCallback(async () => {
+    if (!currentUser) return;
     setLoading(true);
     try {
       // Формируем параметры запроса
@@ -73,7 +74,11 @@ const MyRequestsPage = () => {
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
       setLoading(false);
     }
-  };
+  }, [currentPage, filters, navigate, currentUser]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]); // Теперь зависимость от стабильной функции
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -113,6 +118,10 @@ const MyRequestsPage = () => {
     setRequests(prevRequests => [newRequest, ...prevRequests]);
     // Перезагружаем список для получения актуальных данных
     fetchRequests();
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
   };
 
   return (
@@ -245,7 +254,7 @@ const MyRequestsPage = () => {
             <div className="flex justify-center mt-8">
               <nav className="flex items-center space-x-2">
                 <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
                   disabled={currentPage === 1}
                   className={`px-3 py-1 rounded ${
                     currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -257,7 +266,7 @@ const MyRequestsPage = () => {
                 {[...Array(totalPages).keys()].map(page => (
                   <button
                     key={page + 1}
-                    onClick={() => setCurrentPage(page + 1)}
+                    onClick={() => handlePageChange(page + 1)}
                     className={`px-3 py-1 rounded ${
                       currentPage === page + 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
@@ -267,7 +276,7 @@ const MyRequestsPage = () => {
                 ))}
                 
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className={`px-3 py-1 rounded ${
                     currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
