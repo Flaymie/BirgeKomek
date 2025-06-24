@@ -207,30 +207,30 @@ const ChatPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [detailsRes, messagesRes] = await Promise.all([
-        requestsService.getRequestById(requestId),
-        messagesService.getMessages(requestId)
-      ]);
-
-      // Проверяем, не заархивирован ли чат
-      if (detailsRes.data.chatIsArchived) {
-        setIsArchived(true);
-        // Не загружаем сообщения и не продолжаем, если чат заархивирован
-        // Мы просто покажем заглушку
-      } else {
-        setMessages(messagesRes.data);
-      }
-
+      // Сначала получаем детали заявки, чтобы понять ее статус
+      const detailsRes = await requestsService.getRequestById(requestId);
       setRequestDetails(detailsRes.data);
+
+      // Теперь, в зависимости от статуса, пытаемся получить сообщения
+      // Это предотвратит ошибку 403, если мы уже знаем, что чат заархивирован
+      if (detailsRes.data.chatIsArchived) {
+          setIsArchived(true);
+          setLoading(false);
+          return;
+      }
       
-      // После первой загрузки сразу скроллим в самый низ
-      setTimeout(() => {
-        if (chatContainerRef.current) {
-          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-        }
-      }, 0);
+      const messagesRes = await messagesService.getMessages(requestId);
+      setMessages(messagesRes.data);
+
     } catch (err) {
-      setError('Произошла ошибка при загрузке чата.');
+      // Умная обработка ошибок: если 403, то это архив
+      if (err.response && err.response.status === 403) {
+        setIsArchived(true);
+      } else {
+        // Все остальные ошибки показываем как обычно
+        setError('Произошла ошибка при загрузке чата.');
+        console.error("Chat loading error:", err);
+      }
     } finally {
       setLoading(false);
     }

@@ -34,6 +34,11 @@ const messageSchema = new mongoose.Schema({
   editedAt: {
     type: Date
   },
+  isArchived: {
+    type: Boolean,
+    default: false,
+    index: true // Индексируем для быстрого поиска по этому флагу
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -892,10 +892,12 @@ router.post('/:id/reopen', protect, [
 
         // Архивируем сообщения в чате, связанные с этой сессией помощи
         // Важно: мы не удаляем их, а помечаем, чтобы их можно было потом посмотреть (например, админом)
-        await Message.updateMany(
+        const updateResult = await Message.updateMany(
             { requestId: request._id }, 
             { $set: { isArchived: true } }
         );
+
+        console.log(`[ARCHIVE] Request ID: ${request._id}. Messages update result:`, updateResult);
 
         // Сбрасываем хелпера и возвращаем статус 'open'
         request.helper = null;
