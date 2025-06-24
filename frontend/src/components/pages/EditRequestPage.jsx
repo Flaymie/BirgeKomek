@@ -25,23 +25,6 @@ const EditRequestPage = () => {
   
   const [errors, setErrors] = useState({});
   
-  useEffect(() => {
-    // Проверяем наличие токена при загрузке компонента
-    const token = localStorage.getItem('token');
-    if (!token) {
-      // Если токена нет, перенаправляем на страницу логина
-      navigate('/login', { state: { message: 'Для редактирования запроса необходимо авторизоваться' } });
-      return;
-    }
-    
-    // Если пользователь еще не загружен, не делаем запрос
-    if (!currentUser) {
-      return;
-    }
-    
-    fetchRequestData();
-  }, [id, navigate, currentUser, fetchRequestData]);
-  
   const fetchRequestData = useCallback(async () => {
     setLoading(true);
     try {
@@ -91,6 +74,23 @@ const EditRequestPage = () => {
       setLoading(false);
     }
   }, [id, navigate, currentUser]);
+  
+  useEffect(() => {
+    // Проверяем наличие токена при загрузке компонента
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // Если токена нет, перенаправляем на страницу логина
+      navigate('/login', { state: { message: 'Для редактирования запроса необходимо авторизоваться' } });
+      return;
+    }
+    
+    // Если пользователь еще не загружен, не делаем запрос
+    if (!currentUser) {
+      return;
+    }
+    
+    fetchRequestData();
+  }, [id, navigate, currentUser, fetchRequestData]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
