@@ -144,12 +144,15 @@ router.post('/register',
     }
 
   try {
-    let user = await User.findOne({ email });
+    const lowerCaseEmail = email.toLowerCase();
+    const lowerCaseUsername = username.toLowerCase();
+
+    let user = await User.findOne({ email: lowerCaseEmail });
     if (user) {
       return res.status(400).json({ msg: 'Регистрация невозможна. Попробуйте другой email.' });
     }
 
-    user = await User.findOne({ username });
+    user = await User.findOne({ username: lowerCaseUsername });
     if (user) {
       return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
     }
@@ -346,7 +349,7 @@ router.post('/check-username', [
         return res.status(400).json({ errors: errors.array() });
     }
     try {
-        const user = await User.findOne({ username: req.body.username });
+        const user = await User.findOne({ username: req.body.username.toLowerCase() });
         res.json({ available: !user });
     } catch (e) {
         res.status(500).json({ message: 'Ошибка сервера' });
@@ -386,7 +389,7 @@ router.post('/check-email', [
         return res.json({ available: false, message: errors.array()[0].msg });
     }
     try {
-        const user = await User.findOne({ email: req.body.email });
+        const user = await User.findOne({ email: req.body.email.toLowerCase() });
         res.json({ available: !user });
     } catch (e) {
         res.status(500).json({ message: 'Ошибка сервера' });

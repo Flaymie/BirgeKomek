@@ -4,16 +4,21 @@ import bcrypt from 'bcrypt';
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
+    required: [true, 'Имя пользователя обязательно'],
     unique: true,
-    trim: true
+    trim: true,
+    minlength: 3,
+    maxlength: 30,
+    lowercase: true,
+    match: [/^[a-zA-Z0-9_]+$/, 'Имя пользователя может содержать только латинские буквы, цифры и подчеркивания'],
   },
   email: {
     type: String,
-    required: true,
+    required: [true, 'Email обязателен'],
     unique: true,
     trim: true,
-    match: [/.+\@.+\..+/, 'Пожалуйста, введите корректный email']
+    lowercase: true,
+    match: [/.+@.+\..+/, 'Введите корректный email'],
   },
   password: {
     type: String,
