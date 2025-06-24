@@ -117,7 +117,7 @@ router.get('/:requestId', protect, [
     if (archivedMessagesCount > 0 && request.status === 'open' && !isUserAdminOrMod) {
         return res.status(403).json({ msg: 'Этот чат заархивирован и недоступен для просмотра.' });
     }
-
+    
     // проверяем права доступа (только участники могут видеть)
     if (
       request.author.toString() !== req.user._id.toString() && 

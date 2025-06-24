@@ -200,7 +200,7 @@ const RegisterPage = () => {
     if (role === 'helper') {
       registrationData.subjects = subjects;
     }
-    
+
     // Добавляем класс, если он указан, для любой роли
     if (grade) {
       registrationData.grade = grade;
@@ -215,8 +215,8 @@ const RegisterPage = () => {
       console.log('Результат регистрации:', response);
       
       if (response && response.data) {
-        toast.success('Регистрация прошла успешно! Теперь можете войти.');
-        navigate('/login');
+      toast.success('Регистрация прошла успешно! Теперь можете войти.');
+      navigate('/login');
       } else {
         // Если регистрация не удалась, но ошибки не были выброшены
         const errorMsg = response?.data?.msg || 'Произошла ошибка при регистрации. Попробуйте еще раз.';
@@ -269,10 +269,10 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Создание аккаунта
-        </h2>
-      </div>
+          </h2>
+        </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
@@ -281,16 +281,16 @@ const RegisterPage = () => {
             <div className="flex flex-col items-center">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Фотография (необязательно)
-                </label>
-                <AvatarUpload 
-                  currentAvatar={formData.avatar}
-                  onAvatarChange={handleAvatarChange}
-                  size="lg"
+            </label>
+            <AvatarUpload 
+              currentAvatar={formData.avatar}
+              onAvatarChange={handleAvatarChange}
+              size="lg"
                   isRegistration={true}
-                />
-            </div>
-            
-            <div>
+            />
+          </div>
+          
+          <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
               <div className="mt-1 relative">
                 <input id="username" name="username" type="text" required value={username} onChange={handleChange}
@@ -301,9 +301,9 @@ const RegisterPage = () => {
                 </div>
               </div>
               {usernameStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{usernameError}</p>}
-            </div>
+          </div>
 
-            <div>
+          <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
               <div className="mt-1 relative">
                 <input id="email" name="email" type="email" required value={email} onChange={handleChange}
@@ -314,9 +314,9 @@ const RegisterPage = () => {
                 </div>
               </div>
               {emailStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{emailError}</p>}
-            </div>
+          </div>
 
-            <div>
+          <div>
               <label htmlFor="password"className="block text-sm font-medium text-gray-700">Пароль</label>
               <div className="mt-1 relative">
                 <input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={handleChange}
@@ -327,9 +327,9 @@ const RegisterPage = () => {
                 </button>
               </div>
               {formData.password && <PasswordStrengthMeter score={passwordScore} password={formData.password} />}
-            </div>
+          </div>
             
-            <div>
+          <div>
               <label htmlFor="password2"className="block text-sm font-medium text-gray-700">Повторите пароль</label>
               <div className="mt-1 relative">
                 <input id="password2" name="password2" type={showPassword2 ? 'text' : 'password'} required value={password2} onChange={handleChange}
@@ -339,73 +339,73 @@ const RegisterPage = () => {
                   {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                 </button>
               </div>
-            </div>
+          </div>
 
-            <div className="rounded-md shadow-sm -space-y-px">
-              <div>
-                <label htmlFor="role" className="sr-only">Роль</label>
-                <select
-                  id="role"
-                  name="role"
-                  value={role}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="role" className="sr-only">Роль</label>
+              <select
+                id="role"
+                name="role"
+                value={role}
                   onChange={handleChange}
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                >
-                  <option value="student">Я Ученик</option>
-                  <option value="helper">Я Хелпер</option>
-                </select>
-              </div>
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              >
+                <option value="student">Я Ученик</option>
+                <option value="helper">Я Хелпер</option>
+              </select>
             </div>
+          </div>
 
             {(role === 'student' || role === 'helper') && (
-              <div>
+            <div>
                 <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
                 <select
-                  id="grade"
-                  name="grade"
-                  value={grade}
+                id="grade"
+                name="grade"
+                value={grade}
                   onChange={handleChange}
-                  className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 >
                   <option value="">Не указан</option>
                   {[...Array(11)].map((_, i) => (
                     <option key={i + 1} value={i + 1}>{i + 1} класс</option>
                   ))}
                 </select>
-              </div>
-            )}
-
-            {role === 'helper' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Предметы, в которых вы можете помочь
-                </label>
-                <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
-                  {subjectOptions.map((option) => (
-                    <div key={option.value} className="flex items-center">
-                      <input
-                        id={`subject-reg-${option.value}`}
-                        name={option.value}
-                        type="checkbox"
-                        checked={subjects.includes(option.value)}
-                        onChange={handleSubjectChange}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
-                        {option.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div>
-                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Зарегистрироваться
-                </button>
             </div>
-          </form>
+          )}
+
+          {role === 'helper' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Предметы, в которых вы можете помочь
+              </label>
+              <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
+                {subjectOptions.map((option) => (
+                  <div key={option.value} className="flex items-center">
+                    <input
+                      id={`subject-reg-${option.value}`}
+                      name={option.value}
+                      type="checkbox"
+                      checked={subjects.includes(option.value)}
+                      onChange={handleSubjectChange}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div>
+                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+              Зарегистрироваться
+            </button>
+          </div>
+        </form>
 
           <div className="mt-6">
             <div className="relative">
@@ -420,7 +420,7 @@ const RegisterPage = () => {
             <div className="mt-6">
               <Link to="/login" className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                 Войти
-              </Link>
+          </Link>
             </div>
           </div>
         </div>
