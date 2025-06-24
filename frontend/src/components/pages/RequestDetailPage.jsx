@@ -3,11 +3,11 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, responsesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import ResponseModal from './ResponseModal';
-import ResponseCard from './ResponseCard';
-import DeleteConfirmationModal from './modals/DeleteConfirmationModal';
-import AdminEditRequestModal from './modals/AdminEditRequestModal';
-import AdminDeleteRequestModal from './modals/AdminDeleteRequestModal';
+import ResponseModal from '../ResponseModal';
+import ResponseCard from '../ResponseCard';
+import DeleteConfirmationModal from '../modals/DeleteConfirmationModal';
+import AdminEditRequestModal from '../modals/AdminEditRequestModal';
+import AdminDeleteRequestModal from '../modals/AdminDeleteRequestModal';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
