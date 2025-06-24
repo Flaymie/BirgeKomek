@@ -445,12 +445,17 @@ const ProfilePage = () => {
     const fetchUserData = async () => {
       // Это для просмотра чужих профилей
       setLoading(true);
+      setError(null);
       try {
         const response = await usersService.getUserById(id);
         setProfileData(response.data);
       } catch (err) {
-        setError('Не удалось загрузить данные профиля.');
-        toast.error('Не удалось загрузить данные профиля.');
+        if (err.response && err.response.status === 404) {
+          setError('not_found');
+        } else {
+          setError('generic');
+          toast.error('Не удалось загрузить данные профиля.');
+        }
       } finally {
         setLoading(false);
       }
@@ -514,12 +519,37 @@ const ProfilePage = () => {
     }
   };
 
-  if (loading || !profileData) {
+  if (loading) {
     return <Loader />;
   }
   
   if (error) {
-      return <div>{error}</div>;
+    if (error === 'not_found') {
+      return (
+        <Container>
+          <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg text-center p-8 mt-10">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 className="mt-4 text-2xl font-bold text-gray-800">Профиль не найден</h2>
+            <p className="mt-2 text-gray-600">
+              К сожалению, мы не смогли найти этого пользователя. Возможно, он удалил свой аккаунт или ссылка неверна.
+            </p>
+            <button 
+              onClick={() => navigate(-1)} 
+              className="mt-6 btn btn-primary"
+            >
+              Вернуться назад
+            </button>
+          </div>
+        </Container>
+      );
+    }
+    return <div className="text-center py-10">Произошла ошибка при загрузке профиля. Попробуйте позже.</div>;
+  }
+
+  if (!profileData && !loading) {
+    return <Loader />;
   }
 
   if (id) {
