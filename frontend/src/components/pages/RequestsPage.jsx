@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { requestsService, baseURL } from '../../services/api';
+import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
@@ -47,62 +47,38 @@ const RequestsPage = () => {
     navigate(newUrl, { replace: true });
   }, [filters, location.pathname, navigate]);
   
-  useEffect(() => {
-    // Проверяем наличие токена при загрузке компонента
-    const token = localStorage.getItem('token');
-    if (!token) {
-      // Если токена нет, перенаправляем на страницу логина
-      navigate('/login', { state: { message: 'Для просмотра запросов необходимо авторизоваться' } });
-      return;
-    }
-    
-    fetchRequests();
-  }, [currentPage, filters, navigate]);
-
   const fetchRequests = useCallback(async () => {
     setLoading(true);
+    setError(null); // Сбрасываем ошибку перед новым запросом
     try {
-      // Формируем параметры запроса с обязательным параметром статуса
       const params = {
         page: currentPage,
-        status: filters.status // Всегда отправляем статус (по умолчанию "open")
+        ...filters,
       };
+
+      if (!filters.status) delete params.status;
+      if (!filters.subject) delete params.subject;
+      if (!filters.search) delete params.search;
       
-      // Добавляем остальные параметры
-      if (filters.subject) params.subject = filters.subject;
-      if (filters.search) params.search = filters.search;
-
-      console.log('Параметры запроса:', params);
-      console.log('URL запроса:', `${baseURL}/requests?` + 
-        Object.entries(params)
-          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-          .join('&')
-      );
-
-      // Делаем запрос к API через сервис
       const response = await requestsService.getRequests(params);
       setRequests(response.data.requests);
       setTotalPages(response.data.totalPages);
-      setLoading(false);
     } catch (err) {
       console.error('Ошибка при получении запросов:', err);
-      console.error('Детали ошибки:', err.response?.data);
-      
-      // Если ошибка 401 (Unauthorized), перенаправляем на логин
       if (err.response && err.response.status === 401) {
-        localStorage.removeItem('token'); // Удаляем невалидный токен
-        navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
-        return;
+        // Просто выводим сообщение, не делаем редирект, т.к. страница публичная
+        setError('Для выполнения этого действия необходимо авторизоваться.');
+      } else {
+        setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
       }
-      
-      setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
+    } finally {
       setLoading(false);
     }
   }, [currentPage, filters]);
 
   useEffect(() => {
     fetchRequests();
-  }, [fetchRequests]);
+  }, [fetchRequests, currentUser]); // Добавляем currentUser в зависимости
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -117,10 +93,6 @@ const RequestsPage = () => {
     fetchRequests();
   };
   
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-  };
-
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {

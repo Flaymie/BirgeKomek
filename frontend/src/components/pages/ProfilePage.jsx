@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -7,6 +7,8 @@ import { usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
+import BanUserModal from '../modals/BanUserModal';
+import ProfileNotFound from '../shared/ProfileNotFound';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -121,35 +123,59 @@ const ProfileStats = ({ profile }) => {
   );
 };
 
+const BanInfo = ({ banDetails }) => {
+  if (!banDetails?.isBanned) return null;
+
+  const expiration = banDetails.expiresAt
+    ? `до ${new Date(banDetails.expiresAt).toLocaleString('ru-RU')}`
+    : 'навсегда';
+
+  return (
+    <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6" role="alert">
+      <div className="flex">
+        <div className="py-1">
+          <svg className="h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+        </div>
+        <div>
+          <p className="font-bold text-red-800">ПОЛЬЗОВАТЕЛЬ ЗАБЛОКИРОВАН ({expiration})</p>
+          {banDetails.reason && (
+            <p className="text-sm text-red-700 mt-1">
+              <strong>Причина:</strong> {banDetails.reason}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
-const UserProfileView = ({ profile, currentUser, onBack }) => {
+const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyProfile }) => {
   if (!profile) return null;
+  
+  const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
+  const targetIsAdmin = profile.roles?.admin;
   
   return (
     <Container>
       <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="px-4 py-5 sm:p-6">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-6">Профиль пользователя</h1>
-          
-          {profile.isBanned && (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6" role="alert">
-              <div className="flex">
-                <div className="py-1">
-                  <svg className="h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-bold text-red-800">ПОЛЬЗОВАТЕЛЬ ЗАБЛОКИРОВАН</p>
-                  {profile.banReason && (
-                    <p className="text-sm text-red-700 mt-1">
-                      <strong>Причина:</strong> {profile.banReason}
-                    </p>
-                  )}
-                </div>
+          <div className="flex justify-between items-start">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">Профиль пользователя</h1>
+            {canModerate && !isMyProfile && !targetIsAdmin && (
+              <div className="flex gap-2">
+                {profile.banDetails?.isBanned ? (
+                  <button onClick={onUnban} className="btn btn-success btn-sm">Разбанить</button>
+                ) : (
+                  <button onClick={onBan} className="btn btn-error btn-sm">Забанить</button>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+          
+          <BanInfo banDetails={profile.banDetails} />
 
           <div className="grid grid-cols-1 gap-6">
             <div className="bg-white p-6 rounded-lg border border-gray-200">
@@ -231,16 +257,14 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
             </div>
           </div>
           
-          {currentUser && (
-            <div className="mt-6 flex justify-end">
-              <button 
-                onClick={onBack} 
-                className="btn btn-outline"
-              >
-                Назад
-              </button>
-            </div>
-          )}
+          <div className="mt-6 flex justify-end gap-4">
+             <button 
+              onClick={onBack} 
+              className="btn btn-outline"
+            >
+              Назад
+            </button>
+          </div>
         </div>
       </div>
     </Container>
@@ -448,48 +472,94 @@ const ProfileEditor = ({
 };
 
 const ProfilePage = () => {
+  const { currentUser, loading: authLoading, updateProfile, logout } = useAuth();
+  const { identifier } = useParams();
   const navigate = useNavigate();
-  const { id } = useParams();
-  const { currentUser, updateProfile, logout } = useAuth();
-
-  const [profileData, setProfileData] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isMyProfile, setIsMyProfile] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+  
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
   const [profileSuccess, setProfileSuccess] = useState('');
   const [profileError, setProfileError] = useState('');
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      // Это для просмотра чужих профилей
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await usersService.getUserById(id);
-        setProfileData(response.data);
-      } catch (err) {
-        if (err.response && err.response.status === 404) {
-          setError('not_found');
-        } else {
-          setError('generic');
-        toast.error('Не удалось загрузить данные профиля.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchUserData();
-    } else if (currentUser) {
-      // Это для своего профиля, используем данные из контекста
-      setProfileData(currentUser);
+  
+  const [profileData, setProfileData] = useState({
+    username: '',
+    email: '',
+    phone: '',
+    location: '',
+    bio: '',
+    grade: '',
+    subjects: [],
+    avatar: '',
+    roles: {},
+  });
+  
+  const fetchUserData = useCallback(async (userIdentifier) => {
+    if (!userIdentifier) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await usersService.getUserById(userIdentifier);
+      setProfile(response.data);
+    } catch (err) {
+      console.error('Ошибка при загрузке профиля:', err);
+      setError('Не удалось загрузить профиль. Возможно, он не существует.');
+      setProfile(null);
+    } finally {
       setLoading(false);
     }
-  }, [id, currentUser]);
-  
+  }, []);
+
+  useEffect(() => {
+    if (identifier) {
+      fetchUserData(identifier);
+    } 
+    else if (!authLoading && !identifier) {
+      if (currentUser) {
+        setProfileData({
+          username: currentUser.username || '',
+          email: currentUser.email || '',
+          phone: currentUser.phone || '',
+          location: currentUser.location || '',
+          bio: currentUser.bio || '',
+          grade: currentUser.grade || '',
+          subjects: currentUser.subjects || [],
+          avatar: currentUser.avatar || '',
+          roles: currentUser.roles || {},
+        });
+        setIsMyProfile(true);
+        setLoading(false);
+      } else {
+        navigate('/login');
+      }
+    }
+  }, [identifier, currentUser, authLoading, navigate, fetchUserData]);
+
+  useEffect(() => {
+    if (profile && currentUser) {
+      const isMine = currentUser._id === profile._id;
+      setIsMyProfile(isMine);
+      if (isMine) {
+         setProfileData({
+            username: profile.username || '',
+            email: profile.email || '',
+            phone: profile.phone || '',
+            location: profile.location || '',
+            bio: profile.bio || '',
+            grade: profile.grade || '',
+            subjects: profile.subjects || [],
+            avatar: profile.avatar || '',
+            roles: profile.roles || {},
+         });
+      }
+    }
+  }, [profile, currentUser]);
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
@@ -512,15 +582,16 @@ const ProfilePage = () => {
     setIsProfileLoading(true);
     setProfileSuccess('');
     setProfileError('');
-    setProfileErrors({}); // Очищаем старые ошибки
+    setProfileErrors({});
     
     try {
       await updateProfile(profileData);
       toast.success('Профиль успешно обновлен!');
       setProfileSuccess('Профиль успешно обновлен!');
     } catch (err) {
-      toast.error('Ошибка при обновлении профиля');
-      setProfileError('Ошибка при обновлении профиля');
+      const errorMessage = err.response?.data?.msg || 'Ошибка при обновлении профиля';
+      toast.error(errorMessage);
+      setProfileError(errorMessage);
     } finally {
       setIsProfileLoading(false);
     }
@@ -539,69 +610,70 @@ const ProfilePage = () => {
     }
   };
 
-  if (loading) {
-    return <Loader />;
-  }
-  
-  if (error) {
-    if (error === 'not_found') {
-      return (
-        <Container>
-          <div className="max-w-md mx-auto bg-white shadow-lg rounded-lg text-center p-8 mt-10">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 className="mt-4 text-2xl font-bold text-gray-800">Профиль не найден</h2>
-            <p className="mt-2 text-gray-600">
-              К сожалению, мы не смогли найти этого пользователя. Возможно, он удалил свой аккаунт или ссылка неверна.
-            </p>
-            <button 
-              onClick={() => navigate(-1)} 
-              className="mt-6 btn btn-primary"
-            >
-              Вернуться назад
-            </button>
-          </div>
-        </Container>
-      );
+  const handleBanUser = async (reason, duration) => {
+    if (!profile) return;
+    try {
+      await usersService.banUser(profile._id, reason, duration);
+      toast.success(`Пользователь ${profile.username} забанен.`);
+      setIsBanModalOpen(false);
+      fetchUserData(profile._id);
+    } catch (err) {
+      console.error('Ошибка при бане:', err);
+      toast.error(err.response?.data?.msg || 'Не удалось забанить пользователя.');
     }
-    return <div className="text-center py-10">Произошла ошибка при загрузке профиля. Попробуйте позже.</div>;
-  }
+  };
 
-  if (!profileData && !loading) {
-    return <Loader />;
-  }
+  const handleUnbanUser = async () => {
+    if (!profile) return;
+    try {
+      await usersService.unbanUser(profile._id);
+      toast.success(`Пользователь ${profile.username} разбанен.`);
+      fetchUserData(profile._id);
+    } catch (err) {
+      console.error('Ошибка при разбане:', err);
+      toast.error(err.response?.data?.msg || 'Не удалось разбанить пользователя.');
+    }
+  };
 
-  if (id) {
-    return (
-      <UserProfileView 
-        profile={profileData} 
-        currentUser={currentUser} 
-        onBack={() => navigate(-1)} 
-      />
-    );
-  }
-  
+  if (loading || authLoading) return <Loader />;
+  if (error) return <ProfileNotFound />;
+
   return (
     <>
-    <ProfileEditor
-      profileData={profileData}
-      profileErrors={profileErrors}
-      profileSuccess={profileSuccess}
-      profileError={profileError}
-      isProfileLoading={isProfileLoading}
-      handleProfileChange={handleProfileChange}
-      handleProfileSubmit={handleProfileSubmit}
-      currentUser={profileData}
-      handleSubjectsChange={handleSubjectsChange}
-      onDeleteAccount={() => setIsDeleteModalOpen(true)}
-    />
-    <DeleteAccountModal 
+      {identifier ? (
+        <UserProfileView
+          profile={profile}
+          currentUser={currentUser}
+          onBack={() => navigate(-1)}
+          onBan={() => setIsBanModalOpen(true)}
+          onUnban={handleUnbanUser}
+          isMyProfile={isMyProfile}
+        />
+      ) : (
+        <ProfileEditor
+          profileData={profileData}
+          profileErrors={profileErrors}
+          profileSuccess={profileSuccess}
+          profileError={profileError}
+          isProfileLoading={isProfileLoading}
+          handleProfileChange={handleProfileChange}
+          handleProfileSubmit={handleProfileSubmit}
+          currentUser={profileData}
+          handleSubjectsChange={handleSubjectsChange}
+          onDeleteAccount={() => setIsDeleteModalOpen(true)}
+        />
+      )}
+      <DeleteAccountModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteAccount}
-        username={profileData.username}
-    />
+      />
+      <BanUserModal
+        isOpen={isBanModalOpen}
+        onClose={() => setIsBanModalOpen(false)}
+        onConfirm={handleBanUser}
+        username={profile?.username}
+      />
     </>
   );
 };

@@ -55,31 +55,24 @@ const userSchema = new mongoose.Schema({
       default: false
     }
   },
-  isBanned: {
-    type: Boolean,
-    default: false
-  },
-  banReason: {
-    type: String,
-    trim: true,
-    default: null
-  },
-  bannedAt: {
-    type: Date,
-    default: null
-  },
-  banEndDate: {
-    type: Date,
-    default: null
-  },
-  bannedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  bannedByUsername: {
-    type: String,
-    default: null
+  banDetails: {
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    bannedAt: {
+      type: Date,
+      default: null,
+    },
+    expiresAt: {
+      type: Date,
+      default: null, // null означает перманентный бан
+    },
   },
   grade: {
     type: String,

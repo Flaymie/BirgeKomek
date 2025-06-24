@@ -29,32 +29,31 @@ export const protect = async (req, res, next) => {
     }
     
     // ПРОВЕРКА НА БАН
-    if (user.isBanned) {
-      // Проверяем, не истек ли срок бана
+    if (user.banDetails.isBanned) {
       const now = new Date();
-      if (user.banEndDate && user.banEndDate <= now) {
-        // Если срок бана истек, снимаем бан
-        user.isBanned = false;
-        user.banReason = null;
-        user.bannedAt = null;
-        user.banEndDate = null;
-        user.bannedBy = null;
-        user.bannedByUsername = null;
+      // Если есть срок бана и он истек, снимаем бан
+      if (user.banDetails.expiresAt && user.banDetails.expiresAt <= now) {
+        user.banDetails.isBanned = false;
+        user.banDetails.reason = null;
+        user.banDetails.bannedAt = null;
+        user.banDetails.expiresAt = null;
         await user.save();
+      } else {
+        // Если бан все еще активен
+        const banReason = user.banDetails.reason || 'Причина не указана';
+        let message = `Ваш аккаунт заблокирован. Причина: ${banReason}`;
+        if (user.banDetails.expiresAt) {
+          message += ` Бан до: ${user.banDetails.expiresAt.toLocaleString('ru-RU')}`;
+        } else {
+          message += ' Бан перманентный.';
+        }
         
-        // Продолжаем выполнение запроса
-        req.user = user;
-        return next();
+        return res.status(403).json({ 
+          msg: message,
+          isBanned: true,
+          banDetails: user.banDetails
+        });
       }
-      
-      // Если бан активен, отправляем расширенную информацию о бане
-      return res.status(403).json({ 
-        msg: `Ваш аккаунт заблокирован. ${user.banReason ? `Причина: ${user.banReason}` : ''}`,
-        isBanned: true,
-        banReason: user.banReason,
-        bannedBy: user.bannedByUsername,
-        banEndDate: user.banEndDate
-      });
     }
     
     // добавляем юзера в запрос

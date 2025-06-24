@@ -5,6 +5,7 @@ import User from '../models/User.js'; // Убедимся, что User импо�
 import Message from '../models/Message.js'; // Импортируем Message
 import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -255,7 +256,7 @@ router.post('/', protect, [
  * @swagger
  * /api/requests/{id}:
  *   get:
- *     summary: Получить детали заявки по ID
+ *     summary: Получить детальную информацию о заявке
  *     tags: [Requests]
  *     security:
  *       - bearerAuth: []
@@ -263,45 +264,39 @@ router.post('/', protect, [
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: 'string' }
+ *         schema: { type: 'string', format: 'mongoId' }
+ *         description: ID заявки
  *     responses:
  *       200:
- *         description: Детали заявки
+ *         description: Детальная информация о заявке
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Request' }
+ *       401:
+ *         description: Не авторизован
  *       404:
  *         description: Заявка не найдена
  */
 router.get('/:id', protect, [
-    param('id').isMongoId().withMessage('Неверный ID заявки')
+    param('id').isMongoId().withMessage('Неверный формат ID заявки')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        // Если ID невалиден, сразу возвращаем 404, а не 400.
+        return res.status(404).json({ msg: 'Заявка не найдена' });
     }
+
     try {
         const request = await Request.findById(req.params.id)
             .populate('author', 'username _id rating avatar')
-            .populate('helper', 'username _id rating avatar')
-            .lean();
+            .populate('helper', 'username _id rating avatar');
 
         if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
         }
-
-        // Проверяем, есть ли для этой заявки заархивированные сообщения
-        const archivedMessagesCount = await Message.countDocuments({ 
-            requestId: req.params.id, 
-            isArchived: true 
-        });
-
-        // Добавляем флаг в ответ
-        request.chatIsArchived = archivedMessagesCount > 0 && request.status === 'open';
-
         res.json(request);
     } catch (err) {
         console.error('Ошибка при получении заявки:', err.message);
-        if (err.kind === 'ObjectId') {
-             return res.status(400).json({ msg: 'Неверный формат ID заявки' });
-        }
         res.status(500).send('Ошибка сервера');
     }
 });

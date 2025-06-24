@@ -7,6 +7,7 @@ import ResponseModal from '../ResponseModal';
 import ResponseCard from '../ResponseCard';
 import AdminEditModal from '../modals/AdminEditModal';
 import AdminDeleteModal from '../modals/AdminDeleteModal';
+import RequestNotFound from '../shared/RequestNotFound';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -14,12 +15,12 @@ const RequestDetailPage = () => {
   const location = useLocation();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
   const [responses, setResponses] = useState([]);
   const [responsesLoading, setResponsesLoading] = useState(true);
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
   const [isAdminDeleteModalOpen, setAdminDeleteModalOpen] = useState(false);
@@ -27,31 +28,37 @@ const RequestDetailPage = () => {
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
 
-  const fetchRequestDetails = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await requestsService.getRequestById(id);
-      setRequest(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Ошибка при получении данных запроса:', err);
-      
-      // Если ошибка 401 (Unauthorized), перенаправляем на логин
-      if (err.response && err.response.status === 401) {
-        localStorage.removeItem('token');
-        navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
-        return;
-      }
-      
-      setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
-    } finally {
-      setLoading(false);
-    }
-  }, [id, navigate]);
-
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!currentUser) {
+      navigate('/login', { state: { message: 'Для просмотра этой страницы необходимо авторизоваться' } });
+      return;
+    }
+
+    const fetchRequestDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await requestsService.getRequestById(id);
+        setRequest(response.data);
+        setError(null);
+      } catch (err) {
+        if (err.response?.status !== 404 && err.response?.status !== 400) {
+          console.error('Ошибка при получении данных запроса:', err);
+          toast.error(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
+        }
+        if (err.response && err.response.status === 401) {
+          navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
+          return;
+        }
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchRequestDetails();
-  }, [fetchRequestDetails]);
+  }, [id, navigate, currentUser, authLoading]);
 
   const isAuthor = useMemo(() => {
     return request && currentUser && request.author._id === currentUser._id;
@@ -72,8 +79,10 @@ const RequestDetailPage = () => {
   }, [id, isAuthor]);
 
   useEffect(() => {
-    fetchResponses();
-  }, [fetchResponses]);
+    if (isAuthor) {
+       fetchResponses();
+    }
+  }, [fetchResponses, isAuthor]);
 
   const isPrivilegedUser = useMemo(() => {
     return currentUser?.roles?.admin || currentUser?.roles?.moderator;
@@ -162,7 +171,7 @@ const RequestDetailPage = () => {
       .replace(/&#39;/g, "'");
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="flex justify-center items-center py-12">
@@ -173,21 +182,7 @@ const RequestDetailPage = () => {
   }
 
   if (error) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-6">
-          {error}
-        </div>
-        <div className="text-center mt-4">
-          <Link 
-            to={fromMyRequests ? "/my-requests" : "/requests"}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            {fromMyRequests ? "Вернуться к моим запросам" : "Вернуться к списку запросов"}
-          </Link>
-        </div>
-      </div>
-    );
+    return <RequestNotFound />;
   }
 
   if (!request) {

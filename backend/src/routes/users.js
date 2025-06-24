@@ -1,15 +1,16 @@
 import express from 'express';
 import { body, validationResult, param, query } from 'express-validator'; // Добавил query
 import User from '../models/User.js';
-import { protect, isAdmin } from '../middleware/auth.js';
+import { protect, isAdmin, isModOrAdmin } from '../middleware/auth.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
-export default ({ onlineUsers, sseConnections }) => {
+export default ({ onlineUsers, sseConnections, io }) => {
   /**
    * @swagger
    * tags:
@@ -150,7 +151,7 @@ export default ({ onlineUsers, sseConnections }) => {
       if (grade !== undefined) user.grade = grade;
       if (subjects !== undefined && Array.isArray(subjects) && user.roles?.helper) {
         user.subjects = subjects;
-      }
+        }
       await user.save();
       const updatedUser = user.toObject();
       delete updatedUser.password;
@@ -163,17 +164,17 @@ export default ({ onlineUsers, sseConnections }) => {
 
   /**
    * @swagger
-   * /api/users/{id}:
+   * /api/users/{identifier}:
    *   get:
-   *     summary: Получить публичный профиль пользователя по ID
+   *     summary: Получить публичный профиль пользователя по ID или username
    *     tags: [Users]
    *     parameters:
    *       - in: path
-   *         name: id
+   *         name: identifier
    *         required: true
    *         schema:
    *           type: string
-   *         description: ID пользователя
+   *         description: ID или username пользователя
    *     responses:
    *       200:
    *         description: Публичный профиль пользователя
@@ -203,28 +204,40 @@ export default ({ onlineUsers, sseConnections }) => {
    *                    type: string
    *                    format: date-time
    *       400:
-   *         description: Неверный формат ID
+   *         description: Неверный формат идентификатора
    *       404:
    *         description: Пользователь не найден
    *       500:
    *         description: Внутренняя ошибка сервера
    */
-  router.get('/:id', [
-    param('id').isMongoId().withMessage('Неверный формат ID пользователя')
+  router.get('/:identifier', [
+    param('identifier').notEmpty().withMessage('Необходим идентификатор пользователя').trim()
   ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
     try {
-      const userId = req.params.id;
-      const user = await User.findById(userId).select('-password').lean();
+      const { identifier } = req.params;
+      let user;
+
+      // Сначала пытаемся найти по ID, если это валидный ObjectId
+      if (mongoose.Types.ObjectId.isValid(identifier)) {
+        user = await User.findById(identifier).select('-password').lean();
+      }
+
+      // Если по ID не нашли или это был не ObjectId, ищем по username
+      if (!user) {
+        user = await User.findOne({ username: identifier }).select('-password').lean();
+      }
+      
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-      const isOnline = onlineUsers.has(userId);
-      const createdRequests = await Request.countDocuments({ author: userId });
-      const completedRequests = await Request.countDocuments({ helper: userId, status: 'completed' });
+
+      const isOnline = onlineUsers.has(user._id.toString());
+      const createdRequests = await Request.countDocuments({ author: user._id });
+      const completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
       res.json({ ...user, isOnline, createdRequests, completedRequests });
     } catch (err) {
       console.error('Ошибка при получении профиля пользователя:', err.message);
@@ -498,14 +511,15 @@ export default ({ onlineUsers, sseConnections }) => {
    * @swagger
    * /api/users/{id}/ban:
    *   post:
-   *     summary: Забанить пользователя (только для админов)
-   *     tags: [Admin]
+   *     summary: Забанить пользователя
+   *     tags: [Users, Moderation]
    *     security:
    *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
    *         required: true
+   *         schema: { type: 'string' }
    *         description: ID пользователя для бана
    *     requestBody:
    *       required: true
@@ -517,19 +531,21 @@ export default ({ onlineUsers, sseConnections }) => {
    *               reason:
    *                 type: string
    *                 description: Причина бана
+   *               duration:
+   *                 type: number
+   *                 description: Длительность бана в часах (оставить пустым для перманентного)
+   *             required:
+   *               - reason
    *     responses:
-   *       200:
-   *         description: Пользователь успешно забанен
-   *       400:
-   *         description: Некорректный запрос
-   *       403:
-   *         description: Нет прав (не админ)
-   *       404:
-   *         description: Пользователь не найден
+   *       200: { description: 'Пользователь успешно забанен' }
+   *       400: { description: 'Некорректные данные' }
+   *       403: { description: 'Недостаточно прав' }
+   *       404: { description: 'Пользователь не найден' }
    */
-  router.post('/:id/ban', protect, isAdmin, [
+  router.post('/:id/ban', protect, isModOrAdmin, [
     param('id').isMongoId().withMessage('Неверный ID пользователя'),
-    body('reason').notEmpty().withMessage('Причина бана обязательна')
+    body('reason').notEmpty().withMessage('Причина бана обязательна').trim(),
+    body('duration').optional({ checkFalsy: true }).isNumeric().withMessage('Длительность должна быть числом'),
   ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -538,52 +554,38 @@ export default ({ onlineUsers, sseConnections }) => {
 
     try {
       const userToBan = await User.findById(req.params.id);
-
       if (!userToBan) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-      
-      if (userToBan.roles.admin) {
-        return res.status(403).json({ msg: 'Нельзя забанить другого администратора' });
+
+      // Нельзя банить админов или самого себя
+      if (userToBan.roles.admin || userToBan._id.equals(req.user._id)) {
+        return res.status(403).json({ msg: 'Этого пользователя нельзя забанить' });
       }
 
-      userToBan.isBanned = true;
-      userToBan.banReason = req.body.reason;
-      userToBan.bannedAt = new Date();
+      const { reason, duration } = req.body; // duration в часах
+      const isModerator = req.user.roles.moderator && !req.user.roles.admin;
+
+      let expiresAt = null;
+      if (duration) {
+        if (isModerator && duration > 72) { // 3 дня = 72 часа
+          return res.status(403).json({ msg: 'Модераторы могут банить максимум на 3 дня' });
+        }
+        expiresAt = new Date(Date.now() + duration * 60 * 60 * 1000);
+      }
+
+      userToBan.banDetails = {
+        isBanned: true,
+        reason,
+        bannedAt: new Date(),
+        expiresAt,
+      };
+
       await userToBan.save();
-      
-      // --- ЛОГИКА ПОСЛЕ БАНА ---
+      res.json({ msg: 'Пользователь успешно забанен', banDetails: userToBan.banDetails });
 
-      if (userToBan.roles.helper) {
-        await Request.updateMany(
-          { helper: userToBan._id, status: { $in: ['assigned', 'in_progress'] } },
-          { $set: { status: 'open', helper: null } }
-        );
-      }
-
-      const userRequests = await Request.find({ 
-        author: userToBan._id, 
-        status: { $in: ['open', 'assigned', 'in_progress'] } 
-      });
-
-      if (userRequests.length > 0) {
-        const requestIds = userRequests.map(r => r._id);
-        
-        await Message.deleteMany({ request: { $in: requestIds } });
-        
-        await Request.deleteMany({ _id: { $in: requestIds } });
-      }
-
-      const userIdStr = userToBan._id.toString();
-      if (sseConnections && sseConnections[userIdStr]) {
-        const sseConnection = sseConnections[userIdStr];
-        sseConnection.write(`event: user_banned\n`);
-        sseConnection.write(`data: ${JSON.stringify({ reason: userToBan.banReason })}\n\n`);
-      }
-
-      res.json({ msg: 'Пользователь успешно забанен', user: userToBan });
     } catch (err) {
-      console.error(err);
+      console.error('Ошибка при бане пользователя:', err);
       res.status(500).send('Ошибка сервера');
     }
   });
@@ -592,48 +594,49 @@ export default ({ onlineUsers, sseConnections }) => {
    * @swagger
    * /api/users/{id}/unban:
    *   post:
-   *     summary: Разбанить пользователя (только для админов)
-   *     tags: [Admin]
+   *     summary: Разбанить пользователя
+   *     tags: [Users, Moderation]
    *     security:
    *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
    *         required: true
+   *         schema: { type: 'string' }
    *         description: ID пользователя для разбана
    *     responses:
-   *       200:
-   *         description: Пользователь успешно разбанен
-   *       403:
-   *         description: Нет прав (не админ)
-   *       404:
-   *         description: Пользователь не найден
+   *       200: { description: 'Пользователь успешно разбанен' }
+   *       403: { description: 'Недостаточно прав' }
+   *       404: { description: 'Пользователь не найден' }
    */
-  router.post('/:id/unban', protect, isAdmin, [
-      param('id').isMongoId().withMessage('Неверный ID пользователя')
+  router.post('/:id/unban', protect, isModOrAdmin, [
+    param('id').isMongoId().withMessage('Неверный ID пользователя'),
   ], async (req, res) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const userToUnban = await User.findById(req.params.id);
+      if (!userToUnban) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      try {
-          const userToUnban = await User.findById(req.params.id);
-          if (!userToUnban) {
-              return res.status(404).json({ msg: 'Пользователь не найден' });
-          }
+      userToUnban.banDetails = {
+        isBanned: false,
+        reason: null,
+        bannedAt: null,
+        expiresAt: null,
+      };
 
-          userToUnban.isBanned = false;
-          userToUnban.banReason = null;
-          userToUnban.bannedAt = null;
+      await userToUnban.save();
+      res.json({ msg: 'Пользователь успешно разбанен' });
 
-          await userToUnban.save();
-
-          res.json({ msg: `Пользователь ${userToUnban.username} был разбанен.` });
-      } catch (err) {
-          console.error('Ошибка при разбане пользователя:', err);
-          res.status(500).send('Ошибка сервера');
-      }
+    } catch (err) {
+      console.error('Ошибка при разбане пользователя:', err);
+      res.status(500).send('Ошибка сервера');
+    }
   });
 
   return router;

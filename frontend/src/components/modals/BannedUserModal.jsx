@@ -1,16 +1,7 @@
 import React from 'react';
 
-const BannedUserModal = ({ isOpen, reason, onConfirm, moderator = null, banEndDate = null }) => {
+const BannedUserModal = ({ isOpen, reason, onConfirm }) => {
   if (!isOpen) return null;
-
-  // Форматирование даты окончания бана, если она предоставлена
-  const formattedEndDate = banEndDate ? new Date(banEndDate).toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : null;
 
   return (
     <div 
@@ -32,35 +23,12 @@ const BannedUserModal = ({ isOpen, reason, onConfirm, moderator = null, banEndDa
 
         <div className="mt-4 text-gray-600">
           <p className="text-lg">Доступ к платформе ограничен.</p>
-          
-          <div className="mt-6 bg-red-50 p-4 rounded-lg border border-red-200">
-            {reason && (
-              <div className="mb-3">
-                <p className="font-semibold text-red-800">Причина блокировки:</p>
-                <p className="text-md text-red-700 mt-1">{reason}</p>
-              </div>
-            )}
-            
-            {moderator && (
-              <div className="mb-3">
-                <p className="font-semibold text-red-800">Заблокировал:</p>
-                <p className="text-md text-red-700 mt-1">{moderator}</p>
-              </div>
-            )}
-            
-            {formattedEndDate && (
-              <div>
-                <p className="font-semibold text-red-800">Срок блокировки до:</p>
-                <p className="text-md text-red-700 mt-1">{formattedEndDate}</p>
-              </div>
-            )}
-            
-            {!formattedEndDate && (
-              <div className="mt-2">
-                <p className="text-sm text-red-700 italic">Блокировка постоянная</p>
-              </div>
-            )}
-          </div>
+          {reason && (
+            <div className="mt-6 bg-red-50 p-4 rounded-lg border border-red-200">
+              <p className="font-semibold text-red-800">Причина блокировки:</p>
+              <p className="text-md text-red-700 mt-1">{reason}</p>
+            </div>
+          )}
         </div>
 
         <div className="mt-8">

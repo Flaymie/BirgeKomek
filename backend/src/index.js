@@ -152,7 +152,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/users', userRoutes({ onlineUsers, sseConnections }));
+app.use('/api/users', userRoutes({ onlineUsers, sseConnections, io }));
 app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/responses', responseRoutes);

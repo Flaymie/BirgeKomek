@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { chatsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -9,25 +9,39 @@ const ChatsPage = () => {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Ждем окончания загрузки данных об аутентификации
+    if (authLoading) return;
+
+    // Если загрузка завершена и пользователя нет - редирект
+    if (!currentUser) {
+      navigate('/login', { state: { message: 'Для просмотра чатов необходимо авторизоваться' } });
+      return;
+    }
+
     const fetchChats = async () => {
       setLoading(true);
       try {
         const response = await chatsService.getUserChats();
         setChats(response.data.chats);
-        setLoading(false);
       } catch (err) {
         console.error('Ошибка при получении списка чатов:', err);
-        setError('Не удалось загрузить список чатов. Пожалуйста, попробуйте позже.');
+        if (err.response && err.response.status === 401) {
+            navigate('/login', { state: { message: 'Сессия истекла, войдите снова' } });
+        } else {
+            setError('Не удалось загрузить список чатов. Пожалуйста, попробуйте позже.');
+            toast.error('Ошибка при загрузке чатов');
+        }
+      } finally {
         setLoading(false);
-        toast.error('Ошибка при загрузке чатов');
       }
     };
 
     fetchChats();
-  }, []);
+  }, [currentUser, authLoading, navigate]);
 
   // Функция для форматирования даты
   const formatDate = (dateString) => {
@@ -41,7 +55,7 @@ const ChatsPage = () => {
     }).format(date);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16">
         <div className="flex justify-center items-center py-12">

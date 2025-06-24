@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, isBanned } = useAuth();
   const location = useLocation();
   
   // Если идет загрузка данных пользователя, показываем загрузчик
@@ -13,6 +13,12 @@ const ProtectedRoute = ({ children }) => {
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
+  }
+  
+  // Если пользователь забанен, не позволяем доступ к защищенным маршрутам
+  // Модальное окно бана покажется через App.jsx
+  if (isBanned) {
+    return null;
   }
   
   // Если пользователь не авторизован, перенаправляем на страницу входа

@@ -150,7 +150,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-        </div>
+    </div>
       )}
     </motion.div>
   );
@@ -161,7 +161,7 @@ const ChatPage = () => {
   const { currentUser } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
-
+  
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [requestDetails, setRequestDetails] = useState(null);
@@ -230,7 +230,7 @@ const ChatPage = () => {
         setIsArchived(true);
       } else {
         // Все остальные ошибки показываем как обычно
-        setError('Произошла ошибка при загрузке чата.');
+      setError('Произошла ошибка при загрузке чата.');
         console.error("Chat loading error:", err);
       }
     } finally {
@@ -371,7 +371,7 @@ const ChatPage = () => {
       }
     };
     markMessagesAsRead();
-
+    
     // Слушаем новые сообщения
     const handleNewMessage = (message) => {
       if (message.requestId === requestId) {
@@ -390,7 +390,7 @@ const ChatPage = () => {
 
     socket.on('new_message', handleNewMessage);
     socket.on('message_updated', handleUpdateMessage);
-
+    
     // Обработка ошибок сокета (можно оставить, если есть специфичные для чата ошибки)
     const handleConnectError = (err) => {
       console.error('Socket connection error:', err.message);
@@ -406,7 +406,7 @@ const ChatPage = () => {
       // Не нужно вызывать socket.disconnect() здесь, так как он глобальный
     };
   }, [socket, requestId]);
-
+  
   const scrollToBottom = (behavior = 'smooth') => {
     const chatContainer = chatContainerRef.current;
     if (chatContainer) {
@@ -416,7 +416,7 @@ const ChatPage = () => {
       });
     }
   };
-
+  
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if ((!newMessage.trim() && !attachment) || !socket) return;
@@ -435,14 +435,14 @@ const ChatPage = () => {
           attachment
         );
       } else {
-        socket.emit('send_message', {
-          requestId: requestId,
-          content: newMessage,
-        });
-      }
-
-      setNewMessage('');
-      setAttachment(null);
+      socket.emit('send_message', {
+        requestId: requestId,
+        content: newMessage,
+      });
+    }
+    
+    setNewMessage('');
+    setAttachment(null);
     } catch (error) {
       toast.error('Ошибка при отправке сообщения');
       console.error("Failed to send message:", error);
@@ -493,9 +493,9 @@ const ChatPage = () => {
 
   const isParticipant = () => {
     if (!requestDetails || !currentUser) return false;
-
+    
     return (
-      requestDetails.author._id === currentUser._id ||
+      requestDetails.author._id === currentUser._id || 
       (requestDetails.helper && requestDetails.helper._id === currentUser._id)
     );
   };
@@ -630,7 +630,7 @@ const ChatPage = () => {
           {error}
         </div>
         <div className="text-center mt-4">
-          <Link
+          <Link 
             to="/chats"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -646,7 +646,7 @@ const ChatPage = () => {
       <div className="container mx-auto px-4 py-12 mt-16">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Запрос не найден</h2>
-          <Link
+          <Link 
             to="/chats"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -656,7 +656,7 @@ const ChatPage = () => {
       </div>
     );
   }
-
+  
   if (!isParticipant()) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16">
@@ -664,7 +664,7 @@ const ChatPage = () => {
           У вас нет доступа к этому чату
         </div>
         <div className="text-center mt-4">
-          <Link
+          <Link 
             to="/chats"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -708,12 +708,12 @@ const ChatPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
-              <Link
-                to={`/request/${requestId}`}
+            <Link 
+              to={`/request/${requestId}`}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
-              >
-                К деталям запроса
-              </Link>
+            >
+              К деталям запроса
+            </Link>
               {isAuthor && isChatActive && (
                 <button
                   onClick={handleOpenResolveModal}
@@ -781,7 +781,7 @@ const ChatPage = () => {
                   <div className="p-4 text-center text-gray-500">
                     <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
                     <p className="font-semibold">Чат закрыт</p>
-                  </div>
+        </div>
                 );
             }
             
@@ -796,12 +796,12 @@ const ChatPage = () => {
                         <div>
                           <p className="font-bold">Редактирование</p>
                           <p className="text-sm italic truncate">"{editingMessage.content}"</p>
-                        </div>
+            </div>
                         <button onClick={handleCancelEdit} title="Отменить редактирование">
                           <XCircleIcon className="h-6 w-6 text-yellow-600 hover:text-yellow-800" />
                         </button>
-                      </div>
-                    )}
+            </div>
+          )}
 
                     <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
                       <input {...getInputProps()} />
@@ -939,4 +939,4 @@ const AttachmentPreview = ({ file, onRemove }) => {
   );
 };
 
-export default ChatPage;
+export default ChatPage; 

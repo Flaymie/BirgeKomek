@@ -10,7 +10,7 @@ const Layout = ({ children }) => {
   useEffect(() => {
     // Не скроллить наверх для страницы чата, так как у нее своя логика скролла
     if (!location.pathname.includes('/chat')) {
-      window.scrollTo(0, 0);
+    window.scrollTo(0, 0);
     }
   }, [location.pathname]);
   

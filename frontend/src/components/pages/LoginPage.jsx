@@ -83,23 +83,19 @@ const LoginPage = () => {
     
     setIsLoading(true);
     
-    try {
-      const success = await login({
-        email: formData.email,
-        password: formData.password
-      });
-      
-      if (success) {
-        navigate('/requests');
-      } else {
-        setGeneralError(authError || 'Произошла ошибка при входе');
-      }
-    } catch (err) {
-      setGeneralError('Неверный email или пароль');
-      console.error('Ошибка входа:', err);
-    } finally {
-      setIsLoading(false);
+    // Удаляем try-catch, так как AuthContext больше не бросает исключения
+    const result = await login({
+      email: formData.email,
+      password: formData.password
+    });
+    
+    if (result.success) {
+      navigate('/requests');
+    } else {
+      setGeneralError(result.error || 'Произошла неизвестная ошибка');
     }
+    
+    setIsLoading(false);
   };
   
   return (

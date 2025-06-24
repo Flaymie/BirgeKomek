@@ -12,7 +12,7 @@ const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { currentUser } = useAuth();
+  const { currentUser, setIsBanned, setBanReason } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -61,13 +61,22 @@ export const SocketProvider = ({ children }) => {
         setUnreadCount(prev => prev + 1);
       };
       
+      // Обработчик бана пользователя
+      const handleUserBanned = (data) => {
+        console.log('Получено событие о бане через сокет!', data);
+        setBanReason(data.reason || 'Причина не указана');
+        setIsBanned(true);
+      };
+      
       socket.on('new_notification', handleNewNotification);
+      socket.on('user_banned', handleUserBanned);
 
       return () => {
         socket.off('new_notification', handleNewNotification);
+        socket.off('user_banned', handleUserBanned);
       };
     }
-  }, [socket]);
+  }, [socket, setBanReason, setIsBanned]);
 
   const value = {
     socket,

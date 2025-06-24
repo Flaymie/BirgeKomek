@@ -36,6 +36,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // --- НОВОЕ УСЛОВИЕ ---
+    // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
+    const isUserNotFound = error.response?.status === 404 && error.config.url.startsWith('/users/');
+    const isRequestNotFound = (error.response?.status === 404 || error.response?.status === 400) && error.config.url.startsWith('/requests/');
+
+    if (isUserNotFound || isRequestNotFound) {
+      return Promise.reject(error); // Просто пробрасываем ошибку дальше без логирования
+    }
+
     console.error('Перехват ошибки в api interceptor:', error.message);
     if (error.response) {
       console.error('Данные ответа:', error.response.data);
@@ -48,12 +57,6 @@ api.interceptors.response.use(
         if (window.authContext) {
           window.authContext.setBanReason(error.response.data.banReason || 'Причина не указана');
           window.authContext.setIsBanned(true);
-          
-          // Добавляем расширенную информацию о бане
-          window.authContext.setBanInfo({
-            bannedBy: error.response.data.bannedBy || null,
-            banEndDate: error.response.data.banEndDate || null
-          });
         }
       }
     }
@@ -173,6 +176,15 @@ const usersService = {
   // Удалить свой аккаунт
   deleteAccount: () => {
     return api.delete('/users/me');
+  },
+
+  // --- Новые функции для модерации ---
+  banUser: (userId, reason, duration) => {
+    return api.post(`/users/${userId}/ban`, { reason, duration });
+  },
+
+  unbanUser: (userId) => {
+    return api.post(`/users/${userId}/unban`);
   }
 };
 
