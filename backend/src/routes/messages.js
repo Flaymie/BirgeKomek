@@ -110,6 +110,14 @@ router.get('/:requestId', protect, [
       return res.status(404).json({ msg: 'Запрос не найден' });
     }
     
+    // НОВАЯ, БОЛЕЕ СТРОГАЯ ПРОВЕРКА НА АРХИВАЦИЮ
+    const isUserAdminOrMod = req.user.roles && (req.user.roles.admin || req.user.roles.moderator);
+    const archivedMessagesCount = await Message.countDocuments({ requestId, isArchived: true });
+
+    if (archivedMessagesCount > 0 && request.status === 'open' && !isUserAdminOrMod) {
+        return res.status(403).json({ msg: 'Этот чат заархивирован и недоступен для просмотра.' });
+    }
+
     // проверяем права доступа (только участники могут видеть)
     if (
       request.author.toString() !== req.user._id.toString() && 
@@ -189,6 +197,11 @@ router.post('/', protect, [
         const request = await Request.findById(requestId).populate('author').populate('helper');
         if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+
+        // НОВАЯ ПРОВЕРКА СТАТУСА ПЕРЕД ОТПРАВКОЙ
+        if (!['assigned', 'in_progress'].includes(request.status)) {
+            return res.status(403).json({ msg: 'Сообщения можно отправлять только в активную заявку (в статусе "assigned" или "in_progress").' });
         }
 
         // Проверка, что отправитель является автором или назначенным исполнителем
@@ -358,6 +371,13 @@ router.post('/upload', protect, uploadWithErrorHandler, [
             return res.status(404).json({ msg: 'Заявка не найдена' });
     }
     
+        // НОВАЯ ПРОВЕРКА СТАТУСА ПЕРЕД ЗАГРУЗКОЙ
+        if (!['assigned', 'in_progress'].includes(request.status)) {
+            // Важно удалить загруженный файл, если у пользователя нет прав
+            fs.unlinkSync(file.path);
+            return res.status(403).json({ msg: 'Сообщения можно отправлять только в активную заявку (в статусе "assigned" или "in_progress").' });
+        }
+
         const isAuthor = request.author && request.author._id.toString() === senderId;
         const isHelper = request.helper && request.helper._id.toString() === senderId;
     
