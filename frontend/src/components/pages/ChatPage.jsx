@@ -177,29 +177,11 @@ const ChatPage = () => {
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [ratingContext, setRatingContext] = useState('complete'); // 'complete' или 'reopen'
   const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
-
-  // --- 2. Настройка Dropzone ---
-  const onDrop = useCallback((acceptedFiles) => {
-    // Берем только первый файл, т.к. логика под один аттач
-    const file = acceptedFiles[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Размер файла не должен превышать 10 МБ');
-        return;
-      }
-      setAttachment(file);
-    }
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop,
-    noClick: true, // Отключаем открытие диалога по клику на dropzone
-    noKeyboard: true,
-    disabled: !!editingMessage, // Отключаем, когда редактируем сообщение
-  });
+  const [typingUsers, setTypingUsers] = useState({});
 
   const chatContainerRef = useRef(null);
   const previousScrollHeight = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   // Получаем первоначальные данные (инфо о запросе и старые сообщения)
   const fetchInitialData = useCallback(async () => {
@@ -239,6 +221,70 @@ const ChatPage = () => {
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+
+  // --- НОВАЯ ЛОГИКА ДЛЯ ИНДИКАТОРА ПЕЧАТИ ---
+  useEffect(() => {
+    if (!socket || !requestId) return;
+
+    // Слушаем, кто печатает
+    const handleTypingBroadcast = ({ userId, username, isTyping, chatId }) => {
+      if (chatId !== requestId) return;
+
+      setTypingUsers(prev => {
+        const newTypingUsers = { ...prev };
+        if (isTyping) {
+          // Добавляем или обновляем пользователя с таймером
+          if (newTypingUsers[userId]) {
+            clearTimeout(newTypingUsers[userId].timeoutId);
+          }
+          const timeoutId = setTimeout(() => {
+            setTypingUsers(current => {
+              const updated = { ...current };
+              delete updated[userId];
+              return updated;
+            });
+          }, 5000); // Удаляем, если нет активности 5 секунд
+          newTypingUsers[userId] = { username, timeoutId };
+        } else {
+          // Удаляем пользователя, если он перестал печатать
+          if (newTypingUsers[userId]) {
+            clearTimeout(newTypingUsers[userId].timeoutId);
+          }
+          delete newTypingUsers[userId];
+        }
+        return newTypingUsers;
+      });
+    };
+    
+    socket.on('user:typing:broadcast', handleTypingBroadcast);
+
+    return () => {
+      socket.off('user:typing:broadcast', handleTypingBroadcast);
+      // Очищаем все таймеры при размонтировании
+      setTypingUsers(prev => {
+        Object.values(prev).forEach(user => clearTimeout(user.timeoutId));
+        return {};
+      });
+    };
+  }, [socket, requestId]);
+  
+  // Отправляем событие, когда МЫ печатаем
+  const handleTyping = () => {
+    if (!socket || !requestId) return;
+    
+    // Сообщаем, что начали печатать
+    socket.emit('user:typing', { chatId: requestId, isTyping: true });
+
+    // Если уже есть таймер, сбрасываем его
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Устанавливаем новый таймер
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('user:typing', { chatId: requestId, isTyping: false });
+    }, 3000); // 3 секунды бездействия
+  };
 
   // Скролл всей страницы вниз после загрузки
   useEffect(() => {
@@ -480,6 +526,36 @@ const ChatPage = () => {
   // ИСПРАВЛЕННАЯ ЛОГИКА: Чат активен, если есть хелпер и заявка не закрыта
   const isChatActive = requestDetails?.helper && ['assigned', 'in_progress'].includes(requestDetails?.status);
 
+  const handleMessageChange = (e) => {
+    setNewMessage(e.target.value);
+    handleTyping();
+  };
+
+  // --- КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ПЕЧАТАЮЩИХ ---
+  const TypingIndicator = () => {
+    const users = Object.values(typingUsers).map(u => u.username);
+    
+    if (users.length === 0) return null;
+    
+    let text = '';
+    if (users.length === 1) {
+      text = `${users[0]} печатает...`;
+    } else if (users.length > 1) {
+      text = `${users.join(', ')} печатают...`;
+    }
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        className="text-sm text-gray-500 italic px-4 pb-2"
+      >
+        {text}
+      </motion.div>
+    );
+  };
+
   if (isArchived) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16 text-center">
@@ -641,6 +717,8 @@ const ChatPage = () => {
               />
             ))}
           </AnimatePresence>
+
+          <TypingIndicator />
         </main>
 
         <AnimatePresence>
@@ -702,7 +780,7 @@ const ChatPage = () => {
                       <input
                         type="text"
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={handleMessageChange}
                         placeholder={requestDetails.status === 'open' ? "Хелпер еще не назначен..." : "Напишите сообщение..."}
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         autoComplete="off"
