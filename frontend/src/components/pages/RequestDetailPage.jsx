@@ -3,8 +3,12 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, responsesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import ResponseModal from '../ResponseModal';
-import ResponseCard from '../ResponseCard';
+import ResponseModal from '../modals/ResponseModal';
+import ResponseCard from '../shared/ResponseCard';
+import DeleteConfirmationModal from '../modals/DeleteConfirmationModal';
+import AdminEditRequestModal from '../modals/AdminEditRequestModal';
+import AdminDeleteRequestModal from '../modals/AdminDeleteRequestModal';
+
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -13,11 +17,35 @@ const RequestDetailPage = () => {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isAdminEditModalOpen, setIsAdminEditModalOpen] = useState(false);
+  const [isAdminDeleteModalOpen, setIsAdminDeleteModalOpen] = useState(false);
   const [responses, setResponses] = useState([]);
   const [responsesLoading, setResponsesLoading] = useState(true);
   const { currentUser } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleAdminUpdate = (updatedRequestData) => {
+    setRequest(prevRequest => ({
+      ...prevRequest,
+      ...updatedRequestData,
+      // Убедимся, что вложенные объекты тоже обновляются правильно
+      author: updatedRequestData.author || prevRequest.author,
+      subject: updatedRequestData.subject || prevRequest.subject,
+    }));
+  };
+
+  const handleAdminDelete = async (reason) => {
+    try {
+      await requestsService.adminDeleteRequest(id, reason);
+      toast.success('Заявка успешно удалена');
+      navigate('/requests'); // или на админ-панель
+    } catch (error) {
+      console.error('Ошибка при удалении заявки админом:', error);
+      toast.error(error.response?.data?.msg || 'Не удалось удалить заявку');
+    }
+  };
 
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
@@ -51,6 +79,11 @@ const RequestDetailPage = () => {
   const isAuthor = useMemo(() => {
     return request && currentUser && request.author._id === currentUser._id;
   }, [request, currentUser]);
+
+  const isMod = useMemo(() => {
+    if (!currentUser || !currentUser.roles) return false;
+    return currentUser.roles.admin || currentUser.roles.moderator;
+  }, [currentUser]);
 
   const fetchResponses = useCallback(async () => {
     if (isAuthor) {
@@ -211,9 +244,23 @@ const RequestDetailPage = () => {
         
         <div className="p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-0">
-              {request.title}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-0">
+                {request.title}
+              </h1>
+              {request.adminEditInfo && (
+                <div className="group relative">
+                  <span className="text-sm text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full cursor-help">
+                    (изм. админом)
+                  </span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-3 bg-gray-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+                    <p className="font-bold">Причина изменения:</p>
+                    <p className="whitespace-pre-wrap">{request.adminEditInfo.reason}</p>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                  </div>
+                </div>
+              )}
+            </div>
             {getStatusBadge(request.status)}
           </div>
           
@@ -307,6 +354,27 @@ const RequestDetailPage = () => {
         </div>
       </div>
       
+      {/* АДМИН ПАНЕЛЬ */}
+      {isMod && (
+        <div className="bg-red-50 border-t border-red-200 px-6 py-4">
+          <h3 className="text-lg font-bold text-red-800 mb-2">Панель модератора</h3>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={() => setIsAdminEditModalOpen(true)} 
+              className="btn-admin-edit"
+            >
+              Редактировать
+            </button>
+            <button 
+              onClick={() => setIsAdminDeleteModalOpen(true)} 
+              className="btn-admin-delete"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Секция с откликами для автора запроса */}
       {isAuthor && request.status === 'open' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
@@ -335,35 +403,38 @@ const RequestDetailPage = () => {
         </div>
       )}
       
-      {/* Модальное окно для отправки отклика */}
-      <ResponseModal 
-        isOpen={isResponseModalOpen} 
-        onClose={() => setIsResponseModalOpen(false)} 
+      {/* Модальное окно для ответа */}
+      <ResponseModal
+        isOpen={isResponseModalOpen}
+        onClose={() => setIsResponseModalOpen(false)}
         requestId={id}
+        onResponseSubmitted={handleNewResponse}
       />
       
-      {/* Модальное окно подтверждения удаления */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Подтверждение удаления</h3>
-            <p className="mb-6">Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить.</p>
-            <div className="flex justify-end gap-3">
-              <button 
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Отмена
-              </button>
-              <button 
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                onClick={handleDeleteRequest}
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Модальное окно для подтверждения удаления (стандартное) */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteRequest}
+        title="Удалить запрос?"
+        message="Вы уверены, что хотите удалить этот запрос? Это действие необратимо."
+      />
+
+      {/* Модальные окна для админов */}
+      {isMod && (
+        <>
+          <AdminEditRequestModal
+            isOpen={isAdminEditModalOpen}
+            onClose={() => setIsAdminEditModalOpen(false)}
+            request={request}
+            onSuccess={handleAdminUpdate}
+          />
+          <AdminDeleteRequestModal
+            isOpen={isAdminDeleteModalOpen}
+            onClose={() => setIsAdminDeleteModalOpen(false)}
+            onConfirm={handleAdminDelete}
+          />
+        </>
       )}
     </div>
   );

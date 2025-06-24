@@ -101,7 +101,18 @@ const requestsService = {
   cancelRequest: (id) => api.post(`/requests/${id}/cancel`),
 
   // Переоткрыть запрос
-  reopenRequest: (id) => api.post(`/requests/${id}/reopen`)
+  reopenRequest: (id) => api.post(`/requests/${id}/reopen`),
+
+  // --- Админские функции ---
+  adminUpdateRequest: (id, data) => {
+    // 'data' должен содержать поля заявки и { reason: '...' }
+    return api.put(`/requests/${id}/admin`, data);
+  },
+
+  adminDeleteRequest: (id, reason) => {
+    // Оборачиваем reason в объект, как того требует бэкенд
+    return api.delete(`/requests/${id}/admin`, { data: { reason } });
+  }
 };
 
 // Сервис для работы с откликами на запросы
