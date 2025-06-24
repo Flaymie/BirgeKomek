@@ -314,7 +314,7 @@ const RegisterPage = () => {
                   {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                 </button>
               </div>
-              {formData.password && <PasswordStrengthMeter score={passwordScore} />}
+              {formData.password && <PasswordStrengthMeter score={passwordScore} password={formData.password} />}
             </div>
             
             <div>
