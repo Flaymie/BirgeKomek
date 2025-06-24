@@ -45,24 +45,20 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled'],
+    enum: ['open', 'in_progress', 'completed', 'closed', 'cancelled', 'assigned'],
     default: 'open'
   },
-  chatIsArchived: {
-    type: Boolean,
-    default: false
-  },
-  adminEditInfo: {
-    editedBy: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User' 
+  editedByAdminInfo: {
+    editorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     },
-    reason: { 
+    reason: {
       type: String,
       trim: true
     },
-    editedAt: { 
-      type: Date 
+    editedAt: {
+      type: Date
     }
   },
   createdAt: {

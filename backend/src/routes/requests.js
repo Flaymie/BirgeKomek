@@ -8,6 +8,31 @@ import { createAndSendNotification } from './notifications.js'; // Правил�
 
 const router = express.Router();
 
+// Middleware для проверки прав на редактирование/удаление
+const checkEditDeletePermission = async (req, res, next) => {
+    try {
+        const request = await Request.findById(req.params.id);
+        if (!request) {
+            return res.status(404).json({ msg: 'Запрос не найден' });
+        }
+
+        const user = await User.findById(req.user.id);
+        const isAuthor = request.author.toString() === req.user.id;
+        const isAdminOrModerator = user.roles.admin || user.roles.moderator;
+        
+        if (!isAuthor && !isAdminOrModerator) {
+            return res.status(403).json({ msg: 'У вас нет прав для выполнения этого действия' });
+        }
+        
+        req.request = request; // Передаем найденный запрос дальше
+        req.isModeratorAction = isAdminOrModerator && !isAuthor; // Флаг, что действует модер/админ
+        next();
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка сервера при проверке прав');
+    }
+};
+
 /**
  * @swagger
  * /api/requests:
@@ -620,31 +645,32 @@ router.post('/:id/cancel', protect, [
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: 'string' }
+ *         description: ID заявки
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               title: { type: 'string', minLength: 5, maxLength: 100 }
- *               description: { type: 'string', minLength: 10 }
- *               subject: { type: 'string' }
- *               grade: { type: 'integer', minimum: 1, maximum: 11 }
- *               topic: { type: 'string', nullable: true }
+ *             allOf:
+ *               - $ref: '#/components/schemas/Request'
+ *               - type: object
+ *                 properties:
+ *                   editReason:
+ *                     type: string
+ *                     description: Причина редактирования (для админов/модераторов)
  *     responses:
- *       200: { description: 'Заявка успешно обновлена' }
- *       400: { description: 'Ошибка валидации' }
- *       403: { description: 'Только автор может редактировать' }
- *       404: { description: 'Заявка не найдена' }
+ *       200:
+ *         description: Заявка успешно обновлена
+ *       403:
+ *         description: Нет прав на редактирование
  */
-router.put('/:id', protect, [
-    param('id').isMongoId().withMessage('Неверный ID заявки'),
-    body('title').optional().trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
-    body('description').optional().trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
-    body('subject').optional().trim().notEmpty().withMessage('Предмет не может быть пустым, если указан'),
+router.put('/:id', protect, checkEditDeletePermission, [
+    // Валидация остается прежней, но добавляем необязательное поле
+    body('title').optional().trim().isLength({ min: 5, max: 100 }).escape(),
+    body('description').optional().trim().isLength({ min: 10 }).escape(),
+    body('subject').optional().trim().notEmpty().escape(),
     body('grade').optional().isInt({ min: 1, max: 11 }),
-    body('topic').optional({ nullable: true }).trim().escape()
+    body('editReason').optional().trim().escape()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -652,43 +678,42 @@ router.put('/:id', protect, [
     }
 
     try {
-        const request = await Request.findById(req.params.id);
-        if (!request) {
-            return res.status(404).json({ msg: 'Заявка не найдена' });
-        }
+        const { title, description, subject, grade, urgency, editReason } = req.body;
+        let request = req.request; // Получаем из middleware
 
-        if (request.author.toString() !== req.user.id) {
-            return res.status(403).json({ msg: 'Только автор может редактировать свою заявку' });
-        }
+        // Обновляем поля
+        if (title) request.title = title;
+        if (description) request.description = description;
+        if (subject) request.subject = subject;
+        if (grade) request.grade = grade;
+        if (urgency) request.urgency = urgency;
 
-        // Обновляем только те поля, которые пришли в запросе
-        const updates = {};
-        const allowedFields = ['title', 'description', 'subject', 'grade', 'topic'];
-        for (const key in req.body) {
-            if (allowedFields.includes(key) && req.body[key] !== undefined) {
-                updates[key] = req.body[key];
+        // Если это действие модератора/админа, сохраняем причину
+        if (req.isModeratorAction && editReason) {
+            request.editedByAdminInfo = {
+                editorId: req.user.id,
+                reason: editReason,
+                editedAt: new Date()
+            };
+            
+            // Отправляем уведомление автору
+            if (request.author.toString() !== req.user.id) {
+                await createAndSendNotification({
+                    user: request.author,
+                    type: 'request_edited_by_admin',
+                    title: 'Ваша заявка была отредактирована',
+                    message: `Модератор ${req.user.username} отредактировал вашу заявку \"${request.title}\". Причина: \"${editReason}\"`,
+                    link: `/request/${request._id}`,
+                    relatedEntity: { requestId: request._id, editorId: req.user.id }
+                });
             }
         }
         
-        if (Object.keys(updates).length === 0) {
-            return res.status(400).json({ msg: 'Нет данных для обновления' });
-        }
+        const updatedRequest = await request.save();
+        res.json(updatedRequest);
 
-        Object.assign(request, updates);
-        request.updatedAt = Date.now();
-        await request.save();
-
-        // TODO: Уведомление хелперу, если заявка была назначена и ее отредактировали?
-        // if (request.status === 'assigned' && request.helper) {
-        //     await createAndSendNotification({ ... });
-        // }
-
-        res.json(request);
     } catch (err) {
-        console.error('Ошибка при обновлении заявки:', err.message);
-        if (err.kind === 'ObjectId') {
-            return res.status(400).json({ msg: 'Неверный формат ID заявки' });
-        }
+        console.error('Ошибка при обновлении заявки:', err);
         res.status(500).send('Ошибка сервера');
     }
 });
@@ -789,7 +814,8 @@ router.put('/:id/status', protect, [
  * @swagger
  * /api/requests/{id}:
  *   delete:
- *     summary: Удалить заявку (только для автора или админа)
+ *     summary: Удалить заявку
+ *     description: Доступно только автору или модератору/администратору.
  *     tags: [Requests]
  *     security:
  *       - bearerAuth: []
@@ -797,52 +823,58 @@ router.put('/:id/status', protect, [
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: 'string' }
+ *         description: ID заявки
+ *     requestBody:
+ *       description: Причина удаления (обязательна для модераторов/админов).
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               deleteReason:
+ *                 type: string
  *     responses:
- *       200: { description: 'Заявка успешно удалена' }
- *       403: { description: 'Нет прав на удаление' }
- *       404: { description: 'Заявка не найдена' }
+ *       200:
+ *         description: Заявка успешно удалена
+ *       403:
+ *         description: Нет прав на удаление
  */
-router.delete('/:id', protect, [
-    param('id').isMongoId().withMessage('Неверный ID заявки')
+router.delete('/:id', protect, checkEditDeletePermission, [
+    // Валидация для причины удаления, если это действие модератора
+    body('deleteReason').if((value, { req }) => req.isModeratorAction).notEmpty().withMessage('Причина удаления обязательна для модератора.')
 ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
     try {
-        const request = await Request.findById(req.params.id).populate('helper', '_id username');
-        if (!request) {
-            return res.status(404).json({ msg: 'Заявка не найдена' });
-        }
+        const { deleteReason } = req.body;
+        const request = req.request;
 
-        const isUserAdmin = req.user.roles && req.user.roles.admin; // Проверяем, админ ли текущий юзер
-        if (request.author.toString() !== req.user.id && !isUserAdmin) { // Если не автор И не админ
-            return res.status(403).json({ msg: 'Вы не можете удалить эту заявку. Действие доступно только автору или администратору.' });
+        // Уведомляем автора, если удаляет модератор
+        if (req.isModeratorAction) {
+             if (request.author.toString() !== req.user.id) {
+                await createAndSendNotification({
+                    user: request.author,
+                    type: 'request_deleted_by_admin',
+                    title: 'Ваша заявка была удалена',
+                    message: `Модератор ${req.user.username} удалил вашу заявку \"${request.title}\". Причина: \"${deleteReason}\"`,
+                    relatedEntity: { title: request.title, editorId: req.user.id }
+                });
+            }
         }
-
+        
         // Удаляем связанные сообщения
         await Message.deleteMany({ requestId: request._id });
-        
-        // Уведомление хелперу, если заявка была назначена и ее удалили
-        if (request.status === 'assigned' && request.helper && request.helper._id) {
-           await createAndSendNotification({
-                user: request.helper._id, // ID хелпера
-                type: 'request_deleted', // Новый тип уведомления
-                title: `Заявка \"${request.title}\" была удалена`,
-                message: `Заявка \"${request.title}\", на которую вы были назначены, была удалена автором или администратором.`,
-                // link: `/requests` // Ссылка может вести просто на список заявок, так как конкретной уже нет
-           });
-        }
+        // Удаляем связанные отклики (если есть модель Response)
+        // await Response.deleteMany({ requestId: request._id });
+        // Удаляем связанные отзывы (если есть)
+        // await Review.deleteMany({ requestId: request._id });
 
-        await Request.findByIdAndDelete(req.params.id);
+        // Удаляем саму заявку
+        await Request.findByIdAndDelete(request._id);
 
-        res.json({ msg: 'Заявка успешно удалена' });
+        res.json({ msg: 'Заявка и все связанные данные удалены' });
+
     } catch (err) {
         console.error('Ошибка при удалении заявки:', err.message);
-         if (err.kind === 'ObjectId') {
-            return res.status(400).json({ msg: 'Неверный формат ID заявки' });
-        }
         res.status(500).send('Ошибка сервера');
     }
 });
@@ -935,182 +967,6 @@ router.post('/:id/reopen', protect, [
             return res.status(400).json({ msg: 'Неверный формат ID заявки' });
         }
         res.status(500).send('Ошибка сервера');
-    }
-});
-
-// === АДМИНСКИЕ РОУТЫ ===
-
-/**
- * @swagger
- * /api/requests/{id}/admin:
- *   put:
- *     summary: (АДМИН) Редактировать заявку
- *     tags: [Requests, Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: 'string' }
- *         description: ID заявки для редактирования
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title: { type: 'string' }
- *               description: { type: 'string' }
- *               subject: { type: 'string' }
- *               grade: { type: 'integer' }
- *               status: { type: 'string' }
- *               reason: { type: 'string', description: "Причина редактирования, обязательна" }
- *     responses:
- *       200:
- *         description: Заявка успешно обновлена
- *       400:
- *         description: Некорректные данные или отсутствует причина
- *       403:
- *         description: Нет прав администратора/модератора
- *       404:
- *         description: Заявка не найдена
- */
-router.put('/:id/admin', 
-  protect, 
-  isModOrAdmin,
-  [
-    param('id').isMongoId().withMessage('Неверный ID заявки'),
-    body('reason').trim().notEmpty().withMessage('Причина редактирования обязательна'),
-    // Валидация остальных полей опциональна, т.к. админ может менять не все
-    body('title').optional().trim().isLength({ min: 5, max: 100 }),
-    body('description').optional().trim().isLength({ min: 10 }),
-    body('subject').optional().trim().notEmpty(),
-    body('grade').optional().isInt({ min: 1, max: 11 }),
-    body('status').optional().isIn(['open', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled']),
-  ], 
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    try {
-      const { reason, ...updateData } = req.body;
-      const request = await Request.findById(req.params.id);
-
-      if (!request) {
-        return res.status(404).json({ msg: 'Заявка не найдена' });
-      }
-
-      // Обновляем поля заявки
-      Object.assign(request, updateData);
-
-      // Записываем информацию о редактировании
-      request.adminEditInfo = {
-        editedBy: req.user._id,
-        reason: reason,
-        editedAt: new Date()
-      };
-      
-      await request.save();
-
-      // Отправляем уведомление автору заявки
-      if (request.author.toString() !== req.user._id.toString()) {
-        await createAndSendNotification({
-          user: request.author,
-          type: 'request_edited_by_admin',
-          title: `Ваша заявка "${request.title}" была изменена`,
-          message: `Модератор ${req.user.username} внес изменения. Причина: "${reason}"`,
-          link: `/request/${request._id}`
-        });
-      }
-
-      res.json(request);
-
-    } catch (err) {
-      console.error('Ошибка (админ) при редактировании заявки:', err.message);
-      res.status(500).send('Ошибка сервера');
-    }
-});
-
-
-/**
- * @swagger
- * /api/requests/{id}/admin:
- *   delete:
- *     summary: (АДМИН) Удалить заявку
- *     tags: [Requests, Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: 'string' }
- *         description: ID заявки для удаления
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [reason]
- *             properties:
- *               reason: { type: 'string', description: "Причина удаления, обязательна" }
- *     responses:
- *       200:
- *         description: Заявка успешно удалена
- *       400:
- *         description: Отсутствует причина
- *       403:
- *         description: Нет прав администратора/модератора
- *       404:
- *         description: Заявка не найдена
- */
-router.delete('/:id/admin', 
-  protect, 
-  isModOrAdmin,
-  [
-    param('id').isMongoId().withMessage('Неверный ID заявки'),
-    body('reason').trim().notEmpty().withMessage('Причина удаления обязательна')
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    try {
-      const { reason } = req.body;
-      const request = await Request.findById(req.params.id);
-
-      if (!request) {
-        return res.status(404).json({ msg: 'Заявка не найдена' });
-      }
-
-      // Сначала отправляем уведомление
-      if (request.author.toString() !== req.user._id.toString()) {
-        await createAndSendNotification({
-          user: request.author,
-          type: 'request_deleted_by_admin',
-          title: `Ваша заявка "${request.title}" была удалена`,
-          message: `Модератор ${req.user.username} удалил вашу заявку. Причина: "${reason}"`
-          // Ссылку делать бессмысленно, т.к. заявки уже не будет
-        });
-      }
-
-      // Затем удаляем связанные сущности и саму заявку
-      await Message.deleteMany({ requestId: request._id });
-      // Можно добавить удаление откликов, отзывов и т.д.
-      await request.deleteOne();
-
-      res.json({ msg: 'Заявка и связанные сообщения были удалены' });
-
-    } catch (err) {
-      console.error('Ошибка (админ) при удалении заявки:', err.message);
-      res.status(500).send('Ошибка сервера');
     }
 });
 

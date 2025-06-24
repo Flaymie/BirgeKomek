@@ -78,8 +78,8 @@ const requestsService = {
   },
   
   // Удалить запрос
-  deleteRequest: async (id) => {
-    return api.delete(`/requests/${id}`);
+  deleteRequest: async (id, data) => {
+    return api.delete(`/requests/${id}`, { data });
   },
   
   // Назначить помощника
@@ -101,18 +101,7 @@ const requestsService = {
   cancelRequest: (id) => api.post(`/requests/${id}/cancel`),
 
   // Переоткрыть запрос
-  reopenRequest: (id) => api.post(`/requests/${id}/reopen`),
-
-  // --- Админские функции ---
-  adminUpdateRequest: (id, data) => {
-    // 'data' должен содержать поля заявки и { reason: '...' }
-    return api.put(`/requests/${id}/admin`, data);
-  },
-
-  adminDeleteRequest: (id, reason) => {
-    // Оборачиваем reason в объект, как того требует бэкенд
-    return api.delete(`/requests/${id}/admin`, { data: { reason } });
-  }
+  reopenRequest: (id) => api.post(`/requests/${id}/reopen`)
 };
 
 // Сервис для работы с откликами на запросы
