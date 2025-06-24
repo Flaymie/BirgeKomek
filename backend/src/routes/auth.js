@@ -146,7 +146,7 @@ router.post('/register',
   try {
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(400).json({ msg: 'Пользователь с таким email уже существует' });
+      return res.status(400).json({ msg: 'Регистрация невозможна. Попробуйте другой email.' });
     }
 
     user = await User.findOne({ username });

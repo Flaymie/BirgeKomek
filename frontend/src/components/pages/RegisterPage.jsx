@@ -122,7 +122,7 @@ const RegisterPage = () => {
                 setEmailStatus('available');
             } else {
                 setEmailStatus('unavailable');
-                setEmailError(res.data.message || 'Этот email уже зарегистрирован');
+                setEmailError(res.data.message || 'Этот email недоступен');
             }
         } catch (error) {
             setEmailStatus('error');
