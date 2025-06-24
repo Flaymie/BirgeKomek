@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
@@ -40,9 +40,9 @@ const EditRequestPage = () => {
     }
     
     fetchRequestData();
-  }, [id, navigate, currentUser]);
+  }, [id, navigate, currentUser, fetchRequestData]);
   
-  const fetchRequestData = async () => {
+  const fetchRequestData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await requestsService.getRequestById(id);
@@ -90,7 +90,7 @@ const EditRequestPage = () => {
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
       setLoading(false);
     }
-  };
+  }, [id, navigate, currentUser]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;

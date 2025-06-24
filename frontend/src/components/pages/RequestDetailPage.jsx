@@ -2,11 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, responsesService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
 import ResponseModal from '../ResponseModal';
 import ResponseCard from '../ResponseCard';
-import ResponseList from '../shared/ResponseList';
 
 const RequestDetailPage = () => {
   const { id } = useParams();

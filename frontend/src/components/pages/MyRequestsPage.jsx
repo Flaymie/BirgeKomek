@@ -31,7 +31,7 @@ const MyRequestsPage = () => {
     if (currentUser) {
     fetchRequests();
     }
-  }, [currentPage, filters, navigate, currentUser]);
+  }, [currentPage, filters, navigate, currentUser, fetchRequests]);
 
   // Используем useCallback, чтобы функция не создавалась заново при каждом рендере
   const fetchRequests = useCallback(async () => {

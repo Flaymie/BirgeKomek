@@ -13,6 +13,7 @@ const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const { currentUser } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (currentUser) {
@@ -52,7 +53,7 @@ export const SocketProvider = ({ children }) => {
       socket.disconnect();
       setSocket(null);
     }
-  }, [currentUser]);
+  }, [currentUser, setUnreadCount]);
 
   useEffect(() => {
     if (socket) {
@@ -70,6 +71,7 @@ export const SocketProvider = ({ children }) => {
 
   const value = {
     socket,
+    unreadCount,
     setUnreadCount
   };
 

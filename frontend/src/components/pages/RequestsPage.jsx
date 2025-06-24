@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
-import { toast } from 'react-toastify';
 import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
-import RequestList from '../shared/RequestList';
 
 const RequestsPage = () => {
   const navigate = useNavigate();
@@ -106,10 +104,17 @@ const RequestsPage = () => {
     fetchRequests();
   }, [fetchRequests]);
 
-  const handleFilterChange = (newFilters) => {
-    // Сбрасываем страницу на первую при изменении фильтров
-    setCurrentPage(1);
-    setFilters(prev => ({ ...prev, ...newFilters }));
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    // fetchRequests() вызывается через useEffect при изменении filters,
+    // но для мгновенной реакции на сабмит формы можно вызвать и здесь.
+    fetchRequests();
   };
   
   const handlePageChange = (newPage) => {
