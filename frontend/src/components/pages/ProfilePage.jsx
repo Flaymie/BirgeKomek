@@ -83,12 +83,16 @@ const ProfileStats = ({ profile }) => {
   if (profile.roles.helper) {
     return (
       <div className="border-t border-gray-200 pt-4 mt-6">
-        <div className="grid grid-cols-2 gap-4 text-center">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-lg font-semibold text-indigo-600">
               {typeof profile.rating === 'number' ? profile.rating.toFixed(1) : 'Н/Д'}
             </p>
             <p className="text-sm text-gray-500">Рейтинг</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-indigo-600">{profile.completedRequests || 0}</p>
+            <p className="text-sm text-gray-500">Выполнено</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
@@ -102,7 +106,11 @@ const ProfileStats = ({ profile }) => {
   // Если ученик, показываем его статистику
   return (
     <div className="border-t border-gray-200 pt-4 mt-6">
-      <div className="flex justify-center text-center">
+      <div className="grid grid-cols-2 gap-4 text-center">
+        <div>
+          <p className="text-lg font-semibold text-indigo-600">{profile.createdRequests || 0}</p>
+          <p className="text-sm text-gray-500">Создано запросов</p>
+        </div>
         <div>
           <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
           <p className="text-sm text-gray-500">Класс</p>
