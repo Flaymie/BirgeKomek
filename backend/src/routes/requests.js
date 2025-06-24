@@ -210,7 +210,7 @@ router.post('/', protect, [
                         type: 'new_request_for_subject',
                         title: `Новая заявка по предмету: ${subject}`,
                         message: `Пользователь ${req.user.username} создал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                        link: `/requests/${request._id}`,
+                        link: `/request/${request._id}`,
                         relatedEntity: { requestId: request._id }
                     });
                 }
@@ -347,7 +347,7 @@ router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
             type: 'request_assigned_to_you',
             title: `Вас назначили на заявку!`,
             message: `Вы были назначены помощником на заявку \"${request.title}\".`,
-            link: `/requests/${request._id}`,
+            link: `/request/${request._id}`,
             relatedEntity: { requestId: request._id }
         });
         
@@ -357,7 +357,7 @@ router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
                 type: 'request_taken_by_helper', 
                 title: `На вашу заявку назначен помощник!`,
                 message: `Пользователь ${helper.username} был назначен на вашу заявку \"${request.title}\".`,
-                link: `/requests/${request._id}`,
+                link: `/request/${request._id}`,
                 relatedEntity: { requestId: request._id, userId: helper._id }
             });
         }
@@ -427,7 +427,7 @@ router.post('/:id/take', protect, isHelper, [ // isHelper middleware прове�
                 type: 'request_taken_by_helper',
                 title: `Вашу заявку взяли!`,
                 message: `Помощник ${req.user.username} взял вашу заявку \"${request.title}\".`,
-                link: `/requests/${request._id}`,
+                link: `/request/${request._id}`,
                 relatedEntity: { requestId: request._id, userId: req.user.id }
             });
         }
@@ -493,7 +493,7 @@ router.post('/:id/complete', protect, [
         await request.save();
 
         const notificationTitle = `Заявка \"${request.title}\" выполнена`;
-        const notificationLink = `/requests/${request._id}`;
+        const notificationLink = `/request/${request._id}`;
         const commonRelatedEntity = { requestId: request._id };
 
         // Уведомление автору (если завершил хелпер и автор не он сам)
@@ -592,7 +592,7 @@ router.post('/:id/cancel', protect, [
                 type: 'request_status_changed', // или более конкретный тип 'request_cancelled_by_author'
                 title: `Заявка \"${request.title}\" отменена`,
                 message: `Автор ${req.user.username} отменил заявку, на которую вы были назначены.`,
-                link: `/requests/${request._id}`,
+                link: `/request/${request._id}`,
                 relatedEntity: { requestId: request._id }
             });
         }
@@ -912,7 +912,7 @@ router.post('/:id/reopen', protect, [
                 type: 'request_reopened_by_author',
                 title: 'Заявка была возвращена в работу',
                 message: `Автор заявки "${request.title}" не получил решения и вернул ее в общий список. Текущий чат архивирован.`,
-                link: `/requests`, // Ссылки на конкретную заявку нет, т.к. он больше не участник
+                link: `/request/${request._id}`,
                 relatedEntity: { requestId: request._id }
             });
         }
@@ -923,7 +923,7 @@ router.post('/:id/reopen', protect, [
             type: 'request_reopened_by_you',
             title: 'Вы вернули заявку в работу',
             message: `Ваша заявка "${request.title}" снова открыта и видна другим помощникам. Старый чат архивирован.`,
-            link: `/requests/${request._id}`,
+            link: `/request/${request._id}`,
             relatedEntity: { requestId: request._id }
         });
 

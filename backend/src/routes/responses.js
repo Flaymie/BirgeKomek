@@ -98,12 +98,13 @@ router.post('/', protect, [
     // Создаем уведомление для автора запроса
     await createAndSendNotification({
       user: request.author,
-      type: 'request_taken_by_helper',
-      title: 'Новый отклик на ваш запрос',
-      message: `${req.user.username} откликнулся на ваш запрос "${request.title}"`,
-      link: `/request/${requestId}`,
+      type: 'new_response_to_request',
+      title: 'Новый отклик на вашу заявку!',
+      message: `Пользователь ${req.user.username} откликнулся на вашу заявку "${request.title}".`,
+      link: `/request/${request._id}/chat`,
       relatedEntity: {
-        requestId: requestId,
+        requestId: request._id,
+        responseId: newResponse._id,
         userId: helper
       }
     });
@@ -244,7 +245,7 @@ router.put('/:responseId/status', protect, [
             type: 'request_assigned_to_you',
             title: 'Помощник назначен!',
             message: `Пользователь ${response.helper.username} был назначен помощником по вашему запросу "${request.title}".`,
-            link: `/requests/${request._id}/chat`,
+            link: `/request/${request._id}/chat`,
             relatedEntity: {
                 requestId: request._id,
                 userId: response.helper._id

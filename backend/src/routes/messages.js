@@ -237,7 +237,7 @@ router.post('/', protect, [
                 type: 'new_message_in_request',
                 title: `Новое сообщение в заявке "${request.title}"`, 
                 message: `Пользователь ${req.user.username} написал: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-                link: `/requests/${requestId}`,
+                link: `/request/${requestId}`,
                 relatedEntity: { requestId: request._id, userId: senderId }
             });
         }
@@ -435,7 +435,7 @@ router.post('/upload', protect, uploadWithErrorHandler, [
         type: 'new_message_in_request',
                 title: `Новое сообщение в заявке "${request.title}"`,
                 message: `Пользователь ${req.user.username} отправил сообщение: ${notificationMessage}`,
-                link: `/requests/${requestId}/chat`,
+                link: `/request/${requestId}/chat`,
                 relatedEntity: { requestId: request._id, userId: senderId }
       });
     }
