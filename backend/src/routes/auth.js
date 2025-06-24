@@ -192,7 +192,7 @@ router.post('/register',
     await user.save();
     
     const token = jwt.sign(
-      { id: user._id }, 
+      { id: user._id, username: user.username },
       process.env.JWT_SECRET, 
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -292,15 +292,18 @@ router.post('/login', [
     const isMatch = await user.comparePassword(password);
     
     if (!isMatch) {
-      return res.status(401).json({ msg: 'Неверные данные' });
+      return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
     
     // создаем токен
     const token = jwt.sign(
-      { id: user._id }, 
-      process.env.JWT_SECRET, 
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
+    
+    // Обновляем время последнего входа
+    user.lastSeen = new Date();
     
     // не возвращаем пароль
     user.password = undefined;
