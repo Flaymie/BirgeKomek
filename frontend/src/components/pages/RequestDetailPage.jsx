@@ -92,17 +92,9 @@ const RequestDetailPage = () => {
     }
   };
 
-  const handleAdminEdit = async (reason) => {
-    try {
-      const updatedData = { ...request, editReason: reason };
-      await requestsService.updateRequest(id, updatedData);
-      toast.success('Заявка успешно отредактирована');
-      fetchRequestDetails();
-      setAdminEditModalOpen(false);
-    } catch (err) {
-      console.error('Ошибка при редактировании:', err);
-      toast.error(err.response?.data?.msg || 'Не удалось обновить заявку');
-    }
+  const handleAdminEdit = (reason) => {
+    setAdminEditModalOpen(false);
+    navigate(`/request/${id}/edit`, { state: { editReason: reason, fromAdmin: true } });
   };
   
   const handleAdminDelete = async (reason) => {

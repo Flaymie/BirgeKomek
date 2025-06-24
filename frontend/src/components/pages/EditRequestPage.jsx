@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -11,7 +11,12 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 const EditRequestPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
+
+  // Получаем данные из state навигации
+  const { editReason, fromAdmin } = location.state || {};
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,8 +53,11 @@ const EditRequestPage = () => {
       const response = await requestsService.getRequestById(id);
       const requestData = response.data;
       
-      // Проверяем, является ли текущий пользователь автором запроса
-      if (!currentUser || currentUser._id !== requestData.author._id) {
+      const isAuthor = currentUser && currentUser._id === requestData.author._id;
+      const isAdminOrMod = currentUser && (currentUser.roles.admin || currentUser.roles.moderator);
+
+      // Права на редактирование: либо автор, либо админ/модер, пришедший с модального окна
+      if (!isAuthor && !(isAdminOrMod && fromAdmin)) {
         setError('У вас нет прав на редактирование этого запроса');
         setLoading(false);
         return;
@@ -90,7 +98,7 @@ const EditRequestPage = () => {
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
       setLoading(false);
     }
-  }, [id, navigate, currentUser]);
+  }, [id, navigate, currentUser, fromAdmin]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -154,14 +162,12 @@ const EditRequestPage = () => {
     
     try {
       // Создаем копию данных формы для отправки
-      const requestData = {
-        ...formData,
-        // Убедимся, что специальные символы в описании не будут экранированы
-        description: formData.description
-          .replace(/</g, '<')
-          .replace(/>/g, '>')
-          .replace(/&/g, '&')
-      };
+      const requestData = { ...formData };
+
+      // Если редактирует админ, добавляем причину
+      if (fromAdmin && editReason) {
+        requestData.editReason = editReason;
+      }
       
       await requestsService.updateRequest(id, requestData);
       
@@ -211,6 +217,12 @@ const EditRequestPage = () => {
   
   return (
     <div className="container mx-auto px-4 py-8">
+      {fromAdmin && editReason && (
+        <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4">
+          <p><span className="font-semibold">Режим редактирования модератором.</span></p>
+          <p>Причина: <strong>{editReason}</strong>. Эта причина будет отправлена автору.</p>
+        </div>
+      )}
       <div className="mb-6">
         <Link 
           to={`/request/${id}`}
