@@ -68,6 +68,19 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  banEndDate: {
+    type: Date,
+    default: null
+  },
+  bannedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  bannedByUsername: {
+    type: String,
+    default: null
+  },
   grade: {
     type: String,
     required: function() { return this.roles.student; }

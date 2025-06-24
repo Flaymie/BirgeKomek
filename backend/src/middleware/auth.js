@@ -28,6 +28,35 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ msg: 'Не найден юзер с этим токеном' });
     }
     
+    // ПРОВЕРКА НА БАН
+    if (user.isBanned) {
+      // Проверяем, не истек ли срок бана
+      const now = new Date();
+      if (user.banEndDate && user.banEndDate <= now) {
+        // Если срок бана истек, снимаем бан
+        user.isBanned = false;
+        user.banReason = null;
+        user.bannedAt = null;
+        user.banEndDate = null;
+        user.bannedBy = null;
+        user.bannedByUsername = null;
+        await user.save();
+        
+        // Продолжаем выполнение запроса
+        req.user = user;
+        return next();
+      }
+      
+      // Если бан активен, отправляем расширенную информацию о бане
+      return res.status(403).json({ 
+        msg: `Ваш аккаунт заблокирован. ${user.banReason ? `Причина: ${user.banReason}` : ''}`,
+        isBanned: true,
+        banReason: user.banReason,
+        bannedBy: user.bannedByUsername,
+        banEndDate: user.banEndDate
+      });
+    }
+    
     // добавляем юзера в запрос
     req.user = user;
     next();

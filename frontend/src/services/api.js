@@ -40,6 +40,22 @@ api.interceptors.response.use(
     if (error.response) {
       console.error('Данные ответа:', error.response.data);
       console.error('Статус ответа:', error.response.status);
+      
+      // Обработка бана пользователя
+      if (error.response.data && error.response.data.isBanned === true) {
+        console.log('Пользователь забанен:', error.response.data.banReason);
+        // Устанавливаем флаги для модального окна бана
+        if (window.authContext) {
+          window.authContext.setBanReason(error.response.data.banReason || 'Причина не указана');
+          window.authContext.setIsBanned(true);
+          
+          // Добавляем расширенную информацию о бане
+          window.authContext.setBanInfo({
+            bannedBy: error.response.data.bannedBy || null,
+            banEndDate: error.response.data.banEndDate || null
+          });
+        }
+      }
     }
     
     const isRegistrationPage = window.location.pathname.includes('/register');

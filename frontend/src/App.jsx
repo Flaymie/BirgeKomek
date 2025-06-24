@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import RequireAuth from './components/auth/RequireAuth';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import HomePage from './components/pages/HomePage';
 import AboutPage from './components/pages/AboutPage';
 import RegisterPage from './components/pages/RegisterPage';
@@ -24,7 +24,7 @@ import { useAuth } from './context/AuthContext';
 import BannedUserModal from './components/modals/BannedUserModal';
 
 const App = () => {
-  const { isBanned, banReason, logout } = useAuth();
+  const { isBanned, banReason, logout, banInfo } = useAuth();
 
   return (
     <>
@@ -34,6 +34,8 @@ const App = () => {
         isOpen={isBanned}
         reason={banReason}
         onConfirm={logout}
+        moderator={banInfo?.bannedBy}
+        banEndDate={banInfo?.banEndDate}
       />
       
       <Layout>
@@ -48,17 +50,15 @@ const App = () => {
           <Route path="/requests" element={<RequestsPage />} />
           
           {/* Защищенные маршруты */}
-          <Route element={<RequireAuth />}>
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
-            <Route path="/create-request" element={<CreateRequestPage />} />
-            <Route path="/request/:id" element={<RequestDetailPage />} />
-            <Route path="/request/:id/edit" element={<EditRequestPage />} />
-            <Route path="/requests/:id/chat" element={<ChatPage />} />
-            <Route path="/chats" element={<ChatsPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/my-requests" element={<MyRequestsPage />} />
-          </Route>
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile/:id" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/create-request" element={<ProtectedRoute><CreateRequestPage /></ProtectedRoute>} />
+          <Route path="/request/:id" element={<ProtectedRoute><RequestDetailPage /></ProtectedRoute>} />
+          <Route path="/request/:id/edit" element={<ProtectedRoute><EditRequestPage /></ProtectedRoute>} />
+          <Route path="/requests/:id/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+          <Route path="/chats" element={<ProtectedRoute><ChatsPage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+          <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
         </Routes>
       </Layout>
     </>

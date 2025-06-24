@@ -14,6 +14,21 @@ export const AuthProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState('');
+  const [banInfo, setBanInfo] = useState(null);
+
+  // Сохраняем ссылку на методы в глобальной переменной для доступа из api.js
+  useEffect(() => {
+    window.authContext = {
+      setIsBanned,
+      setBanReason,
+      setBanInfo,
+      logout
+    };
+    
+    return () => {
+      delete window.authContext;
+    };
+  }, []);
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -100,21 +115,10 @@ export const AuthProvider = ({ children }) => {
         }
       });
 
-      // --- НОВЫЙ СЛУШАТЕЛЬ ДЛЯ БАНА ---
-      eventSource.addEventListener('user_banned', (event) => {
-        console.log('Получено событие о бане!');
-        const data = JSON.parse(event.data);
-        setBanReason(data.reason || 'Причина не указана.');
-        setIsBanned(true);
-        // Закрываем соединение, так как сессия будет прервана
-        eventSource.close(); 
-      });
-
       eventSource.onerror = (err) => {
         console.error('Ошибка SSE-соединения:', err);
         eventSource.close();
       };
-
     }
 
     return () => {
@@ -132,28 +136,37 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.login(credentials);
       localStorage.setItem('token', response.data.token);
       
-      // Получаем данные пользователя
       const userResponse = await usersService.getCurrentUser();
       setCurrentUser(processUserData(userResponse.data));
       setLoading(false);
       toast.success('Вход выполнен успешно!');
-      return true;
+      return { success: true };
     } catch (err) {
       console.error('Ошибка входа:', err);
 
       let errorMessage;
       if (err.response && err.response.status === 403) {
-        // Если сервер вернул 403, это бан
         errorMessage = err.response?.data?.msg || 'Доступ запрещен. Ваш аккаунт может быть заблокирован.';
+        
+        // Обработка информации о бане
+        if (err.response?.data?.isBanned) {
+          setIsBanned(true);
+          setBanReason(err.response.data.banReason || 'Причина не указана');
+          
+          // Сохраняем расширенную информацию о бане
+          setBanInfo({
+            bannedBy: err.response.data.bannedBy,
+            banEndDate: err.response.data.banEndDate
+          });
+        }
       } else {
-        // Другие ошибки входа
         errorMessage = err.response?.data?.msg || 'Неверный email или пароль';
       }
 
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
-      return false;
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -307,6 +320,7 @@ export const AuthProvider = ({ children }) => {
     setUnreadCount(0); // Сбрасываем счетчик при выходе
     setIsBanned(false); // Сбрасываем статус бана при выходе
     setBanReason('');
+    setBanInfo(null); // Сбрасываем информацию о бане
   };
 
   const value = {
@@ -316,7 +330,11 @@ export const AuthProvider = ({ children }) => {
     unreadCount,
     isBanned,
     banReason,
+    banInfo,
     setUnreadCount,
+    setIsBanned,
+    setBanReason,
+    setBanInfo,
     login,
     logout,
     register,
