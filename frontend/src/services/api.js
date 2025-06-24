@@ -95,7 +95,13 @@ const requestsService = {
   // Отклик на заявку
   addResponse: (requestId, comment) => {
     return api.post('/responses', { requestId, comment });
-  }
+  },
+
+  // Отменить запрос
+  cancelRequest: (id) => api.post(`/requests/${id}/cancel`),
+
+  // Переоткрыть запрос
+  reopenRequest: (id) => api.post(`/requests/${id}/reopen`)
 };
 
 // Сервис для работы с откликами на запросы

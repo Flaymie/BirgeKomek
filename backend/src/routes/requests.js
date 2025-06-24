@@ -96,8 +96,15 @@ router.get('/', protect, [
         const filters = {};
         if (subject) filters.subject = { $regex: subject, $options: 'i' };
         if (grade) filters.grade = grade;
-        if (status) filters.status = status;
-        else filters.status = 'open'; // По умолчанию только открытые, если статус не задан
+        
+        // Логика фильтрации по статусу
+        if (status) {
+            filters.status = status;
+        } else if (!authorId && !helperId) {
+            // По умолчанию показываем только 'open', если не запрашиваются заявки конкретного пользователя
+            filters.status = 'open';
+        }
+
         if (authorId) filters.author = authorId;
         if (helperId) filters.helper = helperId;
 
@@ -822,6 +829,95 @@ router.delete('/:id', protect, [
     } catch (err) {
         console.error('Ошибка при удалении заявки:', err.message);
          if (err.kind === 'ObjectId') {
+            return res.status(400).json({ msg: 'Неверный формат ID заявки' });
+        }
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
+/**
+ * @swagger
+ * /api/requests/{id}/reopen:
+ *   post:
+ *     summary: Переоткрыть заявку, если помощь не устроила
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string', description: 'ID заявки' }
+ *     responses:
+ *       200: { description: 'Заявка успешно переоткрыта' }
+ *       403: { description: 'Только автор может выполнить это действие' }
+ *       404: { description: 'Заявка не найдена' }
+ *       400: { description: 'Неверный статус заявки для этого действия' }
+ */
+router.post('/:id/reopen', protect, [
+    param('id').isMongoId().withMessage('Неверный ID заявки')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const request = await Request.findById(req.params.id).populate('helper', '_id username');
+        if (!request) {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+
+        if (request.author.toString() !== req.user.id) {
+            return res.status(403).json({ msg: 'Только автор может переоткрыть свою заявку.' });
+        }
+
+        if (!['assigned', 'in_progress'].includes(request.status)) {
+            return res.status(400).json({ msg: 'Переоткрыть можно только заявку, которая находится в работе.' });
+        }
+        
+        const formerHelper = request.helper;
+
+        // Архивируем сообщения в чате, связанные с этой сессией помощи
+        // Важно: мы не удаляем их, а помечаем, чтобы их можно было потом посмотреть (например, админом)
+        await Message.updateMany(
+            { requestId: request._id }, 
+            { $set: { isArchived: true } }
+        );
+
+        // Сбрасываем хелпера и возвращаем статус 'open'
+        request.helper = null;
+        request.status = 'open';
+        request.updatedAt = Date.now();
+        await request.save();
+
+        // Уведомление бывшему хелперу
+        if (formerHelper) {
+            await createAndSendNotification({
+                user: formerHelper._id,
+                type: 'request_reopened_by_author',
+                title: 'Заявка была возвращена в работу',
+                message: `Автор заявки "${request.title}" не получил решения и вернул ее в общий список. Текущий чат архивирован.`,
+                link: `/requests`, // Ссылки на конкретную заявку нет, т.к. он больше не участник
+                relatedEntity: { requestId: request._id }
+            });
+        }
+        
+        // Уведомление автору для подтверждения
+        await createAndSendNotification({
+            user: request.author,
+            type: 'request_reopened_by_you',
+            title: 'Вы вернули заявку в работу',
+            message: `Ваша заявка "${request.title}" снова открыта и видна другим помощникам. Старый чат архивирован.`,
+            link: `/requests/${request._id}`,
+            relatedEntity: { requestId: request._id }
+        });
+
+        res.json({ msg: 'Заявка успешно переоткрыта и доступна для других помощников.' });
+
+    } catch (err) {
+        console.error('Ошибка при переоткрытии заявки:', err.message);
+        if (err.kind === 'ObjectId') {
             return res.status(400).json({ msg: 'Неверный формат ID заявки' });
         }
         res.status(500).send('Ошибка сервера');

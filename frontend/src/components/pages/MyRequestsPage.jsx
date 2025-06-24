@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { requestsService, baseURL } from '../../services/api';
+import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
@@ -18,77 +18,54 @@ const MyRequestsPage = () => {
     subject: '',
     search: ''
   });
-  
-  useEffect(() => {
-    // Проверяем наличие токена при загрузке компонента
-    const token = localStorage.getItem('token');
-    if (!token) {
-      // Если токена нет, перенаправляем на страницу логина
-      navigate('/login', { state: { message: 'Для просмотра ваших запросов необходимо авторизоваться' } });
-      return;
-    }
-    
-    if (currentUser) {
-    fetchRequests();
-    }
-  }, [currentPage, filters, navigate, currentUser, fetchRequests]);
 
-  // Используем useCallback, чтобы функция не создавалась заново при каждом рендере
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (page = 1) => {
     if (!currentUser) return;
     setLoading(true);
     try {
-      // Формируем параметры запроса
       const params = {
-        page: currentPage,
-        authorId: currentUser._id // Фильтруем по ID текущего пользователя
+        page: page,
+        authorId: currentUser._id,
+        ...filters,
       };
-      
-      // Добавляем остальные параметры
-      if (filters.subject) params.subject = filters.subject;
-      if (filters.search) params.search = filters.search;
+      if (!filters.subject) delete params.subject;
+      if (!filters.search) delete params.search;
 
-      console.log('Параметры запроса:', params);
-      console.log('URL запроса:', `${baseURL}/requests?` + 
-        Object.entries(params)
-          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-          .join('&')
-      );
-
-      // Делаем запрос к API через сервис
       const response = await requestsService.getRequests(params);
       setRequests(response.data.requests);
       setTotalPages(response.data.totalPages);
-      setLoading(false);
+      setCurrentPage(response.data.currentPage);
     } catch (err) {
-      console.error('Ошибка при получении запросов:', err);
-      console.error('Детали ошибки:', err.response?.data);
-      
-      // Если ошибка 401 (Unauthorized), перенаправляем на логин
       if (err.response && err.response.status === 401) {
-        localStorage.removeItem('token'); // Удаляем невалидный токен
+        localStorage.removeItem('token');
         navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
         return;
       }
-      
       setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
+    } finally {
       setLoading(false);
     }
-  }, [currentPage, filters, navigate, currentUser]);
+  }, [currentUser, filters, navigate]);
 
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]); // Теперь зависимость от стабильной функции
+    const token = localStorage.getItem('token');
+    if (!token && !currentUser) {
+      navigate('/login', { state: { message: 'Для просмотра ваших запросов необходимо авторизоваться' } });
+    } else if (currentUser) {
+      fetchRequests(currentPage);
+    }
+  }, [currentUser, currentPage, fetchRequests, navigate]);
+  
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
-    setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
   };
   
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchRequests();
+    setCurrentPage(1);
+    fetchRequests(1);
   };
 
   const formatDate = (dateString) => {
@@ -102,26 +79,22 @@ const MyRequestsPage = () => {
     });
   };
 
-  // Получение класса для статуса
   const getStatusClass = (status) => {
     return STATUS_COLORS[status] || { bg: 'bg-gray-100', text: 'text-gray-800' };
   };
   
-  // Получение названия статуса
   const getStatusLabel = (status) => {
     return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
   };
   
-  // Обработчик успешного создания запроса
-  const handleRequestCreated = (newRequest) => {
-    // Добавляем новый запрос в начало списка
-    setRequests(prevRequests => [newRequest, ...prevRequests]);
-    // Перезагружаем список для получения актуальных данных
-    fetchRequests();
+  const handleRequestCreated = () => {
+    fetchRequests(1);
   };
 
   const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
   };
 
   return (
@@ -136,7 +109,6 @@ const MyRequestsPage = () => {
         </button>
       </div>
       
-      {/* Фильтры */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
@@ -179,56 +151,50 @@ const MyRequestsPage = () => {
         </form>
       </div>
 
-      {/* Сообщение об ошибке */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-6">
           {error}
         </div>
       )}
 
-      {/* Индикатор загрузки */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
         <>
-          {/* Список запросов */}
           {requests.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {requests.map((request) => (
                 <div key={request._id} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h2 className="text-lg font-semibold text-gray-900 line-clamp-2">
-                        {request.title}
-                      </h2>
-                      <span className={`px-2 py-1 ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text} rounded-full text-xs font-medium`}>
-                        {getStatusLabel(request.status)}
-                      </span>
+                  <div className="p-4 flex flex-col h-full">
+                    <div className="flex-grow">
+                      <div className="flex justify-between items-start mb-2">
+                        <h2 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                          {request.title}
+                        </h2>
+                        <span className={`px-2 py-1 ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text} rounded-full text-xs font-medium`}>
+                          {getStatusLabel(request.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-3">
+                        {request.description}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                          {request.subject}
+                        </span>
+                        <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
+                          {request.grade} класс
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mb-3">
+                        <span>Создано: {formatDate(request.createdAt)}</span>
+                      </div>
                     </div>
-                    
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                      {request.description}
-                    </p>
-                    
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
-                        {request.subject}
-                      </span>
-                      <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
-                        {request.grade} класс
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
-                      <span>Статус: {getStatusLabel(request.status)}</span>
-                      <span>Создано: {formatDate(request.createdAt)}</span>
-                    </div>
-                    
-                    <Link 
+                    <Link
                       to={`/request/${request._id}`}
-                      className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors mt-auto"
                       state={{ from: '/my-requests' }}
                     >
                       Подробнее
@@ -249,38 +215,29 @@ const MyRequestsPage = () => {
             </div>
           )}
 
-          {/* Пагинация */}
           {totalPages > 1 && (
             <div className="flex justify-center mt-8">
-              <nav className="flex items-center space-x-2">
+              <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 <button
-                  onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                  onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                 >
                   &laquo;
                 </button>
-                
-                {[...Array(totalPages).keys()].map(page => (
+                {[...Array(totalPages).keys()].map(number => (
                   <button
-                    key={page + 1}
-                    onClick={() => handlePageChange(page + 1)}
-                    className={`px-3 py-1 rounded ${
-                      currentPage === page + 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    key={number + 1}
+                    onClick={() => handlePageChange(number + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === number + 1 ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}
                   >
-                    {page + 1}
+                    {number + 1}
                   </button>
                 ))}
-                
-                <button
-                  onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+                 <button
+                  onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                 >
                   &raquo;
                 </button>
@@ -289,15 +246,14 @@ const MyRequestsPage = () => {
           )}
         </>
       )}
-      
-      {/* Модальное окно создания запроса */}
-      <CreateRequestModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={handleRequestCreated} 
+
+      <CreateRequestModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleRequestCreated}
       />
     </div>
   );
 };
 
-export default MyRequestsPage; 
+export default MyRequestsPage;
