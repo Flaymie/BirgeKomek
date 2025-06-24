@@ -284,8 +284,8 @@ router.post('/login', [
     // Извлекаем только нужные поля
     const { email, password } = req.body;
     
-    // ищем юзера
-    const user = await User.findOne({ email });
+    // ищем юзера, приводя email к нижнему регистру
+    const user = await User.findOne({ email: email.toLowerCase() });
     
     if (!user) {
       return res.status(401).json({ msg: 'Неверные данные' });
