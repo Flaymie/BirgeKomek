@@ -314,21 +314,19 @@ router.post('/:requestId/read', protect, async (req, res) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// Создаем обертку для upload.array, чтобы ловить ошибки multer
+// Создаем обертку для upload.single, чтобы ловить ошибки multer
 const uploadWithErrorHandler = (req, res, next) => {
-  // Теперь используем upload.array() для загрузки до 10 файлов
-  const uploader = upload.array('attachments', 10); 
-  
+  const uploader = upload.single('attachment');
   uploader(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ msg: 'Файлы слишком большие. Максимальный размер - 10 МБ.' });
+        return res.status(400).json({ msg: 'Файл слишком большой. Максимальный размер - 10 МБ.' });
       }
       if (err.code === 'UNSUPPORTED_FILE_TYPE') {
         return res.status(400).json({ msg: err.message });
       }
       // Другие ошибки multer
-      return res.status(400).json({ msg: 'Ошибка при загрузке файлов.' });
+      return res.status(400).json({ msg: 'Ошибка при загрузке файла.' });
     }
     next();
   });
@@ -345,11 +343,10 @@ router.post('/upload', protect, uploadWithErrorHandler, [
 
     const { requestId, content } = req.body;
     const senderId = req.user.id;
-    // req.files - теперь это массив
-    const files = req.files;
+    const file = req.file;
 
-    if (!files || files.length === 0) {
-        return res.status(400).json({ msg: 'Файлы для вложения отсутствуют' });
+    if (!file) {
+        return res.status(400).json({ msg: 'Файл вложения отсутствует' });
     }
 
     try {
@@ -362,37 +359,36 @@ router.post('/upload', protect, uploadWithErrorHandler, [
         const isHelper = request.helper && request.helper._id.toString() === senderId;
 
         if (!isAuthor && !isHelper) {
-            // Важно удалить загруженные файлы, если у пользователя нет прав
-            files.forEach(file => fs.unlinkSync(file.path));
+            // Важно удалить загруженный файл, если у пользователя нет прав
+            fs.unlinkSync(file.path);
             return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
         }
         
-        // Обрабатываем каждый файл в массиве
-        const attachmentsData = files.map(file => {
-          const attachmentData = {
+        // --- 2. Логика для определения размеров ---
+        const attachmentData = {
             fileUrl: `/uploads/attachments/${file.filename}`,
-            fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+            fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'), // Правильное декодирование имени
             fileType: file.mimetype,
             fileSize: file.size,
-          };
+        };
 
-          if (file.mimetype.startsWith('image/')) {
+        if (file.mimetype.startsWith('image/')) {
             try {
-              const dimensions = sizeOf(file.path);
-              attachmentData.width = dimensions.width;
-              attachmentData.height = dimensions.height;
+                const dimensions = sizeOf(file.path);
+                attachmentData.width = dimensions.width;
+                attachmentData.height = dimensions.height;
             } catch (err) {
-              console.error("Не удалось получить размеры изображения:", file.filename, err);
+                console.error("Не удалось получить размеры изображения:", file.filename, err);
+                // Не прерываем процесс, просто не будет размеров
             }
-          }
-          return attachmentData;
-        });
+        }
+        // --- Конец логики ---
 
         const newMessage = new Message({
             requestId,
             sender: senderId,
             content: content || '',
-            attachments: attachmentsData, // Сохраняем массив вложений
+            attachments: [attachmentData], // <-- 3. Сохраняем данные с размерами
             readBy: [senderId]
         });
         
@@ -410,7 +406,7 @@ router.post('/upload', protect, uploadWithErrorHandler, [
         }
 
         if (recipientId) {
-            let notificationMessage = content ? `${content.substring(0, 50)}...` : `Прикреплено ${files.length} файл(а/ов)`;
+            let notificationMessage = content ? `${content.substring(0, 50)}...` : `Прикреплен файл: ${file.originalname}`;
             await createAndSendNotification({
                 user: recipientId,
                 type: 'new_message_in_request',
