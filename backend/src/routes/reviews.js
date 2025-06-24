@@ -184,12 +184,6 @@ router.post('/', protect, [
       });
     }
     
-    // начисляем баллы хелперу (за завершенную заявку с отзывом)
-    await User.findByIdAndUpdate(
-      request.helper,
-      { $inc: { points: 10 } }
-    );
-    
     // получаем с данными отправителя
     const populatedReview = await Review.findById(review._id)
       .populate('reviewerId', 'username')

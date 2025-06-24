@@ -59,10 +59,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: function() { return this.roles.student; }
   },
-  points: {
-    type: Number,
-    default: 0
-  },
   rating: {
     type: Number,
     default: 5.0
