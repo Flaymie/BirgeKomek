@@ -66,7 +66,7 @@ const RegisterPage = () => {
   const { username, email, password, password2, role, grade } = formData;
   
   const navigate = useNavigate();
-  const { register } = useAuth();
+  // const { register } = useAuth(); // УБИРАЕМ КОНТЕКСТ, ОН СЛОМАН
   
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -198,15 +198,16 @@ const RegisterPage = () => {
       // Выводим данные регистрации для отладки
       console.log('Отправляемые данные регистрации:', JSON.stringify(registrationData));
       
-      const result = await register(registrationData);
-      console.log('Результат регистрации:', result);
+      // ИСПОЛЬЗУЕМ СЕРВИС НАПРЯМУЮ
+      const response = await authService.register(registrationData);
+      console.log('Результат регистрации:', response);
       
-      if (result && result.success) {
-      toast.success('Регистрация прошла успешно! Теперь можете войти.');
-      navigate('/login');
+      if (response && response.data) {
+        toast.success('Регистрация прошла успешно! Теперь можете войти.');
+        navigate('/login');
       } else {
         // Если регистрация не удалась, но ошибки не были выброшены
-        const errorMsg = result?.error || 'Произошла ошибка при регистрации. Попробуйте еще раз.';
+        const errorMsg = response?.data?.msg || 'Произошла ошибка при регистрации. Попробуйте еще раз.';
         toast.error(errorMsg);
         console.error('Ошибка регистрации:', errorMsg);
       }
