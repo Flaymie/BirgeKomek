@@ -273,6 +273,7 @@ const RegisterPage = () => {
                   currentAvatar={formData.avatar}
                   onAvatarChange={handleAvatarChange}
                   size="lg"
+                  isRegistration={true}
                 />
             </div>
             
