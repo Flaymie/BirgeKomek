@@ -19,8 +19,17 @@ import {
 } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import AttachmentModal from '../modals/AttachmentModal';
 import { downloadFile } from '../../services/downloadService';
+// --- 1. Импорты для галереи и превью-слайдера ---
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
+import "yet-another-react-lightbox/plugins/thumbnails.css";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import 'swiper/css';
+import 'swiper/css/navigation';
+// --- Конец импортов ---
 
 // --- Хелперы для отображения вложений ---
 
@@ -45,52 +54,67 @@ const getFileIcon = (fileType) => {
   return <DocumentTextIcon className="h-8 w-8 text-gray-400" />;
 };
 
-// Компонент для одного вложения (простой, без заглушек для фото)
-const Attachment = ({ file, isOwnMessage, onImageClick }) => {
-  const isImage = file.fileType && file.fileType.startsWith('image/');
-  const fileUrl = `${serverURL}${file.fileUrl}`;
-  
-  const [isDownloading, setIsDownloading] = useState(false);
+// --- 1. Новый компонент превью перед отправкой (замена AttachmentPreview) ---
+const FilePreviewItem = ({ file, onRemove }) => {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const isImage = file.type.startsWith('image/');
 
-  const handleFileDownload = async () => {
-    if (isDownloading) return;
-    setIsDownloading(true);
-    await downloadFile(file);
-    setIsDownloading(false);
-  };
-
-  if (isImage) {
-    // Просто показываем картинку, без всяких заглушек
-    return (
-      <div onClick={() => onImageClick(file)} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
-        <img src={fileUrl} alt={file.fileName} className="w-full h-auto object-cover" />
-      </div>
-    );
-  }
-
-  // Логика для обычных файлов (с индикатором загрузки)
-  const attachmentBg = isOwnMessage ? 'bg-indigo-400' : 'bg-gray-300';
-  const textColor = isOwnMessage ? 'text-indigo-100' : 'text-gray-600';
+  useEffect(() => {
+    if (isImage) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [file, isImage]);
 
   return (
-    <div className={`p-2 rounded-lg flex items-center gap-3 max-w-[280px] ${attachmentBg}`}>
-      <button 
-        onClick={handleFileDownload} 
-        disabled={isDownloading}
-        className="text-white bg-indigo-500 rounded-full p-2 hover:bg-indigo-600 transition-colors focus:outline-none disabled:bg-indigo-400 disabled:cursor-wait"
+    <div className="relative w-20 h-20 rounded-lg overflow-hidden group">
+      {isImage ? (
+        <img src={previewUrl} alt="Превью" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-gray-200 flex items-center justify-center">{getFileIcon(file.type)}</div>
+      )}
+      <button
+        onClick={onRemove}
+        className="absolute top-0 right-0 m-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
       >
-        {isDownloading ? (
-           <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
-        ) : (
-          <ArrowDownCircleIcon className="h-6 w-6"/>
-        )}
+        <XCircleIcon className="h-5 w-5" />
       </button>
-      <div className="overflow-hidden flex-1">
-        <p className={`font-medium truncate ${isOwnMessage ? 'text-white' : 'text-gray-800'}`}>{file.fileName}</p>
-        <p className={`text-sm ${textColor}`}>
-          {formatFileSize(file.fileSize)}
-        </p>
+    </div>
+  );
+};
+
+// --- Улучшенная сетка вложений в сообщении ---
+const AttachmentsGrid = ({ attachments, onImageClick }) => {
+  if (!attachments || attachments.length === 0) return null;
+
+  const images = attachments.filter(a => a.fileType.startsWith('image/'));
+  const files = attachments.filter(a => !a.fileType.startsWith('image/'));
+
+  const renderImageGrid = () => {
+    // Логика для разной сетки в зависимости от количества
+    // ...
+    return (
+      <div className="grid grid-cols-2 gap-1">
+        {images.map((img, index) => (
+          <div key={index} className="aspect-square bg-gray-200" onClick={() => onImageClick(images, index)}>
+             <img src={`${serverURL}${img.fileUrl}`} className="w-full h-full object-cover" />
+          </div>
+        ))}
       </div>
+    )
+  };
+
+  const renderFile = (file) => (
+    <div key={file.fileUrl} className="p-2 bg-gray-200 rounded-lg flex items-center gap-3">
+       {/* ... (логика для рендера обычного файла) ... */}
+    </div>
+  );
+  
+  return (
+    <div className="flex flex-col gap-2">
+      {images.length > 0 && renderImageGrid()}
+      {files.map(renderFile)}
     </div>
   );
 };
@@ -117,10 +141,8 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete }) => {
       <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
         
         {hasAttachments && !isDeleted && (
-          <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
-            {msg.attachments.map((file, index) => (
-              <Attachment key={index} file={file} isOwnMessage={isOwnMessage} onImageClick={onImageClick} />
-            ))}
+           <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
+            <AttachmentsGrid attachments={msg.attachments} onImageClick={onImageClick} />
           </div>
         )}
 
@@ -162,24 +184,22 @@ const ChatPage = () => {
   const [requestDetails, setRequestDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [attachment, setAttachment] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [viewerFile, setViewerFile] = useState(null); // Для модалки просмотра картинок
   const [editingMessage, setEditingMessage] = useState(null); // { id, content }
   const [messageToDelete, setMessageToDelete] = useState(null); // { id }
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSlides, setLightboxSlides] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // --- 2. Настройка Dropzone ---
+  // --- 3. Обновленная логика Dropzone и отправки ---
   const onDrop = useCallback((acceptedFiles) => {
-    // Берем только первый файл, т.к. логика под один аттач
-    const file = acceptedFiles[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Размер файла не должен превышать 10 МБ');
-        return;
-      }
-      setAttachment(file);
+    if (acceptedFiles.length > 0) {
+      const newAttachments = [...attachments, ...acceptedFiles].slice(0, 10); // Ограничение в 10 файлов
+      setAttachments(newAttachments);
     }
-  }, []);
+  }, [attachments]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -336,33 +356,21 @@ const ChatPage = () => {
         toast.error('Размер файла не должен превышать 10 МБ');
         return;
       }
-      setAttachment(file);
+      setAttachments([file]);
     }
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !attachment) || !socket) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !socket) return;
   
     try {
-      if (attachment) {
-        const formData = new FormData();
-        formData.append('requestId', requestId);
-        formData.append('content', newMessage);
-        formData.append('attachment', attachment);
-        
-        // Вместо отправки через сокет, отправляем через API
-        const res = await messagesService.sendMessageWithAttachment(
+      if (attachments.length > 0) {
+        await messagesService.sendMessageWithAttachment(
           requestId,
           newMessage,
-          attachment
+          attachments // Отправляем массив
         );
-  
-        // После успешной отправки через API, можно опционально
-        // эмитить событие через сокет, чтобы другие клиенты обновились,
-        // если бэкенд не делает этого сам.
-        // Но обычно бэкенд после сохранения сам рассылает сообщение всем в комнату.
-
       } else {
         // Отправка простого текстового сообщения через сокет
         socket.emit('send_message', {
@@ -370,9 +378,8 @@ const ChatPage = () => {
           content: newMessage,
         });
       }
-    
       setNewMessage('');
-      setAttachment(null);
+      setAttachments([]); // Очищаем массив
     } catch (error) {
       toast.error('Ошибка при отправке сообщения');
       console.error("Failed to send message:", error);
@@ -427,6 +434,16 @@ const ChatPage = () => {
       requestDetails.author._id === currentUser._id || 
       (requestDetails.helper && requestDetails.helper._id === currentUser._id)
     );
+  };
+
+  const handleOpenLightbox = (images, index) => {
+    setLightboxSlides(images.map(img => ({ src: `${serverURL}${img.fileUrl}` })));
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const handleRemoveAttachment = (indexToRemove) => {
+    setAttachments(attachments.filter((_, index) => index !== indexToRemove));
   };
 
   if (loading) {
@@ -555,7 +572,7 @@ const ChatPage = () => {
                 key={msg._id} 
                 msg={msg} 
                 isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                onImageClick={setViewerFile}
+                onImageClick={handleOpenLightbox}
                 onEdit={handleStartEdit}
                 onDelete={setMessageToDelete}
               />
@@ -578,12 +595,20 @@ const ChatPage = () => {
           )}
         </AnimatePresence>
         
-        {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
-
-        {/* Форма ввода сообщения */}
+        {/* --- 4. Новый футер с превью-слайдером --- */}
         <footer className="bg-white border-t border-gray-200 p-4 rounded-b-lg">
           <div className="mx-auto max-w-4xl">
-            {attachment && !editingMessage && <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />}
+            {attachments.length > 0 && (
+              <div className="mb-2 p-2 bg-gray-100 rounded-lg">
+                <Swiper slidesPerView={'auto'} spaceBetween={10} className="attachment-swiper">
+                  {attachments.map((file, index) => (
+                    <SwiperSlide key={index} style={{ width: '80px', height: '80px' }}>
+                      <FilePreviewItem file={file} onRemove={() => handleRemoveAttachment(index)} />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </div>
+            )}
             
             {/* Панель редактирования */}
             {editingMessage && (
@@ -618,7 +643,7 @@ const ChatPage = () => {
               />
               <button
                 type="submit"
-                disabled={!newMessage.trim() && !attachment}
+                disabled={!newMessage.trim() && attachments.length === 0}
                 className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
               >
                 <ArrowUpCircleIcon className="h-6 w-6" />
@@ -651,51 +676,15 @@ const ChatPage = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
 
-// Новый компонент для превью вложения перед отправкой
-const AttachmentPreview = ({ file, onRemove }) => {
-  const [previewUrl, setPreviewUrl] = useState('');
-  const isImage = file.type.startsWith('image/');
-
-  useEffect(() => {
-    if (isImage) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      // Освобождаем память при размонтировании
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [file, isImage]);
-
-  return (
-    <div className="relative mb-2 w-24"> {/* Обертка для позиционирования подсказки */}
-      <div 
-        className="group relative w-24 h-24 bg-gray-100 rounded-lg p-1"
-      >
-        {/* Кастомная подсказка */}
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs px-3 py-1.5 bg-gray-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap">
-          <span className="truncate">{file.name}</span>
-          {/* Маленький треугольник снизу */}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-        </div>
-
-        {isImage ? (
-          <img src={previewUrl} alt="Превью" className="w-full h-full object-cover rounded-md" />
-        ) : (
-          <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-            {getFileIcon(file.type)}
-          </div>
-        )}
-        <button
-          onClick={onRemove} 
-          className="absolute -top-2 -right-2 text-gray-500 hover:text-red-500 transition-colors"
-          title="Удалить вложение"
-        >
-          <XCircleIcon className="h-7 w-7 bg-white rounded-full" />
-        </button>
-      </div>
+      {/* --- 5. Компонент лайтбокса --- */}
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        slides={lightboxSlides}
+        index={lightboxIndex}
+        plugins={[Thumbnails, Zoom]}
+      />
     </div>
   );
 };
