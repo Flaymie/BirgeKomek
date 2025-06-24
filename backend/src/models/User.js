@@ -55,6 +55,19 @@ const userSchema = new mongoose.Schema({
       default: false
     }
   },
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
+  banReason: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  bannedAt: {
+    type: Date,
+    default: null
+  },
   grade: {
     type: String,
     required: function() { return this.roles.student; }

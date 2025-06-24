@@ -1,7 +1,7 @@
 import express from 'express';
 import { body, validationResult, param, query } from 'express-validator'; // Добавил query
 import User from '../models/User.js';
-import { protect } from '../middleware/auth.js';
+import { protect, isAdmin } from '../middleware/auth.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import Review from '../models/Review.js';
@@ -545,6 +545,122 @@ export default (onlineUsers) => {
       console.error('Ошибка при удалении аккаунта:', err);
       res.status(500).json({ msg: 'Ошибка сервера при удалении аккаунта.' });
     }
+  });
+
+  /**
+   * @swagger
+   * /api/users/{id}/ban:
+   *   post:
+   *     summary: Забанить пользователя (только для админов)
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         description: ID пользователя для бана
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               reason:
+   *                 type: string
+   *                 description: Причина бана
+   *     responses:
+   *       200:
+   *         description: Пользователь успешно забанен
+   *       400:
+   *         description: Некорректный запрос
+   *       403:
+   *         description: Нет прав (не админ)
+   *       404:
+   *         description: Пользователь не найден
+   */
+  router.post('/:id/ban', protect, isAdmin, [
+      param('id').isMongoId().withMessage('Неверный ID пользователя'),
+      body('reason').trim().notEmpty().withMessage('Причина бана обязательна')
+  ], async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
+
+      try {
+          const userToBan = await User.findById(req.params.id);
+          if (!userToBan) {
+              return res.status(404).json({ msg: 'Пользователь не найден' });
+          }
+
+          if (userToBan.roles.admin) {
+              return res.status(403).json({ msg: 'Нельзя забанить другого администратора' });
+          }
+
+          userToBan.isBanned = true;
+          userToBan.banReason = req.body.reason;
+          userToBan.bannedAt = new Date();
+          
+          await userToBan.save();
+          
+          // Можно добавить логику по отключению сокетов пользователя
+          // ...
+
+          res.json({ msg: `Пользователь ${userToBan.username} был забанен. Причина: ${req.body.reason}` });
+      } catch (err) {
+          console.error('Ошибка при бане пользователя:', err);
+          res.status(500).send('Ошибка сервера');
+      }
+  });
+
+  /**
+   * @swagger
+   * /api/users/{id}/unban:
+   *   post:
+   *     summary: Разбанить пользователя (только для админов)
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         description: ID пользователя для разбана
+   *     responses:
+   *       200:
+   *         description: Пользователь успешно разбанен
+   *       403:
+   *         description: Нет прав (не админ)
+   *       404:
+   *         description: Пользователь не найден
+   */
+  router.post('/:id/unban', protect, isAdmin, [
+      param('id').isMongoId().withMessage('Неверный ID пользователя')
+  ], async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
+
+      try {
+          const userToUnban = await User.findById(req.params.id);
+          if (!userToUnban) {
+              return res.status(404).json({ msg: 'Пользователь не найден' });
+          }
+
+          userToUnban.isBanned = false;
+          userToUnban.banReason = null;
+          userToUnban.bannedAt = null;
+
+          await userToUnban.save();
+
+          res.json({ msg: `Пользователь ${userToUnban.username} был разбанен.` });
+      } catch (err) {
+          console.error('Ошибка при разбане пользователя:', err);
+          res.status(500).send('Ошибка сервера');
+      }
   });
 
   return router;

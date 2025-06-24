@@ -226,8 +226,8 @@ const messagesService = {
   },
   
   // Отметить сообщения как прочитанные
-  markMessagesAsRead: async (requestId) => {
-    return api.post('/messages/read', { requestId });
+  markAsRead: async (requestId) => {
+    return api.post(`/messages/${requestId}/read`);
   },
   
   // Редактировать сообщение

@@ -288,8 +288,13 @@ router.post('/login', [
       return res.status(401).json({ msg: 'Неверные данные' });
     }
     
+    // Проверяем, забанен ли пользователь
+    if (user.isBanned) {
+      return res.status(403).json({ msg: `Ваш аккаунт заблокирован. Причина: ${user.banReason}` });
+    }
+
     // сверяем пароль
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     
     if (!isMatch) {
       return res.status(400).json({ msg: 'Неверные учетные данные' });

@@ -27,10 +27,6 @@ const messageSchema = new mongoose.Schema({
     width: { type: Number },
     height: { type: Number }
   }],
-  deliveredTo: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
   readBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
