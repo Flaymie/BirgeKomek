@@ -240,6 +240,20 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('user:typing', (data) => {
+    const { chatId, isTyping } = data;
+    const { id, username } = socket.user; // Получаем данные из сокета
+
+    if (chatId) {
+      socket.to(chatId).emit('user:typing:broadcast', {
+        userId: id,
+        username: username,
+        isTyping: isTyping,
+        chatId: chatId,
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
     // Удаляем пользователя из онлайн списка
