@@ -189,9 +189,6 @@ router.post('/register',
 
     user = new User(newUser);
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
     await user.save();
     
     const token = jwt.sign(
