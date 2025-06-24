@@ -938,4 +938,180 @@ router.post('/:id/reopen', protect, [
     }
 });
 
+// === АДМИНСКИЕ РОУТЫ ===
+
+/**
+ * @swagger
+ * /api/requests/{id}/admin:
+ *   put:
+ *     summary: (АДМИН) Редактировать заявку
+ *     tags: [Requests, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *         description: ID заявки для редактирования
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: 'string' }
+ *               description: { type: 'string' }
+ *               subject: { type: 'string' }
+ *               grade: { type: 'integer' }
+ *               status: { type: 'string' }
+ *               reason: { type: 'string', description: "Причина редактирования, обязательна" }
+ *     responses:
+ *       200:
+ *         description: Заявка успешно обновлена
+ *       400:
+ *         description: Некорректные данные или отсутствует причина
+ *       403:
+ *         description: Нет прав администратора/модератора
+ *       404:
+ *         description: Заявка не найдена
+ */
+router.put('/:id/admin', 
+  protect, 
+  isModOrAdmin,
+  [
+    param('id').isMongoId().withMessage('Неверный ID заявки'),
+    body('reason').trim().notEmpty().withMessage('Причина редактирования обязательна'),
+    // Валидация остальных полей опциональна, т.к. админ может менять не все
+    body('title').optional().trim().isLength({ min: 5, max: 100 }),
+    body('description').optional().trim().isLength({ min: 10 }),
+    body('subject').optional().trim().notEmpty(),
+    body('grade').optional().isInt({ min: 1, max: 11 }),
+    body('status').optional().isIn(['open', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled']),
+  ], 
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { reason, ...updateData } = req.body;
+      const request = await Request.findById(req.params.id);
+
+      if (!request) {
+        return res.status(404).json({ msg: 'Заявка не найдена' });
+      }
+
+      // Обновляем поля заявки
+      Object.assign(request, updateData);
+
+      // Записываем информацию о редактировании
+      request.adminEditInfo = {
+        editedBy: req.user._id,
+        reason: reason,
+        editedAt: new Date()
+      };
+      
+      await request.save();
+
+      // Отправляем уведомление автору заявки
+      if (request.author.toString() !== req.user._id.toString()) {
+        await createAndSendNotification({
+          user: request.author,
+          type: 'request_edited_by_admin',
+          title: `Ваша заявка "${request.title}" была изменена`,
+          message: `Модератор ${req.user.username} внес изменения. Причина: "${reason}"`,
+          link: `/request/${request._id}`
+        });
+      }
+
+      res.json(request);
+
+    } catch (err) {
+      console.error('Ошибка (админ) при редактировании заявки:', err.message);
+      res.status(500).send('Ошибка сервера');
+    }
+});
+
+
+/**
+ * @swagger
+ * /api/requests/{id}/admin:
+ *   delete:
+ *     summary: (АДМИН) Удалить заявку
+ *     tags: [Requests, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *         description: ID заявки для удаления
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reason]
+ *             properties:
+ *               reason: { type: 'string', description: "Причина удаления, обязательна" }
+ *     responses:
+ *       200:
+ *         description: Заявка успешно удалена
+ *       400:
+ *         description: Отсутствует причина
+ *       403:
+ *         description: Нет прав администратора/модератора
+ *       404:
+ *         description: Заявка не найдена
+ */
+router.delete('/:id/admin', 
+  protect, 
+  isModOrAdmin,
+  [
+    param('id').isMongoId().withMessage('Неверный ID заявки'),
+    body('reason').trim().notEmpty().withMessage('Причина удаления обязательна')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { reason } = req.body;
+      const request = await Request.findById(req.params.id);
+
+      if (!request) {
+        return res.status(404).json({ msg: 'Заявка не найдена' });
+      }
+
+      // Сначала отправляем уведомление
+      if (request.author.toString() !== req.user._id.toString()) {
+        await createAndSendNotification({
+          user: request.author,
+          type: 'request_deleted_by_admin',
+          title: `Ваша заявка "${request.title}" была удалена`,
+          message: `Модератор ${req.user.username} удалил вашу заявку. Причина: "${reason}"`
+          // Ссылку делать бессмысленно, т.к. заявки уже не будет
+        });
+      }
+
+      // Затем удаляем связанные сущности и саму заявку
+      await Message.deleteMany({ requestId: request._id });
+      // Можно добавить удаление откликов, отзывов и т.д.
+      await request.deleteOne();
+
+      res.json({ msg: 'Заявка и связанные сообщения были удалены' });
+
+    } catch (err) {
+      console.error('Ошибка (админ) при удалении заявки:', err.message);
+      res.status(500).send('Ошибка сервера');
+    }
+});
+
 export default router;
