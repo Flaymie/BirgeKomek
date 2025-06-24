@@ -344,26 +344,26 @@ router.post('/upload', protect, uploadWithErrorHandler, [
     const { requestId, content } = req.body;
     const senderId = req.user.id;
     const file = req.file;
-
+    
     if (!file) {
         return res.status(400).json({ msg: 'Файл вложения отсутствует' });
     }
-
+    
     try {
         const request = await Request.findById(requestId).populate('author helper');
-        if (!request) {
+    if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
-        }
-        
+    }
+    
         const isAuthor = request.author && request.author._id.toString() === senderId;
         const isHelper = request.helper && request.helper._id.toString() === senderId;
-
-        if (!isAuthor && !isHelper) {
+    
+    if (!isAuthor && !isHelper) {
             // Важно удалить загруженный файл, если у пользователя нет прав
             fs.unlinkSync(file.path);
-            return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
-        }
-        
+      return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
+    }
+    
         // --- 2. Логика для определения размеров ---
         const attachmentData = {
             fileUrl: `/uploads/attachments/${file.filename}`,
@@ -384,40 +384,40 @@ router.post('/upload', protect, uploadWithErrorHandler, [
         }
         // --- Конец логики ---
 
-        const newMessage = new Message({
-            requestId,
+    const newMessage = new Message({
+      requestId,
             sender: senderId,
-            content: content || '',
+      content: content || '',
             attachments: [attachmentData], // <-- 3. Сохраняем данные с размерами
             readBy: [senderId]
-        });
-        
-        await newMessage.save();
+    });
+    
+    await newMessage.save();
         const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
         
         // Отправляем сообщение всем участникам чата через сокет
         io.to(requestId).emit('new_message', populatedMessage);
-        
-        let recipientId;
-        if (isAuthor && request.helper) {
+    
+    let recipientId;
+    if (isAuthor && request.helper) {
             recipientId = request.helper;
         } else if (isHelper) {
             recipientId = request.author;
-        }
-
-        if (recipientId) {
+    }
+    
+    if (recipientId) {
             let notificationMessage = content ? `${content.substring(0, 50)}...` : `Прикреплен файл: ${file.originalname}`;
-            await createAndSendNotification({
-                user: recipientId,
-                type: 'new_message_in_request',
+      await createAndSendNotification({
+        user: recipientId,
+        type: 'new_message_in_request',
                 title: `Новое сообщение в заявке "${request.title}"`,
                 message: `Пользователь ${req.user.username} отправил сообщение: ${notificationMessage}`,
                 link: `/requests/${requestId}/chat`,
                 relatedEntity: { requestId: request._id, userId: senderId }
-            });
-        }
-        
-        res.status(201).json(populatedMessage);
+      });
+    }
+    
+    res.status(201).json(populatedMessage);
 
     } catch (err) {
         console.error('Ошибка при отправке сообщения с вложением:', err);

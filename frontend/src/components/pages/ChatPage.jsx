@@ -159,7 +159,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
 const ChatPage = () => {
   const { id: requestId } = useParams();
   const { currentUser } = useAuth();
-  const socket = useSocket();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   
   const [messages, setMessages] = useState([]);
