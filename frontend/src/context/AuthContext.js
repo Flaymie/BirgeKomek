@@ -128,7 +128,16 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (err) {
       console.error('Ошибка входа:', err);
-      const errorMessage = err.response?.data?.msg || 'Ошибка при входе в систему';
+
+      let errorMessage;
+      if (err.response && err.response.status === 403) {
+        // Если сервер вернул 403, это бан
+        errorMessage = err.response?.data?.msg || 'Доступ запрещен. Ваш аккаунт может быть заблокирован.';
+      } else {
+        // Другие ошибки входа
+        errorMessage = err.response?.data?.msg || 'Неверный email или пароль';
+      }
+
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);

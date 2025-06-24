@@ -131,6 +131,26 @@ const UserProfileView = ({ profile, currentUser, onBack }) => {
         <div className="px-4 py-5 sm:p-6">
           <h1 className="text-2xl font-semibold text-gray-900 mb-6">Профиль пользователя</h1>
           
+          {profile.isBanned && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6" role="alert">
+              <div className="flex">
+                <div className="py-1">
+                  <svg className="h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-bold text-red-800">ПОЛЬЗОВАТЕЛЬ ЗАБЛОКИРОВАН</p>
+                  {profile.banReason && (
+                    <p className="text-sm text-red-700 mt-1">
+                      <strong>Причина:</strong> {profile.banReason}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-6">
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <div className="flex flex-col md:flex-row items-center mb-6">
