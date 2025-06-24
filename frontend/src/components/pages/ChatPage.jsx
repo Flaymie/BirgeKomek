@@ -179,6 +179,26 @@ const ChatPage = () => {
   const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
   const [typingUsers, setTypingUsers] = useState({});
 
+  // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
+  const onDrop = useCallback((acceptedFiles) => {
+    // Берем только первый файл
+    const file = acceptedFiles[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10 MB лимит
+        toast.error('Размер файла не должен превышать 10 МБ');
+        return;
+      }
+      setAttachment(file);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop,
+    noClick: true, 
+    noKeyboard: true,
+    disabled: !!editingMessage, // Отключаем, когда редактируем сообщение
+  });
+
   const chatContainerRef = useRef(null);
   const previousScrollHeight = useRef(null);
   const typingTimeoutRef = useRef(null);
