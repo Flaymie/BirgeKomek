@@ -118,8 +118,11 @@ router.get('/:requestId', protect, [
       return res.status(403).json({ msg: 'Нет доступа к этому чату' });
     }
     
-    // получаем сообщения
-    const messages = await Message.find({ requestId })
+    // получаем сообщения, исключая архивированные
+    const messages = await Message.find({ 
+      requestId,
+      isArchived: { $ne: true } 
+    })
       .populate('sender', 'username avatar')
       .sort({ createdAt: 1 });
     
@@ -474,6 +477,10 @@ router.put('/:messageId', protect, [
       return res.status(404).json({ msg: 'Сообщение не найдено' });
     }
 
+    if (message.isArchived) {
+      return res.status(403).json({ msg: 'Нельзя редактировать сообщения в архивированном чате.' });
+    }
+
     if (message.sender.toString() !== userId) {
       return res.status(403).json({ msg: 'Вы не можете редактировать чужие сообщения' });
     }
@@ -521,6 +528,10 @@ router.delete('/:messageId', protect, [param('messageId').isMongoId()], async (r
 
     if (!message) {
       return res.status(404).json({ msg: 'Сообщение не найдено' });
+    }
+
+    if (message.isArchived) {
+      return res.status(403).json({ msg: 'Нельзя удалять сообщения в архивированном чате.' });
     }
 
     if (message.sender.toString() !== userId) {

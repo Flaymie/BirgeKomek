@@ -175,6 +175,8 @@ const ChatPage = () => {
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+  const [ratingContext, setRatingContext] = useState('complete'); // 'complete' или 'reopen'
+  const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
 
   // --- 2. Настройка Dropzone ---
   const onDrop = useCallback((acceptedFiles) => {
@@ -209,8 +211,18 @@ const ChatPage = () => {
         requestsService.getRequestById(requestId),
         messagesService.getMessages(requestId)
       ]);
+
+      // Проверяем, не заархивирован ли чат
+      if (detailsRes.data.chatIsArchived) {
+        setIsArchived(true);
+        // Не загружаем сообщения и не продолжаем, если чат заархивирован
+        // Мы просто покажем заглушку
+      } else {
+        setMessages(messagesRes.data);
+      }
+
       setRequestDetails(detailsRes.data);
-      setMessages(messagesRes.data);
+      
       // После первой загрузки сразу скроллим в самый низ
       setTimeout(() => {
         if (chatContainerRef.current) {
@@ -425,39 +437,41 @@ const ChatPage = () => {
   // Вызывается при подтверждении, что заявка решена
   const handleConfirmResolved = () => {
     setIsResolveModalOpen(false);
-    setIsRatingModalOpen(true); // Открываем модалку для оценки
+    setRatingContext('complete'); // Устанавливаем контекст
+    setIsRatingModalOpen(true);   // Открываем модалку для оценки
   };
 
   // Вызывается, если заявка НЕ решена
-  const handleRejectResolved = async () => {
+  const handleRejectResolved = () => {
     setIsResolveModalOpen(false);
-    try {
-      toast.info('Возвращаем заявку в открытые...');
-      const response = await requestsService.reopenRequest(requestId);
-      toast.success(response.data.msg || 'Заявка снова в поиске!');
-      navigate('/requests'); // Перенаправляем на страницу всех заявок
-    } catch (err) {
-      toast.error(err.response?.data?.msg || 'Не удалось переоткрыть заявку.');
-    }
+    setRatingContext('reopen'); // Устанавливаем контекст
+    setIsRatingModalOpen(true); // Все равно открываем модалку для оценки
   };
 
   // НОВАЯ ГЛАВНАЯ ФУНКЦИЯ ДЛЯ ЗАВЕРШЕНИЯ И ОЦЕНКИ
-  const handleCompleteAndRate = async (rating, comment) => {
+  const handleCompleteOrReopen = async (rating, comment) => {
     if (!requestDetails || hasSubmittedReview) return;
+
     try {
-      // Шаг 1: Отправка отзыва
+      // Шаг 1: Всегда отправляем отзыв
       await reviewsService.createReview(requestId, rating, comment);
       toast.success('Спасибо за ваш отзыв!');
-      setHasSubmittedReview(true); 
-
-      // Шаг 2: Завершение заявки
-      await handleUpdateRequestStatus('completed');
-
-      // Шаг 3: Закрытие модального окна
+      setHasSubmittedReview(true);
       setIsRatingModalOpen(false);
-      
+
+      // Шаг 2: В зависимости от контекста, либо завершаем, либо переоткрываем
+      if (ratingContext === 'complete') {
+        await requestsService.updateRequestStatus(requestId, 'completed');
+        toast.success('Заявка успешно завершена!');
+        // Обновляем локально статус, чтобы UI стал неактивным
+        setRequestDetails(prev => ({...prev, status: 'completed'}));
+      } else { // 'reopen'
+        const response = await requestsService.reopenRequest(requestId);
+        toast.success(response.data.msg || 'Заявка снова в поиске!');
+        navigate('/requests'); // Перенаправляем на страницу всех заявок
+      }
     } catch (err) {
-      toast.error(err.response?.data?.msg || 'Не удалось отправить отзыв или завершить заявку');
+      toast.error(err.response?.data?.msg || 'Произошла ошибка');
       console.error(err);
     }
   };
@@ -465,6 +479,27 @@ const ChatPage = () => {
   const isAuthor = currentUser?._id === requestDetails?.author._id;
   // ИСПРАВЛЕННАЯ ЛОГИКА: Чат активен, если есть хелпер и заявка не закрыта
   const isChatActive = requestDetails?.helper && ['assigned', 'in_progress'].includes(requestDetails?.status);
+
+  if (isArchived) {
+    return (
+      <div className="container mx-auto px-4 py-12 mt-16 text-center">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-6 rounded-md shadow-md max-w-2xl mx-auto">
+          <ArchiveBoxIcon className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
+          <h2 className="text-2xl font-bold mb-2">Этот чат заархивирован</h2>
+          <p className="mb-4">
+            Вы решили найти другого помощника, поэтому этот диалог был закрыт.
+            Ваша заявка снова активна и видна другим специалистам.
+          </p>
+          <Link
+            to="/requests"
+            className="inline-block px-6 py-2 bg-yellow-500 text-white font-semibold rounded-md hover:bg-yellow-600 transition-colors"
+          >
+            К списку заявок
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -705,7 +740,7 @@ const ChatPage = () => {
                 Пожалуйста, оцените работу хелпера <span className="font-bold">{requestDetails?.helper?.username}</span>.
              </p>
             {/* Рендерим компонент оценки прямо здесь */}
-            <Rating onSubmit={handleCompleteAndRate} />
+            <Rating onSubmit={handleCompleteOrReopen} />
              <button
                 onClick={() => setIsRatingModalOpen(false)}
                 className="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"

@@ -255,10 +255,22 @@ router.get('/:id', protect, [
     try {
         const request = await Request.findById(req.params.id)
             .populate('author', 'username _id rating avatar')
-            .populate('helper', 'username _id rating avatar');
+            .populate('helper', 'username _id rating avatar')
+            .lean();
+
         if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
         }
+
+        // Проверяем, есть ли для этой заявки заархивированные сообщения
+        const archivedMessagesCount = await Message.countDocuments({ 
+            requestId: req.params.id, 
+            isArchived: true 
+        });
+
+        // Добавляем флаг в ответ
+        request.chatIsArchived = archivedMessagesCount > 0 && request.status === 'open';
+
         res.json(request);
     } catch (err) {
         console.error('Ошибка при получении заявки:', err.message);

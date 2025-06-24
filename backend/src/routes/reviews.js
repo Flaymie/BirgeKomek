@@ -136,8 +136,10 @@ router.post('/', protect, [
       return res.status(404).json({ msg: 'Заявка не найдена' });
     }
     
-    if (request.status !== 'completed') {
-      return res.status(400).json({ msg: 'Можно оставлять отзывы только для завершенных заявок' });
+    // Разрешаем оставлять отзыв для заявок в работе или завершенных
+    const allowedStatuses = ['completed', 'assigned', 'in_progress'];
+    if (!allowedStatuses.includes(request.status)) {
+      return res.status(400).json({ msg: `Оставить отзыв можно только для заявок со статусом: ${allowedStatuses.join(', ')}` });
     }
     
     if (!request.helper) {
