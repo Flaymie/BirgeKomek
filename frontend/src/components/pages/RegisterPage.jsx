@@ -9,6 +9,7 @@ import zxcvbn from 'zxcvbn';
 import PasswordStrengthMeter from '../shared/PasswordStrengthMeter';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import TelegramAuthModal from '../modals/TelegramAuthModal';
+import { FaTelegramPlane } from 'react-icons/fa';
 
 // ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
 const subjectOptions = [
@@ -41,6 +42,16 @@ const useDebounce = (value, delay) => {
 };
 
 const RegisterPage = () => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Если пользователь уже авторизован, не пускаем его на эту страницу
+    if (currentUser) {
+      navigate('/requests');
+    }
+  }, [currentUser, navigate]);
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -67,7 +78,6 @@ const RegisterPage = () => {
 
   const { username, email, password, password2, role, grade } = formData;
   
-  const navigate = useNavigate();
   // const { register } = useAuth(); // УБИРАЕМ КОНТЕКСТ, ОН СЛОМАН
   
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -411,10 +421,10 @@ const RegisterPage = () => {
           <button
             type="button"
             onClick={() => setIsTelegramModalOpen(true)}
-            className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 flex items-center justify-center"
+            className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors mt-3"
           >
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M22,3.125c-0.344,0-0.688,0.063-1.031,0.188L3.5,8.844c-1.063,0.375-1.063,1.813,0,2.25l4.375,1.375l1.375,4.375c0.438,1.063,1.875,1.063,2.25,0l5.531-17.438C16.969,3.313,16.688,3,16.25,3C16.188,3,16.125,3.063,16.063,3.063L16,3.125z M9.313,12.438l-4-1.25l12.188-7.656l-7.5,11.969L9.313,12.438z M12.938,14.688l-1.25-4l7.656-12.188l-11.969,7.5L12.938,14.688z"/></svg>
-            Зарегистрироваться через Telegram
+            <FaTelegramPlane className="mr-2" />
+            Регистрация через Telegram
           </button>
 
         </form>

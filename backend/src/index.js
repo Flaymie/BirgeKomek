@@ -15,7 +15,6 @@ import { fileURLToPath } from 'url';
 
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
-import telegramRoutes from './routes/telegram.js';
 import requestRoutes from './routes/requests.js';
 import messageRoutes from './routes/messages.js';
 import reviewRoutes from './routes/reviews.js';
@@ -42,6 +41,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// --- ГЛОБАЛЬНЫЕ ХРАНИЛИЩА ---
+app.locals.loginTokens = new Map();
+app.locals.passwordResetTokens = new Map();
+app.locals.sseConnections = sseConnections;
+app.locals.onlineUsers = onlineUsers;
+
 const server = http.createServer(app);
 export const io = new Server(server, {
   cors: {
@@ -150,7 +156,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 
 // роуты
 app.use('/api/auth', authRoutes);
-app.use('/api/auth/telegram', telegramRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);

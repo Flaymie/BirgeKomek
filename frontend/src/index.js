@@ -17,7 +17,6 @@ root.render(
         <SocketProvider>
           <App />
         </SocketProvider>
-        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

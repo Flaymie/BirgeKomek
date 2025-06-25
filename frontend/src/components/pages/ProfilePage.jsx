@@ -3,12 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
-import { usersService } from '../../services/api';
+import { usersService, telegramService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
 import BanUserModal from '../modals/BanUserModal';
 import ProfileNotFound from '../shared/ProfileNotFound';
+import LinkTelegramModal from '../modals/LinkTelegramModal';
+import { FaTelegramPlane } from 'react-icons/fa';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -235,6 +237,21 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                   </div>
                 )}
                 
+                {profile.telegramUsername && (
+                   <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-1">Telegram</h3>
+                     <a 
+                        href={`https://t.me/${profile.telegramUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 hover:underline flex items-center"
+                      >
+                       <FaTelegramPlane className="mr-2" />
+                       @{profile.telegramUsername}
+                      </a>
+                   </div>
+                )}
+                
                 {profile.roles && profile.roles.helper && (
                   <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-1">Помощь в предметах</h3>
@@ -282,7 +299,10 @@ const ProfileEditor = ({
   handleProfileSubmit,
   currentUser,
   handleSubjectsChange,
-  onDeleteAccount
+  onDeleteAccount,
+  onLinkTelegram,
+  onUnlinkTelegram,
+  isTelegramLoading
 }) => {
   const handlePhoneChange = (e) => {
     const value = e.target.value;
@@ -464,6 +484,52 @@ const ProfileEditor = ({
                 </button>
               </div>
             </form>
+
+            {/* --- ОБНОВЛЕННЫЙ БЛОК ДЛЯ TELEGRAM --- */}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-medium leading-6 text-gray-900">Интеграция с Telegram</h3>
+                
+                {profileData.telegramId ? (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center">
+                            <FaTelegramPlane className="w-6 h-6 mr-3 text-green-600" />
+                            <div>
+                                <p className="text-sm font-semibold text-gray-800">
+                                    Аккаунт привязан к @{profileData.telegramUsername}
+                                </p>
+                                <p className="text-xs text-gray-600">Вы получаете уведомления в Telegram.</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onUnlinkTelegram}
+                            className="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-all duration-300 flex items-center justify-center text-sm mt-4"
+                            disabled={isTelegramLoading}
+                        >
+                            {isTelegramLoading && <LoadingOverlay className="w-5 h-5 mr-2" />}
+                            <FaTelegramPlane className="w-5 h-5 mr-2" />
+                            Отвязать Telegram
+                        </button>
+                    </div>
+                ) : (
+                    <div className="mt-4">
+                        <p className="text-sm text-gray-600 mb-3">
+                            Привяжите свой Telegram, чтобы получать уведомления о новых ответах и статусах ваших запросов.
+                        </p>
+                         <button
+                            type="button"
+                            onClick={onLinkTelegram}
+                            className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 flex items-center justify-center text-base"
+                            disabled={isTelegramLoading}
+                        >
+                             {isTelegramLoading && <LoadingOverlay className="w-5 h-5 mr-2" />}
+                             <FaTelegramPlane className="w-5 h-5 mr-2" />
+                            Привязать Telegram
+                        </button>
+                    </div>
+                )}
+            </div>
+
           </div>
         </div>
       </div>
@@ -481,6 +547,11 @@ const ProfilePage = () => {
   const [isMyProfile, setIsMyProfile] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+  
+  // --- НОВЫЕ СТЕЙТЫ ДЛЯ TELEGRAM ---
+  const [isTelegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
+  const [isTelegramLoading, setTelegramLoading] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
@@ -605,6 +676,93 @@ const ProfilePage = () => {
     }
   };
 
+  const handleLinkTelegram = async () => {
+    setTelegramLoading(true);
+    setTelegramLinkUrl('');
+    try {
+      const { data } = await telegramService.generateLinkToken();
+      const token = data.linkToken;
+      // Используем переменную окружения для имени бота
+      const botUsername = process.env.REACT_APP_TELEGRAM_BOT_USERNAME || 'birgekomek_bot';
+      const url = `https://t.me/${botUsername}?start=${token}`;
+      
+      setTelegramLinkUrl(url);
+      setTelegramModalOpen(true);
+
+      // Запускаем поллинг статуса
+      let attempts = 0;
+      const maxAttempts = 40; // 40 * 3s = 120s = 2 минуты
+      const intervalId = setInterval(async () => {
+        if (attempts >= maxAttempts) {
+          clearInterval(intervalId);
+          return;
+        }
+        attempts++;
+
+        try {
+          const statusRes = await telegramService.checkLinkStatus(token);
+          if (statusRes.data.status === 'linked') {
+            clearInterval(intervalId);
+            toast.success('Telegram успешно привязан!');
+            setTelegramModalOpen(false);
+            // Обновляем данные профиля на странице
+            // Если мы на странице редактирования, обновляем currentUser, иначе - профиль по ID
+            if (isMyProfile && !identifier) {
+               const response = await usersService.getUserById(currentUser._id);
+               setProfileData({ ...response.data });
+            } else {
+               fetchUserData(identifier);
+            }
+          }
+        } catch (pollError) {
+           console.error('Ошибка опроса статуса привязки:', pollError);
+           // Можно остановить поллинг при определенной ошибке, например 404
+           if(pollError.response?.status === 404) {
+               clearInterval(intervalId);
+           }
+        }
+      }, 3000);
+
+      // Привязываем функцию очистки интервала к onClose модального окна
+      // Это более чистый способ, чем хак с состоянием
+      const originalOnClose = () => {
+        clearInterval(intervalId);
+        setTelegramModalOpen(false);
+      };
+      setTelegramModalOpen(prev => (typeof prev === 'boolean' ? { isOpen: true, onClose: originalOnClose } : { ...prev, isOpen: true, onClose: originalOnClose }));
+
+    } catch (error) {
+      toast.error('Не удалось сгенерировать ссылку для привязки.');
+      console.error(error);
+    } finally {
+      // Не выключаем лоадер сразу, он выключится когда придет ссылка
+      // setTelegramLoading(false); 
+    }
+  };
+
+  const handleUnlinkTelegram = async () => {
+      if (!window.confirm('Вы уверены, что хотите отвязать Telegram? Вы перестанете получать уведомления.')) {
+          return;
+      }
+      setTelegramLoading(true);
+      try {
+          await telegramService.unlinkAccount();
+          toast.success('Telegram успешно отвязан!');
+          // Обновляем данные профиля
+          if (isMyProfile && !identifier) {
+              const response = await usersService.getUserById(currentUser._id);
+              setProfileData({ ...response.data });
+          } else {
+              fetchUserData(identifier);
+          }
+      } catch (error) {
+          toast.error('Не удалось отвязать Telegram.');
+          console.error(error);
+      } finally {
+          setTelegramLoading(false);
+      }
+  };
+
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
 
@@ -631,6 +789,9 @@ const ProfilePage = () => {
           currentUser={currentUser}
           handleSubjectsChange={handleSubjectsChange}
           onDeleteAccount={() => setIsDeleteModalOpen(true)}
+          onLinkTelegram={handleLinkTelegram}
+          onUnlinkTelegram={handleUnlinkTelegram}
+          isTelegramLoading={isTelegramLoading}
         />
       )}
       <DeleteAccountModal 
@@ -643,6 +804,12 @@ const ProfilePage = () => {
         onClose={() => setIsBanModalOpen(false)}
         onConfirm={handleBanUser}
         username={profile?.username}
+      />
+      <LinkTelegramModal 
+        isOpen={typeof isTelegramModalOpen === 'object' ? isTelegramModalOpen.isOpen : isTelegramModalOpen}
+        onClose={() => (typeof isTelegramModalOpen === 'object' && isTelegramModalOpen.onClose) ? isTelegramModalOpen.onClose() : setTelegramModalOpen(false)}
+        linkUrl={telegramLinkUrl}
+        isLoading={isTelegramLoading && !telegramLinkUrl}
       />
     </>
   );

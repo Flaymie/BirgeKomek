@@ -166,15 +166,18 @@ bot.start(async (ctx) => {
 
   if (action === 'register') {
     try {
-      const response = await axios.post(`${API_URL}/auth/telegram/check`, { telegramId: ctx.from.id });
+      // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
+      const response = await axios.get(`${API_URL}/users/by-telegram/${ctx.from.id}`);
       if (response.data.exists) {
         return ctx.reply('Вы уже зарегистрированы. Чтобы войти, вернитесь на сайт и нажмите "Войти через Telegram".');
       }
-      return ctx.scene.enter('registration');
+      // Передаем токен в сцену, чтобы потом привязать пользователя
+      ctx.scene.enter('registration', { loginToken: token });
     } catch (error) {
       console.error("Ошибка при проверке пользователя для регистрации:", error.response?.data || error.message);
       return ctx.reply('Упс! Что-то пошло не так с нашим сервером. Попробуйте позже.');
     }
+    return;
   }
 
   if (action === 'login') {
@@ -182,8 +185,9 @@ bot.start(async (ctx) => {
       return ctx.reply('Некорректная ссылка для входа. Пожалуйста, попробуйте снова с сайта.');
     }
     try {
+      // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
       // Этот эндпоинт свяжет сессию на сайте (по токену) с telegramId
-      await axios.post(`${API_URL}/auth/telegram/connect`, { 
+      await axios.post(`${API_URL}/auth/telegram/complete-login`, { 
         telegramId: ctx.from.id,
         loginToken: token 
       });
@@ -194,6 +198,25 @@ bot.start(async (ctx) => {
     }
     return;
   }
+
+  if (action === 'link') {
+    if (!token) {
+        return ctx.reply('Некорректная ссылка для привязки. Пожалуйста, попробуйте снова со страницы профиля.');
+    }
+    try {
+        await axios.post(`${API_URL}/auth/finalizelink`, {
+            linkToken: payload, // Отправляем весь payload, т.е. "link_..."
+            telegramId: ctx.from.id,
+            telegramUsername: ctx.from.username
+        });
+        await ctx.reply('✅ Отлично! Ваш Telegram-аккаунт успешно привязан к профилю на сайте.');
+    } catch (error) {
+        console.error("Ошибка при привязке аккаунта:", error.response?.data || error.message);
+        const errorMessage = error.response?.data?.msg || 'Не удалось привязать аккаунт. Попробуйте снова.';
+        await ctx.reply(`❌ Ошибка: ${errorMessage}`);
+    }
+    return;
+  }
   
   return ctx.reply('Неизвестная команда. Пожалуйста, начните с нашего сайта.');
 });
@@ -201,32 +224,52 @@ bot.start(async (ctx) => {
 async function registerUser(ctx) {
     const { email, role, grade, subjects } = ctx.wizard.state.data;
     const { id: telegramId, username, first_name, last_name } = ctx.from;
+    const { loginToken } = ctx.scene.state; // Получаем токен из состояния сцены
+
+    // Создаем резервное имя пользователя, если у юзера в телеграме его нет
+    const candidateUsername = username || `${first_name || ''}${last_name || ''}`.replace(/[^a-zA-Z0-9_]/g, '') || `user${telegramId.toString().slice(-4)}`;
+    
+    if (!candidateUsername) {
+        await ctx.reply('Не удалось сгенерировать имя пользователя. Регистрация прервана.');
+        return ctx.scene.leave();
+    }
 
     try {
         await ctx.reply(`Проверяю данные...`);
+
+        // 1. Проверяем, доступно ли имя пользователя
+        const checkResponse = await axios.post(`${API_URL}/auth/check-username`, { username: candidateUsername });
+        if (!checkResponse.data.available) {
+            // TODO: В будущем можно попросить пользователя ввести другое имя
+            await ctx.reply(`К сожалению, ваше имя пользователя в Telegram ('${candidateUsername}') уже занято на нашей платформе. Пожалуйста, измените его в настройках Telegram или зарегистрируйтесь на сайте, а затем привяжите аккаунт.`);
+            return ctx.scene.leave();
+        }
         
-        // 1. Отправляем данные на бэкенд для создания пользователя
-        const response = await axios.post(`${API_URL}/auth/telegram/register`, {
+        // 2. Отправляем данные на бэкенд для создания пользователя
+        const regResponse = await axios.post(`${API_URL}/auth/telegram/register`, {
             email,
             role,
             grade,
             subjects,
             telegramId,
-            username: username || `${first_name}${last_name || ''}${telegramId}`.slice(0,10), // Fallback username
+            username: candidateUsername,
             firstName: first_name,
             lastName: last_name
         });
 
-        // 2. Если успешно, бэкенд возвращает токен для авто-логина
-        const { token } = response.data;
-        const loginUrl = `${FRONTEND_URL}/auth/telegram/callback?token=${token}`;
+        const { userId } = regResponse.data; // Получаем ID нового юзера
 
-        await ctx.reply(
-            'Супер! Вы успешно зарегистрированы. Теперь вы можете войти на сайт по этой ссылке. Она действует 3 минуты.',
-            Markup.inlineKeyboard([
-                Markup.button.url('Войти на сайт', loginUrl)
-            ])
-        );
+        // 3. После успешной регистрации привязываем сессию на сайте
+        if (loginToken && userId) {
+             await axios.post(`${API_URL}/auth/telegram/complete-login`, { 
+                telegramId: telegramId,
+                loginToken: loginToken,
+                userId: userId // <-- Отправляем ID нового юзера
+            });
+            await ctx.reply('Супер! Вы успешно зарегистрированы. Теперь вернитесь на вкладку сайта, она должна обновиться автоматически.');
+        } else {
+             await ctx.reply('Супер! Вы успешно зарегистрированы. Теперь вы можете войти на сайт, используя свой email.');
+        }
 
     } catch (error) {
         console.error("Ошибка при регистрации:", error.response?.data || error.message);

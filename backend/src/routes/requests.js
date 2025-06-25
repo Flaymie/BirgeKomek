@@ -544,6 +544,18 @@ router.post('/:id/complete', protect, [
         // if (request.helper) {
         //    await User.findByIdAndUpdate(request.helper._id, { $inc: { points: 10 } }); 
         // }
+
+        // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О ЗАКРЫТИИ ЗАЯВКИ ---
+        if (request.helper) {
+            await createAndSendNotification(req.app.locals.sseConnections, {
+                user: request.helper,
+                type: 'request_completed',
+                title: `Заявка "${request.title}" была закрыта`,
+                message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
+                link: `/requests/${request._id}`
+            });
+        }
+
         res.json(request);
     } catch (err) {
         console.error('Ошибка при завершении заявки:', err.message);
@@ -783,6 +795,22 @@ router.put('/:id/status', protect, [
              return res.status(403).json({ msg: 'Только автор или исполнитель могут завершить заявку.' });
         }
 
+        if (status === 'completed') {
+            if (req.user._id.toString() !== request.author.toString()) {
+                return res.status(403).json({ msg: 'Только автор может закрыть заявку.' });
+            }
+            
+            // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О ЗАКРЫТИИ ЗАЯВКИ ---
+            if (request.helper) {
+                await createAndSendNotification(req.app.locals.sseConnections, {
+                    user: request.helper,
+                    type: 'request_completed',
+                    title: `Заявка "${request.title}" была закрыта`,
+                    message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
+                    link: `/requests/${request._id}`
+                });
+            }
+        }
 
         request.status = status;
         // При завершении заявки фиксируем дату

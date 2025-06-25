@@ -4,6 +4,7 @@ import Review from '../models/Review.js';
 import Request from '../models/Request.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
+import { createAndSendNotification } from '../utils/notification.js';
 
 const router = express.Router();
 
@@ -162,34 +163,31 @@ router.post('/', protect, [
     }
     
     // создаем отзыв
-    const review = new Review({
-      requestId,
-      reviewerId: req.user._id,
-      helperId: request.helper,
+    const newReview = new Review({
+      request: requestId,
+      author: req.user.id,
+      helper: request.helper,
       rating,
       comment
     });
     
-    await review.save();
+    await newReview.save();
     
-    // обновляем рейтинг хелпера
-    const helperReviews = await Review.find({ helperId: request.helper });
+    // Пересчитываем средний рейтинг хелпера
+    await User.updateAverageRating(request.helper);
+
+    // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О НОВОМ ОТЗЫВЕ ---
+    const populatedReview = await Review.findById(newReview._id).populate('author', 'username');
     
-    if (helperReviews.length > 0) {
-      const totalRating = helperReviews.reduce((sum, rev) => sum + rev.rating, 0);
-      const avgRating = totalRating / helperReviews.length;
-      
-      await User.findByIdAndUpdate(request.helper, { 
-        rating: Number(avgRating.toFixed(1))
-      });
-    }
-    
-    // получаем с данными отправителя
-    const populatedReview = await Review.findById(review._id)
-      .populate('reviewerId', 'username')
-      .populate('requestId', 'title');
-    
-    res.status(201).json(populatedReview);
+    await createAndSendNotification(req.app.locals.sseConnections, {
+      user: request.helper,
+      type: 'new_review',
+      title: 'Вам оставили новый отзыв!',
+      message: `Пользователь ${populatedReview.author.username} оставил вам отзыв по заявке "${request.title}".`,
+      link: `/profile/${request.helper}`
+    });
+
+    res.status(201).json(newReview);
   } catch (err) {
     console.error('Ошибка при создании отзыва:', err);
     res.status(500).json({ msg: 'Не получилось создать отзыв' });

@@ -239,33 +239,33 @@ router.put('/:responseId/status', protect, [
         
         console.log(`Запрос ${request._id} обновлен: статус изменен на in_progress, назначен хелпер ${response.helper._id}`);
         
-        // Отправляем уведомление автору запроса о том, что хелпер назначен
-        await createAndSendNotification({
-            user: request.author,
-            type: 'request_assigned_to_you',
-            title: 'Помощник назначен!',
-            message: `Пользователь ${response.helper.username} был назначен помощником по вашему запросу "${request.title}".`,
-            link: `/request/${request._id}/chat`,
-            relatedEntity: {
-                requestId: request._id,
-                userId: response.helper._id
-            }
+        // Уведомление хелперу, что его отклик приняли
+        await createAndSendNotification(req.app.locals.sseConnections, {
+            user: response.helper._id,
+            type: 'response_accepted',
+            title: 'Ваш отклик приняли!',
+            message: `Ваш отклик на заявку "${request.title}" был принят. Можете приступать к помощи.`,
+            link: `/requests/${request._id}/chat`,
+            relatedEntity: { requestId: request._id }
         });
-      }
-    }
 
-    // Создаем уведомление для хелпера о статусе его отклика
-    await createAndSendNotification({
-      user: response.helper._id,
-      type: 'request_status_changed',
-      title: 'Статус вашего отклика изменен',
-      message: `Ваш отклик на запрос "${response.request.title}" ${status === 'accepted' ? 'принят' : 'отклонен'}`,
-      link: `/request/${response.request._id}`,
-      relatedEntity: {
-        requestId: response.request._id,
-        userId: req.user._id
+        // Отклоняем все остальные отклики на этот запрос
+        await Response.updateMany(
+          { request: request._id, _id: { $ne: responseId } },
+          { $set: { status: 'rejected' } }
+        );
       }
-    });
+    } else if (status === 'rejected') {
+        // Уведомление хелперу, что его отклик отклонили
+        await createAndSendNotification(req.app.locals.sseConnections, {
+            user: response.helper._id,
+            type: 'response_rejected',
+            title: 'Ваш отклик отклонен',
+            message: `К сожалению, ваш отклик на заявку "${response.request.title}" был отклонен.`,
+            link: `/requests/${response.request._id}`,
+            relatedEntity: { requestId: response.request._id }
+        });
+    }
 
     res.json(response);
   } catch (error) {

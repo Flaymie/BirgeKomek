@@ -158,12 +158,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Функция для входа через Telegram/другой сервис с готовым токеном
+  // Вход с использованием токена (например, после Telegram)
   const loginWithToken = (token, user) => {
-    localStorage.setItem('token', token);
-    setCurrentUser(processUserData(user));
-    fetchUnreadCount();
-    toast.success(`Добро пожаловать, ${user.username}!`);
+    setLoading(true);
+    try {
+      localStorage.setItem('token', token);
+      setCurrentUser(processUserData(user));
+      fetchUnreadCount();
+      toast.success(`Добро пожаловать, ${user.username}!`);
+      // Прямой редирект на страницу запросов
+      // Этот код будет выполнен в браузере, поэтому window.location.href - это то, что нужно
+      window.location.href = '/requests';
+    } catch (error) {
+      console.error('Ошибка при обработке токена:', error);
+      setError('Ошибка при обработке токена');
+      toast.error('Ошибка при обработке токена');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Функция для регистрации пользователя

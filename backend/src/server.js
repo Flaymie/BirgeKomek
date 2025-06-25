@@ -7,6 +7,9 @@ import responseRoutes from './routes/responses.js';
 import notificationRoutes from './routes/notifications.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
+import reviewsRoutes from './routes/reviews.js';
+import statsRoutes from './routes/stats.js';
+import telegramRoutes from './routes/telegram.js';
 
 // Подключение маршрутов API
 app.use('/api/requests', requestRoutes);
@@ -18,6 +21,10 @@ app.use('/api/responses', responseRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/responses', responsesRoutes({ onlineUsers, sseConnections, io }));
+app.use('/api/reviews', reviewsRoutes({ onlineUsers, sseConnections, io }));
+app.use('/api/stats', statsRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Статические файлы
 app.use('/uploads', express.static('uploads')); 

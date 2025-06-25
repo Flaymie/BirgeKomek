@@ -37,6 +37,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  telegramId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
+  telegramUsername: {
+    type: String,
+    trim: true
+  },
   roles: {
     student: {
       type: Boolean,

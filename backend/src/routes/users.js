@@ -7,6 +7,7 @@ import Message from '../models/Message.js';
 import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
+import { createAndSendNotification } from './notifications.js';
 
 const router = express.Router();
 
@@ -435,11 +436,20 @@ export default ({ onlineUsers, sseConnections, io }) => {
 
       user.password = newPassword;
       await user.save();
+      
+      // --- УВЕДОМЛЕНИЕ О СМЕНЕ ПАРОЛЯ ---
+      await createAndSendNotification(sseConnections, {
+        user: req.user.id,
+        type: 'security_alert',
+        title: 'Пароль успешно изменен',
+        message: 'Ваш пароль был изменен. Если это были не вы, немедленно свяжитесь с поддержкой!',
+        link: '/profile/me'
+      });
 
       res.json({ msg: 'Пароль успешно обновлен' });
     } catch (err) {
       console.error('Ошибка при обновлении пароля:', err.message);
-      res.status(500).send('Ошибка сервера');
+      res.status(500).json({ msg: 'Ошибка сервера' });
     }
   });
 
@@ -636,6 +646,23 @@ export default ({ onlineUsers, sseConnections, io }) => {
     } catch (err) {
       console.error('Ошибка при разбане пользователя:', err);
       res.status(500).send('Ошибка сервера');
+    }
+  });
+
+  // @route   GET /api/users/by-telegram/:id
+  // @desc    Найти пользователя по Telegram ID
+  // @access  Internal (для бота)
+  router.get('/by-telegram/:id', async (req, res) => {
+    try {
+      const user = await User.findOne({ telegramId: req.params.id });
+      if (!user) {
+        // Это не ошибка, просто пользователя нет. Отправляем exists: false
+        return res.json({ exists: false });
+      }
+      res.json({ exists: true, user: { id: user._id, username: user.username } });
+    } catch (error) {
+      console.error('Ошибка поиска по Telegram ID:', error);
+      res.status(500).json({ msg: 'Ошибка сервера' });
     }
   });
 

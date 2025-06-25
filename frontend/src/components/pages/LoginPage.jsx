@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import TelegramAuthModal from '../modals/TelegramAuthModal';
+import { FaTelegramPlane } from 'react-icons/fa';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -233,9 +234,9 @@ const LoginPage = () => {
             <button
               type="button"
               onClick={() => setIsTelegramModalOpen(true)}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 transform hover:translate-y-[-2px] hover:shadow-lg"
+              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
             >
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M22,3.125c-0.344,0-0.688,0.063-1.031,0.188L3.5,8.844c-1.063,0.375-1.063,1.813,0,2.25l4.375,1.375l1.375,4.375c0.438,1.063,1.875,1.063,2.25,0l5.531-17.438C16.969,3.313,16.688,3,16.25,3C16.188,3,16.125,3.063,16.063,3.063L16,3.125z M9.313,12.438l-4-1.25l12.188-7.656l-7.5,11.969L9.313,12.438z M12.938,14.688l-1.25-4l7.656-12.188l-11.969,7.5L12.938,14.688z"/></svg>
+              <FaTelegramPlane className="mr-2" />
               Войти через Telegram
             </button>
           </div>
