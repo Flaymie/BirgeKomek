@@ -4,7 +4,7 @@ import Review from '../models/Review.js';
 import Request from '../models/Request.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
-import { createAndSendNotification } from '../utils/notification.js';
+import { createAndSendNotification } from './notifications.js';
 
 const router = express.Router();
 

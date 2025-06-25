@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { telegramTokens } from '../utils/telegramTokenStore.js';
 import { protect } from '../middleware/auth.js';
 import axios from 'axios';
-import { createAndSendNotification } from '../utils/notificationUtils.js';
+import { createAndSendNotification } from './notifications.js';
 
 const router = express.Router();
 
