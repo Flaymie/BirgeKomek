@@ -158,6 +158,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Функция для входа через Telegram/другой сервис с готовым токеном
+  const loginWithToken = (token, user) => {
+    localStorage.setItem('token', token);
+    setCurrentUser(processUserData(user));
+    fetchUnreadCount();
+    toast.success(`Добро пожаловать, ${user.username}!`);
+  };
+
   // Функция для регистрации пользователя
   const register = async (userData) => {
     setLoading(true);
@@ -327,7 +335,8 @@ export const AuthProvider = ({ children }) => {
     updatePassword,
     updateAvatar,
     generateAvatarColor,
-    markNotificationsAsRead
+    markNotificationsAsRead,
+    loginWithToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -8,6 +8,7 @@ import { SUBJECTS } from '../../services/constants';
 import zxcvbn from 'zxcvbn';
 import PasswordStrengthMeter from '../shared/PasswordStrengthMeter';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import TelegramAuthModal from '../modals/TelegramAuthModal';
 
 // ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
 const subjectOptions = [
@@ -53,6 +54,7 @@ const RegisterPage = () => {
   const [passwordScore, setPasswordScore] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   
   // Состояния для асинхронной валидации
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle, loading, available, unavailable, error
@@ -358,20 +360,14 @@ const RegisterPage = () => {
           </div>
 
             {(role === 'student' || role === 'helper') && (
-            <div>
-                <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
-                <select
-                id="grade"
-                name="grade"
-                value={grade}
-                  onChange={handleChange}
-                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                >
-                  <option value="">Не указан</option>
-                  {[...Array(11)].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>{i + 1} класс</option>
-                  ))}
-                </select>
+            <div className="mt-4">
+              <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
+              <select id="grade" name="grade" value={grade} onChange={handleChange} className="mt-1 form-select w-full">
+                <option value="">Выберите ваш класс</option>
+                {[...Array(5)].map((_, i) => (
+                  <option key={i + 7} value={i + 7}>{i + 7} класс</option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -401,10 +397,26 @@ const RegisterPage = () => {
           )}
           
           <div>
-                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
               Зарегистрироваться
             </button>
           </div>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="flex-shrink mx-4 text-sm text-gray-500">или</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsTelegramModalOpen(true)}
+            className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 flex items-center justify-center"
+          >
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M22,3.125c-0.344,0-0.688,0.063-1.031,0.188L3.5,8.844c-1.063,0.375-1.063,1.813,0,2.25l4.375,1.375l1.375,4.375c0.438,1.063,1.875,1.063,2.25,0l5.531-17.438C16.969,3.313,16.688,3,16.25,3C16.188,3,16.125,3.063,16.063,3.063L16,3.125z M9.313,12.438l-4-1.25l12.188-7.656l-7.5,11.969L9.313,12.438z M12.938,14.688l-1.25-4l7.656-12.188l-11.969,7.5L12.938,14.688z"/></svg>
+            Зарегистрироваться через Telegram
+          </button>
+
         </form>
 
           <div className="mt-6">
@@ -425,6 +437,11 @@ const RegisterPage = () => {
           </div>
         </div>
       </div>
+      <TelegramAuthModal
+        isOpen={isTelegramModalOpen}
+        onClose={() => setIsTelegramModalOpen(false)}
+        authAction="register"
+      />
     </div>
   );
 };

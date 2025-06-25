@@ -430,7 +430,7 @@ const ProfileEditor = ({
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
                   <select id="grade" name="grade" value={profileData.grade || ''} onChange={handleProfileChange} className="mt-1 form-select w-full">
                     <option value="">Выберите класс</option>
-                    {[...Array(11)].map((_, i) => (<option key={i + 1} value={i + 1}>{i + 1} класс</option>))}
+                    {[...Array(5)].map((_, i) => (<option key={i + 7} value={i + 7}>{i + 7} класс</option>))}
                   </select>
                 </div>
               </div>
@@ -487,17 +487,7 @@ const ProfilePage = () => {
   const [profileSuccess, setProfileSuccess] = useState('');
   const [profileError, setProfileError] = useState('');
   
-  const [profileData, setProfileData] = useState({
-    username: '',
-    email: '',
-    phone: '',
-    location: '',
-    bio: '',
-    grade: '',
-    subjects: [],
-    avatar: '',
-    roles: {},
-  });
+  const [profileData, setProfileData] = useState(null);
   
   const fetchUserData = useCallback(async (userIdentifier) => {
     if (!userIdentifier) return;
@@ -519,19 +509,9 @@ const ProfilePage = () => {
     if (identifier) {
       fetchUserData(identifier);
     } 
-    else if (!authLoading && !identifier) {
+    else if (!authLoading) {
       if (currentUser) {
-        setProfileData({
-          username: currentUser.username || '',
-          email: currentUser.email || '',
-          phone: currentUser.phone || '',
-          location: currentUser.location || '',
-          bio: currentUser.bio || '',
-          grade: currentUser.grade || '',
-          subjects: currentUser.subjects || [],
-          avatar: currentUser.avatar || '',
-          roles: currentUser.roles || {},
-        });
+        setProfileData({ ...currentUser });
         setIsMyProfile(true);
         setLoading(false);
       } else {
@@ -545,17 +525,7 @@ const ProfilePage = () => {
       const isMine = currentUser._id === profile._id;
       setIsMyProfile(isMine);
       if (isMine) {
-         setProfileData({
-            username: profile.username || '',
-            email: profile.email || '',
-            phone: profile.phone || '',
-            location: profile.location || '',
-            bio: profile.bio || '',
-            grade: profile.grade || '',
-            subjects: profile.subjects || [],
-            avatar: profile.avatar || '',
-            roles: profile.roles || {},
-         });
+         setProfileData({ ...profile });
       }
     }
   }, [profile, currentUser]);
@@ -658,7 +628,7 @@ const ProfilePage = () => {
           isProfileLoading={isProfileLoading}
           handleProfileChange={handleProfileChange}
           handleProfileSubmit={handleProfileSubmit}
-          currentUser={profileData}
+          currentUser={currentUser}
           handleSubjectsChange={handleSubjectsChange}
           onDeleteAccount={() => setIsDeleteModalOpen(true)}
         />

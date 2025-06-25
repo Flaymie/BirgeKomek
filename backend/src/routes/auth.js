@@ -49,9 +49,9 @@ const router = express.Router();
  *                     default: false
  *               grade:
  *                 type: integer
- *                 minimum: 1
+ *                 minimum: 7
  *                 maximum: 11
- *                 description: Класс ученика (1-11)
+ *                 description: Класс ученика (7-11)
  *               avatar:
  *                 type: string
  *                 description: URL аватара пользователя (опционально)
@@ -106,7 +106,7 @@ router.post('/register',
   
   body('grade')
     .optional()
-    .isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
+    .isInt({ min: 7, max: 11 }).withMessage('Класс должен быть от 7 до 11'),
   body('helperSubjects')
     .optional()
     .isArray().withMessage('helperSubjects должен быть массивом')

@@ -75,8 +75,10 @@ const userSchema = new mongoose.Schema({
     },
   },
   grade: {
-    type: String,
-    required: function() { return this.roles.student; }
+    type: Number,
+    required: function() { return this.roles.student; },
+    min: [7, 'Класс не может быть меньше 7'],
+    max: [11, 'Класс не может быть больше 11']
   },
   rating: {
     type: Number,

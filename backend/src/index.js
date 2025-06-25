@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
+import telegramRoutes from './routes/telegram.js';
 import requestRoutes from './routes/requests.js';
 import messageRoutes from './routes/messages.js';
 import reviewRoutes from './routes/reviews.js';
@@ -149,6 +150,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 
 // роуты
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/telegram', telegramRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);

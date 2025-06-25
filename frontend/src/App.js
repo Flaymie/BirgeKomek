@@ -16,6 +16,7 @@ import NotificationsPage from './components/pages/NotificationsPage';
 import MyRequestsPage from './components/pages/MyRequestsPage';
 import ChatPage from './components/pages/ChatPage';
 import ChatsPage from './components/pages/ChatsPage';
+import TelegramCallbackPage from './components/pages/TelegramCallbackPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -44,8 +45,10 @@ const App = () => {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/requests" element={<RequestsPage />} />
+          <Route path="/auth/telegram/callback" element={<TelegramCallbackPage />} />
           
           {/* Защищенные маршруты */}
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/me" element={<ProtectedRoute><ProfileMeRedirector /></ProtectedRoute>} />
           <Route path="/profile/:identifier" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/request/:id" element={<ProtectedRoute><RequestDetailPage /></ProtectedRoute>} />
