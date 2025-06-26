@@ -634,37 +634,47 @@ router.get('/check-link-status/:token', protect, (req, res) => {
     res.json({ status: tokenData.status });
 });
 
-// @route   POST /api/auth/unlink-telegram
+// @route   POST /api/auth/telegram/unlink
 // @desc    Отвязать Telegram от аккаунта
 // @access  Private
-router.post('/unlink-telegram', protect, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ msg: 'Пользователь не найден' });
-        }
-
-        user.telegramId = undefined;
-        user.telegramUsername = undefined;
-        await user.save();
-
-        // --- УВЕДОМЛЕНИЕ ОБ ОТВЯЗКЕ TELEGRAM ---
-        await createAndSendNotification(req.app.locals.sseConnections, {
-          user: req.user.id,
-          type: 'security_alert',
-          title: 'Telegram отвязан',
-          message: 'Ваш аккаунт был отвязан от Telegram.',
-          link: '/profile/me'
-        });
-
-        const updatedUser = user.toObject();
-        delete updatedUser.password;
-
-        res.json({ msg: 'Telegram успешно отвязан', user: updatedUser });
-    } catch (error) {
-        console.error('Ошибка при отвязке Telegram:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
+router.post('/telegram/unlink', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: 'Пользователь не найден' });
     }
+
+    // ПРОВЕРКА: если нет пароля, не даем отвязать телегу
+    if (!user.password && user.hasPassword === false) {
+      return res.status(403).json({ 
+        msg: 'Нельзя отвязать Telegram, так как у вас не установлен пароль. Сначала установите пароль в профиле.' 
+      });
+    }
+
+    const userTelegramId = user.telegram.id;
+
+    user.telegram = undefined;
+    // Можно также сбросить флаг, если он используется
+    // user.hasPassword = true; // Это если после установки пароля мы ставим флаг
+    await user.save();
+
+    // --- УВЕДОМЛЕНИЕ ОБ ОТВЯЗКЕ TELEGRAM ---
+    await createAndSendNotification(req.app.locals.sseConnections, {
+      user: req.user.id,
+      type: 'security_alert',
+      title: 'Telegram отвязан',
+      message: 'Ваш аккаунт был отвязан от Telegram.',
+      link: '/profile/me'
+    });
+
+    const updatedUser = user.toObject();
+    delete updatedUser.password;
+
+    res.json({ msg: 'Telegram успешно отвязан', user: updatedUser });
+  } catch (error) {
+    console.error('Ошибка при отвязке Telegram:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
+  }
 });
 
 // @route   POST /api/auth/finalizelink

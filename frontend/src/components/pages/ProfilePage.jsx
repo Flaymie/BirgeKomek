@@ -346,6 +346,8 @@ const ProfileEditor = ({
     handleProfileChange({ target: { name: 'avatar', value: avatarUrl } });
   };
 
+  const canUnlinkTelegram = currentUser.hasPassword;
+
   return (
     <Container>
       <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
@@ -489,27 +491,31 @@ const ProfileEditor = ({
             <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-medium leading-6 text-gray-900">Интеграция с Telegram</h3>
                 
-                {profileData.telegramId ? (
+                {currentUser.telegram?.id ? (
                     <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center">
                             <FaTelegramPlane className="w-6 h-6 mr-3 text-green-600" />
                             <div>
                                 <p className="text-sm font-semibold text-gray-800">
-                                    Аккаунт привязан к @{profileData.telegramUsername}
+                                    Аккаунт привязан к @{currentUser.telegram.username || currentUser.telegram.id}
                                 </p>
                                 <p className="text-xs text-gray-600">Вы получаете уведомления в Telegram.</p>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={onUnlinkTelegram}
-                            className="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-all duration-300 flex items-center justify-center text-sm mt-4"
-                            disabled={isTelegramLoading}
-                        >
-                            {isTelegramLoading && <LoadingOverlay className="w-5 h-5 mr-2" />}
-                            <FaTelegramPlane className="w-5 h-5 mr-2" />
-                            Отвязать Telegram
-                        </button>
+                        <div className="mt-4" title={!canUnlinkTelegram ? 'Сначала установите пароль, чтобы иметь возможность войти в аккаунт после отвязки.' : 'Отвязать Telegram'}>
+                            <button 
+                                onClick={onUnlinkTelegram} 
+                                className="btn btn-error"
+                                disabled={isTelegramLoading || !canUnlinkTelegram}
+                            >
+                                {isTelegramLoading ? <LoadingOverlay /> : 'Отвязать Telegram'}
+                            </button>
+                        </div>
+                        {!canUnlinkTelegram && (
+                            <p className="text-xs text-red-600 mt-2">
+                                Вы не можете отвязать Telegram, так как у вас не установлен пароль для входа.
+                            </p>
+                        )}
                     </div>
                 ) : (
                     <div className="mt-4">
