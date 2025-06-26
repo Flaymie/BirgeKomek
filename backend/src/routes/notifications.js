@@ -39,8 +39,8 @@ export const createAndSendNotification = async (sseConnections, notificationData
         client.write(`data: ${JSON.stringify(notification)}\n\n`);
     }
 
-    // 2. Отправка в Telegram, если пользователь привязан
-    if (userToSend.telegramId) {
+    // 2. Отправка в Telegram, если пользователь привязан и уведомления включены
+    if (userToSend.telegramId && userToSend.telegramNotificationsEnabled) {
         const botToken = process.env.BOT_TOKEN;
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         

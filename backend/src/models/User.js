@@ -47,6 +47,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  telegramNotificationsEnabled: {
+    type: Boolean,
+    default: true
+  },
   roles: {
     student: {
       type: Boolean,

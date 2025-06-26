@@ -666,5 +666,48 @@ export default ({ onlineUsers, sseConnections, io }) => {
     }
   });
 
+  // --- Настройки пользователя для Telegram-бота ---
+
+  // Получить текущие настройки уведомлений
+  router.get('/by-telegram/:telegramId/settings', async (req, res) => {
+    try {
+      const { telegramId } = req.params;
+      const user = await User.findOne({ telegramId });
+
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь с таким Telegram ID не найден' });
+      }
+
+      res.json({
+        telegramNotificationsEnabled: user.telegramNotificationsEnabled,
+      });
+    } catch (error) {
+      console.error('Ошибка при получении настроек для бота:', error);
+      res.status(500).json({ msg: 'Ошибка сервера' });
+    }
+  });
+
+  // Переключить настройку уведомлений
+  router.post('/by-telegram/:telegramId/toggle-notifications', async (req, res) => {
+    try {
+      const { telegramId } = req.params;
+      const user = await User.findOne({ telegramId });
+
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь с таким Telegram ID не найден' });
+      }
+
+      user.telegramNotificationsEnabled = !user.telegramNotificationsEnabled;
+      await user.save();
+
+      res.json({
+        telegramNotificationsEnabled: user.telegramNotificationsEnabled,
+      });
+    } catch (error) {
+      console.error('Ошибка при переключении настроек для бота:', error);
+      res.status(500).json({ msg: 'Ошибка сервера' });
+    }
+  });
+
   return router;
 };

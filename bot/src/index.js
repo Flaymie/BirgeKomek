@@ -221,11 +221,69 @@ bot.start(async (ctx) => {
   return ctx.reply('Неизвестная команда. Пожалуйста, начните с нашего сайта.');
 });
 
-// Обработчик для колбэков от инлайн-кнопок уведомлений
+// Команда /settings для управления настройками
+bot.command('settings', async (ctx) => {
+  try {
+    const telegramId = ctx.from.id;
+    // ИСПОЛЬЗУЕМ НОВЫЙ РОУТ
+    const response = await axios.get(`${API_URL}/users/by-telegram/${telegramId}/settings`);
+    const { telegramNotificationsEnabled } = response.data;
+
+    const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';
+    const buttonText = telegramNotificationsEnabled ? 'Выключить' : 'Включить';
+    const buttonEmoji = telegramNotificationsEnabled ? '🔴' : '🟢';
+
+    await ctx.reply(`Настройки ваших уведомлений в Telegram:\n\n*Статус:* ${statusText}`, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[
+          { text: `${buttonEmoji} ${buttonText}`, callback_data: 'toggle_notifications' }
+        ]]
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка при получении настроек:', error.response?.data || error.message);
+    await ctx.reply('Не удалось загрузить ваши настройки. Попробуйте позже.');
+  }
+});
+
+// Обработчик для колбэков от инлайн-кнопок
 bot.on('callback_query', async (ctx) => {
   const { data } = ctx.callbackQuery;
-  // Теперь тут ничего не делаем, потому что кнопки нет
-  await ctx.answerCbQuery('Тут больше ничего нет, просто переходи по ссылке!');
+
+  if (data === 'toggle_notifications') {
+    try {
+      const telegramId = ctx.from.id;
+      // ИСПОЛЬЗУЕМ НОВЫЙ РОУТ
+      const response = await axios.post(`${API_URL}/users/by-telegram/${telegramId}/toggle-notifications`);
+      const { telegramNotificationsEnabled } = response.data;
+
+      const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';
+      const buttonText = telegramNotificationsEnabled ? 'Выключить' : 'Включить';
+      const buttonEmoji = telegramNotificationsEnabled ? '🔴' : '🟢';
+      
+      await ctx.editMessageText(`Настройки ваших уведомлений в Telegram:\n\n*Статус:* ${statusText}`, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: `${buttonEmoji} ${buttonText}`, callback_data: 'toggle_notifications' }
+          ]]
+        }
+      });
+
+      await ctx.answerCbQuery(telegramNotificationsEnabled ? 'Уведомления включены!' : 'Уведомления отключены!');
+
+    } catch (error) {
+      console.error('Ошибка при переключении настроек:', error.response?.data || error.message);
+      await ctx.answerCbQuery('Ошибка! Не удалось изменить настройки.', { show_alert: true });
+    }
+    return; // Важно, чтобы не провалиться дальше
+  }
+
+  // Старый обработчик для удаленных кнопок
+  if (ctx.callbackQuery) {
+    await ctx.answerCbQuery('Тут больше ничего нет, просто переходи по ссылке!');
+  }
 });
 
 async function registerUser(ctx) {
