@@ -784,8 +784,8 @@ router.post('/forgot-password', [
         const user = await User.findOne({ email: lowerCaseEmail });
 
         if (!user) {
-            // Важно! Не говорим пользователю, что email не найден, для безопасности.
-            return res.status(200).json({ msg: 'Если аккаунт с таким email существует и привязан к Telegram, на него будет отправлен код.' });
+            // Больше не притворяемся. Если юзера нет - так и говорим.
+            return res.status(404).json({ msg: 'Пользователь с таким email не найден.' });
         }
 
         if (!user.telegramId) {
