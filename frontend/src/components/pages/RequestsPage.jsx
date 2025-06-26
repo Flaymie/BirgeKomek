@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { SocketContext } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
@@ -9,6 +10,7 @@ const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
+  const socket = useContext(SocketContext);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -78,7 +80,29 @@ const RequestsPage = () => {
 
   useEffect(() => {
     fetchRequests();
-  }, [fetchRequests, currentUser]); // Добавляем currentUser в зависимости
+  }, [fetchRequests]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewRequest = (newRequest) => {
+      console.log('Получена новая заявка через сокет:', newRequest);
+      if (filters.status === 'open' || !filters.status) {
+         setRequests(prevRequests => {
+          if (prevRequests.find(req => req._id === newRequest._id)) {
+            return prevRequests;
+          }
+          return [newRequest, ...prevRequests];
+        });
+      }
+    };
+
+    socket.on('new_request', handleNewRequest);
+
+    return () => {
+      socket.off('new_request', handleNewRequest);
+    };
+  }, [socket, filters.status]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -88,8 +112,6 @@ const RequestsPage = () => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // fetchRequests() вызывается через useEffect при изменении filters,
-    // но для мгновенной реакции на сабмит формы можно вызвать и здесь.
     fetchRequests();
   };
   
@@ -114,12 +136,9 @@ const RequestsPage = () => {
     return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
   };
   
-  // Обработчик успешного создания запроса
+  // Обработчик успешного создания запроса из модалки
   const handleRequestCreated = (newRequest) => {
-    // Добавляем новый запрос в начало списка
-    setRequests(prevRequests => [newRequest, ...prevRequests]);
-    // Перезагружаем список для получения актуальных данных
-    fetchRequests();
+    setIsModalOpen(false);
   };
 
   return (
