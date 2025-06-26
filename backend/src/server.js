@@ -10,6 +10,7 @@ import uploadRoutes from './routes/upload.js';
 import reviewsRoutes from './routes/reviews.js';
 import statsRoutes from './routes/stats.js';
 import telegramRoutes from './routes/telegram.js';
+import botRoutes from './routes/bot.js';
 
 // Подключение маршрутов API
 app.use('/api/requests', requestRoutes);
@@ -25,6 +26,7 @@ app.use('/api/responses', responsesRoutes({ onlineUsers, sseConnections, io }));
 app.use('/api/reviews', reviewsRoutes({ onlineUsers, sseConnections, io }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/bot', botRoutes);
 
 // Статические файлы
 app.use('/uploads', express.static('uploads')); 

@@ -4,22 +4,23 @@ import Notification from '../models/Notification.js';
 import { protect } from '../middleware/auth.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 
 const router = express.Router();
 
-// Эта функция теперь тоже должна принимать sseConnections, потому что она будет вызываться из других мест
 export const createAndSendNotification = async (sseConnections, notificationData) => {
   try {
     const { user, type, title, message, link, relatedEntity } = notificationData;
     
-    const userExists = await User.findById(user);
-    if (!userExists) {
+    const userToSend = await User.findById(user);
+    if (!userToSend) {
       console.error(`Попытка создать уведомление для несуществующего пользователя: ${user}`);
       return;
     }
 
     const notification = new Notification({
       user,
+      userTelegramId: userToSend.telegramId,
       type,
       title,
       message,
@@ -29,15 +30,52 @@ export const createAndSendNotification = async (sseConnections, notificationData
     
     await notification.save();
     console.log(`Уведомление создано для пользователя ${user}: ${title}`);
+    console.log(`Уведомление сохранено с userTelegramId: ${userToSend.telegramId}`);
     
+    // 1. Отправка через SSE на фронтенд
     const client = sseConnections[user.toString()];
     if (client) {
         client.write(`event: new_notification\n`);
         client.write(`data: ${JSON.stringify(notification)}\n\n`);
     }
 
+    // 2. Отправка в Telegram, если пользователь привязан
+    if (userToSend.telegramId) {
+        const botToken = process.env.BOT_TOKEN;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        
+        let tgMessage = `*${title.replace(/([_*\[\]()~`>#+-=|{}.!])/g, '\\$1')}*\n\n`;
+        if (message) {
+            // Убираем HTML теги и экранируем спецсимволы Markdown
+            const cleanMessage = message.replace(/<\/?[^>]+(>|$)/g, "");
+            tgMessage += `${cleanMessage.replace(/([_*\[\]()~`>#+-=|{}.!])/g, '\\$1')}\n\n`;
+        }
+        
+        const inlineKeyboard = {
+            inline_keyboard: [[]]
+        };
+        
+        if (link) {
+             inlineKeyboard.inline_keyboard[0].push({ text: '🔗 Перейти', url: `${frontendUrl}${link}` });
+        }
+
+        const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+        try {
+            await axios.post(apiUrl, {
+                chat_id: userToSend.telegramId,
+                text: tgMessage,
+                parse_mode: 'MarkdownV2',
+                reply_markup: inlineKeyboard
+            });
+            console.log(`Уведомление успешно отправлено в Telegram пользователю ${userToSend.username}`);
+        } catch (tgError) {
+            console.error(`Ошибка отправки уведомления в Telegram для ${userToSend.username}:`, tgError.response ? tgError.response.data : tgError.message);
+        }
+    }
+
   } catch (error) {
-    console.error('Ошибка при создании уведомления:', error);
+    console.error('Ошибка при создании и отправке уведомления:', error);
   }
 };
 

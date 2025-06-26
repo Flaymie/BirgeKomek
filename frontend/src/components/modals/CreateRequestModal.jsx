@@ -92,15 +92,15 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     setIsSubmitting(true);
     
     try {
-      const response = await requestsService.createRequest(formData);
+      await requestsService.createRequest(formData);
       
       toast.success('Запрос на помощь успешно создан!');
-      onSuccess(response.data);
-      onClose();
+      onClose(true);
     } catch (error) {
       console.error('Ошибка при создании запроса:', error);
       const errorMessage = error.response?.data?.message || 'Произошла ошибка при создании запроса';
       toast.error(errorMessage);
+      onClose();
     } finally {
       setIsSubmitting(false);
     }
@@ -112,7 +112,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const charCounterClass = remainingChars <= 100 ? 'text-orange-500' : 'text-gray-500';
   
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={() => onClose()}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -132,7 +132,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
               <p className="text-sm text-gray-500">Заполните детали, и мы найдем вам помощника</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 rounded-full">
+          <button onClick={() => onClose()} className="text-gray-400 hover:text-gray-600 p-2 rounded-full">
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
@@ -196,7 +196,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
 
         {/* Footer */}
         <div className="flex justify-end items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-          <button type="button" onClick={onClose} className="px-5 py-2 text-base font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+          <button type="button" onClick={() => onClose()} className="px-5 py-2 text-base font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition">
             Отмена
           </button>
           <button

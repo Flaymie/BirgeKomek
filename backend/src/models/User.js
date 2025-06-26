@@ -86,13 +86,15 @@ const userSchema = new mongoose.Schema({
   },
   grade: {
     type: Number,
-    required: function() { return this.roles.student; },
     min: [7, 'Класс не может быть меньше 7'],
-    max: [11, 'Класс не может быть больше 11']
+    max: [11, 'Класс не может быть больше 11'],
+    default: null
   },
   rating: {
     type: Number,
-    default: 5.0
+    default: 5,
+    min: 0,
+    max: 5
   },
   reviews: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -136,6 +138,35 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (err) {
     throw new Error(err);
+  }
+};
+
+// Статический метод для обновления среднего рейтинга хелпера
+userSchema.statics.updateAverageRating = async function(userId) {
+  console.log(`[updateAverageRating] Запущено для пользователя: ${userId}`);
+  try {
+    const Review = mongoose.model('Review');
+    const reviews = await Review.find({ helperId: userId });
+    console.log(`[updateAverageRating] Найдено отзывов: ${reviews.length}`);
+    
+    let newRating = 5;
+
+    if (reviews.length > 0) {
+      const totalRating = reviews.reduce((acc, item) => acc + item.rating, 0);
+      const calculatedAverage = totalRating / reviews.length;
+      newRating = Math.round(calculatedAverage * 10) / 10;
+    } else {
+        // Если отзывов нет, ставим 0. Но при первом отзыве сюда не попадем.
+        newRating = 0;
+    }
+    
+    console.log(`[updateAverageRating] Рассчитан новый средний рейтинг: ${newRating}`);
+    
+    await this.findByIdAndUpdate(userId, { rating: newRating });
+    console.log(`[updateAverageRating] Рейтинг для пользователя ${userId} успешно обновлен в базе данных.`);
+
+  } catch (error) {
+    console.error(`[updateAverageRating] Ошибка при обновлении среднего рейтинга для пользователя ${userId}:`, error);
   }
 };
 

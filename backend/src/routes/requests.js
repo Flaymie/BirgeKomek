@@ -231,7 +231,7 @@ router.post('/', protect, [
         if (helpersForSubject.length > 0) {
             const notificationPromises = helpersForSubject.map(helper => {
                  if (helper._id.toString() !== author) { // Не уведомлять автора, если он тоже хелпер по этому предмету
-                    return createAndSendNotification({
+                    return createAndSendNotification(req.app.locals.sseConnections, {
                         user: helper._id,
                         type: 'new_request_for_subject',
                         title: `Новая заявка по предмету: ${subject}`,
@@ -362,7 +362,7 @@ router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
             .populate('author', 'username _id')
             .populate('helper', 'username _id');
 
-        await createAndSendNotification({
+        await createAndSendNotification(req.app.locals.sseConnections, {
             user: helper._id,
             type: 'request_assigned_to_you',
             title: `Вас назначили на заявку!`,
@@ -372,7 +372,7 @@ router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
         });
         
         if (request.author && request.author._id.toString() !== helper._id.toString()) {
-            await createAndSendNotification({
+            await createAndSendNotification(req.app.locals.sseConnections, {
                 user: request.author._id,
                 type: 'request_taken_by_helper', 
                 title: `На вашу заявку назначен помощник!`,
@@ -442,7 +442,7 @@ router.post('/:id/take', protect, isHelper, [ // isHelper middleware прове�
             .populate('helper', 'username _id');
 
         if (request.author) {
-             await createAndSendNotification({
+             await createAndSendNotification(req.app.locals.sseConnections, {
                 user: request.author._id,
                 type: 'request_taken_by_helper',
                 title: `Вашу заявку взяли!`,
@@ -518,7 +518,7 @@ router.post('/:id/complete', protect, [
 
         // Уведомление автору (если завершил хелпер и автор не он сам)
         if (isHelper && request.author && request.author._id.toString() !== currentUserId) {
-            await createAndSendNotification({
+            await createAndSendNotification(req.app.locals.sseConnections, {
                 user: request.author._id,
                 type: 'request_marked_completed',
                 title: notificationTitle,
@@ -530,7 +530,7 @@ router.post('/:id/complete', protect, [
 
         // Уведомление хелперу (если завершил автор и хелпер не он сам)
         if (isAuthor && request.helper && request.helper._id.toString() !== currentUserId) {
-             await createAndSendNotification({
+             await createAndSendNotification(req.app.locals.sseConnections, {
                 user: request.helper._id,
                 type: 'request_marked_completed',
                 title: notificationTitle,
@@ -619,7 +619,7 @@ router.post('/:id/cancel', protect, [
 
         // Уведомление хелперу, если он был назначен и отменил автор
         if (oldStatus === 'assigned' && request.helper && isAuthor) {
-             await createAndSendNotification({
+             await createAndSendNotification(req.app.locals.sseConnections, {
                 user: request.helper._id,
                 type: 'request_status_changed', // или более конкретный тип 'request_cancelled_by_author'
                 title: `Заявка \"${request.title}\" отменена`,
@@ -705,7 +705,7 @@ router.put('/:id', protect, checkEditDeletePermission, [
             
             // Отправляем уведомление автору
             if (request.author.toString() !== req.user.id) {
-                await createAndSendNotification({
+                await createAndSendNotification(req.app.locals.sseConnections, {
                     user: request.author,
                     type: 'request_edited_by_admin',
                     title: 'Ваша заявка была отредактирована',
@@ -874,7 +874,7 @@ router.delete('/:id', protect, checkEditDeletePermission, [
         // Уведомляем автора, если удаляет модератор
         if (req.isModeratorAction) {
              if (request.author.toString() !== req.user.id) {
-                await createAndSendNotification({
+                await createAndSendNotification(req.app.locals.sseConnections, {
                     user: request.author,
                     type: 'request_deleted_by_admin',
                     title: 'Ваша заявка была удалена',
@@ -962,7 +962,7 @@ router.post('/:id/reopen', protect, [
 
         // Уведомление бывшему хелперу
         if (formerHelper) {
-            await createAndSendNotification({
+            await createAndSendNotification(req.app.locals.sseConnections, {
                 user: formerHelper._id,
                 type: 'request_reopened_by_author',
                 title: 'Заявка была возвращена в работу',
@@ -973,7 +973,7 @@ router.post('/:id/reopen', protect, [
         }
         
         // Уведомление автору для подтверждения
-        await createAndSendNotification({
+        await createAndSendNotification(req.app.locals.sseConnections, {
             user: request.author,
             type: 'request_reopened_by_you',
             title: 'Вы вернули заявку в работу',

@@ -96,12 +96,12 @@ router.post('/', protect, [
     await newResponse.save();
 
     // Создаем уведомление для автора запроса
-    await createAndSendNotification({
+    await createAndSendNotification(req.app.locals.sseConnections, {
       user: request.author,
-      type: 'new_response_to_request',
+      type: 'request_taken_by_helper',
       title: 'Новый отклик на вашу заявку!',
       message: `Пользователь ${req.user.username} откликнулся на вашу заявку "${request.title}".`,
-      link: `/request/${request._id}/chat`,
+      link: `/request/${request._id}`,
       relatedEntity: {
         requestId: request._id,
         responseId: newResponse._id,

@@ -437,11 +437,11 @@ export default ({ onlineUsers, sseConnections, io }) => {
       user.password = newPassword;
       await user.save();
       
-      // --- УВЕДОМЛЕНИЕ О СМЕНЕ ПАРОЛЯ ---
-      await createAndSendNotification(sseConnections, {
+      // Уведомление о смене пароля
+      await createAndSendNotification(req.app.locals.sseConnections, {
         user: req.user.id,
         type: 'security_alert',
-        title: 'Пароль успешно изменен',
+        title: 'Ваш пароль был изменен',
         message: 'Ваш пароль был изменен. Если это были не вы, немедленно свяжитесь с поддержкой!',
         link: '/profile/me'
       });

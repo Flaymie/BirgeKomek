@@ -221,6 +221,13 @@ bot.start(async (ctx) => {
   return ctx.reply('Неизвестная команда. Пожалуйста, начните с нашего сайта.');
 });
 
+// Обработчик для колбэков от инлайн-кнопок уведомлений
+bot.on('callback_query', async (ctx) => {
+  const { data } = ctx.callbackQuery;
+  // Теперь тут ничего не делаем, потому что кнопки нет
+  await ctx.answerCbQuery('Тут больше ничего нет, просто переходи по ссылке!');
+});
+
 async function registerUser(ctx) {
     const { email, role, grade, subjects } = ctx.wizard.state.data;
     const { id: telegramId, username, first_name, last_name } = ctx.from;

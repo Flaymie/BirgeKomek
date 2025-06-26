@@ -164,9 +164,9 @@ router.post('/', protect, [
     
     // создаем отзыв
     const newReview = new Review({
-      request: requestId,
-      author: req.user.id,
-      helper: request.helper,
+      requestId: requestId,
+      reviewerId: req.user.id,
+      helperId: request.helper,
       rating,
       comment
     });
@@ -177,13 +177,13 @@ router.post('/', protect, [
     await User.updateAverageRating(request.helper);
 
     // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О НОВОМ ОТЗЫВЕ ---
-    const populatedReview = await Review.findById(newReview._id).populate('author', 'username');
+    const populatedReview = await Review.findById(newReview._id).populate('reviewerId', 'username');
     
     await createAndSendNotification(req.app.locals.sseConnections, {
       user: request.helper,
-      type: 'new_review',
+      type: 'new_review_for_you',
       title: 'Вам оставили новый отзыв!',
-      message: `Пользователь ${populatedReview.author.username} оставил вам отзыв по заявке "${request.title}".`,
+      message: `Пользователь ${populatedReview.reviewerId.username} оставил вам отзыв по заявке "${request.title}".`,
       link: `/profile/${request.helper}`
     });
 

@@ -743,10 +743,30 @@ router.post('/forgot-password', [
     }
 
     const { email } = req.body;
-    const { passwordResetTokens } = req.app.locals;
+    
+    // Инициализируем хранилища, если их еще нет
+    if (!req.app.locals.passwordResetTokens) {
+        req.app.locals.passwordResetTokens = new Map();
+    }
+    if (!req.app.locals.passwordResetRateLimiter) {
+        req.app.locals.passwordResetRateLimiter = new Map();
+    }
+    
+    const { passwordResetTokens, passwordResetRateLimiter } = req.app.locals;
+    const lowerCaseEmail = email.toLowerCase();
+
+    // ПРОВЕРКА ЛИМИТА ЧАСТОТЫ ЗАПРОСОВ
+    const lastRequestTimestamp = passwordResetRateLimiter.get(lowerCaseEmail);
+    const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
+
+    if (lastRequestTimestamp && (Date.now() - lastRequestTimestamp < TEN_MINUTES_IN_MS)) {
+        const timeLeftMs = TEN_MINUTES_IN_MS - (Date.now() - lastRequestTimestamp);
+        const timeLeftMin = Math.ceil(timeLeftMs / (1000 * 60));
+        return res.status(429).json({ msg: `Вы недавно сбрасывали пароль. Пожалуйста, подождите еще ${timeLeftMin} мин.` });
+    }
 
     try {
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const user = await User.findOne({ email: lowerCaseEmail });
 
         if (!user) {
             // Важно! Не говорим пользователю, что email не найден, для безопасности.
@@ -760,7 +780,8 @@ router.post('/forgot-password', [
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = Date.now() + 10 * 60 * 1000; // 10 минут
 
-        passwordResetTokens.set(email.toLowerCase(), { code, expires });
+        passwordResetTokens.set(lowerCaseEmail, { code, expires });
+        passwordResetRateLimiter.set(lowerCaseEmail, Date.now()); // Устанавливаем метку времени для лимита
 
         // Отправляем код через Telegram Bot API
         const botToken = process.env.BOT_TOKEN;
@@ -775,8 +796,13 @@ router.post('/forgot-password', [
 
         // Удаляем токен после истечения срока
         setTimeout(() => {
-            passwordResetTokens.delete(email.toLowerCase());
+            passwordResetTokens.delete(lowerCaseEmail);
         }, 10 * 60 * 1000);
+        
+        // Удаляем метку времени лимита, чтобы не засорять память
+        setTimeout(() => {
+            passwordResetRateLimiter.delete(lowerCaseEmail);
+        }, TEN_MINUTES_IN_MS);
 
         res.status(200).json({ msg: 'Код для сброса пароля отправлен в ваш Telegram.' });
 
@@ -819,6 +845,12 @@ router.post('/reset-password', [
         if (!user) {
             // Этого не должно произойти, если код был найден, но на всякий случай
             return res.status(404).json({ msg: 'Пользователь не найден.' });
+        }
+
+        // ПРОВЕРКА НА СОВПАДЕНИЕ СО СТАРЫМ ПАРОЛЕМ
+        const isSamePassword = await user.comparePassword(password);
+        if (isSamePassword) {
+            return res.status(400).json({ msg: 'Новый пароль не может совпадать со старым.' });
         }
 
         user.password = password; // хэширование произойдет в pre-save хуке
