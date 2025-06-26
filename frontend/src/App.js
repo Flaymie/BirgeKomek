@@ -24,15 +24,15 @@ import { useAuth } from './context/AuthContext';
 import BannedUserModal from './components/modals/BannedUserModal';
 
 const App = () => {
-  const { isBanned, banReason, logout } = useAuth();
+  const { banDetails, logout } = useAuth();
 
   return (
     <>
       <ToastContainer position="top-right" autoClose={5000} />
       
       <BannedUserModal 
-        isOpen={isBanned}
-        reason={banReason}
+        isOpen={banDetails.isBanned}
+        details={banDetails}
         onConfirm={logout}
       />
       

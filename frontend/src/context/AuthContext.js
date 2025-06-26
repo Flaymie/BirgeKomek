@@ -12,14 +12,31 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isBanned, setIsBanned] = useState(false);
-  const [banReason, setBanReason] = useState('');
+  const [banDetails, setBanDetails] = useState({ isBanned: false, reason: '', expiresAt: null });
+
+  const processAndCheckBan = (userData) => {
+    if (userData?.banDetails?.isBanned) {
+      setBanDetails({
+        isBanned: true,
+        reason: userData.banDetails.reason,
+        expiresAt: userData.banDetails.expiresAt,
+      });
+    } else {
+      setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+    }
+    setCurrentUser(processUserData(userData));
+  };
 
   // Сохраняем ссылку на методы в глобальной переменной для доступа из api.js
   useEffect(() => {
     window.authContext = {
-      setIsBanned,
-      setBanReason,
+      handleBan: (details) => {
+        setBanDetails({
+          isBanned: true,
+          reason: details.reason || 'Причина не указана',
+          expiresAt: details.expiresAt || null,
+        });
+      },
       logout
     };
     
@@ -40,8 +57,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      // Бэкенд теперь отдает count в отдельном поле, используем его
-      const response = await notificationsService.getNotifications({ limit: 1 }); // limit: 1 для экономии
+      const response = await notificationsService.getNotifications({ limit: 1 });
       setUnreadCount(response.data.unreadCount || 0);
     } catch (err) {
       console.error('Не удалось загрузить количество уведомлений', err);
@@ -72,8 +88,8 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const response = await usersService.getCurrentUser();
-        setCurrentUser(processUserData(response.data));
-        await fetchUnreadCount(); // Загружаем счетчик после загрузки юзера
+        processAndCheckBan(response.data);
+        await fetchUnreadCount();
       } catch (err) {
         console.error('Ошибка при загрузке пользователя:', err);
         // Если токен недействителен, удаляем его
@@ -135,7 +151,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', response.data.token);
       
       const userResponse = await usersService.getCurrentUser();
-      setCurrentUser(processUserData(userResponse.data));
+      processAndCheckBan(userResponse.data);
       setLoading(false);
       toast.success('Вход выполнен успешно!');
       return { success: true };
@@ -163,7 +179,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       localStorage.setItem('token', token);
-      setCurrentUser(processUserData(user));
+      processAndCheckBan(user);
       fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
       // Прямой редирект на страницу запросов
@@ -216,13 +232,13 @@ export const AuthProvider = ({ children }) => {
         // Устанавливаем пользователя в стейт, если в ответе есть данные пользователя
         if (response.data.user) {
           console.log('AuthContext: Устанавливаем данные пользователя в стейт');
-          setCurrentUser(processUserData(response.data.user));
+          processAndCheckBan(response.data.user);
           await fetchUnreadCount();
         }
         
-      setLoading(false);
+        setLoading(false);
         toast.success('Регистрация прошла успешно!');
-      return { success: true, data: response.data };
+        return { success: true, data: response.data };
       } else {
         console.error('AuthContext: Неожиданный формат ответа:', response);
         setLoading(false);
@@ -322,24 +338,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Функция для выхода пользователя
-  const logout = () => {
-    authService.logout();
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
     setCurrentUser(null);
-    setUnreadCount(0); // Сбрасываем счетчик при выходе
-    setIsBanned(false); // Сбрасываем статус бана при выходе
-    setBanReason('');
-  };
+    setUnreadCount(0);
+    setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+  }, []);
 
   const value = {
     currentUser,
     loading,
     error,
     unreadCount,
-    isBanned,
-    banReason,
+    banDetails,
     setUnreadCount,
-    setIsBanned,
-    setBanReason,
+    setBanDetails,
     login,
     logout,
     register,
@@ -349,6 +362,7 @@ export const AuthProvider = ({ children }) => {
     generateAvatarColor,
     markNotificationsAsRead,
     loginWithToken,
+    fetchUnreadCount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

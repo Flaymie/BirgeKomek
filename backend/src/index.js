@@ -298,6 +298,7 @@ app.get('/', (req, res) => {
 
 // обработка 404
 app.use((req, res) => {
+  console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Не найдено ничего' });
 });
 

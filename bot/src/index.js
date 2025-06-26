@@ -225,8 +225,8 @@ bot.start(async (ctx) => {
 bot.command('settings', async (ctx) => {
   try {
     const telegramId = ctx.from.id;
-    // ИСПОЛЬЗУЕМ НОВЫЙ РОУТ
-    const response = await axios.get(`${API_URL}/users/by-telegram/${telegramId}/settings`);
+    // ИСПРАВЛЕННЫЙ РОУТ
+    const response = await axios.get(`${API_URL}/api/users/by-telegram/${telegramId}/settings`);
     const { telegramNotificationsEnabled } = response.data;
 
     const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';
@@ -254,8 +254,8 @@ bot.on('callback_query', async (ctx) => {
   if (data === 'toggle_notifications') {
     try {
       const telegramId = ctx.from.id;
-      // ИСПОЛЬЗУЕМ НОВЫЙ РОУТ
-      const response = await axios.post(`${API_URL}/users/by-telegram/${telegramId}/toggle-notifications`);
+      // ИСПРАВЛЕННЫЙ РОУТ
+      const response = await axios.post(`${API_URL}/api/users/by-telegram/${telegramId}/toggle-notifications`);
       const { telegramNotificationsEnabled } = response.data;
 
       const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';

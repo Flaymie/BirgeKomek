@@ -1,7 +1,12 @@
 import React from 'react';
+import { format } from 'date-fns';
 
-const BannedUserModal = ({ isOpen, reason, onConfirm }) => {
+const BannedUserModal = ({ isOpen, details, onConfirm }) => {
   if (!isOpen) return null;
+
+  const expirationDate = details.expiresAt 
+    ? format(new Date(details.expiresAt), 'dd.MM.yyyy, HH:mm:ss')
+    : 'навсегда';
 
   return (
     <div 
@@ -23,12 +28,14 @@ const BannedUserModal = ({ isOpen, reason, onConfirm }) => {
 
         <div className="mt-4 text-gray-600">
           <p className="text-lg">Доступ к платформе ограничен.</p>
-          {reason && (
-            <div className="mt-6 bg-red-50 p-4 rounded-lg border border-red-200">
-              <p className="font-semibold text-red-800">Причина блокировки:</p>
-              <p className="text-md text-red-700 mt-1">{reason}</p>
-            </div>
-          )}
+          
+          <div className="mt-6 bg-red-50 p-4 rounded-lg border border-red-200 text-left">
+            <p className="font-semibold text-red-800">Причина блокировки:</p>
+            <p className="text-md text-red-700 mt-1">{details.reason || 'Причина не указана'}</p>
+            
+            <p className="font-semibold text-red-800 mt-4">Срок окончания блокировки:</p>
+            <p className="text-md text-red-700 mt-1">{expirationDate}</p>
+          </div>
         </div>
 
         <div className="mt-8">
