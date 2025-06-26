@@ -18,11 +18,11 @@ import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
 import requestRoutes from './routes/requests.js';
 import messageRoutes from './routes/messages.js';
+import responseRoutes from './routes/responses.js';
 import reviewRoutes from './routes/reviews.js';
 import userRoutes from './routes/users.js';
 import notificationRoutes, { createAndSendNotification } from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
-import responseRoutes from './routes/responses.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
 import Message from './models/Message.js';
@@ -158,12 +158,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 // роуты
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes({ io }));
+app.use('/api/responses', responseRoutes({ io }));
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes({ sseConnections, io }));
 app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
-app.use('/api/responses', responseRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 

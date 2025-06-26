@@ -8,6 +8,7 @@ import ResponseCard from '../ResponseCard';
 import AdminEditModal from '../modals/AdminEditModal';
 import AdminDeleteModal from '../modals/AdminDeleteModal';
 import RequestNotFound from '../shared/RequestNotFound';
+import { useSocket } from '../../context/SocketContext';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -21,6 +22,8 @@ const RequestDetailPage = () => {
   const [responses, setResponses] = useState([]);
   const [responsesLoading, setResponsesLoading] = useState(true);
   const { currentUser, loading: authLoading } = useAuth();
+  const { socket } = useSocket();
+  const [myResponse, setMyResponse] = useState(null);
   
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
   const [isAdminDeleteModalOpen, setAdminDeleteModalOpen] = useState(false);
@@ -65,24 +68,47 @@ const RequestDetailPage = () => {
   }, [request, currentUser]);
 
   const fetchResponses = useCallback(async () => {
-    if (isAuthor) {
-      try {
-        setResponsesLoading(true);
-        const response = await responsesService.getResponsesForRequest(id);
-        setResponses(response.data);
-      } catch (err) {
-        console.error('Ошибка при получении откликов:', err);
-      } finally {
-        setResponsesLoading(false);
-      }
+    try {
+      setResponsesLoading(true);
+      const response = await responsesService.getResponsesForRequest(id);
+      setResponses(response.data);
+      const ownResponse = response.data.find(r => r.helper._id === currentUser?._id);
+      setMyResponse(ownResponse || null);
+    } catch (err) {
+      console.error('Ошибка при получении откликов:', err);
+    } finally {
+      setResponsesLoading(false);
     }
-  }, [id, isAuthor]);
+  }, [id, currentUser]);
 
   useEffect(() => {
-    if (isAuthor) {
-       fetchResponses();
-    }
-  }, [fetchResponses, isAuthor]);
+    fetchResponses();
+  }, [fetchResponses]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewResponse = (newResponse) => {
+      if (newResponse.request === id) {
+        setResponses(prev => [...prev, newResponse]);
+      }
+    };
+
+    const handleResponseUpdate = (updatedResponse) => {
+      setResponses(prev => prev.map(r => r._id === updatedResponse._id ? updatedResponse : r));
+      if (updatedResponse.helper._id === currentUser?._id) {
+        setMyResponse(updatedResponse);
+      }
+    };
+
+    socket.on('new_response', handleNewResponse);
+    socket.on('response_updated', handleResponseUpdate);
+
+    return () => {
+      socket.off('new_response', handleNewResponse);
+      socket.off('response_updated', handleResponseUpdate);
+    };
+  }, [socket, id, currentUser]);
 
   const isPrivilegedUser = useMemo(() => {
     return currentUser?.roles?.admin || currentUser?.roles?.moderator;
@@ -170,6 +196,15 @@ const RequestDetailPage = () => {
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
   };
+
+  // Новая переменная для проверки, может ли хелпер откликнуться
+  const canHelperRespond = useMemo(() => {
+    if (!currentUser || !request) return false;
+    return currentUser.roles.helper && 
+           request.status === 'open' && 
+           request.author._id !== currentUser._id && 
+           !myResponse;
+  }, [currentUser, request, myResponse]);
 
   if (authLoading || loading) {
     return (
@@ -293,45 +328,55 @@ const RequestDetailPage = () => {
           )}
           
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* Кнопка для хелперов - предложить помощь */}
-            {request.status === 'open' && isHelper() && !isAuthor && (
-              <button 
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={() => setIsResponseModalOpen(true)}
-              >
-                Предложить помощь
-              </button>
+            {/* === БЛОК ДЕЙСТВИЙ ДЛЯ ХЕЛПЕРА === */}
+            {canHelperRespond && (
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => setIsResponseModalOpen(true)}
+                  className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                >
+                  Предложить помощь
+                </button>
+              </div>
             )}
             
-            {/* Кнопка для всех участников - перейти в чат */}
-            {request.status === 'in_progress' && (
-              <button 
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                onClick={() => navigate(`/requests/${request._id}/chat`)}
-              >
-                Перейти в чат
-              </button>
-            )}
-            
-            {/* Кнопки для автора запроса */}
+            {/* === БЛОК ДЛЯ АВТОРА ЗАЯВКИ === */}
             {isAuthor && request.status === 'open' && (
-              <>
-                <button 
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-                  onClick={() => navigate(`/request/${request._id}/edit`)}
-                >
-                  Редактировать
-                </button>
-                
-                <button 
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                  onClick={() => setIsDeleteModalOpen(true)}
-                >
-                  Удалить
-                </button>
-              </>
+              <div className="mt-8">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">
+                  Отклики ({responses.length})
+                </h3>
+                {responsesLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : responses.length > 0 ? (
+                  <div>
+                    {responses.map(response => (
+                      <ResponseCard 
+                        key={response._id} 
+                        response={response} 
+                        isAuthor={isAuthor} 
+                        onResponseAction={handleResponseAction} 
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    На ваш запрос пока нет откликов
+                  </div>
+                )}
+              </div>
             )}
           </div>
+
+          {/* === БЛОК ДЛЯ АВТОРА ЗАЯВКИ === */}
+          {myResponse && (
+            <div className="mt-8 p-4 bg-gray-50 rounded-lg border">
+              <h3 className="text-lg font-semibold mb-2 text-gray-800">Ваш отклик</h3>
+              <ResponseCard response={myResponse} isMyResponse={true} />
+            </div>
+          )}
         </div>
       </div>
       
@@ -371,39 +416,16 @@ const RequestDetailPage = () => {
         requestTitle={request.title}
       />
 
-      {/* Секция с откликами для автора запроса */}
-      {isAuthor && request.status === 'open' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Отклики на запрос</h2>
-          
-          {responsesLoading ? (
-            <div className="flex justify-center py-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : responses.length > 0 ? (
-            <div>
-              {responses.map(response => (
-                <ResponseCard 
-                  key={response._id} 
-                  response={response} 
-                  isAuthor={isAuthor} 
-                  onResponseAction={handleResponseAction} 
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              На ваш запрос пока нет откликов
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* Модальное окно для отправки отклика */}
-      <ResponseModal 
-        isOpen={isResponseModalOpen} 
-        onClose={() => setIsResponseModalOpen(false)} 
+      <ResponseModal
+        isOpen={isResponseModalOpen}
+        onClose={() => setIsResponseModalOpen(false)}
         requestId={id}
+        onSuccess={(newResponse) => {
+          setResponses(prev => [...prev, newResponse]);
+          setMyResponse(newResponse);
+          setIsResponseModalOpen(false);
+          toast.success('Ваш отклик успешно отправлен!');
+        }}
       />
       
       {/* Модальное окно подтверждения удаления */}
