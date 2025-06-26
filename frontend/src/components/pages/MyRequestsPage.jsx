@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
 const MyRequestsPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { socket } = useSocket();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,6 +48,25 @@ const MyRequestsPage = () => {
       setLoading(false);
     }
   }, [currentUser, filters, navigate]);
+
+  useEffect(() => {
+    if (!socket || !currentUser) return;
+
+    const handleNewRequest = (newRequest) => {
+      if (newRequest.author?._id === currentUser.id) {
+        console.log('Получена новая МОЯ заявка:', newRequest);
+        
+        setRequests(prevRequests => [newRequest, ...prevRequests]);
+        setTotalPages(prev => prev + 1);
+      }
+    };
+
+    socket.on('new_request', handleNewRequest);
+
+    return () => {
+      socket.off('new_request', handleNewRequest);
+    };
+  }, [socket, currentUser]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
