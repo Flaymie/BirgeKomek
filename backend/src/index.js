@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import morgan from 'morgan';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -8,11 +9,11 @@ import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import http from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { protectSocket } from './middleware/auth.js';
-import { createClient } from 'redis';
 
+import redis, { isRedisConnected } from './config/redis.js';
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
 import requestRoutes from './routes/requests.js';
@@ -21,6 +22,7 @@ import reviewRoutes from './routes/reviews.js';
 import userRoutes from './routes/users.js';
 import notificationRoutes, { createAndSendNotification } from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
+import responseRoutes from './routes/responses.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
 import Message from './models/Message.js';
@@ -29,21 +31,11 @@ import User from './models/User.js';
 
 dotenv.config();
 
-// --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ХРАНИЛИЩА ---
-const sseConnections = new Map();
-
-// --- НАСТРОЙКА REDIS ---
-const redisClient = createClient({
-  // Оставляем пустым для подключения к localhost:6379
-  // Если Redis на другом хосте/порту, нужно будет указать:
-  // url: 'redis://user:password@host:port'
-});
-
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
-await redisClient.connect();
-
-console.log('Подключение к Redis установлено.');
-// --- КОНЕЦ НАСТРОЙКИ REDIS ---
+// --- ОБЪЕКТЫ ДЛЯ ХРАНЕНИЯ СОСТОЯНИЯ ONLINE ---
+// Для SSE (уведомления о бане и т.д.)
+const sseConnections = {};
+// Для Socket.IO (статус "онлайн", чаты)
+// const onlineUsers = new Map(); // БОЛЬШЕ НЕ ИСПОЛЬЗУЕТСЯ, ЗАМЕНЕНО НА REDIS
 
 // Это нужно для __dirname в ES-модулях
 const __filename = fileURLToPath(import.meta.url);
@@ -54,7 +46,8 @@ const app = express();
 // --- ГЛОБАЛЬНЫЕ ХРАНИЛИЩА ---
 app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
-app.locals.redisClient = redisClient;
+app.locals.sseConnections = sseConnections;
+// app.locals.onlineUsers = onlineUsers; // БОЛЬШE НЕ ИСПОЛЬЗУЕТСЯ
 
 const server = http.createServer(app);
 export const io = new Server(server, {
@@ -164,43 +157,56 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 
 // роуты
 app.use('/api/auth', authRoutes);
-app.use('/api/requests', requestRoutes({ redisClient, sseConnections }));
+app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/users', userRoutes({ redisClient, sseConnections, io }));
+app.use('/api/users', userRoutes({ sseConnections, io }));
 app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
+app.use('/api/responses', responseRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // Socket.IO логика
-io.use(protectSocket);
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: Token not provided'));
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return next(new Error('Authentication error: Invalid token'));
+    }
+    socket.user = decoded; // Сохраняем данные пользователя в сокете
+    next();
+  });
+});
 
 io.on('connection', (socket) => {
-  console.log(`[Socket.IO] Пользователь подключен: ${socket.user.username} (ID: ${socket.user.id})`);
+  console.log(`[Socket.IO] User connected: ${socket.user.id}`);
+  const userId = socket.user.id;
+  const onlineKey = `online:${userId}`;
 
-  // --- ЛОГИКА С REDIS ---
-  // Добавляем ID пользователя в множество онлайн-пользователей в Redis
-  redisClient.sAdd('onlineUsers', socket.user.id);
-  io.emit('user_online', socket.user.id); // Уведомляем всех, что юзер онлайн
+  if (isRedisConnected()) {
+    // Устанавливаем ключ с TTL (time-to-live) в 60 секунд.
+    // Если в течение 60с не будет 'user_ping', Redis сам удалит ключ.
+    redis.setex(onlineKey, 60, '1');
+  }
 
-  socket.on('disconnect', () => {
-    console.log(`[Socket.IO] Пользователь отключен: ${socket.user.username} (ID: ${socket.user.id})`);
-    
-    // --- ЛОГИКА С REDIS ---
-    // Удаляем ID пользователя из множества
-    redisClient.sRem('onlineUsers', socket.user.id);
-    io.emit('user_offline', socket.user.id); // Уведомляем всех, что юзер оффлайн
+  // Разово обновляем lastSeen при подключении, для надежности
+  User.findByIdAndUpdate(userId, { lastSeen: new Date() }).exec();
+
+  // Слушаем пинги от клиента
+  socket.on('user_ping', () => {
+    // Просто обновляем TTL ключа еще на 60 секунд
+    if (isRedisConnected()) {
+      redis.expire(onlineKey, 60);
+    }
   });
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
-    console.log(`Пользователь ${socket.user.username} присоединился к чату заявки ${requestId}`);
-  });
-
-  socket.on('leave_chat', (requestId) => {
-    socket.leave(requestId);
-    console.log(`Пользователь ${socket.user.username} покинул чат заявки ${requestId}`);
+    console.log(`User ${socket.user.id} joined chat for request ${requestId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -238,7 +244,7 @@ io.on('connection', (socket) => {
           type: 'new_message_in_request',
           title: `Новое сообщение в чате: "${request.title}"`,
           message: `${senderUser.username}: ${content.substring(0, 50)}...`,
-          link: `/requests/${requestId}/chat`,
+          link: `/requests/${requestId}/chat`, // ПРАВИЛЬНАЯ ССЫЛКА
           relatedEntity: { requestId: requestId, userId: senderId }
         });
       }
@@ -261,7 +267,30 @@ io.on('connection', (socket) => {
       });
     }
   });
+
+  socket.on('disconnect', () => {
+    console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
+    if (isRedisConnected()) {
+      // Можно удалить ключ сразу, но лучше положиться на TTL для надежности
+      redis.del(onlineKey);
+    }
+  });
 });
+
+// Периодическая проверка "мертвых душ"
+setInterval(() => {
+  const now = Date.now();
+  const timeout = 90 * 1000; // 1.5 минуты неактивности
+  
+  // onlineUsers.forEach((timestamp, userId) => {
+  //   if (now - timestamp > timeout) {
+  //     onlineUsers.delete(userId);
+  //     console.log(`[Socket.IO Cleaner] Removed stale user: ${userId}`);
+  //     // Можно и здесь обновить lastSeen, но disconnect должен справляться
+  //     User.findByIdAndUpdate(userId, { lastSeen: new Date(timestamp) }).exec();
+  //   }
+  // });
+}, 60 * 1000); // Проверка каждую минуту
 
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {

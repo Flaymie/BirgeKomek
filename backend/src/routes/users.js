@@ -8,12 +8,30 @@ import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import { createAndSendNotification } from './notifications.js';
-import { sendTelegramMessage } from '../utils/telegram.js'; // <-- ИМПОРТИРУЕМ ИЗ УТИЛИТЫ
 import axios from 'axios'; // <--- Добавляю axios
+import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОРТ REDIS
 
 const router = express.Router();
 
-export default ({ redisClient, sseConnections, io }) => {
+// --- НОВЫЙ ХЕЛПЕР ДЛЯ ОТПРАВКИ СООБЩЕНИЙ В TELEGRAM ---
+const sendTelegramMessage = async (telegramId, message) => {
+  if (!telegramId || !process.env.BOT_TOKEN) {
+    console.log('Не удалось отправить сообщение в Telegram: отсутствует ID или токен бота.');
+    return;
+  }
+  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+  try {
+    await axios.post(url, {
+      chat_id: telegramId,
+      text: message,
+      parse_mode: 'Markdown',
+    });
+  } catch (error) {
+    console.error('Ошибка при отправке сообщения в Telegram:', error.response ? error.response.data : error.message);
+  }
+};
+
+export default ({ sseConnections, io }) => {
   /**
    * @swagger
    * tags:
@@ -238,12 +256,23 @@ export default ({ redisClient, sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      // Проверяем онлайн-статус через Redis
-      const isOnline = await redisClient.sIsMember('onlineUsers', user._id.toString());
+      // --- НОВАЯ ПРОВЕРКА ОНЛАЙН-СТАТУСА ЧЕРЕЗ REDIS ---
+      let isOnline = false;
+      if (isRedisConnected()) {
+        const onlineKey = `online:${user._id.toString()}`;
+        const result = await redis.exists(onlineKey);
+        isOnline = result === 1;
+      }
       
       const createdRequests = await Request.countDocuments({ author: user._id });
       const completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
-      res.json({ ...user, isOnline, createdRequests, completedRequests });
+      const publicProfile = {
+        ...user,
+        isOnline: isOnline,
+        createdRequests,
+        completedRequests
+      };
+      res.json(publicProfile);
     } catch (err) {
       console.error('Ошибка при получении профиля пользователя:', err.message);
       res.status(500).send('Ошибка сервера');
@@ -608,26 +637,18 @@ export default ({ redisClient, sseConnections, io }) => {
 
         // Если забаненный - ученик, отменяем все его активные заявки
         if (userToBan.roles.student) {
-          const studentRequests = await Request.find({ author: userToBan._id, status: { $in: ['open', 'in_progress', 'assigned'] } });
+          const studentRequests = await Request.find({ author: userToBan._id, status: { $in: ['open', 'in_progress'] } });
           for (const request of studentRequests) {
-            // --- ИЗМЕНЕНИЕ ЛОГИКИ ---
-            // Вместо отмены - полностью удаляем заявку и связанные данные
-            const helperToNotify = request.helper;
-            
-            // Удаляем сообщения в чате
-            await Message.deleteMany({ requestId: request._id });
-            
-            // Удаляем саму заявку
-            await Request.findByIdAndDelete(request._id);
-            console.log(`[Ban Logic] Заявка ${request._id} удалена, так как ее автор ${userToBan.username} забанен.`);
-
+            request.status = 'cancelled';
+            request.cancellationReason = 'Аккаунт автора был заблокирован.';
+            await request.save();
             // Если у заявки был хелпер, уведомляем его
-            if (helperToNotify) {
+            if (request.helper) {
               await createAndSendNotification(sseConnections, {
-                user: helperToNotify,
-                type: 'request_cancelled', // Тип можно оставить, он общий
-                title: 'Заявка была удалена',
-                message: `Заявка "${request.title}" была удалена, так как аккаунт ее автора был заблокирован.`,
+                user: request.helper,
+                type: 'request_cancelled',
+                title: 'Заявка была отменена',
+                message: `Заявка "${request.title}" была отменена, так как аккаунт ее автора был заблокирован.`,
               });
             }
           }

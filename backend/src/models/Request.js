@@ -45,7 +45,7 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'in_progress', 'completed', 'assigned', 'closed'],
+    enum: ['open', 'in_progress', 'completed', 'closed', 'cancelled', 'assigned'],
     default: 'open'
   },
   editedByAdminInfo: {
