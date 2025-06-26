@@ -251,11 +251,11 @@ export default ({ sseConnections, io }) => {
       if (!user) {
         user = await User.findOne({ username: identifier }).select('-password').lean();
       }
-      
+
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-
+      
       // --- НОВАЯ ПРОВЕРКА ОНЛАЙН-СТАТУСА ЧЕРЕЗ REDIS ---
       let isOnline = false;
       if (isRedisConnected()) {

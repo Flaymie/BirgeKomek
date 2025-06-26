@@ -188,41 +188,14 @@ const usersService = {
 
 // Сервис для работы с аутентификацией
 const authService = {
-  register: async (userData) => {
-    try {
-      const formData = new FormData();
-      formData.append('username', userData.username);
-      formData.append('email', userData.email);
-      formData.append('password', userData.password);
-
-      if (userData.roles) {
-        if (userData.roles.student) {
-          formData.append('role', 'student');
-          if (userData.grade) formData.append('grade', userData.grade);
-        } else if (userData.roles.helper) {
-          formData.append('role', 'helper');
-          if (userData.subjects && userData.subjects.length > 0) {
-            formData.append('subjects', JSON.stringify(userData.subjects));
-          }
-        }
-      }
-
-      if (userData.avatar && userData.avatar.startsWith('data:image')) {
-        const base64Response = await fetch(userData.avatar);
-        const blob = await base64Response.blob();
-        formData.append('avatar', blob, 'avatar.jpg');
-      }
-
-      return api.post('/auth/register', formData);
-    } catch (error) {
-      console.error('Ошибка при регистрации в api.js:', error.response?.data || error.message);
-      throw error;
-    }
-  },
   login: (credentials) => api.post('/auth/login', credentials),
-  logout: () => localStorage.removeItem('token'),
+  register: (userData) => api.post('/auth/register', userData),
+  checkAuth: () => api.get('/auth/me'),
+  logout: () => api.post('/auth/logout'),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
+  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
+  getProfile: (userId) => api.get(`/users/profile/${userId}`),
+  updateProfile: (userId, profileData) => api.put(`/users/profile/${userId}`, profileData),
   // --- Новые функции для проверки ---
   checkUsername: (username) => api.post('/auth/check-username', { username }),
   checkEmail: (email) => api.post('/auth/check-email', { email }),
@@ -232,14 +205,6 @@ const authService = {
 
   // Проверка статуса токена Telegram
   checkTelegramToken: (token) => api.get(`/auth/telegram/check-token/${token}`),
-
-  // --- НОВЫЕ ФУНКЦИИ ДЛЯ СБРОСА ПАРОЛЯ ---
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (data) => api.post('/auth/reset-password', data),
-
-  // Получение данных пользователя
-  getProfile: () => api.get('/users/profile'),
-  updateProfile: (profileData) => api.put('/users/profile', profileData),
 };
 
 // Сервис для работы с сообщениями
@@ -318,7 +283,7 @@ const notificationsService = {
 };
 
 // --- Сервис для отзывов ---
-export const reviewsService = {
+const reviewsService = {
   // Создать отзыв
   createReview: (requestId, rating, comment) => {
     return api.post('/reviews', { requestId, rating, comment });
@@ -346,5 +311,6 @@ export {
   responsesService,
   chatsService,
   notificationsService,
+  reviewsService,
   telegramService
 }; 

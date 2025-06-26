@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { SocketContext } from '../../context/SocketContext';
+import { useSocket } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
@@ -10,7 +10,7 @@ const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
-  const socket = useContext(SocketContext);
+  const socket = useSocket();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,30 +79,35 @@ const RequestsPage = () => {
   }, [currentPage, filters]);
 
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
-
-  useEffect(() => {
     if (!socket) return;
 
+    // Слушаем событие 'new_request'
     const handleNewRequest = (newRequest) => {
       console.log('Получена новая заявка через сокет:', newRequest);
-      if (filters.status === 'open' || !filters.status) {
-         setRequests(prevRequests => {
-          if (prevRequests.find(req => req._id === newRequest._id)) {
-            return prevRequests;
-          }
-          return [newRequest, ...prevRequests];
-        });
-      }
+      // Добавляем новую заявку в начало списка
+      // Проверяем, чтобы заявка не дублировалась, если вдруг она уже есть
+      setRequests(prevRequests => {
+        if (prevRequests.some(req => req._id === newRequest._id)) {
+          return prevRequests;
+        }
+        return [newRequest, ...prevRequests];
+      });
+
+      // Обновляем общее количество заявок
+      setTotalPages(prevTotal => prevTotal + 1);
     };
 
     socket.on('new_request', handleNewRequest);
 
+    // Отписываемся от события при размонтировании компонента
     return () => {
       socket.off('new_request', handleNewRequest);
     };
-  }, [socket, filters.status]);
+  }, [socket]); // Зависимость от сокета
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests, currentUser]); // Добавляем currentUser в зависимости
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -112,6 +117,8 @@ const RequestsPage = () => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    // fetchRequests() вызывается через useEffect при изменении filters,
+    // но для мгновенной реакции на сабмит формы можно вызвать и здесь.
     fetchRequests();
   };
   
@@ -136,9 +143,12 @@ const RequestsPage = () => {
     return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
   };
   
-  // Обработчик успешного создания запроса из модалки
+  // Обработчик успешного создания запроса
   const handleRequestCreated = (newRequest) => {
-    setIsModalOpen(false);
+    // Добавляем новый запрос в начало списка
+    setRequests(prevRequests => [newRequest, ...prevRequests]);
+    // Перезагружаем список для получения актуальных данных
+    fetchRequests();
   };
 
   return (
