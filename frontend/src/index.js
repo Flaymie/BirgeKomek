@@ -5,8 +5,6 @@ import './index.css';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

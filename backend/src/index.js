@@ -120,7 +120,7 @@ app.disable('x-powered-by');
 // Настройка rate limiter для API (общая)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 минут
-    max: 200, // Максимум 200 запросов с одного IP за 15 минут (увеличил немного)
+    max: 1000, // <-- УВЕЛИЧЕНО С 200 ДО 1000
     standardHeaders: true, 
     legacyHeaders: false, 
     message: 'Слишком много запросов с вашего IP, попробуйте позже.',
@@ -157,7 +157,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 
 // роуты
 app.use('/api/auth', authRoutes);
-app.use('/api/requests', requestRoutes);
+app.use('/api/requests', requestRoutes({ io }));
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes({ sseConnections, io }));

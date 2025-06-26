@@ -262,7 +262,7 @@ router.put('/:responseId/status', protect, [
             type: 'response_rejected',
             title: 'Ваш отклик отклонен',
             message: `К сожалению, ваш отклик на заявку "${response.request.title}" был отклонен.`,
-            link: `/requests/${response.request._id}`,
+            link: `/request/${response.request._id}`,
             relatedEntity: { requestId: response.request._id }
         });
     }

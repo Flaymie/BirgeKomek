@@ -18,7 +18,7 @@ const checkEditDeletePermission = async (req, res, next) => {
         }
 
         const user = await User.findById(req.user.id);
-        const isAuthor = request.author.toString() === req.user.id;
+        const isAuthor = request.author._id.toString() === req.user.id;
         const isAdminOrModerator = user.roles.admin || user.roles.moderator;
         
         if (!isAuthor && !isAdminOrModerator) {
@@ -245,7 +245,15 @@ router.post('/', protect, [
             await Promise.all(notificationPromises);
         }
 
-        res.status(201).json(request);
+        // НОВОЕ: Отправляем событие через сокеты после успешного создания
+        // Сначала населяем заявку автором, чтобы на фронте сразу были нужные данные
+        const populatedRequest = await Request.findById(request._id)
+            .populate('author', 'username _id rating avatar')
+            .lean();
+
+        io.emit('new_request', populatedRequest);
+
+        res.status(201).json(populatedRequest);
     } catch (err) {
         console.error('Ошибка при создании заявки:', err.message);
         res.status(500).send('Ошибка сервера');
@@ -552,7 +560,7 @@ router.post('/:id/complete', protect, [
                 type: 'request_completed',
                 title: `Заявка "${request.title}" была закрыта`,
                 message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
-                link: `/requests/${request._id}`
+                link: `/request/${request._id}`
             });
         }
 
@@ -807,7 +815,7 @@ router.put('/:id/status', protect, [
                     type: 'request_completed',
                     title: `Заявка "${request.title}" была закрыта`,
                     message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
-                    link: `/requests/${request._id}`
+                    link: `/request/${request._id}`
                 });
             }
         }
@@ -1012,4 +1020,6 @@ router.post('/:id/reopen', protect, [
     }
 });
 
-export default router;
+export default ({ io }) => {
+    return router;
+};
