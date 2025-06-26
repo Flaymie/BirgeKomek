@@ -65,6 +65,38 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// --- НОВАЯ ФУНКЦИЯ ДЛЯ ЗАЩИТЫ SOCKET.IO ---
+export const protectSocket = async (socket, next) => {
+  let token;
+  if (socket.handshake.auth && socket.handshake.auth.token) {
+    token = socket.handshake.auth.token;
+  }
+
+  if (!token) {
+    return next(new Error('Нет токена, авторизуйтесь'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return next(new Error('Не найден юзер с этим токеном'));
+    }
+
+    if (user.banDetails.isBanned) {
+      // Можно добавить логику разбана, как в protect, но для простоты пока просто отклоняем
+      return next(new Error('Аккаунт забанен'));
+    }
+
+    socket.user = user;
+    next();
+  } catch (err) {
+    console.error('Socket Auth Error:', err.message);
+    return next(new Error('Невалидный токен'));
+  }
+};
+
 // проверка на хелпера
 export const isHelper = (req, res, next) => {
   if (!req.user || !req.user.roles.helper) {

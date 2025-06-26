@@ -79,7 +79,7 @@ const options = {
             },
             author: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
             helper: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
-            status: { type: 'string', enum: ['open', 'in_progress', 'completed', 'closed'] },
+            status: { type: 'string', enum: ['open', 'assigned', 'completed', 'cancelled'] },
             isUrgent: { type: 'boolean' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },

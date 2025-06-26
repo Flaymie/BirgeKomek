@@ -178,7 +178,6 @@ const ChatPage = () => {
   const [ratingContext, setRatingContext] = useState('complete'); // 'complete' или 'reopen'
   const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
   const [typingUsers, setTypingUsers] = useState({});
-  const [isChatDisabled, setIsChatDisabled] = useState(false);
 
   // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
   const onDrop = useCallback((acceptedFiles) => {
@@ -593,16 +592,6 @@ const ChatPage = () => {
     );
   };
 
-  // В useEffect или другом месте, где есть проверка статуса, убираем 'cancelled'
-  useEffect(() => {
-    if (requestDetails) {
-      // Например, здесь
-      if (requestDetails.status === 'completed' || requestDetails.status === 'closed') {
-        setIsChatDisabled(true);
-      }
-    }
-  }, [requestDetails]);
-
   if (isArchived) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16 text-center">
@@ -787,7 +776,7 @@ const ChatPage = () => {
         <footer className="bg-white border-t border-gray-200 rounded-b-lg">
           {(() => {
             // УДАЛЕНА ЛОГИКА ОЦЕНКИ ИЗ ФУТЕРА
-            if (requestDetails.status === 'completed' || requestDetails.status === 'closed') {
+            if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed') {
                 return (
                   <div className="p-4 text-center text-gray-500">
                     <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />

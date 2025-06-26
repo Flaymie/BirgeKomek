@@ -8,6 +8,8 @@ import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import { createAndSendNotification } from './notifications.js';
+import { sendTelegramMessage } from '../utils/telegram.js'; // <-- ИМПОРТИРУЕМ ИЗ УТИЛИТЫ
+import axios from 'axios'; // <--- Добавляю axios
 
 const router = express.Router();
 
@@ -604,23 +606,30 @@ export default ({ redisClient, sseConnections, io }) => {
           }
         }
 
-        // Если забаненный - ученик, удаляем все его активные заявки
+        // Если забаненный - ученик, отменяем все его активные заявки
         if (userToBan.roles.student) {
-          const studentRequests = await Request.find({ author: userToBan._id, status: { $in: ['open', 'in_progress'] } });
+          const studentRequests = await Request.find({ author: userToBan._id, status: { $in: ['open', 'in_progress', 'assigned'] } });
           for (const request of studentRequests) {
+            // --- ИЗМЕНЕНИЕ ЛОГИКИ ---
+            // Вместо отмены - полностью удаляем заявку и связанные данные
+            const helperToNotify = request.helper;
+            
+            // Удаляем сообщения в чате
+            await Message.deleteMany({ requestId: request._id });
+            
+            // Удаляем саму заявку
+            await Request.findByIdAndDelete(request._id);
+            console.log(`[Ban Logic] Заявка ${request._id} удалена, так как ее автор ${userToBan.username} забанен.`);
+
             // Если у заявки был хелпер, уведомляем его
-            if (request.helper) {
+            if (helperToNotify) {
               await createAndSendNotification(sseConnections, {
-                user: request.helper,
-                type: 'request_cancelled', // Тип можно оставить, он понятен
+                user: helperToNotify,
+                type: 'request_cancelled', // Тип можно оставить, он общий
                 title: 'Заявка была удалена',
                 message: `Заявка "${request.title}" была удалена, так как аккаунт ее автора был заблокирован.`,
               });
             }
-            // Удаляем заявку вместо отмены
-            await Request.findByIdAndDelete(request._id);
-            // Также стоит удалить связанные сущности, например сообщения в чате
-            await Message.deleteMany({ requestId: request._id });
           }
         }
       }
