@@ -468,7 +468,7 @@ router.get('/telegram/check-token/:token', async (req, res) => {
 });
 
 // @route   POST /api/auth/telegram/register
-// @desc    Регистрация пользователя через Telegram бота
+// @desc    Регистрация или вход пользователя через Telegram бота
 // @access  Internal (вызывается только ботом)
 router.post('/telegram/register', async (req, res) => {
     try {
@@ -483,12 +483,26 @@ router.post('/telegram/register', async (req, res) => {
             lastName
         } = req.body;
 
-        // 1. Проверяем, что все нужные данные есть
-        if (!email || !role || !telegramId || !username) {
-            return res.status(400).json({ msg: 'Не хватает данных для регистрации' });
+        // 1. Проверяем, что ID телеграма есть
+        if (!telegramId) {
+            return res.status(400).json({ msg: 'Необходим ID пользователя Telegram' });
+        }
+        
+        // 2. ИЩЕМ ПОЛЬЗОВАТЕЛЯ ПО TELEGRAM ID
+        const existingUserByTgId = await User.findOne({ telegramId });
+        if (existingUserByTgId) {
+             // Если юзер уже есть - просто возвращаем его ID, НИЧЕГО НЕ МЕНЯЕМ
+             return res.status(200).json({ userId: existingUserByTgId._id, message: 'Пользователь уже существует.' });
         }
 
-        // 2. Проверяем, не занят ли email или username
+        // --- Если пользователя нет, продолжаем регистрацию ---
+
+        // 3. Проверяем, что все нужные данные для НОВОГО юзера есть
+        if (!email || !role || !username) {
+            return res.status(400).json({ msg: 'Не хватает данных для регистрации нового пользователя.' });
+        }
+
+        // 4. Проверяем, не занят ли email или username
         const existingUserByEmail = await User.findOne({ email: email.toLowerCase() });
         if (existingUserByEmail) {
             return res.status(400).json({ msg: 'Этот email уже используется.' });
@@ -498,16 +512,11 @@ router.post('/telegram/register', async (req, res) => {
         if (existingUserByUsername) {
             return res.status(400).json({ msg: `Имя пользователя '${username}' уже занято.` });
         }
-        
-        const existingUserByTgId = await User.findOne({ telegramId });
-        if (existingUserByTgId) {
-             return res.status(400).json({ msg: 'Этот Telegram аккаунт уже привязан к пользователю.' });
-        }
 
-        // 3. Создаем временный пароль (пользователь сможет его сбросить)
+        // 5. Создаем временный пароль
         const tempPassword = crypto.randomBytes(8).toString('hex');
 
-        // 4. Создаем нового пользователя
+        // 6. Создаем нового пользователя
         const newUser = new User({
             username,
             email,
@@ -526,7 +535,7 @@ router.post('/telegram/register', async (req, res) => {
 
         await newUser.save();
 
-        // 5. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но пусть будет)
+        // 7. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но пусть будет)
         const jwtToken = jwt.sign(
             { id: newUser._id, username: newUser.username },
             process.env.JWT_SECRET,
@@ -709,8 +718,11 @@ router.post('/finalizelink', async (req, res) => {
             return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });
         }
 
+        // Обновляем только ID, а не username, чтобы ничего не сломать
         userToUpdate.telegramId = String(telegramId);
-        userToUpdate.telegramUsername = telegramUsername;
+        if (telegramUsername) { // Сохраним, только если он есть
+           userToUpdate.telegramUsername = telegramUsername;
+        }
         await userToUpdate.save();
 
         tokenData.status = 'linked';
@@ -721,7 +733,7 @@ router.post('/finalizelink', async (req, res) => {
           user: userToUpdate._id,
           type: 'security_alert',
           title: 'Telegram успешно привязан',
-          message: `Ваш аккаунт был успешно привязан к Telegram @${telegramUsername}.`,
+          message: `Ваш аккаунт был успешно привязан к Telegram${telegramUsername ? ' @' + telegramUsername : ''}.`,
           link: '/profile/me'
         });
         
