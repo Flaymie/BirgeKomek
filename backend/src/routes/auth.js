@@ -524,6 +524,7 @@ router.post('/telegram/register', async (req, res) => {
             firstName,
             lastName,
             telegramId,
+            telegramUsername: username,
             roles: {
                 student: role === 'student',
                 helper: role === 'helper',
