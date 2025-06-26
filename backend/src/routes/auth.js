@@ -166,6 +166,7 @@ router.post('/register',
       username,
       email,
       password,
+      hasPassword: true,
       phone,
       roles: {
         student: role === 'student',
@@ -513,18 +514,15 @@ router.post('/telegram/register', async (req, res) => {
             return res.status(400).json({ msg: `Имя пользователя '${username}' уже занято.` });
         }
 
-        // 5. Создаем временный пароль
-        const tempPassword = crypto.randomBytes(8).toString('hex');
-
-        // 6. Создаем нового пользователя
+        // 5. Создаем нового пользователя
         const newUser = new User({
             username,
             email,
-            password: tempPassword, // Пароль будет сразу хэширован благодаря pre-save хуку в модели User
             firstName,
             lastName,
             telegramId,
             telegramUsername: username,
+            hasPassword: false,
             roles: {
                 student: role === 'student',
                 helper: role === 'helper',
@@ -858,19 +856,22 @@ router.post('/reset-password', [
     }
 
     try {
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
         if (!user) {
             // Этого не должно произойти, если код был найден, но на всякий случай
             return res.status(404).json({ msg: 'Пользователь не найден.' });
         }
 
         // ПРОВЕРКА НА СОВПАДЕНИЕ СО СТАРЫМ ПАРОЛЕМ
-        const isSamePassword = await user.comparePassword(password);
-        if (isSamePassword) {
-            return res.status(400).json({ msg: 'Новый пароль не может совпадать со старым.' });
+        if(user.password) { // Проверяем, только если пароль вообще был
+            const isSamePassword = await user.comparePassword(password);
+            if (isSamePassword) {
+                return res.status(400).json({ msg: 'Новый пароль не может совпадать со старым.' });
+            }
         }
 
         user.password = password; // хэширование произойдет в pre-save хуке
+        user.hasPassword = true; // Теперь у юзера есть пароль
         await user.save();
 
         passwordResetTokens.delete(email.toLowerCase()); // Код использован, удаляем

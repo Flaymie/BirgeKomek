@@ -491,13 +491,13 @@ const ProfileEditor = ({
             <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-medium leading-6 text-gray-900">Интеграция с Telegram</h3>
                 
-                {currentUser.telegram?.id ? (
+                {currentUser.telegramId ? (
                     <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center">
                             <FaTelegramPlane className="w-6 h-6 mr-3 text-green-600" />
                             <div>
                                 <p className="text-sm font-semibold text-gray-800">
-                                    Аккаунт привязан к @{currentUser.telegram.username || currentUser.telegram.id}
+                                    Аккаунт привязан к @{currentUser.telegramUsername || currentUser.telegramId}
                                 </p>
                                 <p className="text-xs text-gray-600">Вы получаете уведомления в Telegram.</p>
                             </div>
