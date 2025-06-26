@@ -12,6 +12,9 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cookieParser from 'cookie-parser';
+import { protectSocket } from './middleware/auth.js';
+import { createClient } from 'redis';
 
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
@@ -30,11 +33,18 @@ import User from './models/User.js';
 
 dotenv.config();
 
-// --- ОБЪЕКТЫ ДЛЯ ХРАНЕНИЯ СОСТОЯНИЯ ONLINE ---
-// Для SSE (уведомления о бане и т.д.)
-const sseConnections = {};
-// Для Socket.IO (статус "онлайн", чаты)
-const onlineUsers = new Map();
+// --- НАСТРОЙКА REDIS ---
+const redisClient = createClient({
+  // Оставляем пустым для подключения к localhost:6379
+  // Если Redis на другом хосте/порту, нужно будет указать:
+  // url: 'redis://user:password@host:port'
+});
+
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+await redisClient.connect();
+
+console.log('Подключение к Redis установлено.');
+// --- КОНЕЦ НАСТРОЙКИ REDIS ---
 
 // Это нужно для __dirname в ES-модулях
 const __filename = fileURLToPath(import.meta.url);
@@ -45,8 +55,8 @@ const app = express();
 // --- ГЛОБАЛЬНЫЕ ХРАНИЛИЩА ---
 app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
-app.locals.sseConnections = sseConnections;
-app.locals.onlineUsers = onlineUsers;
+app.locals.sseConnections = new Map();
+app.locals.redisClient = redisClient;
 
 const server = http.createServer(app);
 export const io = new Server(server, {
@@ -159,7 +169,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/users', userRoutes({ onlineUsers, sseConnections, io }));
+app.use('/api/users', userRoutes({ redisClient, sseConnections, io }));
 app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/responses', responseRoutes);
@@ -167,39 +177,33 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // Socket.IO логика
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error('Authentication error: Token not provided'));
-  }
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return next(new Error('Authentication error: Invalid token'));
-    }
-    socket.user = decoded; // Сохраняем данные пользователя в сокете
-    next();
-  });
-});
+io.use(protectSocket);
 
 io.on('connection', (socket) => {
-  console.log(`[Socket.IO] User connected: ${socket.user.id}`);
-  // Добавляем пользователя в онлайн с текущим временем
-  onlineUsers.set(socket.user.id, Date.now());
-  
-  // Разово обновляем lastSeen при подключении, для надежности
-  User.findByIdAndUpdate(socket.user.id, { lastSeen: new Date() }).exec();
+  console.log(`[Socket.IO] Пользователь подключен: ${socket.user.username} (ID: ${socket.user.id})`);
 
-  // Слушаем пинги от клиента
-  socket.on('user_ping', () => {
-    // Просто обновляем временную метку, когда приходит пинг
-    if (onlineUsers.has(socket.user.id)) {
-      onlineUsers.set(socket.user.id, Date.now());
-    }
+  // --- ЛОГИКА С REDIS ---
+  // Добавляем ID пользователя в множество онлайн-пользователей в Redis
+  redisClient.sAdd('onlineUsers', socket.user.id);
+  io.emit('user_online', socket.user.id); // Уведомляем всех, что юзер онлайн
+
+  socket.on('disconnect', () => {
+    console.log(`[Socket.IO] Пользователь отключен: ${socket.user.username} (ID: ${socket.user.id})`);
+    
+    // --- ЛОГИКА С REDIS ---
+    // Удаляем ID пользователя из множества
+    redisClient.sRem('onlineUsers', socket.user.id);
+    io.emit('user_offline', socket.user.id); // Уведомляем всех, что юзер оффлайн
   });
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
-    console.log(`User ${socket.user.id} joined chat for request ${requestId}`);
+    console.log(`Пользователь ${socket.user.username} присоединился к чату заявки ${requestId}`);
+  });
+
+  socket.on('leave_chat', (requestId) => {
+    socket.leave(requestId);
+    console.log(`Пользователь ${socket.user.username} покинул чат заявки ${requestId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -260,30 +264,7 @@ io.on('connection', (socket) => {
       });
     }
   });
-
-  socket.on('disconnect', () => {
-    console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
-    // Удаляем пользователя из онлайн списка
-    onlineUsers.delete(socket.user.id);
-    // Обновляем время последнего онлайна в базе
-    User.findByIdAndUpdate(socket.user.id, { lastSeen: new Date() }).exec();
-  });
 });
-
-// Периодическая проверка "мертвых душ"
-setInterval(() => {
-  const now = Date.now();
-  const timeout = 90 * 1000; // 1.5 минуты неактивности
-  
-  onlineUsers.forEach((timestamp, userId) => {
-    if (now - timestamp > timeout) {
-      onlineUsers.delete(userId);
-      console.log(`[Socket.IO Cleaner] Removed stale user: ${userId}`);
-      // Можно и здесь обновить lastSeen, но disconnect должен справляться
-      User.findByIdAndUpdate(userId, { lastSeen: new Date(timestamp) }).exec();
-    }
-  });
-}, 60 * 1000); // Проверка каждую минуту
 
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {

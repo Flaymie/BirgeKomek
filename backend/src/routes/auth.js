@@ -279,17 +279,17 @@ router.post('/login', [
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
+    
     const { email, password } = req.body;
     const lowerCaseEmail = email.toLowerCase();
-
+    
     try {
       const user = await User.findOne({ email: lowerCaseEmail }).select('+password');
-      if (!user) {
+    if (!user) {
         return res.status(400).json({ msg: 'Неверный email или пароль' });
-      }
-
-      const isMatch = await user.comparePassword(password);
+    }
+    
+    const isMatch = await user.comparePassword(password);
       if (!isMatch) {
         return res.status(400).json({ msg: 'Неверный email или пароль' });
       }
@@ -300,23 +300,23 @@ router.post('/login', [
         console.log(`[Login] Забаненный пользователь ${user.username} пытается войти.`);
       }
       
-      const token = jwt.sign(
+    const token = jwt.sign(
         { id: user._id, username: user.username, roles: user.roles },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-      );
-      
-      user.password = undefined;
-
-      res.json({
-        token,
+      process.env.JWT_SECRET, 
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+    
+    user.password = undefined;
+    
+    res.json({
+      token,
         user,
         // Явно отправляем детали бана на фронтенд
         banDetails: user.banDetails 
-      });
+    });
 
-    } catch (err) {
-      console.error('Ошибка входа:', err);
+  } catch (err) {
+    console.error('Ошибка входа:', err);
       res.status(500).json({ msg: 'Ошибка сервера при попытке входа' });
     }
   }
@@ -857,7 +857,7 @@ router.post('/reset-password', [
     } catch (error) {
         console.error('Ошибка при сбросе пароля:', error);
         res.status(500).send('Ошибка сервера при обновлении пароля.');
-    }
+  }
 });
 
-export default router;
+export default router; 

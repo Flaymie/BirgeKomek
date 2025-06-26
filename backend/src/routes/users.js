@@ -30,7 +30,7 @@ const sendTelegramMessage = async (telegramId, message) => {
   }
 };
 
-export default ({ onlineUsers, sseConnections, io }) => {
+export default ({ redisClient, sseConnections, io }) => {
   /**
    * @swagger
    * tags:
@@ -255,7 +255,9 @@ export default ({ onlineUsers, sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      const isOnline = onlineUsers.has(user._id.toString());
+      // Проверяем онлайн-статус через Redis
+      const isOnline = await redisClient.sIsMember('onlineUsers', user._id.toString());
+      
       const createdRequests = await Request.countDocuments({ author: user._id });
       const completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
       res.json({ ...user, isOnline, createdRequests, completedRequests });
