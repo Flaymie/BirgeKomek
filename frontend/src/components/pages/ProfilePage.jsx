@@ -477,10 +477,7 @@ const ProfileEditor = ({
                 </div>
               )}
               
-              <div className="flex items-center justify-between">
-                 <button type="button" onClick={onDeleteAccount} className="text-sm text-red-600 hover:text-red-800 hover:underline">
-                    Удалить аккаунт
-                </button>
+              <div className="flex items-center justify-end">
                 <button type="submit" className={classNames("btn btn-primary", isProfileLoading && "opacity-75 cursor-not-allowed")} disabled={isProfileLoading}>
                   {isProfileLoading ? (<> <LoadingOverlay className="w-5 h-5 mr-2" /> Сохранение... </>) : ("Сохранить изменения")}
                 </button>
@@ -505,10 +502,15 @@ const ProfileEditor = ({
                         <div className="mt-4" title={!canUnlinkTelegram ? 'Сначала установите пароль, чтобы иметь возможность войти в аккаунт после отвязки.' : 'Отвязать Telegram'}>
                             <button 
                                 onClick={onUnlinkTelegram} 
-                                className="btn btn-error"
+                                className="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-all duration-300 flex items-center justify-center text-base"
                                 disabled={isTelegramLoading || !canUnlinkTelegram}
                             >
-                                {isTelegramLoading ? <LoadingOverlay /> : 'Отвязать Telegram'}
+                                {isTelegramLoading ? <LoadingOverlay className="w-5 h-5 mr-2" /> : (
+                                  <>
+                                    <FaTelegramPlane className="w-5 h-5 mr-2" />
+                                    Отвязать Telegram
+                                  </>
+                                )}
                             </button>
                         </div>
                         {!canUnlinkTelegram && (
@@ -536,6 +538,25 @@ const ProfileEditor = ({
                 )}
             </div>
 
+            {/* --- DANGER ZONE --- */}
+            <div className="mt-8 pt-6 border-t border-dashed border-red-400">
+              <h3 className="text-lg font-medium leading-6 text-red-700">Опасная зона</h3>
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">
+                    Удаление аккаунта
+                  </p>
+                  <p className="text-xs text-gray-600">Это действие нельзя будет отменить.</p>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={onDeleteAccount} 
+                  className="btn btn-error"
+                >
+                  Удалить аккаунт
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
