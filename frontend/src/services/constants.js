@@ -22,8 +22,9 @@ export const SUBJECTS = [
 export const REQUEST_STATUSES = {
   OPEN: 'open',
   IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
   CLOSED: 'closed',
-  CANCELLED: 'cancelled'
+  // DELETED: 'deleted' // Можно добавить, если нужно обрабатывать на фронте
 };
 
 // Уровни срочности
@@ -37,8 +38,8 @@ export const URGENCY_LEVELS = {
 export const REQUEST_STATUS_LABELS = {
   [REQUEST_STATUSES.OPEN]: 'Открыта',
   [REQUEST_STATUSES.IN_PROGRESS]: 'В процессе',
+  [REQUEST_STATUSES.COMPLETED]: 'Выполнена',
   [REQUEST_STATUSES.CLOSED]: 'Закрыта',
-  [REQUEST_STATUSES.CANCELLED]: 'Отменена'
 };
 
 // Названия уровней срочности на русском
@@ -62,8 +63,5 @@ export const STATUS_COLORS = {
     bg: 'bg-gray-100',
     text: 'text-gray-800'
   },
-  [REQUEST_STATUSES.CANCELLED]: {
-    bg: 'bg-red-100',
-    text: 'text-red-800'
-  }
+  // Убираем стиль для CANCELLED
 }; 

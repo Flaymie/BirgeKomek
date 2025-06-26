@@ -8,27 +8,8 @@ import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import { createAndSendNotification } from './notifications.js';
-import axios from 'axios'; // <--- Добавляю axios
 
 const router = express.Router();
-
-// --- НОВЫЙ ХЕЛПЕР ДЛЯ ОТПРАВКИ СООБЩЕНИЙ В TELEGRAM ---
-const sendTelegramMessage = async (telegramId, message) => {
-  if (!telegramId || !process.env.BOT_TOKEN) {
-    console.log('Не удалось отправить сообщение в Telegram: отсутствует ID или токен бота.');
-    return;
-  }
-  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
-  try {
-    await axios.post(url, {
-      chat_id: telegramId,
-      text: message,
-      parse_mode: 'Markdown',
-    });
-  } catch (error) {
-    console.error('Ошибка при отправке сообщения в Telegram:', error.response ? error.response.data : error.message);
-  }
-};
 
 export default ({ redisClient, sseConnections, io }) => {
   /**
@@ -623,22 +604,23 @@ export default ({ redisClient, sseConnections, io }) => {
           }
         }
 
-        // Если забаненный - ученик, отменяем все его активные заявки
+        // Если забаненный - ученик, удаляем все его активные заявки
         if (userToBan.roles.student) {
           const studentRequests = await Request.find({ author: userToBan._id, status: { $in: ['open', 'in_progress'] } });
           for (const request of studentRequests) {
-            request.status = 'cancelled';
-            request.cancellationReason = 'Аккаунт автора был заблокирован.';
-            await request.save();
             // Если у заявки был хелпер, уведомляем его
             if (request.helper) {
               await createAndSendNotification(sseConnections, {
                 user: request.helper,
-                type: 'request_cancelled',
-                title: 'Заявка была отменена',
-                message: `Заявка "${request.title}" была отменена, так как аккаунт ее автора был заблокирован.`,
+                type: 'request_cancelled', // Тип можно оставить, он понятен
+                title: 'Заявка была удалена',
+                message: `Заявка "${request.title}" была удалена, так как аккаунт ее автора был заблокирован.`,
               });
             }
+            // Удаляем заявку вместо отмены
+            await Request.findByIdAndDelete(request._id);
+            // Также стоит удалить связанные сущности, например сообщения в чате
+            await Message.deleteMany({ requestId: request._id });
           }
         }
       }

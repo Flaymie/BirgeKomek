@@ -45,21 +45,8 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'in_progress', 'completed', 'closed', 'cancelled', 'assigned'],
+    enum: ['open', 'in_progress', 'completed', 'closed'],
     default: 'open'
-  },
-  editedByAdminInfo: {
-    editorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    reason: {
-      type: String,
-      trim: true
-    },
-    editedAt: {
-      type: Date
-    }
   },
   createdAt: {
     type: Date,

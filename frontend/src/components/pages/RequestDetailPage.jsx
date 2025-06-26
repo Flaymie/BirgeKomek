@@ -145,10 +145,10 @@ const RequestDetailPage = () => {
         return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">В процессе</span>;
       case 'completed':
         return <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">Завершена</span>;
-      case 'cancelled':
-        return <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">Отменена</span>;
-      default:
+      case 'closed':
         return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">{status}</span>;
+      default:
+        return null;
     }
   };
   

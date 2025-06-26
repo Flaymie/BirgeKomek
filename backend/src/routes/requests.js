@@ -6,6 +6,7 @@ import Message from '../models/Message.js'; // Импортируем Message
 import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
 import mongoose from 'mongoose';
+import { sendTelegramMessage } from '../utils/telegram.js'; // <-- ИМПОРТ
 
 const router = express.Router();
 
@@ -103,13 +104,13 @@ const checkEditDeletePermission = async (req, res, next) => {
 router.get('/', protect, [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
-    query('subject').optional().trim().escape(),
-    query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
-    query('status').optional().isIn(['open', 'assigned', 'completed', 'cancelled']),
     query('authorId').optional().isMongoId(),
     query('helperId').optional().isMongoId(),
+    query('subject').optional().trim().escape(),
+    query('status').optional().isIn(['open', 'in_progress', 'completed', 'closed']),
+    query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
     query('search').optional().trim().escape(),
-    query('sortBy').optional().isIn(['createdAt_desc', 'createdAt_asc', 'updatedAt_desc', 'updatedAt_asc'])
+    query('sortBy').optional().isIn(['createdAt_desc', 'createdAt_asc', 'grade_desc', 'grade_asc'])
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -222,27 +223,41 @@ router.post('/', protect, [
             topic,
             author
         });
+
+        // 3. Сохраняем заявку
         await request.save();
-        
-        // Уведомление хелперам по этому предмету (если такие есть и подписаны)
-        // Эту часть можно доработать, чтобы не слать всем подряд, а, например, тем, кто онлайн
-        // или добавить настройки подписки на предметы
-        const helpersForSubject = await User.find({ 'roles.helper': true, helperSubjects: subject });
-        if (helpersForSubject.length > 0) {
-            const notificationPromises = helpersForSubject.map(helper => {
-                 if (helper._id.toString() !== author) { // Не уведомлять автора, если он тоже хелпер по этому предмету
-                    return createAndSendNotification(req.app.locals.sseConnections, {
-                        user: helper._id,
-                        type: 'new_request_for_subject',
-                        title: `Новая заявка по предмету: ${subject}`,
-                        message: `Пользователь ${req.user.username} создал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                        link: `/request/${request._id}`,
-                        relatedEntity: { requestId: request._id }
-                    });
+
+        // 4. УВЕДОМЛЕНИЕ ХЕЛПЕРАМ (НОВАЯ ЛОГИКА)
+        // Находим всех хелперов, у которых в профиле есть нужный предмет
+        const relevantHelpers = await User.find({
+            'roles.helper': true,
+            subjects: subject, // Ищем по полю subjects
+            _id: { $ne: author } // Исключаем самого автора заявки
+        }).select('telegramId telegramNotificationsEnabled').lean();
+
+        if (relevantHelpers.length > 0) {
+            console.log(`[Notification] Найдено ${relevantHelpers.length} хелперов для уведомления по предмету "${subject}".`);
+            
+            const notificationTitle = `Новая заявка: ${subject}`;
+            const notificationMessage = `Пользователь ${req.user.username} ищет помощи по предмету "${subject}" для ${grade} класса.`;
+            const notificationLink = `/request/${request._id}`;
+
+            for (const helper of relevantHelpers) {
+                // Отправляем уведомление на сайт (SSE)
+                createAndSendNotification(req.app.locals.sseConnections, {
+                    user: helper._id,
+                    type: 'new_request_for_subject',
+                    title: notificationTitle,
+                    message: notificationMessage,
+                    link: notificationLink,
+                });
+
+                // Отправляем уведомление в Telegram
+                if (helper.telegramId && helper.telegramNotificationsEnabled) {
+                    const telegramMessage = `🔔 *Новая заявка по вашему предмету!*\n\n*Предмет:* ${subject}\n*Класс:* ${grade}\n*Заголовок:* "${title}"\n\nВы можете откликнуться на нее на сайте.`;
+                    await sendTelegramMessage(helper.telegramId, telegramMessage); // <-- РАСКОММЕНТИРОВАЛ
                 }
-                return Promise.resolve();
-            });
-            await Promise.all(notificationPromises);
+            }
         }
 
         res.status(201).json(request);
@@ -550,7 +565,7 @@ router.post('/:id/complete', protect, [
             await createAndSendNotification(req.app.locals.sseConnections, {
                 user: request.helper,
                 type: 'request_completed',
-                title: `Заявка "${request.title}" была закрыта`,
+                title: `Заявка "${request.title}\" была закрыта`,
                 message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
                 link: `/requests/${request._id}`
             });
@@ -560,80 +575,6 @@ router.post('/:id/complete', protect, [
     } catch (err) {
         console.error('Ошибка при завершении заявки:', err.message);
         if (err.kind === 'ObjectId') {
-            return res.status(400).json({ msg: 'Неверный формат ID заявки' });
-        }
-        res.status(500).send('Ошибка сервера');
-    }
-});
-
-/**
- * @swagger
- * /api/requests/{id}/cancel:
- *   post:
- *     summary: Отменить заявку
- *     tags: [Requests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: 'string' }
- *     responses:
- *       200: { description: 'Заявка успешно отменена' }
- *       400: { description: 'Нельзя отменить (не тот статус)' }
- *       403: { description: 'Только автор может отменить' }
- *       404: { description: 'Заявка не найдена' }
- */
-router.post('/:id/cancel', protect, [
-    param('id').isMongoId().withMessage('Неверный ID заявки')
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-        const request = await Request.findById(req.params.id).populate('author helper', '_id username');
-        if (!request) {
-            return res.status(404).json({ msg: 'Заявка не найдена' });
-        }
-
-        const currentUserId = req.user.id;
-        const isAuthor = request.author && request.author._id.toString() === currentUserId;
-        // const isHelper = request.helper && request.helper._id.toString() === currentUserId;
-        // TODO: Решить, может ли хелпер отменять заявку, и при каких условиях
-
-        if (!isAuthor) { // Пока только автор
-            return res.status(403).json({ msg: 'Только автор может отменить эту заявку' });
-        }
-
-        if (request.status === 'completed' || request.status === 'cancelled') {
-            return res.status(400).json({ msg: `Нельзя отменить заявку в статусе \"${request.status}\"` });
-        }
-        
-        const oldStatus = request.status;
-        request.status = 'cancelled';
-        // request.cancelledAt = Date.now(); // Можно добавить
-        // request.cancelledBy = currentUserId; // Можно добавить
-        await request.save();
-
-        // Уведомление хелперу, если он был назначен и отменил автор
-        if (oldStatus === 'assigned' && request.helper && isAuthor) {
-             await createAndSendNotification(req.app.locals.sseConnections, {
-                user: request.helper._id,
-                type: 'request_status_changed', // или более конкретный тип 'request_cancelled_by_author'
-                title: `Заявка \"${request.title}\" отменена`,
-                message: `Автор ${req.user.username} отменил заявку, на которую вы были назначены.`,
-                link: `/request/${request._id}`,
-                relatedEntity: { requestId: request._id }
-            });
-        }
-        // TODO: Уведомление автору, если отменил хелпер (если будет такая логика)
-
-        res.json(request);
-    } catch (err) {
-        console.error('Ошибка при отмене заявки:', err.message);
-         if (err.kind === 'ObjectId') {
             return res.status(400).json({ msg: 'Неверный формат ID заявки' });
         }
         res.status(500).send('Ошибка сервера');
@@ -805,7 +746,7 @@ router.put('/:id/status', protect, [
                 await createAndSendNotification(req.app.locals.sseConnections, {
                     user: request.helper,
                     type: 'request_completed',
-                    title: `Заявка "${request.title}" была закрыта`,
+                    title: `Заявка "${request.title}\" была закрыта`,
                     message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
                     link: `/requests/${request._id}`
                 });
@@ -966,7 +907,7 @@ router.post('/:id/reopen', protect, [
                 user: formerHelper._id,
                 type: 'request_reopened_by_author',
                 title: 'Заявка была возвращена в работу',
-                message: `Автор заявки "${request.title}" не получил решения и вернул ее в общий список. Текущий чат архивирован.`,
+                message: `Автор заявки "${request.title}\" не получил решения и вернул ее в общий список. Текущий чат архивирован.`,
                 link: `/request/${request._id}`,
                 relatedEntity: { requestId: request._id }
             });
@@ -977,7 +918,7 @@ router.post('/:id/reopen', protect, [
             user: request.author,
             type: 'request_reopened_by_you',
             title: 'Вы вернули заявку в работу',
-            message: `Ваша заявка "${request.title}" снова открыта и видна другим помощникам. Старый чат архивирован.`,
+            message: `Ваша заявка "${request.title}\" снова открыта и видна другим помощникам. Старый чат архивирован.`,
             link: `/request/${request._id}`,
             relatedEntity: { requestId: request._id }
         });
