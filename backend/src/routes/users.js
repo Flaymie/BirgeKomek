@@ -8,8 +8,27 @@ import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import { createAndSendNotification } from './notifications.js';
+import axios from 'axios'; // <--- Добавляю axios
 
 const router = express.Router();
+
+// --- НОВЫЙ ХЕЛПЕР ДЛЯ ОТПРАВКИ СООБЩЕНИЙ В TELEGRAM ---
+const sendTelegramMessage = async (telegramId, message) => {
+  if (!telegramId || !process.env.BOT_TOKEN) {
+    console.log('Не удалось отправить сообщение в Telegram: отсутствует ID или токен бота.');
+    return;
+  }
+  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+  try {
+    await axios.post(url, {
+      chat_id: telegramId,
+      text: message,
+      parse_mode: 'Markdown',
+    });
+  } catch (error) {
+    console.error('Ошибка при отправке сообщения в Telegram:', error.response ? error.response.data : error.message);
+  }
+};
 
 export default ({ onlineUsers, sseConnections, io }) => {
   /**
@@ -555,7 +574,7 @@ export default ({ onlineUsers, sseConnections, io }) => {
   router.post('/:id/ban', protect, isModOrAdmin, [
     param('id').isMongoId().withMessage('Неверный ID пользователя'),
     body('reason').notEmpty().withMessage('Причина бана обязательна').trim(),
-    body('duration').optional({ checkFalsy: true }).isNumeric().withMessage('Длительность должна быть числом'),
+    body('duration').optional().isInt({ min: 1 }).withMessage('Длительность должна быть целым числом'),
   ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -564,35 +583,75 @@ export default ({ onlineUsers, sseConnections, io }) => {
 
     try {
       const userToBan = await User.findById(req.params.id);
-      if (!userToBan) {
-        return res.status(404).json({ msg: 'Пользователь не найден' });
-      }
+      if (!userToBan) return res.status(404).json({ msg: 'Пользователь не найден' });
+      if (userToBan.roles.admin) return res.status(403).json({ msg: 'Нельзя забанить администратора' });
 
-      // Нельзя банить админов или самого себя
-      if (userToBan.roles.admin || userToBan._id.equals(req.user._id)) {
-        return res.status(403).json({ msg: 'Этого пользователя нельзя забанить' });
-      }
+      const { reason, duration } = req.body;
+      const moderator = req.user;
 
-      const { reason, duration } = req.body; // duration в часах
-      const isModerator = req.user.roles.moderator && !req.user.roles.admin;
+      userToBan.banDetails.isBanned = true;
+      userToBan.banDetails.reason = reason;
+      userToBan.banDetails.bannedAt = new Date();
+      userToBan.banDetails.expiresAt = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
 
-      let expiresAt = null;
-      if (duration) {
-        if (isModerator && duration > 72) { // 3 дня = 72 часа
-          return res.status(403).json({ msg: 'Модераторы могут банить максимум на 3 дня' });
+      // --- НОВОЕ УСЛОВИЕ ---
+      // Применяем каскадные изменения только для банов дольше 2 дней или перманентных
+      const isLongTermBan = !duration || duration > 2;
+
+      if (isLongTermBan) {
+        console.log(`[Ban Logic] Применяются каскадные изменения для ${userToBan.username} (бан > 2 дней или перманентный).`);
+        
+        // --- ЛОГИКА ПОСЛЕДСТВИЙ БАНА ---
+        // Если забаненный - хелпер, снимаем его с активных заявок
+        if (userToBan.roles.helper) {
+          const helperRequests = await Request.find({ helper: userToBan._id, status: 'in_progress' });
+          for (const request of helperRequests) {
+            request.status = 'open';
+            request.helper = null;
+            request.assignedAt = null;
+            await request.save();
+            // Уведомляем автора заявки
+            await createAndSendNotification(sseConnections, {
+              user: request.author,
+              type: 'request_updated',
+              title: 'Изменения в вашей заявке',
+              message: `Помощник ${userToBan.username} был снят с вашей заявки "${request.title}". Заявка снова открыта для откликов.`,
+              link: `/request/${request._id}`,
+            });
+          }
         }
-        expiresAt = new Date(Date.now() + duration * 60 * 60 * 1000);
-      }
 
-      userToBan.banDetails = {
-        isBanned: true,
-        reason,
-        bannedAt: new Date(),
-        expiresAt,
-      };
+        // Если забаненный - ученик, отменяем все его активные заявки
+        if (userToBan.roles.student) {
+          const studentRequests = await Request.find({ author: userToBan._id, status: { $in: ['open', 'in_progress'] } });
+          for (const request of studentRequests) {
+            request.status = 'cancelled';
+            request.cancellationReason = 'Аккаунт автора был заблокирован.';
+            await request.save();
+            // Если у заявки был хелпер, уведомляем его
+            if (request.helper) {
+              await createAndSendNotification(sseConnections, {
+                user: request.helper,
+                type: 'request_cancelled',
+                title: 'Заявка была отменена',
+                message: `Заявка "${request.title}" была отменена, так как аккаунт ее автора был заблокирован.`,
+              });
+            }
+          }
+        }
+      }
 
       await userToBan.save();
-      res.json({ msg: 'Пользователь успешно забанен', banDetails: userToBan.banDetails });
+
+      // --- ОТПРАВКА УВЕДОМЛЕНИЯ В TELEGRAM ---
+      const banExpiryText = userToBan.banDetails.expiresAt
+        ? `*Срок окончания бана:* ${new Date(userToBan.banDetails.expiresAt).toLocaleString('ru-RU')}`
+        : '*Срок окончания бана:* навсегда';
+
+      const telegramMessage = `🚫 *Ваш аккаунт был заблокирован* на платформе Бірге Көмек.\n\n*Модератор:* ${moderator.username}\n*Причина:* ${reason}\n${banExpiryText}`;
+      await sendTelegramMessage(userToBan.telegramId, telegramMessage);
+
+      res.json({ msg: `Пользователь ${userToBan.username} успешно забанен`, user: userToBan });
 
     } catch (err) {
       console.error('Ошибка при бане пользователя:', err);
@@ -629,20 +688,19 @@ export default ({ onlineUsers, sseConnections, io }) => {
 
     try {
       const userToUnban = await User.findById(req.params.id);
-      if (!userToUnban) {
-        return res.status(404).json({ msg: 'Пользователь не найден' });
-      }
-
-      userToUnban.banDetails = {
-        isBanned: false,
-        reason: null,
-        bannedAt: null,
-        expiresAt: null,
-      };
-
+      if (!userToUnban) return res.status(404).json({ msg: 'Пользователь не найден' });
+      
+      userToUnban.banDetails.isBanned = false;
+      userToUnban.banDetails.reason = null;
+      userToUnban.banDetails.bannedAt = null;
+      userToUnban.banDetails.expiresAt = null;
       await userToUnban.save();
-      res.json({ msg: 'Пользователь успешно разбанен' });
 
+      // --- ОТПРАВКА УВЕДОМЛЕНИЯ В TELEGRAM ---
+      const telegramMessage = `✅ *Ваш аккаунт был разблокирован.*\n\nТеперь вы снова можете пользоваться платформой Бірге Көмек.`;
+      await sendTelegramMessage(userToUnban.telegramId, telegramMessage);
+      
+      res.json({ msg: `Пользователь ${userToUnban.username} успешно разбанен`, user: userToUnban });
     } catch (err) {
       console.error('Ошибка при разбане пользователя:', err);
       res.status(500).send('Ошибка сервера');

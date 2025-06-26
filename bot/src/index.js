@@ -167,7 +167,7 @@ bot.start(async (ctx) => {
   if (action === 'register') {
     try {
       // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
-      const response = await axios.get(`${API_URL}/users/by-telegram/${ctx.from.id}`);
+      const response = await axios.get(`${API_URL}/api/users/by-telegram/${ctx.from.id}`);
       if (response.data.exists) {
         return ctx.reply('Вы уже зарегистрированы. Чтобы войти, вернитесь на сайт и нажмите "Войти через Telegram".');
       }
@@ -187,7 +187,7 @@ bot.start(async (ctx) => {
     try {
       // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
       // Этот эндпоинт свяжет сессию на сайте (по токену) с telegramId
-      await axios.post(`${API_URL}/auth/telegram/complete-login`, { 
+      await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
         telegramId: ctx.from.id,
         loginToken: token 
       });
@@ -204,7 +204,7 @@ bot.start(async (ctx) => {
         return ctx.reply('Некорректная ссылка для привязки. Пожалуйста, попробуйте снова со страницы профиля.');
     }
     try {
-        await axios.post(`${API_URL}/auth/finalizelink`, {
+        await axios.post(`${API_URL}/api/auth/finalizelink`, {
             linkToken: payload, // Отправляем весь payload, т.е. "link_..."
             telegramId: ctx.from.id,
             telegramUsername: ctx.from.username
@@ -303,7 +303,7 @@ async function registerUser(ctx) {
         await ctx.reply(`Проверяю данные...`);
 
         // 1. Проверяем, доступно ли имя пользователя
-        const checkResponse = await axios.post(`${API_URL}/auth/check-username`, { username: candidateUsername });
+        const checkResponse = await axios.post(`${API_URL}/api/auth/check-username`, { username: candidateUsername });
         if (!checkResponse.data.available) {
             // TODO: В будущем можно попросить пользователя ввести другое имя
             await ctx.reply(`К сожалению, ваше имя пользователя в Telegram ('${candidateUsername}') уже занято на нашей платформе. Пожалуйста, измените его в настройках Telegram или зарегистрируйтесь на сайте, а затем привяжите аккаунт.`);
@@ -311,7 +311,7 @@ async function registerUser(ctx) {
         }
         
         // 2. Отправляем данные на бэкенд для создания пользователя
-        const regResponse = await axios.post(`${API_URL}/auth/telegram/register`, {
+        const regResponse = await axios.post(`${API_URL}/api/auth/telegram/register`, {
             email,
             role,
             grade,
@@ -326,7 +326,7 @@ async function registerUser(ctx) {
 
         // 3. После успешной регистрации привязываем сессию на сайте
         if (loginToken && userId) {
-             await axios.post(`${API_URL}/auth/telegram/complete-login`, { 
+             await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
                 telegramId: telegramId,
                 loginToken: loginToken,
                 userId: userId // <-- Отправляем ID нового юзера

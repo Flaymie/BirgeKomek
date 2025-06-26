@@ -272,61 +272,55 @@ router.post('/login', [
     .isEmail().withMessage('Введите корректный email')
     .normalizeEmail(),
   
-  body('password')
-    .trim()
-    .not().isEmpty().withMessage('Пароль обязателен')
-], async (req, res) => {
-  try {
-    // Проверяем результаты валидации
+  body('password', 'Пароль обязателен').not().isEmpty(),
+  ], 
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    
-    // Извлекаем только нужные поля
-    const { email, password } = req.body;
-    
-    // ищем юзера, приводя email к нижнему регистру
-    const user = await User.findOne({ email: email.toLowerCase() });
-    
-    if (!user) {
-      return res.status(401).json({ msg: 'Неверные данные' });
-    }
-    
-    // Проверяем, забанен ли пользователь
-    if (user.isBanned) {
-      return res.status(403).json({ msg: `Ваш аккаунт заблокирован. Причина: ${user.banReason}` });
-    }
 
-    // сверяем пароль
-    const isMatch = await bcrypt.compare(password, user.password);
-    
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Неверные учетные данные' });
+    const { email, password } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
+
+    try {
+      const user = await User.findOne({ email: lowerCaseEmail }).select('+password');
+      if (!user) {
+        return res.status(400).json({ msg: 'Неверный email или пароль' });
+      }
+
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(400).json({ msg: 'Неверный email или пароль' });
+      }
+
+      // Если пользователь забанен, мы все равно даем ему токен,
+      // но фронтенд должен будет показать модалку с причиной бана.
+      if (user.banDetails.isBanned) {
+        console.log(`[Login] Забаненный пользователь ${user.username} пытается войти.`);
+      }
+      
+      const token = jwt.sign(
+        { id: user._id, username: user.username, roles: user.roles },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+      );
+      
+      user.password = undefined;
+
+      res.json({
+        token,
+        user,
+        // Явно отправляем детали бана на фронтенд
+        banDetails: user.banDetails 
+      });
+
+    } catch (err) {
+      console.error('Ошибка входа:', err);
+      res.status(500).json({ msg: 'Ошибка сервера при попытке входа' });
     }
-    
-    // создаем токен
-    const token = jwt.sign(
-      { id: user._id, username: user.username },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-    
-    // Обновляем время последнего входа
-    user.lastSeen = new Date();
-    
-    // не возвращаем пароль
-    user.password = undefined;
-    
-    res.json({
-      token,
-      user
-    });
-  } catch (err) {
-    console.error('Ошибка входа:', err);
-    res.status(500).json({ msg: 'Что-то сломалось при входе' });
   }
-});
+);
 
 // --- Новые роуты для валидации ---
 

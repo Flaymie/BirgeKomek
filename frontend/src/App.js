@@ -24,41 +24,54 @@ import { useAuth } from './context/AuthContext';
 import BannedUserModal from './components/modals/BannedUserModal';
 
 const App = () => {
-  const { banDetails, logout } = useAuth();
+  const { banDetails, setBanDetails } = useAuth();
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={5000} />
-      
-      <BannedUserModal 
-        isOpen={banDetails.isBanned}
-        details={banDetails}
-        onConfirm={logout}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
       />
       
-      <Layout>
-        <Routes>
-          {/* Публичные маршруты */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/requests" element={<RequestsPage />} />
-          <Route path="/auth/telegram/callback" element={<TelegramCallbackPage />} />
-          
-          {/* Защищенные маршруты */}
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/profile/me" element={<ProtectedRoute><ProfileMeRedirector /></ProtectedRoute>} />
-          <Route path="/profile/:identifier" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/request/:id" element={<ProtectedRoute><RequestDetailPage /></ProtectedRoute>} />
-          <Route path="/request/:id/edit" element={<ProtectedRoute><EditRequestPage /></ProtectedRoute>} />
-          <Route path="/requests/:id/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-          <Route path="/chats" element={<ProtectedRoute><ChatsPage /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-          <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
-        </Routes>
-      </Layout>
+      {banDetails.isBanned && (
+        <BannedUserModal 
+          banDetails={banDetails}
+          onClose={() => setBanDetails({ isBanned: false, reason: '', expiresAt: null })}
+        />
+      )}
+
+      <div className={`main-content ${banDetails.isBanned ? 'blurred' : ''}`}>
+        <Layout>
+          <Routes>
+            {/* Публичные маршруты */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/auth/telegram/callback" element={<TelegramCallbackPage />} />
+            
+            {/* Защищенные маршруты */}
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/profile/me" element={<ProtectedRoute><ProfileMeRedirector /></ProtectedRoute>} />
+            <Route path="/profile/:identifier" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/request/:id" element={<ProtectedRoute><RequestDetailPage /></ProtectedRoute>} />
+            <Route path="/request/:id/edit" element={<ProtectedRoute><EditRequestPage /></ProtectedRoute>} />
+            <Route path="/requests/:id/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+            <Route path="/chats" element={<ProtectedRoute><ChatsPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
+          </Routes>
+        </Layout>
+      </div>
     </>
   );
 };

@@ -36,3 +36,9 @@
     transform: rotate(360deg);
   }
 }
+
+.blurred {
+  filter: blur(8px);
+  pointer-events: none;
+  transition: filter 0.3s ease-in-out;
+}

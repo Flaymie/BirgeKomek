@@ -147,14 +147,27 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await authService.login(credentials);
-      localStorage.setItem('token', response.data.token);
+      const { data } = await authService.login(credentials);
+      localStorage.setItem('token', data.token);
       
-      const userResponse = await usersService.getCurrentUser();
-      processAndCheckBan(userResponse.data);
+      // Данные о бане и пользователе приходят в одном ответе
+      if (data.banDetails?.isBanned) {
+        setBanDetails({
+          isBanned: true,
+          reason: data.banDetails.reason || 'Причина не указана.',
+          expiresAt: data.banDetails.expiresAt,
+        });
+      } else {
+        setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+      }
+
+      setCurrentUser(processUserData(data.user));
+      await fetchUnreadCount(); // Загружаем уведомления после успешного входа
+      
       setLoading(false);
       toast.success('Вход выполнен успешно!');
       return { success: true };
+
     } catch (err) {
       console.error('Ошибка входа:', err);
 
