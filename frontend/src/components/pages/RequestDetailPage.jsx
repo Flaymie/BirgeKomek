@@ -326,59 +326,90 @@ const RequestDetailPage = () => {
               </div>
             </div>
           )}
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* === БЛОК ДЕЙСТВИЙ ДЛЯ ХЕЛПЕРА === */}
-            {canHelperRespond && (
-              <div className="mt-6 text-center">
+
+          {/* === БЛОК ДЕЙСТВИЙ === */}
+          <div className="border-t border-gray-200 mt-6 pt-6">
+            {/* --- Действия для АВТОРА --- */}
+            {isAuthor && request.status === 'open' && (
+              <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => setIsResponseModalOpen(true)}
-                  className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  onClick={() => navigate(`/request/${request._id}/edit`)}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
                 >
-                  Предложить помощь
+                  Редактировать
+                </button>
+                <button
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Удалить
                 </button>
               </div>
             )}
-            
-            {/* === БЛОК ДЛЯ АВТОРА ЗАЯВКИ === */}
-            {isAuthor && request.status === 'open' && (
-              <div className="mt-8">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">
-                  Отклики ({responses.length})
-                </h3>
-                {responsesLoading ? (
-                  <div className="flex justify-center py-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : responses.length > 0 ? (
-                  <div>
-                    {responses.map(response => (
-                      <ResponseCard 
-                        key={response._id} 
-                        response={response} 
-                        isAuthor={isAuthor} 
-                        onResponseAction={handleResponseAction} 
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    На ваш запрос пока нет откликов
+
+            {/* --- Действия/Инфо для ХЕЛПЕРА --- */}
+            {isHelper() && !isAuthor && (
+              <>
+                {canHelperRespond && (
+                  <div className="text-center">
+                    <button
+                      onClick={() => setIsResponseModalOpen(true)}
+                      className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                    >
+                      Предложить помощь
+                    </button>
                   </div>
                 )}
-              </div>
+                {myResponse && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Ваш отклик:</h3>
+                    <ResponseCard response={myResponse} isMyResponse={true} />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* --- Действие для чата, когда заявка В РАБОТЕ --- */}
+            {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
+               <button 
+                  className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  onClick={() => navigate(`/requests/${request._id}/chat`)}
+               >
+                 Перейти в чат
+               </button>
             )}
           </div>
+        </div>
+      </div>
 
-          {/* === БЛОК ДЛЯ АВТОРА ЗАЯВКИ === */}
-          {myResponse && (
-            <div className="mt-8 p-4 bg-gray-50 rounded-lg border">
-              <h3 className="text-lg font-semibold mb-2 text-gray-800">Ваш отклик</h3>
-              <ResponseCard response={myResponse} isMyResponse={true} />
+      {/* === ОТДЕЛЬНЫЙ БЛОК ОТКЛИКОВ ДЛЯ АВТОРА === */}
+      {isAuthor && request.status === 'open' && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="text-xl font-bold mb-4 text-gray-800">
+            Отклики ({responses.length})
+          </h3>
+          {responsesLoading ? (
+            <div className="flex justify-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : responses.length > 0 ? (
+            <div className="space-y-4">
+              {responses.map(response => (
+                <ResponseCard 
+                  key={response._id} 
+                  response={response} 
+                  isAuthor={isAuthor} 
+                  onResponseAction={handleResponseAction} 
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              На ваш запрос пока нет откликов
             </div>
           )}
         </div>
-      </div>
+      )}
       
       {/* Кнопки управления для админа/модератора */}
       {isPrivilegedUser && !isAuthor && (
