@@ -835,6 +835,9 @@ export default ({ io }) => {
             .populate('helper', 'username _id rating avatar')
             .lean();
 
+        // СОКЕТ-УВЕДОМЛЕНИЕ ОБ ОБНОВЛЕНИИ СТАТУСА
+        io.emit('request_updated', populatedRequest);
+
         res.json(populatedRequest);
 
     } catch (err) {

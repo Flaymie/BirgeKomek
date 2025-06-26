@@ -17,6 +17,8 @@ import MyRequestsPage from './components/pages/MyRequestsPage';
 import ChatPage from './components/pages/ChatPage';
 import ChatsPage from './components/pages/ChatsPage';
 import TelegramCallbackPage from './components/pages/TelegramCallbackPage';
+import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
+import TermsOfServicePage from './components/pages/TermsOfServicePage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
