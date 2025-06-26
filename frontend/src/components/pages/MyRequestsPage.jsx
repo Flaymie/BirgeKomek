@@ -61,10 +61,23 @@ const MyRequestsPage = () => {
       }
     };
 
+    const handleRequestUpdate = (updatedRequest) => {
+      if (updatedRequest.author?._id === currentUser._id || updatedRequest.helper?._id === currentUser._id) {
+        console.log('Моя заявка обновлена:', updatedRequest);
+        setRequests(prevRequests =>
+          prevRequests.map(req =>
+            req._id === updatedRequest._id ? updatedRequest : req
+          )
+        );
+      }
+    };
+
     socket.on('new_request', handleNewRequest);
+    socket.on('request_updated', handleRequestUpdate);
 
     return () => {
       socket.off('new_request', handleNewRequest);
+      socket.off('request_updated', handleRequestUpdate);
     };
   }, [socket, currentUser]);
 

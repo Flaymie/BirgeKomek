@@ -97,11 +97,22 @@ const RequestsPage = () => {
       setTotalPages(prevTotal => prevTotal + 1);
     };
 
+    const handleRequestUpdate = (updatedRequest) => {
+      console.log('Заявка обновлена через сокет:', updatedRequest);
+      setRequests(prevRequests => 
+        prevRequests.map(req => 
+          req._id === updatedRequest._id ? updatedRequest : req
+        )
+      );
+    };
+
     socket.on('new_request', handleNewRequest);
+    socket.on('request_updated', handleRequestUpdate);
 
     // Отписываемся от события при размонтировании компонента
     return () => {
       socket.off('new_request', handleNewRequest);
+      socket.off('request_updated', handleRequestUpdate);
     };
   }, [socket]); // Зависимость от сокета
 
