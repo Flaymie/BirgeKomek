@@ -193,7 +193,7 @@ const authService = {
   checkAuth: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   updateProfile: (userId, profileData) => api.put(`/users/profile/${userId}`, profileData),
   // --- Новые функции для проверки ---
