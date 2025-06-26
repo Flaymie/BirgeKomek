@@ -592,14 +592,14 @@ export default ({ onlineUsers, sseConnections, io }) => {
       userToBan.banDetails.isBanned = true;
       userToBan.banDetails.reason = reason;
       userToBan.banDetails.bannedAt = new Date();
-      userToBan.banDetails.expiresAt = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
+      userToBan.banDetails.expiresAt = duration ? new Date(Date.now() + duration * 60 * 60 * 1000) : null;
 
       // --- НОВОЕ УСЛОВИЕ ---
-      // Применяем каскадные изменения только для банов дольше 2 дней или перманентных
-      const isLongTermBan = !duration || duration > 2;
+      // Применяем каскадные изменения только для банов дольше 2 дней (48 часов) или перманентных
+      const isLongTermBan = !duration || duration > 48;
 
       if (isLongTermBan) {
-        console.log(`[Ban Logic] Применяются каскадные изменения для ${userToBan.username} (бан > 2 дней или перманентный).`);
+        console.log(`[Ban Logic] Применяются каскадные изменения для ${userToBan.username} (бан > 48 часов или перманентный).`);
         
         // --- ЛОГИКА ПОСЛЕДСТВИЙ БАНА ---
         // Если забаненный - хелпер, снимаем его с активных заявок
