@@ -1,7 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -9,10 +8,8 @@ import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import http from 'http';
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import cookieParser from 'cookie-parser';
 import { protectSocket } from './middleware/auth.js';
 import { createClient } from 'redis';
 
@@ -24,7 +21,6 @@ import reviewRoutes from './routes/reviews.js';
 import userRoutes from './routes/users.js';
 import notificationRoutes, { createAndSendNotification } from './routes/notifications.js';
 import statsRoutes from './routes/stats.js';
-import responseRoutes from './routes/responses.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
 import Message from './models/Message.js';
@@ -32,6 +28,9 @@ import Request from './models/Request.js';
 import User from './models/User.js';
 
 dotenv.config();
+
+// --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ХРАНИЛИЩА ---
+const sseConnections = new Map();
 
 // --- НАСТРОЙКА REDIS ---
 const redisClient = createClient({
@@ -55,7 +54,6 @@ const app = express();
 // --- ГЛОБАЛЬНЫЕ ХРАНИЛИЩА ---
 app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
-app.locals.sseConnections = new Map();
 app.locals.redisClient = redisClient;
 
 const server = http.createServer(app);
@@ -166,13 +164,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 
 // роуты
 app.use('/api/auth', authRoutes);
-app.use('/api/requests', requestRoutes);
+app.use('/api/requests', requestRoutes({ redisClient, sseConnections }));
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes({ redisClient, sseConnections, io }));
 app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
-app.use('/api/responses', responseRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 
@@ -241,7 +238,7 @@ io.on('connection', (socket) => {
           type: 'new_message_in_request',
           title: `Новое сообщение в чате: "${request.title}"`,
           message: `${senderUser.username}: ${content.substring(0, 50)}...`,
-          link: `/requests/${requestId}/chat`, // ПРАВИЛЬНАЯ ССЫЛКА
+          link: `/requests/${requestId}/chat`,
           relatedEntity: { requestId: requestId, userId: senderId }
         });
       }
