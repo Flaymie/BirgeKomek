@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +22,8 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   
   const [errors, setErrors] = useState({});
   
+  const modalRef = useRef(null);
+  
   // Сбрасываем форму при открытии/закрытии модального окна
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +34,9 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         grade: currentUser?.grade || '',
       });
       setErrors({});
+      if (modalRef.current) {
+        modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   }, [isOpen, currentUser]);
   
@@ -120,6 +125,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         transition={{ duration: 0.2, ease: 'easeOut' }}
         className="relative bg-white rounded-2xl shadow-xl max-w-xl w-full max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
+        ref={modalRef}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-200">

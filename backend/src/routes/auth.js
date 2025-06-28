@@ -9,6 +9,7 @@ import { telegramTokens } from '../utils/telegramTokenStore.js';
 import { protect } from '../middleware/auth.js';
 import axios from 'axios';
 import { createAndSendNotification } from './notifications.js';
+import { generateAvatar } from '../utils/avatarGenerator.js';
 
 const router = express.Router();
 
@@ -162,6 +163,17 @@ router.post('/register',
       return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
     }
 
+    // --- ЛОГИКА АВАТАРКИ ---
+    let avatarUrl = '';
+    if (req.file) {
+      // Если пользователь загрузил файл, используем его
+      avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    } else {
+      // Иначе генерируем дефолтную SVG-аватарку
+      avatarUrl = generateAvatar(username);
+    }
+    // ----------------------
+
     const newUser = {
       username,
       email,
@@ -172,7 +184,7 @@ router.post('/register',
         student: role === 'student',
         helper: role === 'helper',
       },
-      avatar: req.file ? `/uploads/avatars/${req.file.filename}` : '',
+      avatar: avatarUrl,
     };
 
     if (role === 'student') {

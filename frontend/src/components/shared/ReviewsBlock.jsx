@@ -1,0 +1,128 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { reviewsService } from '../../services/api';
+import { formatAvatarUrl } from '../../services/avatarUtils';
+import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
+import { StarIcon } from '@heroicons/react/24/solid';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const StarRating = ({ rating }) => (
+  <div className="flex items-center">
+    {[...Array(5)].map((_, i) => (
+      <StarIcon
+        key={i}
+        className={`h-5 w-5 ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
+      />
+    ))}
+  </div>
+);
+
+const ReviewItem = ({ review }) => {
+  const avatarUrl = formatAvatarUrl(review.author);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="bg-white p-4 rounded-lg border border-gray-200"
+    >
+      <div className="flex items-start gap-4">
+        <Link to={`/profile/${review.author._id}`}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={review.author.username} className="w-10 h-10 rounded-full object-cover" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+              <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
+            </div>
+          )}
+        </Link>
+        <div className="flex-1">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-gray-800">{review.author.username}</p>
+              <p className="text-sm text-gray-500">
+                по заявке <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>
+              </p>
+            </div>
+            <StarRating rating={review.rating} />
+          </div>
+          {review.comment && (
+            <p className="mt-2 text-gray-700 bg-gray-50 p-3 rounded-md">{review.comment}</p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const ReviewsBlock = ({ userId }) => {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!userId) return;
+      try {
+        setLoading(true);
+        const res = await reviewsService.getReviewsForUser(userId);
+        setReviews(res.data);
+      } catch (err) {
+        setError('Не удалось загрузить отзывы.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReviews();
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <div className="mt-8 text-center">
+        <p>Загрузка отзывов...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-8 p-4 bg-red-50 text-red-700 rounded-lg">
+        {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-2xl font-bold text-gray-800 mb-4">Отзывы</h2>
+      {reviews.length === 0 ? (
+        <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
+          <p>У этого помощника пока нет отзывов.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <AnimatePresence>
+            {reviews.slice(0, 3).map(review => (
+              <ReviewItem key={review._id} review={review} />
+            ))}
+          </AnimatePresence>
+          {reviews.length > 3 && (
+            <div className="text-center pt-4">
+              <Link
+                to={`/reviews/${userId}`}
+                className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Посмотреть все отзывы ({reviews.length})
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ReviewsBlock; 

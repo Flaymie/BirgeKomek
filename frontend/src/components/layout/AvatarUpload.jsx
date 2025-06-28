@@ -1,180 +1,93 @@
 import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { CameraIcon, UserIcon } from '@heroicons/react/24/solid';
-import { api } from '../../services/api';
-import { formatAvatarUrl } from '../../services/avatarUtils';
-import { useAuth } from '../../context/AuthContext';
+import { Camera } from 'lucide-react';
+import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
+import { usersService } from '../../services/api';
 
-const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'lg', editable = true, isRegistration = false }) => {
-  const [avatar, setAvatar] = useState(currentAvatar || '');
-  const [isHovered, setIsHovered] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'md', editable = true }) => {
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
-  const { updateAvatar } = useAuth();
-  
-  // Размеры аватара
-  const sizeClasses = {
-    sm: 'w-16 h-16',
-    md: 'w-24 h-24',
-    lg: 'w-32 h-32',
-    xl: 'w-40 h-40'
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const response = await usersService.uploadAvatar(file);
+      onAvatarChange(response.data.avatarUrl);
+      toast.success('Аватар успешно обновлен!');
+    } catch (error) {
+      toast.error(error.response?.data?.msg || 'Не удалось загрузить аватар.');
+      console.error('Ошибка при загрузке аватара:', error);
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  // Обработка клика по аватару
+
   const handleAvatarClick = () => {
-    if (editable && fileInputRef.current) {
+    if (editable && !loading) {
       fileInputRef.current.click();
     }
   };
-  
-  // Загрузка выбранного файла на сервер (для авторизованных пользователей)
-  const uploadAvatarToServer = async (file) => {
-    setIsLoading(true);
-    
-    try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      
-      const response = await api.post('/upload/avatar', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      const newAvatarUrl = response.data.avatarUrl || response.data.avatar;
-      setAvatar(newAvatarUrl);
-      
-      if (updateAvatar) {
-        updateAvatar(newAvatarUrl);
-      }
-      
-      if (onAvatarChange) {
-        onAvatarChange(newAvatarUrl);
-      }
-      
-      toast.success('Аватар успешно загружен');
-    } catch (err) {
-      console.error('Ошибка загрузки аватара:', err);
-      
-      const errorMsg = err.response?.data?.msg || 'Ошибка загрузки аватара';
-      toast.error(errorMsg);
-    } finally {
-      setIsLoading(false);
-    }
+
+  const sizeClasses = {
+    sm: 'w-12 h-12',
+    md: 'w-24 h-24',
+    lg: 'w-32 h-32',
+    xl: 'w-40 h-40',
   };
-  
-  // Обработка файла локально (для регистрации без авторизации)
-  const handleFileLocally = (file) => {
-    setIsLoading(true);
-    
-    try {
-      const reader = new FileReader();
-      
-      reader.onloadend = () => {
-        const base64data = reader.result;
-        setAvatar(base64data);
-        
-        if (onAvatarChange) {
-          onAvatarChange(base64data);
-        }
-        
-        setIsLoading(false);
-      };
-      
-      reader.onerror = () => {
-        toast.error('Ошибка при чтении файла');
-        setIsLoading(false);
-      };
-      
-      reader.readAsDataURL(file);
-      
-    } catch (err) {
-      toast.error('Ошибка обработки файла');
-      setIsLoading(false);
-    }
+
+  const iconSizeClasses = {
+    sm: 'w-5 h-5',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
+    xl: 'w-12 h-12',
   };
-  
-  // Обработка изменения выбранного файла
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!file.type.match('image.*')) {
-        toast.error('Пожалуйста, выберите изображение');
-        return;
-      }
-      
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Размер файла должен быть не более 5 МБ');
-        return;
-      }
-      
-      if (isRegistration) {
-        handleFileLocally(file);
-      } else {
-        uploadAvatarToServer(file);
-      }
-    }
-  };
-  
-  // Получение URL аватара для отображения с использованием утилиты
-  const getAvatarUrl = () => {
-    if (!avatar) return null;
-    
-    if (avatar.startsWith('data:image')) {
-      return avatar;
-    }
-    
-    return formatAvatarUrl({ avatar });
-  };
-  
+
   return (
-    <div 
-      className={`relative ${sizeClasses[size]} rounded-full overflow-hidden mx-auto ${editable ? 'cursor-pointer' : ''}`}
-      onMouseEnter={() => editable && setIsHovered(true)}
-      onMouseLeave={() => editable && setIsHovered(false)}
+    <div
+      className={`relative rounded-full cursor-pointer group ${sizeClasses[size]} border-2 border-gray-300 flex items-center justify-center`}
       onClick={handleAvatarClick}
+      title={editable ? 'Нажмите, чтобы изменить аватар' : ''}
     >
-      {/* Скрытый input для выбора файла */}
-      {editable && (
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden"
-          accept="image/*"
-          onChange={handleFileChange}
-          disabled={isLoading}
-        />
-      )}
-      
-      {/* Отображение аватара или заглушки */}
-      {getAvatarUrl() ? (
-        <img 
-          src={getAvatarUrl()} 
-          alt="Аватар пользователя" 
-          className="w-full h-full object-cover"
+      {currentAvatar ? (
+        <img
+          src={currentAvatar}
+          alt="Avatar"
+          className="rounded-full w-full h-full object-cover"
         />
       ) : (
-        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-          <UserIcon className="h-1/2 w-1/2 text-gray-400" />
+        <div className="rounded-full w-full h-full bg-gray-100 flex items-center justify-center">
+          <DefaultAvatarIcon className={`text-gray-400 ${iconSizeClasses[size]}`} />
+        </div>
+      )}
+
+      {editable && (
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full flex items-center justify-center transition-opacity duration-300">
+          {!loading && (
+            <Camera className={`w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${iconSizeClasses[size]}`} />
+          )}
         </div>
       )}
       
-      {/* Оверлей при наведении */}
-      {editable && isHovered && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <CameraIcon className="h-1/3 w-1/3 text-white" />
-        </div>
-      )}
-      
-      {/* Индикатор загрузки */}
-      {isLoading && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center">
+      {loading && (
+        <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
           <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         </div>
       )}
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept="image/png, image/jpeg, image/gif"
+        disabled={loading}
+      />
     </div>
   );
 };

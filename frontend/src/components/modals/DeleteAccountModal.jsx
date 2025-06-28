@@ -1,13 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username }) => {
   const [confirmationText, setConfirmationText] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const modalRef = useRef(null);
 
   useEffect(() => {
-    setIsConfirmed(confirmationText === username);
+    if (username) {
+      setIsConfirmed(confirmationText.trim().toLowerCase() === username.toLowerCase());
+    } else {
+      setIsConfirmed(false);
+    }
   }, [confirmationText, username]);
+
+  useEffect(() => {
+    if (isOpen && modalRef.current) {
+      modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;
@@ -20,6 +31,7 @@ const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username }) => {
         onClick={onClose}
       >
         <motion.div
+          ref={modalRef}
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
@@ -32,7 +44,7 @@ const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username }) => {
             отзывы и другая информация будут безвозвратно удалены.
           </p>
           <p className="text-gray-600 mb-4">
-            Для подтверждения, пожалуйста, введите ваш никнейм: <span className="font-bold text-red-700">{username}</span>
+            Для подтверждения, пожалуйста, введите ваш никнейм: <code className="font-mono bg-red-100 text-red-800 px-2 py-1 rounded-md text-sm">{username}</code>
           </p>
 
           <input

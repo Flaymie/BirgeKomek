@@ -25,6 +25,7 @@ import AttachmentModal from '../modals/AttachmentModal';
 import Rating from './Rating';
 import { downloadFile } from '../../services/downloadService';
 import ResolveConfirmationModal from '../modals/ResolveConfirmationModal';
+import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 
 // --- Хелперы для отображения вложений ---
 
@@ -104,6 +105,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
   const hasAttachments = msg.attachments && msg.attachments.length > 0;
   const isDeleted = msg.content === 'Сообщение удалено';
   const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
+  const avatarUrl = formatAvatarUrl(msg.sender);
 
   return (
     <motion.div
@@ -114,7 +116,13 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
       className={`group flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
     >
       <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-end">
-        <img src={formatAvatarUrl(msg.sender)} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+            <DefaultAvatarIcon className="w-5 h-5 text-gray-500" />
+          </div>
+        )}
       </Link>
 
       {/* Основной пузырь сообщения или просто картинка */}

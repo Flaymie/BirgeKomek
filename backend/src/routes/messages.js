@@ -388,34 +388,41 @@ router.post('/upload', protect, uploadWithErrorHandler, [
     }
     
         // --- 2. Логика для определения размеров ---
+        let dimensions = null;
+        // Проверяем, является ли файл изображением, по MIME-типу
+        if (file.mimetype && file.mimetype.startsWith('image/')) {
+          try {
+            // Читаем файл в буфер
+            const buffer = fs.readFileSync(file.path);
+            // Передаем буфер в sizeOf
+            const imageSize = sizeOf(buffer);
+            dimensions = {
+              width: imageSize.width,
+              height: imageSize.height,
+            };
+          } catch (sizeError) {
+            console.error(`Не удалось получить размеры изображения: ${file.filename}`, sizeError);
+            // Не прерываем выполнение, просто размеров не будет
+          }
+        }
+
         const attachmentData = {
-            fileUrl: `/uploads/attachments/${file.filename}`,
-            fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'), // Правильное декодирование имени
-            fileType: file.mimetype,
-            fileSize: file.size,
+          fileName: file.originalname,
+          fileUrl: `/uploads/attachments/${file.filename}`,
+          fileType: file.mimetype,
+          fileSize: file.size,
+          dimensions: dimensions, // Добавляем размеры
         };
 
-        if (file.mimetype.startsWith('image/')) {
-            try {
-                const dimensions = sizeOf(file.path);
-                attachmentData.width = dimensions.width;
-                attachmentData.height = dimensions.height;
-            } catch (err) {
-                console.error("Не удалось получить размеры изображения:", file.filename, err);
-                // Не прерываем процесс, просто не будет размеров
-            }
-        }
-        // --- Конец логики ---
-
-    const newMessage = new Message({
-      requestId,
-            sender: senderId,
-      content: content || '',
-            attachments: [attachmentData], // <-- 3. Сохраняем данные с размерами
-            readBy: [senderId]
-    });
-    
-    await newMessage.save();
+        const newMessage = new Message({
+          requestId,
+                sender: senderId,
+          content: content || '',
+                attachments: [attachmentData], // <-- 3. Сохраняем данные с размерами
+                readBy: [senderId]
+        });
+        
+        await newMessage.save();
         const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username _id avatar');
         
         // Отправляем сообщение всем участникам чата через сокет

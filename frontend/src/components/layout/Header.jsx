@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import { formatAvatarUrl } from '../../services/avatarUtils';
+import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 
 // Флаг для проверки доступности API уведомлений
 const NOTIFICATIONS_ENABLED = true; // Включаем уведомления
@@ -76,17 +78,15 @@ const Header = () => {
             {currentUser ? (
               <div className="relative group">
                 <button className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
-                  {currentUser.formattedAvatar ? (
+                  {formatAvatarUrl(currentUser) ? (
                     <img 
-                      src={currentUser.formattedAvatar}
+                      src={formatAvatarUrl(currentUser)}
                       alt={currentUser.username}
                       className="w-8 h-8 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <span className="text-indigo-600 font-bold">
-                        {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
-                      </span>
+                    <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center">
+                      <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
                     </div>
                   )}
                   <span>{currentUser.username || 'Профиль'}</span>
@@ -168,17 +168,15 @@ const Header = () => {
             {currentUser ? (
               <>
                 <div className="flex items-center space-x-2 mb-2">
-                  {currentUser.formattedAvatar ? (
+                  {formatAvatarUrl(currentUser) ? (
                     <img 
-                      src={currentUser.formattedAvatar}
+                      src={formatAvatarUrl(currentUser)}
                       alt={currentUser.username}
                       className="w-8 h-8 rounded-full object-cover"
                     />
                   ) : (
-                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <span className="text-indigo-600 font-bold">
-                      {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
-                    </span>
+                  <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center">
+                    <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
                   </div>
                   )}
                   <span className="text-sm font-medium text-gray-900">{currentUser.username || 'Пользователь'}</span>

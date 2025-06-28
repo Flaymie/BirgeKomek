@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Ban } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import Modal from 'react-modal';
 
 const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const { currentUser } = useAuth();
@@ -9,6 +10,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const [timeUnit, setTimeUnit] = useState('hours'); // hours, days, months
   const [isPermanent, setIsPermanent] = useState(false);
   const [error, setError] = useState('');
+  const modalRef = useRef(null);
   
   const isModeratorOnly = currentUser?.roles?.moderator && !currentUser?.roles?.admin;
   const isAdmin = currentUser?.roles?.admin;
@@ -41,6 +43,9 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
       setTimeUnit('hours');
       setIsPermanent(false);
       setError('');
+      if (modalRef.current) {
+        modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   }, [isOpen]);
   
@@ -87,8 +92,11 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto my-8 transform transition-all duration-300 scale-100">
+    <div 
+      ref={modalRef}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+    >
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto my-8 transform transition-all duration-300 scale-100" onClick={(e) => e.stopPropagation()}>
         {/* Заголовок */}
         <div className="px-5 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">

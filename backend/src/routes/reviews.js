@@ -194,4 +194,68 @@ router.post('/', protect, [
   }
 });
 
+/**
+ * @swagger
+ * /api/reviews/user/{userId}:
+ *   get:
+ *     summary: Получить все отзывы о пользователе
+ *     tags: [Reviews]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID пользователя
+ *     responses:
+ *       200:
+ *         description: Список отзывов о пользователе
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Review'
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+// получить отзывы для пользователя
+router.get('/user/:userId', [
+  param('userId').isMongoId().withMessage('Неверный формат ID пользователя')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
+    const { userId } = req.params;
+    
+    const reviews = await Review.find({ helperId: userId })
+      .populate('reviewerId', 'username avatar')
+      .populate('requestId', 'title')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Фильтруем и форматируем данные для клиента
+    const reviewsForClient = reviews
+      .filter(review => review.reviewerId && review.requestId) // Убираем отзывы с удаленными авторами или заявками
+      .map(review => {
+        return {
+          _id: review._id,
+          rating: review.rating,
+          comment: review.comment,
+          createdAt: review.createdAt,
+          author: review.reviewerId, // Переименовываем 'reviewerId' в 'author'
+          request: review.requestId, // Переименовываем 'requestId' в 'request'
+        };
+      });
+    
+    res.json(reviewsForClient);
+  } catch (err) {
+    console.error('Ошибка при получении отзывов:', err);
+    res.status(500).json({ msg: 'Что-то пошло не так' });
+  }
+});
+
 export default router; 

@@ -5,7 +5,11 @@ import Footer from './Footer';
 
 const Layout = ({ children }) => {
   const location = useLocation();
-  
+  const hideFooterOn = ['/chat', '/requests/']; // Добавим '/requests/' для страницы чата
+
+  // Проверяем, начинается ли путь с одного из шаблонов для скрытия
+  const shouldHideFooter = hideFooterOn.some(path => location.pathname.includes(path));
+
   // Эффект для анимации при смене страницы
   useEffect(() => {
     // Не скроллить наверх для страницы чата, так как у нее своя логика скролла
@@ -14,16 +18,13 @@ const Layout = ({ children }) => {
     }
   }, [location.pathname]);
   
-  // Не показывать футер на странице чата
-  const showFooter = !location.pathname.includes('/chat');
-  
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow animate-fadeIn pt-24">
         {children}
       </main>
-      {showFooter && <Footer />}
+      {!shouldHideFooter && <Footer />}
     </div>
   );
 };

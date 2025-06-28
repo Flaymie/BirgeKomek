@@ -36,73 +36,73 @@ export default ({ io }) => {
     }
   };
 
-  /**
-   * @swagger
-   * /api/requests:
-   *   get:
-   *     summary: Получить список заявок с фильтрацией и поиском
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: query
-   *         name: page
-   *         schema: { type: 'integer', default: 1 }
-   *         description: Номер страницы
-   *       - in: query
-   *         name: limit
-   *         schema: { type: 'integer', default: 10 }
-   *         description: Количество заявок на странице
-   *       - in: query
-   *         name: subject
-   *         schema: { type: 'string' }
-   *         description: Фильтр по предмету
-   *       - in: query
-   *         name: grade
-   *         schema: { type: 'integer' }
-   *         description: Фильтр по классу
-   *       - in: query
-   *         name: status
-   *         schema: { type: 'string', enum: ['open', 'assigned', 'completed', 'cancelled'] }
-   *         description: Фильтр по статусу (по умолчанию 'open', если не указан)
-   *       - in: query
-   *         name: authorId
-   *         schema: { type: 'string' }
-   *         description: Фильтр по ID автора
-   *       - in: query
-   *         name: helperId
-   *         schema: { type: 'string' }
-   *         description: Фильтр по ID помощника
-   *       - in: query
-   *         name: search
-   *         schema: { type: 'string' }
-   *         description: Поиск по названию и описанию заявки
-   *       - in: query
-   *         name: sortBy
-   *         schema: { type: 'string', enum: ['createdAt_desc', 'createdAt_asc', 'updatedAt_desc', 'updatedAt_asc'], default: 'createdAt_desc' }
-   *         description: Поле и направление сортировки
-   *     responses:
-   *       200:
-   *         description: Список заявок
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 requests:
-   *                   type: array
-   *                   items: { $ref: '#/components/schemas/Request' }
-   *                 totalPages: { type: 'integer' }
-   *                 currentPage: { type: 'integer' }
-   *                 totalRequests: { type: 'integer' }
-   *       400:
-   *         description: Ошибка валидации параметров
-   *       401:
-   *         description: Не авторизован
-   *       500:
-   *         description: Внутренняя ошибка сервера
-   */
-  router.get('/', protect, [
+/**
+ * @swagger
+ * /api/requests:
+ *   get:
+ *     summary: Получить список заявок с фильтрацией и поиском
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: 'integer', default: 1 }
+ *         description: Номер страницы
+ *       - in: query
+ *         name: limit
+ *         schema: { type: 'integer', default: 10 }
+ *         description: Количество заявок на странице
+ *       - in: query
+ *         name: subject
+ *         schema: { type: 'string' }
+ *         description: Фильтр по предмету
+ *       - in: query
+ *         name: grade
+ *         schema: { type: 'integer' }
+ *         description: Фильтр по классу
+ *       - in: query
+ *         name: status
+ *         schema: { type: 'string', enum: ['open', 'assigned', 'completed', 'cancelled'] }
+ *         description: Фильтр по статусу (по умолчанию 'open', если не указан)
+ *       - in: query
+ *         name: authorId
+ *         schema: { type: 'string' }
+ *         description: Фильтр по ID автора
+ *       - in: query
+ *         name: helperId
+ *         schema: { type: 'string' }
+ *         description: Фильтр по ID помощника
+ *       - in: query
+ *         name: search
+ *         schema: { type: 'string' }
+ *         description: Поиск по названию и описанию заявки
+ *       - in: query
+ *         name: sortBy
+ *         schema: { type: 'string', enum: ['createdAt_desc', 'createdAt_asc', 'updatedAt_desc', 'updatedAt_asc'], default: 'createdAt_desc' }
+ *         description: Поле и направление сортировки
+ *     responses:
+ *       200:
+ *         description: Список заявок
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 requests:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Request' }
+ *                 totalPages: { type: 'integer' }
+ *                 currentPage: { type: 'integer' }
+ *                 totalRequests: { type: 'integer' }
+ *       400:
+ *         description: Ошибка валидации параметров
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+router.get('/', protect, [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('subject').optional().trim().escape(),
@@ -112,7 +112,7 @@ export default ({ io }) => {
     query('helperId').optional().isMongoId(),
     query('search').optional().trim().escape(),
     query('sortBy').optional().isIn(['createdAt_desc', 'createdAt_asc', 'updatedAt_desc', 'updatedAt_asc'])
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -169,44 +169,44 @@ export default ({ io }) => {
         console.error('Ошибка при получении заявок:', err.message);
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests:
-   *   post:
-   *     summary: Создать новую заявку на помощь
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [title, description, subject, grade]
-   *             properties:
-   *               title: { type: 'string', minLength: 5, maxLength: 100 }
-   *               description: { type: 'string', minLength: 10 }
-   *               subject: { type: 'string' }
-   *               grade: { type: 'integer', minimum: 1, maximum: 11 }
-   *               topic: { type: 'string', nullable: true }
-   *     responses:
-   *       201:
-   *         description: Заявка успешно создана
-   *       400:
-   *         description: Ошибка валидации
-   *       401:
-   *         description: Не авторизован
-   */
-  router.post('/', protect, [
+/**
+ * @swagger
+ * /api/requests:
+ *   post:
+ *     summary: Создать новую заявку на помощь
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, description, subject, grade]
+ *             properties:
+ *               title: { type: 'string', minLength: 5, maxLength: 100 }
+ *               description: { type: 'string', minLength: 10 }
+ *               subject: { type: 'string' }
+ *               grade: { type: 'integer', minimum: 1, maximum: 11 }
+ *               topic: { type: 'string', nullable: true }
+ *     responses:
+ *       201:
+ *         description: Заявка успешно создана
+ *       400:
+ *         description: Ошибка валидации
+ *       401:
+ *         description: Не авторизован
+ */
+router.post('/', protect, [
     body('title').trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
     body('grade').isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
     body('topic').optional().trim().escape()
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -260,36 +260,36 @@ export default ({ io }) => {
         console.error('Ошибка при создании заявки:', err.message);
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests/{id}:
-   *   get:
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   get:
    *     summary: Получить детальную информацию о заявке
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
    *         schema: { type: 'string', format: 'mongoId' }
    *         description: ID заявки
-   *     responses:
-   *       200:
+ *     responses:
+ *       200:
    *         description: Детальная информация о заявке
    *         content:
    *           application/json:
    *             schema: { $ref: '#/components/schemas/Request' }
    *       401:
    *         description: Не авторизован
-   *       404:
-   *         description: Заявка не найдена
-   */
-  router.get('/:id', protect, [
+ *       404:
+ *         description: Заявка не найдена
+ */
+router.get('/:id', protect, [
     param('id').isMongoId().withMessage('Неверный формат ID заявки')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         // Если ID невалиден, сразу возвращаем 404, а не 400.
@@ -309,37 +309,37 @@ export default ({ io }) => {
         console.error('Ошибка при получении заявки:', err.message);
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests/{id}/assign/{helperId}:
-   *   post:
-   *     summary: Назначить помощника на заявку (для админа/модератора)
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: 'string' }
-   *         description: ID заявки
-   *       - in: path
-   *         name: helperId
-   *         required: true
-   *         schema: { type: 'string' }
-   *         description: ID помощника
-   *     responses:
-   *       200: { description: 'Помощник успешно назначен' }
-   *       400: { description: 'Некорректный ID или помощник не может быть назначен' }
-   *       403: { description: 'Нет прав для назначения (например, не админ)' }
-   *       404: { description: 'Заявка или помощник не найден' }
-   */
-  router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
+/**
+ * @swagger
+ * /api/requests/{id}/assign/{helperId}:
+ *   post:
+ *     summary: Назначить помощника на заявку (для админа/модератора)
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *         description: ID заявки
+ *       - in: path
+ *         name: helperId
+ *         required: true
+ *         schema: { type: 'string' }
+ *         description: ID помощника
+ *     responses:
+ *       200: { description: 'Помощник успешно назначен' }
+ *       400: { description: 'Некорректный ID или помощник не может быть назначен' }
+ *       403: { description: 'Нет прав для назначения (например, не админ)' }
+ *       404: { description: 'Заявка или помощник не найден' }
+ */
+router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
     param('id').isMongoId().withMessage('Неверный ID заявки'),
     param('helperId').isMongoId().withMessage('Неверный ID помощника')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -399,31 +399,31 @@ export default ({ io }) => {
         }
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
 
-  /**
-   * @swagger
-   * /api/requests/{id}/take:
-   *   post:
-   *     summary: Взять заявку в работу (для помощников)
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: 'string' }
-   *     responses:
-   *       200: { description: 'Заявка успешно взята' }
-   *       400: { description: 'Заявку нельзя взять' }
-   *       403: { description: 'Только помощники могут брать заявки' }
-   *       404: { description: 'Заявка не найдена' }
-   */
-  router.post('/:id/take', protect, isHelper, [ // isHelper middleware проверяет req.user.roles.helper
+/**
+ * @swagger
+ * /api/requests/{id}/take:
+ *   post:
+ *     summary: Взять заявку в работу (для помощников)
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *     responses:
+ *       200: { description: 'Заявка успешно взята' }
+ *       400: { description: 'Заявку нельзя взять' }
+ *       403: { description: 'Только помощники могут брать заявки' }
+ *       404: { description: 'Заявка не найдена' }
+ */
+router.post('/:id/take', protect, isHelper, [ // isHelper middleware проверяет req.user.roles.helper
     param('id').isMongoId().withMessage('Неверный ID заявки')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -469,30 +469,30 @@ export default ({ io }) => {
         }
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests/{id}/complete:
-   *   post:
-   *     summary: Отметить заявку как выполненную
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: 'string' }
-   *     responses:
-   *       200: { description: 'Заявка успешно отмечена как выполненная' }
-   *       400: { description: 'Заявка не может быть отмечена (не тот статус)' }
-   *       403: { description: 'Только автор или помощник могут завершить' }
-   *       404: { description: 'Заявка не найдена' }
-   */
-  router.post('/:id/complete', protect, [
+/**
+ * @swagger
+ * /api/requests/{id}/complete:
+ *   post:
+ *     summary: Отметить заявку как выполненную
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *     responses:
+ *       200: { description: 'Заявка успешно отмечена как выполненная' }
+ *       400: { description: 'Заявка не может быть отмечена (не тот статус)' }
+ *       403: { description: 'Только автор или помощник могут завершить' }
+ *       404: { description: 'Заявка не найдена' }
+ */
+router.post('/:id/complete', protect, [
     param('id').isMongoId().withMessage('Неверный ID заявки')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -574,30 +574,30 @@ export default ({ io }) => {
         }
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests/{id}/cancel:
-   *   post:
-   *     summary: Отменить заявку
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: 'string' }
-   *     responses:
-   *       200: { description: 'Заявка успешно отменена' }
-   *       400: { description: 'Нельзя отменить (не тот статус)' }
-   *       403: { description: 'Только автор может отменить' }
-   *       404: { description: 'Заявка не найдена' }
-   */
-  router.post('/:id/cancel', protect, [
+/**
+ * @swagger
+ * /api/requests/{id}/cancel:
+ *   post:
+ *     summary: Отменить заявку
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *     responses:
+ *       200: { description: 'Заявка успешно отменена' }
+ *       400: { description: 'Нельзя отменить (не тот статус)' }
+ *       403: { description: 'Только автор может отменить' }
+ *       404: { description: 'Заявка не найдена' }
+ */
+router.post('/:id/cancel', protect, [
     param('id').isMongoId().withMessage('Неверный ID заявки')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -648,22 +648,22 @@ export default ({ io }) => {
         }
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests/{id}:
-   *   put:
-   *     summary: Обновить заявку
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   put:
+ *     summary: Обновить заявку
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
    *         description: ID заявки
-   *     requestBody:
+ *     requestBody:
    *       required: true
    *       content:
    *         application/json:
@@ -750,17 +750,17 @@ export default ({ io }) => {
    *         schema: { type: 'string', description: 'ID заявки' }
    *     requestBody:
    *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
    *             required: [status]
-   *             properties:
+ *             properties:
    *               status:
    *                 type: string
    *                 enum: [open, assigned, in_progress, completed, cancelled, on_hold]
    *                 description: Новый статус заявки
-   *     responses:
+ *     responses:
    *       200:
    *         description: Статус успешно обновлен
    *       400:
@@ -773,7 +773,7 @@ export default ({ io }) => {
   router.put('/:id/status', protect, [
     param('id').isMongoId().withMessage('Неверный ID заявки'),
     body('status').isIn(['open', 'assigned', 'in_progress', 'completed', 'cancelled', 'on_hold']).withMessage('Недопустимый статус')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -829,7 +829,7 @@ export default ({ io }) => {
         }
 
         await request.save();
-        
+
         const populatedRequest = await Request.findById(id)
             .populate('author', 'username _id rating avatar')
             .populate('helper', 'username _id rating avatar')
@@ -844,21 +844,21 @@ export default ({ io }) => {
         console.error('Ошибка при обновлении статуса заявки:', err.message);
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
-  /**
-   * @swagger
-   * /api/requests/{id}:
-   *   delete:
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   delete:
    *     summary: Удалить заявку
    *     description: Доступно только автору или модератору/администратору.
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
    *         description: ID заявки
    *     requestBody:
    *       description: Причина удаления (обязательна для модераторов/админов).
@@ -870,7 +870,7 @@ export default ({ io }) => {
    *             properties:
    *               deleteReason:
    *                 type: string
-   *     responses:
+ *     responses:
    *       200:
    *         description: Заявка успешно удалена
    *       403:
@@ -950,12 +950,12 @@ export default ({ io }) => {
    *     responses:
    *       200: { description: 'Заявка успешно переоткрыта' }
    *       403: { description: 'Только автор может выполнить это действие' }
-   *       404: { description: 'Заявка не найдена' }
+ *       404: { description: 'Заявка не найдена' }
    *       400: { description: 'Неверный статус заявки для этого действия' }
-   */
+ */
   router.post('/:id/reopen', protect, [
     param('id').isMongoId().withMessage('Неверный ID заявки')
-  ], async (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -1018,12 +1018,12 @@ export default ({ io }) => {
 
     } catch (err) {
         console.error('Ошибка при переоткрытии заявки:', err.message);
-        if (err.kind === 'ObjectId') {
+         if (err.kind === 'ObjectId') {
             return res.status(400).json({ msg: 'Неверный формат ID заявки' });
         }
         res.status(500).send('Ошибка сервера');
     }
-  });
+});
 
   return router; // ВОЗВРАЩАЕМ СКОНФИГУРИРОВАННЫЙ РОУТЕР В КОНЦЕ
 };

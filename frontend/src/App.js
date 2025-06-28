@@ -24,6 +24,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import { useAuth } from './context/AuthContext';
 import BannedUserModal from './components/modals/BannedUserModal';
+import AllReviewsPage from './components/pages/AllReviewsPage';
 
 const App = () => {
   const { banDetails, setBanDetails } = useAuth();
@@ -62,16 +63,19 @@ const App = () => {
             <Route path="/auth/telegram/callback" element={<TelegramCallbackPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/request/:id" element={<RequestDetailPage />} />
+            
             {/* Защищенные маршруты */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/profile/me" element={<ProtectedRoute><ProfileMeRedirector /></ProtectedRoute>} />
             <Route path="/profile/:identifier" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/request/:id" element={<ProtectedRoute><RequestDetailPage /></ProtectedRoute>} />
             <Route path="/request/:id/edit" element={<ProtectedRoute><EditRequestPage /></ProtectedRoute>} />
             <Route path="/requests/:id/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
             <Route path="/chats" element={<ProtectedRoute><ChatsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
+            <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
+            
           </Routes>
         </Layout>
       </div>

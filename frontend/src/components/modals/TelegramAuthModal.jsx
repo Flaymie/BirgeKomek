@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
@@ -14,6 +14,7 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginToken, setLoginToken] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     let intervalId;
@@ -84,6 +85,14 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
 
   }, [isOpen, authAction, loginWithToken, onClose]);
 
+  useEffect(() => {
+    if (isOpen) {
+      if (modalRef.current) {
+        modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -93,12 +102,13 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
           onClick={onClose}
+          ref={modalRef}
         >
           <motion.div
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 md:p-8 text-center relative"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 md:p-8 text-center relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button

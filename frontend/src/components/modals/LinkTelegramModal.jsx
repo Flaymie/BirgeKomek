@@ -1,10 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
-import { FaTelegramPlane } from 'react-icons/fa';
+import { FaTelegramPlane, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import Loader from '../shared/Loader';
 
 const LinkTelegramModal = ({ isOpen, onClose, linkUrl, isLoading }) => {
+  const [copied, setCopied] = useState(false);
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && modalRef.current) {
+      modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isOpen]);
+
+  const handleCopy = () => {
+    // ... (остальной код)
+  };
+
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -14,6 +29,7 @@ const LinkTelegramModal = ({ isOpen, onClose, linkUrl, isLoading }) => {
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
           onClick={onClose}
+          ref={modalRef}
         >
           <motion.div
             initial={{ y: -50, opacity: 0 }}

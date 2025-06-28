@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './BannedUserModal.css';
 
-const BannedUserModal = ({ banDetails, onClose }) => {
+const BannedUserModal = ({ isOpen, onClose, banDetails }) => {
   const { logout } = useAuth();
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && modalRef.current) {
+      modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isOpen]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   const handleLogout = () => {
     logout();
@@ -16,7 +27,10 @@ const BannedUserModal = ({ banDetails, onClose }) => {
     : 'навсегда';
 
   return (
-    <div className="banned-modal-overlay">
+    <div
+      ref={modalRef}
+      className="banned-modal-overlay"
+    >
       <div className="banned-modal-content">
         <h2 className="banned-modal-title">⛔️ Доступ ограничен ⛔️</h2>
         <p className="banned-modal-text">

@@ -4,6 +4,22 @@ import { chatsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { formatAvatarUrl } from '../../services/avatarUtils';
+import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
+
+const ChatAvatar = ({ user }) => {
+  const avatarUrl = formatAvatarUrl(user);
+  return avatarUrl ? (
+    <img
+      className="inline-block h-8 w-8 rounded-full ring-2 ring-white"
+      src={avatarUrl}
+      alt={user.username}
+    />
+  ) : (
+    <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-200 flex items-center justify-center">
+      <DefaultAvatarIcon className="h-5 w-5 text-gray-500" />
+    </div>
+  );
+};
 
 const ChatsPage = () => {
   const [chats, setChats] = useState([]);
@@ -133,17 +149,9 @@ const ChatsPage = () => {
               <div className="flex justify-between items-center mt-4">
                 <div className="flex items-center">
                   <div className="flex -space-x-2 overflow-hidden">
-                    <img 
-                      className="inline-block h-8 w-8 rounded-full ring-2 ring-white"
-                      src={formatAvatarUrl(chat.author)}
-                      alt={chat.author.username}
-                    />
+                    <ChatAvatar user={chat.author} />
                     {chat.helper && (
-                      <img
-                        className="inline-block h-8 w-8 rounded-full ring-2 ring-white"
-                        src={formatAvatarUrl(chat.helper)}
-                        alt={chat.helper.username}
-                      />
+                      <ChatAvatar user={chat.helper} />
                     )}
                   </div>
                   <span className="ml-3 text-sm text-gray-500">

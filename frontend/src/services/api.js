@@ -292,6 +292,11 @@ const reviewsService = {
   // Получить отзывы для хелпера
   getReviewsForHelper: (helperId) => {
     return api.get(`/reviews/helper/${helperId}`);
+  },
+
+  // Получить отзывы для пользователя
+  getReviewsForUser: (userId) => {
+    return api.get(`/reviews/user/${userId}`);
   }
 };
 
