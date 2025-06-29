@@ -678,7 +678,7 @@ export default ({ sseConnections, io }) => {
    * @swagger
    * /api/users/{id}/unban:
    *   post:
-   *     summary: Разбанить пользователя
+   *     summary: Разбанить пользователя (для админов/модераторов)
    *     tags: [Users, Moderation]
    *     security:
    *       - bearerAuth: []
@@ -687,7 +687,6 @@ export default ({ sseConnections, io }) => {
    *         name: id
    *         required: true
    *         schema: { type: 'string' }
-   *         description: ID пользователя для разбана
    *     responses:
    *       200: { description: 'Пользователь успешно разбанен' }
    *       403: { description: 'Недостаточно прав' }
@@ -715,16 +714,48 @@ export default ({ sseConnections, io }) => {
       const telegramMessage = `✅ *Ваш аккаунт был разблокирован.*\n\nТеперь вы снова можете пользоваться платформой Бірге Көмек.`;
       await sendTelegramMessage(userToUnban.telegramId, telegramMessage);
       
-      res.json({ msg: `Пользователь ${userToUnban.username} успешно разбанен`, user: userToUnban });
-    } catch (err) {
-      console.error('Ошибка при разбане пользователя:', err);
-      res.status(500).send('Ошибка сервера');
+      res.json({ msg: 'Пользователь разбанен' });
+    } catch (error) {
+      console.error('Ошибка при разбане:', error);
+      res.status(500).json({ msg: 'Ошибка сервера' });
     }
   });
 
-  // @route   GET /api/users/by-telegram/:id
-  // @desc    Найти пользователя по Telegram ID
-  // @access  Internal (для бота)
+  /**
+   * @swagger
+   * /api/users/by-telegram/{id}:
+   *   get:
+   *     summary: Найти пользователя по Telegram ID
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID пользователя
+   *     responses:
+   *       200:
+   *         description: Информация о пользователе
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 exists:
+   *                   type: boolean
+   *                 user:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                     username:
+   *                       type: string
+   *       400:
+   *         description: Неверный формат ID
+   *       500:
+   *         description: Внутренняя ошибка сервера
+   */
   router.get('/by-telegram/:id', async (req, res) => {
     try {
       const user = await User.findOne({ telegramId: req.params.id });
@@ -778,6 +809,60 @@ export default ({ sseConnections, io }) => {
       });
     } catch (error) {
       console.error('Ошибка при переключении настроек для бота:', error);
+      res.status(500).json({ msg: 'Ошибка сервера' });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/users/{userId}/set-password:
+   *   post:
+   *     summary: Установить новый пароль для пользователя (только для админов)
+   *     tags: [Users, Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema: { type: 'string' }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [password]
+   *             properties:
+   *               password: { type: 'string', minLength: 6 }
+   *     responses:
+   *       200: { description: 'Пароль успешно обновлен' }
+   *       400: { description: 'Пароль слишком короткий' }
+   *       403: { description: 'Недостаточно прав' }
+   *       404: { description: 'Пользователь не найден' }
+   */
+  router.post('/:userId/set-password', protect, isAdmin, async (req, res) => {
+    const { password } = req.body;
+    const { userId } = req.params;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ msg: 'Пароль должен содержать не менее 6 символов.' });
+    }
+
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден.' });
+      }
+
+      user.password = password;
+      user.hasPassword = true; // На случай, если пароля не было
+      await user.save();
+
+      res.json({ msg: `Пароль для пользователя ${user.username} успешно обновлен.` });
+
+    } catch (error) {
+      console.error('Ошибка при сбросе пароля админом:', error);
       res.status(500).json({ msg: 'Ошибка сервера' });
     }
   });

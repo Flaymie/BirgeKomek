@@ -713,7 +713,16 @@ const ProfilePage = () => {
     try {
       const { data } = await authService.generateLinkToken();
       const token = data.linkToken;
-      const botUsername = 'birgekomek_bot';
+      // Правильный способ: получаем имя бота из переменных окружения
+      const botUsername = process.env.REACT_APP_BOT_USERNAME;
+
+      if (!botUsername) {
+        toast.error('Имя бота не настроено. Обратитесь к администратору.');
+        console.error('Ошибка: переменная окружения REACT_APP_BOT_USERNAME не установлена.');
+        setIsTelegramLoading(false);
+        return;
+      }
+
       const url = `https://t.me/${botUsername}?start=${token}`;
       
       setTelegramLinkUrl(url);
