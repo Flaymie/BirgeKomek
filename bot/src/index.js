@@ -90,11 +90,16 @@ const registrationScene = new Scenes.WizardScene(
         return ctx.wizard.next();
     }
     
-    // Finalize for students
-    ctx.reply('Регистрация почти завершена...');
-    return registerUser(ctx);
+    // Студенты сразу переходят к запросу номера
+    ctx.reply('Отлично! Теперь, пожалуйста, поделитесь вашим номером телефона. Это нужно для верификации вашего аккаунта.', 
+      Markup.keyboard([
+        Markup.button.contactRequest('📱 Поделиться номером')
+      ]).resize().oneTime()
+    );
+    // Для студентов это будет шаг 5, поэтому мы пропускаем шаг 4 (выбор предметов)
+    return ctx.wizard.selectStep(ctx.wizard.cursor + 2);
   },
-  // Step 5: Finalize for helpers
+  // Step 5 (для хелперов): обработка выбора предметов
   async (ctx) => {
      if (ctx.callbackQuery?.data.startsWith('subject_')) {
         const subject = ctx.callbackQuery.data.split('_')[1];
@@ -117,9 +122,24 @@ const registrationScene = new Scenes.WizardScene(
             await ctx.answerCbQuery('Выберите хотя бы один предмет!', { show_alert: true });
             return;
         }
-        await ctx.editMessageText('Отлично! Регистрация почти завершена...');
-        return registerUser(ctx);
+        await ctx.editMessageText('Отлично! Теперь, пожалуйста, поделитесь вашим номером телефона. Это нужно для верификации вашего аккаунта.');
+        await ctx.reply('Нажмите на кнопку ниже:', Markup.keyboard([
+            Markup.button.contactRequest('📱 Поделиться номером')
+        ]).resize().oneTime());
+        return ctx.wizard.next(); // Переходим к шагу получения контакта
      }
+     // Если пришло не то, что мы ожидали
+     ctx.reply('Пожалуйста, используйте кнопки для выбора предметов.');
+  },
+  // Step 6 (финальный): получение контакта и регистрация
+  (ctx) => {
+    if (!ctx.message?.contact?.phone_number) {
+        ctx.reply('Пожалуйста, используйте кнопку, чтобы поделиться вашим номером.');
+        return;
+    }
+    ctx.wizard.state.data.phone = ctx.message.contact.phone_number;
+    ctx.reply('Регистрация почти завершена...', Markup.removeKeyboard());
+    return registerUser(ctx);
   }
 );
 
@@ -203,19 +223,17 @@ bot.start(async (ctx) => {
     if (!token) {
         return ctx.reply('Некорректная ссылка для привязки. Пожалуйста, попробуйте снова со страницы профиля.');
     }
-    try {
-        await axios.post(`${API_URL}/api/auth/finalizelink`, {
-            linkToken: payload, // Отправляем весь payload, т.е. "link_..."
-            telegramId: ctx.from.id,
-            telegramUsername: ctx.from.username
-        });
-        await ctx.reply('✅ Отлично! Ваш Telegram-аккаунт успешно привязан к профилю на сайте.');
-    } catch (error) {
-        console.error("Ошибка при привязке аккаунта:", error.response?.data || error.message);
-        const errorMessage = error.response?.data?.msg || 'Не удалось привязать аккаунт. Попробуйте снова.';
-        await ctx.reply(`❌ Ошибка: ${errorMessage}`);
-    }
-    return;
+    // Сохраняем данные в сессию и запрашиваем номер
+    ctx.session.linkData = {
+        linkToken: payload, // payload это "link_..."
+        telegramId: ctx.from.id,
+        telegramUsername: ctx.from.username
+    };
+    return ctx.reply('Для завершения привязки, пожалуйста, поделитесь вашим номером телефона. Это необходимо для безопасности вашего аккаунта.', 
+        Markup.keyboard([
+            Markup.button.contactRequest('📱 Поделиться номером для привязки')
+        ]).resize().oneTime()
+    );
   }
   
   return ctx.reply('Неизвестная команда. Пожалуйста, начните с нашего сайта.');
@@ -249,45 +267,66 @@ bot.command('settings', async (ctx) => {
 
 // Обработчик для колбэков от инлайн-кнопок
 bot.on('callback_query', async (ctx) => {
-  const { data } = ctx.callbackQuery;
+    const data = ctx.callbackQuery.data;
 
-  if (data === 'toggle_notifications') {
-    try {
-      const telegramId = ctx.from.id;
-      // ИСПРАВЛЕННЫЙ РОУТ
-      const response = await axios.post(`${API_URL}/api/users/by-telegram/${telegramId}/toggle-notifications`);
-      const { telegramNotificationsEnabled } = response.data;
+    if (data === 'toggle_notifications') {
+        try {
+            const telegramId = ctx.from.id;
+            // ИСПРАВЛЕННЫЙ РОУТ
+            const response = await axios.post(`${API_URL}/api/users/by-telegram/${telegramId}/toggle-notifications`);
+            const { telegramNotificationsEnabled } = response.data;
+            
+            const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';
+            const buttonText = telegramNotificationsEnabled ? 'Выключить' : 'Включить';
+            const buttonEmoji = telegramNotificationsEnabled ? '🔴' : '🟢';
 
-      const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';
-      const buttonText = telegramNotificationsEnabled ? 'Выключить' : 'Включить';
-      const buttonEmoji = telegramNotificationsEnabled ? '🔴' : '🟢';
-      
-      await ctx.editMessageText(`Настройки ваших уведомлений в Telegram:\n\n*Статус:* ${statusText}`, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: `${buttonEmoji} ${buttonText}`, callback_data: 'toggle_notifications' }
-          ]]
+            await ctx.editMessageText(`Настройки ваших уведомлений в Telegram:\n\n*Статус:* ${statusText}`, {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: `${buttonEmoji} ${buttonText}`, callback_data: 'toggle_notifications' }
+                ]]
+              }
+            });
+            await ctx.answerCbQuery(telegramNotificationsEnabled ? 'Уведомления включены!' : 'Уведомления выключены.');
+
+        } catch (error) {
+            console.error('Ошибка при переключении настроек:', error.response?.data || error.message);
+            await ctx.answerCbQuery('Не удалось изменить настройки. Попробуйте позже.', { show_alert: true });
         }
-      });
-
-      await ctx.answerCbQuery(telegramNotificationsEnabled ? 'Уведомления включены!' : 'Уведомления отключены!');
-
-    } catch (error) {
-      console.error('Ошибка при переключении настроек:', error.response?.data || error.message);
-      await ctx.answerCbQuery('Ошибка! Не удалось изменить настройки.', { show_alert: true });
     }
-    return; // Важно, чтобы не провалиться дальше
-  }
+});
 
-  // Старый обработчик для удаленных кнопок
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery('Тут больше ничего нет, просто переходи по ссылке!');
-  }
+// --- ОБРАБОТЧИК ПОЛУЧЕНИЯ КОНТАКТА ДЛЯ ПРИВЯЗКИ ---
+bot.on('contact', async (ctx) => {
+    const { linkData } = ctx.session;
+    
+    // Проверяем, что это ответ на запрос привязки
+    if (linkData && linkData.linkToken) {
+        const phone = ctx.message.contact.phone_number;
+        
+        try {
+            await axios.post(`${API_URL}/api/auth/finalizelink`, {
+                ...linkData,
+                phone: phone
+            });
+            await ctx.reply('✅ Отлично! Ваш Telegram-аккаунт успешно привязан к профилю на сайте.', Markup.removeKeyboard());
+        } catch (error) {
+            console.error("Ошибка при привязке аккаунта:", error.response?.data || error.message);
+            const errorMessage = error.response?.data?.msg || 'Не удалось привязать аккаунт. Попробуйте снова.';
+            await ctx.reply(`❌ Ошибка: ${errorMessage}`, Markup.removeKeyboard());
+        } finally {
+            // Очищаем сессию
+            ctx.session.linkData = null;
+        }
+    } else {
+        // Если контакт пришел вне сценария привязки
+        ctx.reply('Спасибо, но сейчас мне не нужен ваш номер. 😊');
+    }
 });
 
 async function registerUser(ctx) {
-    const { email, role, grade, subjects } = ctx.wizard.state.data;
+    const { email, role, grade, subjects, phone } = ctx.wizard.state.data;
     const { id: telegramId, username, first_name, last_name } = ctx.from;
     const { loginToken } = ctx.scene.state; // Получаем токен из состояния сцены
 
@@ -319,7 +358,8 @@ async function registerUser(ctx) {
             telegramId,
             username: candidateUsername,
             firstName: first_name,
-            lastName: last_name
+            lastName: last_name,
+            phone: phone
         });
 
         const { userId } = regResponse.data; // Получаем ID нового юзера
