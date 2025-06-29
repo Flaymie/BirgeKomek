@@ -42,9 +42,6 @@ const router = express.Router();
  *                 type: string
  *                 format: password
  *                 description: Пароль пользователя (мин. 6 символов)
- *               phone:
- *                 type: string
- *                 description: Номер телефона (опционально)
  *               roles:
  *                 type: object
  *                 properties:
@@ -106,11 +103,6 @@ router.post('/register', generalLimiter,
     .trim()
     .isLength({ min: 6 }).withMessage('Пароль должен быть минимум 6 символов'),
   
-  body('phone')
-    .optional()
-    .trim()
-    .matches(/^\+?[0-9]{10,15}$/).withMessage('Некорректный формат телефона'),
-  
   body('grade')
     .optional()
     .isInt({ min: 7, max: 11 }).withMessage('Класс должен быть от 7 до 11'),
@@ -139,7 +131,7 @@ router.post('/register', generalLimiter,
     return res.status(400).json({ errors: errors.array() });
   }
 
-    const { username, email, password, phone, grade, role } = req.body;
+    const { username, email, password, grade, role } = req.body;
     let { subjects } = req.body;
 
     if (subjects && typeof subjects === 'string') {
@@ -180,7 +172,6 @@ router.post('/register', generalLimiter,
       email,
       password,
       hasPassword: true,
-      phone,
       roles: {
         student: role === 'student',
         helper: role === 'helper',
@@ -550,6 +541,7 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
  *               role: { type: 'string', enum: ['student', 'helper'] }
  *               grade: { type: 'integer' }
  *               subjects: { type: 'array', items: { type: 'string' } }
+ *               phone: { type: 'string', description: 'Номер телефона, полученный от Telegram' }
  *               telegramId: { type: 'number' }
  *               username: { type: 'string' }
  *               firstName: { type: 'string' }
@@ -571,6 +563,7 @@ router.post('/telegram/register', async (req, res) => {
             role,
             grade,
             subjects,
+            phone,
             telegramId,
             username,
             firstName,
@@ -611,6 +604,7 @@ router.post('/telegram/register', async (req, res) => {
         const newUser = new User({
             username,
             email,
+            phone,
             firstName,
             lastName,
             telegramId,
@@ -891,11 +885,12 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [linkToken, telegramId]
+ *             required: [loginToken, telegramId]
  *             properties:
- *               linkToken: { type: 'string' }
+ *               loginToken: { type: 'string' }
  *               telegramId: { type: 'number' }
  *               telegramUsername: { type: 'string' }
+ *               phone: { type: 'string', description: 'Номер телефона, полученный от Telegram' }
  *     responses:
  *       200:
  *         description: Аккаунт успешно привязан.
@@ -911,7 +906,7 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
  *         description: Ошибка сервера.
  */
 router.post('/finalizelink', async (req, res) => {
-    const { linkToken, telegramId, telegramUsername } = req.body;
+    const { linkToken, telegramId, telegramUsername, phone } = req.body;
 
     if (!linkToken || !telegramId) {
         return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
@@ -943,6 +938,9 @@ router.post('/finalizelink', async (req, res) => {
         userToUpdate.telegramId = String(telegramId);
         if (telegramUsername) { // Сохраним, только если он есть
            userToUpdate.telegramUsername = telegramUsername;
+        }
+        if (phone) { // Сохраняем телефон, если он был передан
+            userToUpdate.phone = phone;
         }
         await userToUpdate.save();
 
