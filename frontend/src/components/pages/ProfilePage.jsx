@@ -713,7 +713,7 @@ const ProfilePage = () => {
     try {
       const { data } = await authService.generateLinkToken();
       const token = data.linkToken;
-      const botUsername = 'birge_komek_bot'; // <-- ВСТАВЬ СЮДА ИМЯ БОТА, ЕСЛИ ОНО ДРУГОЕ
+      const botUsername = 'birgekomek_bot';
       const url = `https://t.me/${botUsername}?start=${token}`;
       
       setTelegramLinkUrl(url);
