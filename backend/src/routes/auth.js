@@ -846,7 +846,10 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
       });
     }
 
-    user.telegram = undefined;
+    user.telegramId = undefined;
+    user.telegramUsername = undefined;
+    user.telegramNotificationsEnabled = undefined;
+
     await user.save();
 
     // --- УВЕДОМЛЕНИЕ ОБ ОТВЯЗКЕ TELEGRAM ---
