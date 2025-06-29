@@ -30,9 +30,19 @@ const ReviewItem = ({ review }) => {
         <div className="flex justify-between items-center">
           <div>
             <p className="font-semibold text-gray-800">{review.author.username}</p>
-            <p className="text-sm text-gray-500">
-              по заявке <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>
-            </p>
+            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+              <span>по заявке</span>
+              <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>
+              {review.isResolved !== undefined && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  review.isResolved
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {review.isResolved ? 'Решено' : 'Не решено'}
+                </span>
+              )}
+            </div>
           </div>
           <StarRating rating={review.rating} />
         </div>

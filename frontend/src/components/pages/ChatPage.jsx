@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { requestsService, messagesService, reviewsService, serverURL } from '../../services/api';
+import { requestsService, messagesService, reviewsService, serverURL, baseURL } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { toast } from 'react-toastify';
 import {
@@ -26,6 +26,26 @@ import Rating from './Rating';
 import { downloadFile } from '../../services/downloadService';
 import ResolveConfirmationModal from '../modals/ResolveConfirmationModal';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
+import axios from 'axios';
+
+// Создаем инстанс api прямо здесь для костыльного решения
+const api = axios.create({
+  baseURL: baseURL,
+  withCredentials: true,
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // --- Хелперы для отображения вложений ---
 
@@ -538,19 +558,30 @@ const ChatPage = () => {
     setIsRatingModalOpen(true); // Все равно открываем модалку для оценки
   };
 
-  // НОВАЯ ГЛАВНАЯ ФУНКЦИЯ ДЛЯ ЗАВЕРШЕНИЯ И ОЦЕНКИ
+  // Шаг 3: Отправка отзыва и изменение статуса заявки
   const handleCompleteOrReopen = async (rating, comment) => {
-    if (!requestDetails || hasSubmittedReview) return;
+    if (hasSubmittedReview) {
+      toast.warn('Вы уже отправили отзыв.');
+      return;
+    }
 
     try {
-      // Шаг 1: Всегда отправляем отзыв
-      await reviewsService.createReview(requestId, rating, comment);
-      toast.success('Спасибо за ваш отзыв!');
       setHasSubmittedReview(true);
-      setIsRatingModalOpen(false);
+      
+      const isResolved = ratingContext === 'complete';
 
-      // Шаг 2: В зависимости от контекста, либо завершаем, либо переоткрываем
+      // 1. Отправляем отзыв через сервис, как и должно быть
+      await reviewsService.createReview({ 
+        requestId, 
+        rating, 
+        comment,
+        isResolved
+      });
+      toast.success('Спасибо за ваш отзыв!');
+
+      // 2. Меняем статус заявки в зависимости от контекста
       if (ratingContext === 'complete') {
+        // Завершаем заявку
         await requestsService.updateRequestStatus(requestId, 'completed');
         toast.success('Заявка успешно завершена!');
         // Обновляем локально статус, чтобы UI стал неактивным
@@ -563,6 +594,7 @@ const ChatPage = () => {
     } catch (err) {
       toast.error(err.response?.data?.msg || 'Произошла ошибка');
       console.error(err);
+      setHasSubmittedReview(false); // Позволяем попробовать еще раз
     }
   };
 

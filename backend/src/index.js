@@ -117,31 +117,6 @@ app.get('/uploads/:folder/:filename', (req, res) => {
 // отключаем строку X-Powered-By
 app.disable('x-powered-by');
 
-// Настройка rate limiter для API (общая)
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 минут
-    max: 1000, // <-- УВЕЛИЧЕНО С 200 ДО 1000
-    standardHeaders: true, 
-    legacyHeaders: false, 
-    message: 'Слишком много запросов с вашего IP, попробуйте позже.',
-});
-app.use('/api', apiLimiter); 
-
-// Отдельный, более строгий rate limiter для эндпоинтов аутентификации
-const authLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 час
-    max: 10, // Максимум 10 попыток с одного IP за 1 час (увеличил для регистрации/восстановления)
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: 'Слишком много попыток аутентификации с вашего IP, попробуйте через час.',
-    skip: (req, res) => req.path === '/api/auth/check' || req.path === '/api/auth/refresh-token', // Исключаем /check и /refresh-token из строгого лимита
-});
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-// Если есть эндпоинт восстановления пароля, его тоже стоит добавить под authLimiter
-// app.use('/api/auth/forgot-password', authLimiter);
-// app.use('/api/auth/reset-password', authLimiter);
-
 // подрубаем к монге с безопасными настройками
 mongoose.connect(process.env.MONGODB_URI, {
   autoIndex: process.env.NODE_ENV === 'development', // отключаем автоиндексацию в проде

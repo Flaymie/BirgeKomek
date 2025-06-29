@@ -7,6 +7,7 @@ import uploadAvatar from '../middleware/uploadMiddleware.js';
 import crypto from 'crypto';
 import { telegramTokens } from '../utils/telegramTokenStore.js';
 import { protect } from '../middleware/auth.js';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 import axios from 'axios';
 import { createAndSendNotification } from './notifications.js';
 import { generateAvatar } from '../utils/avatarGenerator.js';
@@ -87,7 +88,7 @@ const router = express.Router();
  *         description: Внутренняя ошибка сервера
  */
 // регистрация
-router.post('/register', 
+router.post('/register', generalLimiter,
   uploadAvatar,
   [
   body('username')
@@ -278,7 +279,7 @@ router.post('/register',
  *         description: Внутренняя ошибка сервера
  */
 // логин
-router.post('/login', [
+router.post('/login', generalLimiter, [
   // Валидация входных данных
   body('email')
     .trim()
@@ -416,10 +417,28 @@ router.post('/check-email', [
     }
 });
 
-// @route   GET /api/auth/telegram/generate-token
-// @desc    Сгенерировать временный токен для входа через Telegram
-// @access  Public
-router.post('/telegram/generate-token', (req, res) => {
+/**
+ * @swagger
+ * /api/auth/telegram/generate-token:
+ *   post:
+ *     summary: Сгенерировать временный токен для входа через Telegram
+ *     description: Создает уникальный токен, который можно использовать для генерации QR-кода или ссылки для входа через Telegram.
+ *     tags: [Auth, Telegram]
+ *     responses:
+ *       200:
+ *         description: Успешно сгенерированный токен.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 loginToken:
+ *                   type: string
+ *                   example: "a1b2c3d4e5f6..."
+ *       500:
+ *         description: Ошибка сервера при генерации токена.
+ */
+router.post('/telegram/generate-token', generalLimiter, (req, res) => {
     try {
         const token = crypto.randomBytes(20).toString('hex');
         
@@ -436,11 +455,44 @@ router.post('/telegram/generate-token', (req, res) => {
     }
 });
 
-
-// @route   GET /api/auth/telegram/check-token/:token
-// @desc    Проверить статус токена для входа (для поллинга с фронтенда)
-// @access  Public
-router.get('/telegram/check-token/:token', async (req, res) => {
+/**
+ * @swagger
+ * /api/auth/telegram/check-token/{token}:
+ *   get:
+ *     summary: Проверить статус токена для входа (для поллинга)
+ *     description: Позволяет фронтенду периодически проверять, был ли токен активирован в Telegram.
+ *     tags: [Auth, Telegram]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Токен для входа, полученный от /generate-token.
+ *     responses:
+ *       200:
+ *         description: Статус токена. Если 'completed', то в ответе также будут JWT-токен и данные пользователя.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [pending, completed, error]
+ *                 token:
+ *                   type: string
+ *                   description: JWT-токен (только при status: 'completed').
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       404:
+ *         description: Токен не найден.
+ *       410:
+ *         description: Срок действия токена истек.
+ *       500:
+ *         description: Внутренняя ошибка сервера.
+ */
+router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
     const { token } = req.params;
     const { loginTokens } = req.app.locals;
     const tokenData = loginTokens.get(token);
@@ -480,9 +532,38 @@ router.get('/telegram/check-token/:token', async (req, res) => {
     res.json({ status: tokenData.status });
 });
 
-// @route   POST /api/auth/telegram/register
-// @desc    Регистрация или вход пользователя через Telegram бота
-// @access  Internal (вызывается только ботом)
+/**
+ * @swagger
+ * /api/auth/telegram/register:
+ *   post:
+ *     summary: Регистрация или вход пользователя через Telegram-бота (внутренний)
+ *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом. Он не должен быть доступен публично. Убедитесь, что вы защитили его, например, секретным ключом в заголовках."
+ *     tags: [Auth, Telegram, Internal]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email: { type: 'string' }
+ *               role: { type: 'string', enum: ['student', 'helper'] }
+ *               grade: { type: 'integer' }
+ *               subjects: { type: 'array', items: { type: 'string' } }
+ *               telegramId: { type: 'number' }
+ *               username: { type: 'string' }
+ *               firstName: { type: 'string' }
+ *               lastName: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: Пользователь с таким Telegram ID уже существует.
+ *       201:
+ *         description: Новый пользователь успешно создан.
+ *       400:
+ *         description: Некорректные данные или email/username уже заняты.
+ *       500:
+ *         description: Ошибка сервера.
+ */
 router.post('/telegram/register', async (req, res) => {
     try {
         const {
@@ -565,9 +646,34 @@ router.post('/telegram/register', async (req, res) => {
     }
 });
 
-// @route   POST /api/auth/telegram/complete-login
-// @desc    Связать токен входа с сайта с пользователем из Telegram
-// @access  Internal (вызывается только ботом)
+/**
+ * @swagger
+ * /api/auth/telegram/complete-login:
+ *   post:
+ *     summary: Связать токен входа с пользователем из Telegram (внутренний)
+ *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом после того, как пользователь подтвердил вход."
+ *     tags: [Auth, Telegram, Internal]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [loginToken, telegramId]
+ *             properties:
+ *               loginToken: { type: 'string' }
+ *               telegramId: { type: 'number' }
+ *               userId: { type: 'string', description: 'ID пользователя в MongoDB (если он уже известен боту)' }
+ *     responses:
+ *       200:
+ *         description: Аккаунт успешно привязан к сессии входа.
+ *       400:
+ *         description: Отсутствует токен или ID.
+ *       404:
+ *         description: Сессия входа или пользователь не найдены.
+ *       500:
+ *         description: Ошибка сервера.
+ */
 router.post('/telegram/complete-login', async (req, res) => {
     const { loginToken, telegramId, userId } = req.body;
     const { loginTokens } = req.app.locals;
@@ -607,10 +713,33 @@ router.post('/telegram/complete-login', async (req, res) => {
 /*
 *   НОВЫЙ РОУТ ДЛЯ ПРИВЯЗКИ ТЕЛЕГРАМА
 */
-// @route   POST /api/auth/generate-link-token
-// @desc    Создать токен для привязки Telegram аккаунта
-// @access  Private
-router.post('/generate-link-token', protect, (req, res) => {
+
+/**
+ * @swagger
+ * /api/auth/generate-link-token:
+ *   post:
+ *     summary: Создать токен для привязки Telegram аккаунта
+ *     description: Генерирует одноразовый токен, который пользователь должен отправить боту для привязки своего аккаунта.
+ *     tags: [Auth, Telegram]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Успешно сгенерированный токен.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 linkToken:
+ *                   type: string
+ *                   example: "link_a1b2c3d4e5f6..."
+ *       401:
+ *         description: Не авторизован.
+ *       500:
+ *         description: Ошибка сервера.
+ */
+router.post('/generate-link-token', protect, generalLimiter, (req, res) => {
     try {
         const linkToken = `link_${crypto.randomBytes(15).toString('hex')}`;
         const expires = Date.now() + 10 * 60 * 1000; // 10 минут
@@ -636,10 +765,39 @@ router.post('/generate-link-token', protect, (req, res) => {
     }
 });
 
-// @route   GET /api/auth/check-link-status/:token
-// @desc    Проверить статус токена привязки
-// @access  Private
-router.get('/check-link-status/:token', protect, (req, res) => {
+/**
+ * @swagger
+ * /api/auth/check-link-status/{token}:
+ *   get:
+ *     summary: Проверить статус токена привязки Telegram
+ *     description: Позволяет фронтенду периодически проверять, была ли привязка завершена в боте.
+ *     tags: [Auth, Telegram]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Токен привязки, полученный от /generate-link-token.
+ *     responses:
+ *       200:
+ *         description: Статус токена привязки.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [pending_link, linked]
+ *       403:
+ *         description: Доступ запрещен (попытка проверить чужой токен).
+ *       404:
+ *         description: Токен не найден.
+ */
+router.get('/check-link-status/:token', protect, generalLimiter, (req, res) => {
     const { token } = req.params;
     const tokenData = telegramTokens.get(token);
 
@@ -654,10 +812,33 @@ router.get('/check-link-status/:token', protect, (req, res) => {
     res.json({ status: tokenData.status });
 });
 
-// @route   POST /api/auth/telegram/unlink
-// @desc    Отвязать Telegram от аккаунта
-// @access  Private
-router.post('/telegram/unlink', protect, async (req, res) => {
+/**
+ * @swagger
+ * /api/auth/telegram/unlink:
+ *   post:
+ *     summary: Отвязать Telegram от аккаунта
+ *     description: Удаляет связь между аккаунтом на сайте и Telegram. Невозможно, если у пользователя не установлен пароль.
+ *     tags: [Auth, Telegram]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Telegram успешно отвязан.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg: { type: 'string' }
+ *                 user: { $ref: '#/components/schemas/User' }
+ *       403:
+ *         description: Попытка отвязать Telegram без установленного пароля.
+ *       404:
+ *         description: Пользователь не найден.
+ *       500:
+ *         description: Ошибка сервера.
+ */
+router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
@@ -697,9 +878,38 @@ router.post('/telegram/unlink', protect, async (req, res) => {
   }
 });
 
-// @route   POST /api/auth/finalizelink
-// @desc    Завершить привязку (вызывается ботом)
-// @access  Internal
+/**
+ * @swagger
+ * /api/auth/finalizelink:
+ *   post:
+ *     summary: Завершить привязку Telegram (внутренний)
+ *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом после того, как пользователь отправил ему токен привязки."
+ *     tags: [Auth, Telegram, Internal]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [linkToken, telegramId]
+ *             properties:
+ *               linkToken: { type: 'string' }
+ *               telegramId: { type: 'number' }
+ *               telegramUsername: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: Аккаунт успешно привязан.
+ *       400:
+ *         description: Отсутствует токен или ID.
+ *       404:
+ *         description: Токен не найден или недействителен.
+ *       409:
+ *         description: Этот аккаунт Telegram уже привязан к другому профилю.
+ *       410:
+ *         description: Срок действия токена истек.
+ *       500:
+ *         description: Ошибка сервера.
+ */
 router.post('/finalizelink', async (req, res) => {
     const { linkToken, telegramId, telegramUsername } = req.body;
 
@@ -758,10 +968,37 @@ router.post('/finalizelink', async (req, res) => {
 
 // --- РОУТЫ ДЛЯ СБРОСА ПАРОЛЯ ---
 
-// @route   POST /api/auth/forgot-password
-// @desc    Запрос на сброс пароля
-// @access  Public
-router.post('/forgot-password', [
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Запрос на сброс пароля
+ *     description: Проверяет, привязан ли к аккаунту с указанным email Telegram, и если да, отправляет в него код для сброса пароля.
+ *     tags: [Auth, Password]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Код для сброса пароля отправлен в Telegram.
+ *       400:
+ *         description: Некорректный email или к аккаунту не привязан Telegram.
+ *       404:
+ *         description: Пользователь с таким email не найден.
+ *       429:
+ *         description: Слишком частые запросы на сброс пароля.
+ *       500:
+ *         description: Ошибка сервера.
+ */
+router.post('/forgot-password', generalLimiter, [
     body('email', 'Введите корректный email').isEmail()
 ], async (req, res) => {
     const errors = validationResult(req);
@@ -839,11 +1076,41 @@ router.post('/forgot-password', [
     }
 });
 
-
-// @route   POST /api/auth/reset-password
-// @desc    Сброс пароля с использованием кода
-// @access  Public
-router.post('/reset-password', [
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Сброс пароля с использованием кода
+ *     description: Устанавливает новый пароль для пользователя при предоставлении правильного email и кода, полученного в Telegram.
+ *     tags: [Auth, Password]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               code:
+ *                 type: string
+ *                 description: 6-значный код из Telegram.
+ *               password:
+ *                 type: string
+ *                 description: Новый пароль (мин. 6 символов).
+ *     responses:
+ *       200:
+ *         description: Пароль успешно сброшен.
+ *       400:
+ *         description: Неверные данные (email, код, пароль) или код истек.
+ *       404:
+ *         description: Пользователь не найден.
+ *       500:
+ *         description: Ошибка сервера.
+ */
+router.post('/reset-password', generalLimiter, [
     body('email', 'Введите корректный email').isEmail(),
     body('code', 'Код должен состоять из 6 цифр').isLength({ min: 6, max: 6 }).isNumeric(),
     body('password', 'Пароль должен быть минимум 6 символов').isLength({ min: 6 })

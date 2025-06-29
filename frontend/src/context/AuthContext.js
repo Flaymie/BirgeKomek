@@ -249,9 +249,9 @@ export const AuthProvider = ({ children }) => {
           await fetchUnreadCount();
         }
         
-        setLoading(false);
+      setLoading(false);
         toast.success('Регистрация прошла успешно!');
-        return { success: true, data: response.data };
+      return { success: true, data: response.data };
       } else {
         console.error('AuthContext: Неожиданный формат ответа:', response);
         setLoading(false);

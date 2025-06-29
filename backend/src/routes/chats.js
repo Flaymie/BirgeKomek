@@ -3,8 +3,12 @@ import { protect } from '../middleware/auth.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import mongoose from 'mongoose';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
+
+// Применяем `protect` и `generalLimiter` ко всем роутам в этом файле
+router.use(protect, generalLimiter);
 
 /**
  * @swagger
@@ -50,7 +54,7 @@ const router = express.Router();
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.get('/', protect, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -177,7 +181,7 @@ router.get('/', protect, async (req, res) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.get('/unread', protect, async (req, res) => {
+router.get('/unread', async (req, res) => {
   try {
     const userId = req.user._id;
     

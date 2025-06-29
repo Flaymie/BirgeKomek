@@ -4,9 +4,13 @@ import Response from '../models/Response.js';
 import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 
 export default ({ io }) => {
   const router = express.Router();
+
+  // Применяем `protect` и `generalLimiter` ко всем роутам в этом файле
+  router.use(protect, generalLimiter);
 
   /**
    * @swagger
@@ -44,7 +48,7 @@ export default ({ io }) => {
    *       500:
    *         description: Ошибка сервера
    */
-  router.post('/', protect, [
+  router.post('/', [
     body('requestId').isMongoId().withMessage('Некорректный ID запроса'),
     body('message')
       .trim()
@@ -147,7 +151,7 @@ export default ({ io }) => {
    *       500:
    *         description: Ошибка сервера
    */
-  router.get('/:requestId', protect, async (req, res) => {
+  router.get('/:requestId', async (req, res) => {
     try {
       const { requestId } = req.params;
 
@@ -207,7 +211,7 @@ export default ({ io }) => {
    *       500:
    *         description: Ошибка сервера
    */
-  router.put('/:responseId/status', protect, [
+  router.put('/:responseId/status', [
     param('responseId').isMongoId().withMessage('Некорректный ID отклика'),
     body('status')
       .isIn(['accepted', 'rejected'])

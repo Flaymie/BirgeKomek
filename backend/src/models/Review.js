@@ -26,14 +26,18 @@ const reviewSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  isResolved: {
+    type: Boolean,
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 }, { timestamps: true });
 
-// убедиться, что пользователь может оставить только один отзыв на заявку
-reviewSchema.index({ requestId: 1, reviewerId: 1 }, { unique: true });
+// ИНДЕКС УДАЛЕН, ЧТОБЫ РАЗРЕШИТЬ МНОЖЕСТВЕННЫЕ ОТЗЫВЫ
+// reviewSchema.index({ requestId: 1, reviewerId: 1 }, { unique: true });
 
 const Review = mongoose.model('Review', reviewSchema);
 

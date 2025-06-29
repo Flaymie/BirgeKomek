@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import { createAndSendNotification } from './notifications.js';
 import axios from 'axios'; // <--- Добавляю axios
 import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОРТ REDIS
+import { generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
 
 const router = express.Router();
 
@@ -61,7 +62,7 @@ export default ({ sseConnections, io }) => {
    *       500:
    *         description: Внутренняя ошибка сервера
    */
-  router.get('/me', protect, async (req, res) => {
+  router.get('/me', protect, generalLimiter, async (req, res) => {
     try {
       const user = await User.findById(req.user.id).select('-password');
       if (!user) {
@@ -133,7 +134,7 @@ export default ({ sseConnections, io }) => {
    *       500:
    *         description: Внутренняя ошибка сервера
    */
-  router.put('/me', protect, async (req, res) => {
+  router.put('/me', protect, generalLimiter, async (req, res) => {
     try {
       const { username, email, phone, location, bio, grade, subjects, currentPassword, newPassword } = req.body;
       const userId = req.user.id;
@@ -504,7 +505,7 @@ export default ({ sseConnections, io }) => {
    *       500:
    *         description: Внутренняя ошибка сервера
    */
-  router.delete('/me', protect, async (req, res) => {
+  router.delete('/me', protect, generalLimiter, async (req, res) => {
     try {
       const userId = req.user._id;
       const user = await User.findById(userId);
@@ -585,7 +586,7 @@ export default ({ sseConnections, io }) => {
    *       403: { description: 'Недостаточно прав' }
    *       404: { description: 'Пользователь не найден' }
    */
-  router.post('/:id/ban', protect, isModOrAdmin, [
+  router.post('/:id/ban', protect, isModOrAdmin, generalLimiter, [
     param('id').isMongoId().withMessage('Неверный ID пользователя'),
     body('reason').notEmpty().withMessage('Причина бана обязательна').trim(),
     body('duration').optional().isInt({ min: 1 }).withMessage('Длительность должна быть целым числом'),
@@ -692,7 +693,7 @@ export default ({ sseConnections, io }) => {
    *       403: { description: 'Недостаточно прав' }
    *       404: { description: 'Пользователь не найден' }
    */
-  router.post('/:id/unban', protect, isModOrAdmin, [
+  router.post('/:id/unban', protect, isModOrAdmin, generalLimiter, [
     param('id').isMongoId().withMessage('Неверный ID пользователя'),
   ], async (req, res) => {
     const errors = validationResult(req);

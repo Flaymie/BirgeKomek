@@ -5,6 +5,7 @@ import { protect } from '../middleware/auth.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
@@ -83,7 +84,7 @@ export const createAndSendNotification = async (sseConnections, notificationData
 // Главный экспорт - функция, которая принимает зависимости и возвращает роутер
 export default ({ sseConnections }) => {
 
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, generalLimiter, async (req, res) => {
   try {
     const userId = req.user.id;
     const page = parseInt(req.query.page) || 1;
@@ -123,7 +124,7 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-router.get('/unread', protect, async (req, res) => {
+router.get('/unread', protect, generalLimiter, async (req, res) => {
   try {
     const notifications = await Notification.find({ user: req.user._id, isRead: false })
       .sort({ createdAt: -1 });
@@ -134,7 +135,7 @@ router.get('/unread', protect, async (req, res) => {
   }
 });
 
-router.put('/read-all', protect, async (req, res) => {
+router.put('/read-all', protect, generalLimiter, async (req, res) => {
   try {
     await Notification.updateMany(
       { user: req.user._id, isRead: false },
@@ -147,7 +148,7 @@ router.put('/read-all', protect, async (req, res) => {
   }
 });
 
-router.put('/:id/read', protect, [
+router.put('/:id/read', protect, generalLimiter, [
   param('id').isMongoId().withMessage('Некорректный ID уведомления'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -173,7 +174,7 @@ router.put('/:id/read', protect, [
   }
 });
 
-router.delete('/:id', protect, [
+router.delete('/:id', protect, generalLimiter, [
   param('id').isMongoId().withMessage('Некорректный ID уведомления'),
 ], async (req, res) => {
     const errors = validationResult(req);

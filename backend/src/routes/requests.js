@@ -6,10 +6,15 @@ import Message from '../models/Message.js'; // Импортируем Message
 import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
 import mongoose from 'mongoose';
+import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
 
 // ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
   const router = express.Router(); // СОЗДАЕМ РОУТЕР ВНУТРИ
+
+  // Применяем общий лимитер ко всем роутам в этом файле, которые идут ПОСЛЕ этого мидлваря
+  // и требуют авторизации (т.к. `generalLimiter` зависит от `req.user`)
+  router.use(protect, generalLimiter);
 
   // Middleware для проверки прав на редактирование/удаление
   const checkEditDeletePermission = async (req, res, next) => {
@@ -102,7 +107,7 @@ export default ({ io }) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.get('/', protect, [
+router.get('/', [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('subject').optional().trim().escape(),
@@ -200,7 +205,7 @@ router.get('/', protect, [
  *       401:
  *         description: Не авторизован
  */
-router.post('/', protect, [
+router.post('/', createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
@@ -282,13 +287,13 @@ router.post('/', protect, [
    *         content:
    *           application/json:
    *             schema: { $ref: '#/components/schemas/Request' }
-   *       401:
-   *         description: Не авторизован
+ *       401:
+ *         description: Не авторизован
  *       404:
  *         description: Заявка не найдена
  */
-router.get('/:id', protect, [
-    param('id').isMongoId().withMessage('Неверный формат ID заявки')
+router.get('/:id', [
+    param('id').isMongoId().withMessage('Неверный ID заявки')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

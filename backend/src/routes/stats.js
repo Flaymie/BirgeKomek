@@ -1,7 +1,8 @@
 import express from 'express';
 import User from '../models/User.js';
 import Request from '../models/Request.js';
-import { protect } from '../middleware/auth.js'; // Возможно, для некоторых стат нужна будет защита
+import { protect } from '../middleware/auth.js';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
@@ -102,7 +103,7 @@ router.get('/general', async (req, res) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.get('/user/:userId', protect, async (req, res) => {
+router.get('/user/:userId', protect, generalLimiter, async (req, res) => {
   try {
     const requestedUserId = req.params.userId;
     const currentUserId = req.user.id;

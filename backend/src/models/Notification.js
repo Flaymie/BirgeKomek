@@ -29,6 +29,7 @@ const notificationSchema = new mongoose.Schema({
       'request_reopened_by_author', // Автор переоткрыл заявку (для хелпера)
       'request_reopened_by_you',    // Ты переоткрыл заявку (для автора)
       'security_alert',             // Уведомление безопасности (смена пароля и т.д.)
+      'request_completed',          // Заявка завершена (после оценки)
       // Можно добавить другие типы по мере необходимости
     ],
   },

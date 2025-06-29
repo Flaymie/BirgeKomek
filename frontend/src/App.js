@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -24,10 +24,24 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import { useAuth } from './context/AuthContext';
 import BannedUserModal from './components/modals/BannedUserModal';
+import RateLimitModal from './components/modals/RateLimitModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 
 const App = () => {
   const { banDetails, setBanDetails } = useAuth();
+  const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleRateLimit = () => {
+      setIsRateLimitModalOpen(true);
+    };
+
+    window.addEventListener('show-rate-limit-modal', handleRateLimit);
+
+    return () => {
+      window.removeEventListener('show-rate-limit-modal', handleRateLimit);
+    };
+  }, []);
 
   return (
     <>
@@ -49,8 +63,13 @@ const App = () => {
           onClose={() => setBanDetails({ isBanned: false, reason: '', expiresAt: null })}
         />
       )}
+      
+      <RateLimitModal 
+        isOpen={isRateLimitModalOpen}
+        onClose={() => setIsRateLimitModalOpen(false)}
+      />
 
-      <div className={`main-content ${banDetails.isBanned ? 'blurred' : ''}`}>
+      <div className={`main-content ${banDetails.isBanned || isRateLimitModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}

@@ -36,6 +36,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // --- НОВОЕ УСЛОВИЕ ДЛЯ RATE LIMIT ---
+    if (error.response?.status === 429) {
+      // Создаем и диспатчим кастомное событие, чтобы App.js мог его поймать
+      const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
+      window.dispatchEvent(rateLimitEvent);
+      // Не логируем это как ошибку в консоль, чтобы не засорять
+      return Promise.reject(error);
+    }
+    
     // --- НОВОЕ УСЛОВИЕ ---
     // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
     const isUserNotFound = error.response?.status === 404 && error.config.url.startsWith('/users/');
@@ -282,19 +291,14 @@ const notificationsService = {
   },
 };
 
-// --- Сервис для отзывов ---
+// Сервис для работы с отзывами
 const reviewsService = {
-  // Создать отзыв
-  createReview: (requestId, rating, comment) => {
-    return api.post('/reviews', { requestId, rating, comment });
+  // Создать новый отзыв
+  createReview: (reviewData) => {
+    return api.post('/reviews', reviewData);
   },
-
-  // Получить отзывы для хелпера
-  getReviewsForHelper: (helperId) => {
-    return api.get(`/reviews/helper/${helperId}`);
-  },
-
-  // Получить отзывы для пользователя
+  
+  // Получить все отзывы для конкретного пользователя (хелпера)
   getReviewsForUser: (userId) => {
     return api.get(`/reviews/user/${userId}`);
   }

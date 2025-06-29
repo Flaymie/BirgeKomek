@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { protect } from '../middleware/auth.js';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 import User from '../models/User.js';
 
 const router = express.Router();
@@ -72,7 +73,7 @@ const upload = multer({
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.post('/avatar', protect, upload.single('avatar'), async (req, res) => {
+router.post('/avatar', protect, generalLimiter, upload.single('avatar'), async (req, res) => {
   try {
     const file = req.file;
     

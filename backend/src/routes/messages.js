@@ -9,6 +9,7 @@ import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
 import { io } from '../index.js';
+import { sendMessageLimiter, uploadLimiter, generalLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
@@ -57,6 +58,9 @@ const upload = multer({
   }
 });
 
+// Применяем `protect` и `generalLimiter` ко всем роутам в этом файле
+router.use(protect, generalLimiter);
+
 /**
  * @swagger
  * /api/messages/{requestId}:
@@ -91,7 +95,7 @@ const upload = multer({
  *         description: Внутренняя ошибка сервера
  */
 // получить сообщения по requestId
-router.get('/:requestId', protect, [
+router.get('/:requestId', [
   param('requestId').isMongoId().withMessage('Неверный формат ID')
 ], async (req, res) => {
   try {
@@ -179,7 +183,7 @@ router.get('/:requestId', protect, [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.post('/', protect, [
+router.post('/', sendMessageLimiter, [
     body('requestId').isMongoId().withMessage('Неверный ID заявки'),
     body('content').trim().notEmpty().escape().withMessage('Текст сообщения не может быть пустым'),
     body('attachments').optional().isArray(),
@@ -348,7 +352,7 @@ const uploadWithErrorHandler = (req, res, next) => {
   });
 };
 
-router.post('/upload', protect, uploadWithErrorHandler, [
+router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
     body('requestId').isMongoId().withMessage('Неверный ID заявки'),
     body('content').optional().trim().escape() // делаем контент опциональным
 ], async (req, res) => {

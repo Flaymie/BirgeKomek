@@ -5,6 +5,7 @@ import Request from '../models/Request.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
+import { generalLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
@@ -105,8 +106,8 @@ router.get('/helper/:helperId', [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// создать отзыв на хелпера
-router.post('/', protect, [
+// создать отзыв на хелпера. Защищаем и лимитируем.
+router.post('/', protect, generalLimiter, [
   body('requestId')
     .notEmpty().withMessage('ID заявки обязателен')
     .isMongoId().withMessage('Неверный формат ID заявки'),
@@ -118,7 +119,10 @@ router.post('/', protect, [
     .optional()
     .trim()
     .isLength({ max: 500 }).withMessage('Комментарий не должен превышать 500 символов')
-    .escape()
+    .escape(),
+
+  body('isResolved')
+    .isBoolean().withMessage('Статус решения должен быть булевым значением')
 ], async (req, res) => {
   try {
     // Проверяем результаты валидации
@@ -128,7 +132,7 @@ router.post('/', protect, [
     }
     
     // Извлекаем только нужные поля
-    const { requestId, rating, comment } = req.body;
+    const { requestId, rating, comment, isResolved } = req.body;
     
     // проверяем существование и статус заявки
     const request = await Request.findById(requestId);
@@ -152,23 +156,14 @@ router.post('/', protect, [
       return res.status(403).json({ msg: 'Только автор заявки может оставить отзыв' });
     }
     
-    // проверяем, что отзыв еще не оставлен
-    const existingReview = await Review.findOne({ 
-      requestId, 
-      reviewerId: req.user._id 
-    });
-    
-    if (existingReview) {
-      return res.status(400).json({ msg: 'Вы уже оставили отзыв на эту заявку' });
-    }
-    
     // создаем отзыв
     const newReview = new Review({
       requestId: requestId,
       reviewerId: req.user.id,
       helperId: request.helper,
       rating,
-      comment
+      comment,
+      isResolved
     });
     
     await newReview.save();
@@ -248,6 +243,7 @@ router.get('/user/:userId', [
           createdAt: review.createdAt,
           author: review.reviewerId, // Переименовываем 'reviewerId' в 'author'
           request: review.requestId, // Переименовываем 'requestId' в 'request'
+          isResolved: review.isResolved, // ВОТ ОНО, СУКА
         };
       });
     
