@@ -809,12 +809,9 @@ const ProfilePage = () => {
         try {
             const res = await authService.unlinkTelegram();
             toast.success(res.data.msg);
-            // Обновляем локальное состояние пользователя, чтобы скрыть кнопку
-            setProfile(prev => ({...prev, telegramId: null, telegramUsername: null}));
-            if (isMyProfile) {
-                // Обновляем глобальный контекст
-                login(localStorage.getItem('token'), res.data.user);
-            }
+            // ПРАВИЛЬНЫЙ СПОСОБ: Обновляем пользователя в контексте напрямую,
+            // используя данные из ответа сервера.
+            updateProfile(res.data.user);
         } catch (err) {
             toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
         } finally {
