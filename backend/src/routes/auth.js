@@ -846,11 +846,7 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
       });
     }
 
-    const userTelegramId = user.telegram.id;
-
     user.telegram = undefined;
-    // Можно также сбросить флаг, если он используется
-    // user.hasPassword = true; // Это если после установки пароля мы ставим флаг
     await user.save();
 
     // --- УВЕДОМЛЕНИЕ ОБ ОТВЯЗКЕ TELEGRAM ---
