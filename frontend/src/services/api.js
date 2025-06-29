@@ -208,12 +208,21 @@ const authService = {
   // --- Новые функции для проверки ---
   checkUsername: (username) => api.post('/auth/check-username', { username }),
   checkEmail: (email) => api.post('/auth/check-email', { email }),
-  
+
   // Генерация токена для входа через Telegram
   generateTelegramToken: () => api.post('/auth/telegram/generate-token'),
 
   // Проверка статуса токена Telegram
   checkTelegramToken: (token) => api.get(`/auth/telegram/check-token/${token}`),
+  
+  // Генерация токена для привязки Telegram
+  generateLinkToken: () => api.post('/auth/generate-link-token'),
+
+  // Проверка статуса привязки
+  checkLinkStatus: (token) => api.get(`/auth/check-link-status/${token}`),
+
+  // Отвязка Telegram
+  unlinkTelegram: () => api.post('/auth/telegram/unlink'),
 };
 
 // Сервис для работы с сообщениями
@@ -304,13 +313,6 @@ const reviewsService = {
   }
 };
 
-// --- Сервис для работы с Telegram ---
-const telegramService = {
-  generateLinkToken: () => api.post('/auth/generate-link-token'),
-  checkLinkStatus: (token) => api.get(`/auth/check-link-status/${token}`),
-  unlinkAccount: () => api.post('/auth/unlink-telegram')
-};
-
 export {
   api,
   requestsService,
@@ -321,5 +323,4 @@ export {
   chatsService,
   notificationsService,
   reviewsService,
-  telegramService
 }; 

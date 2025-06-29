@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
-import { usersService, telegramService } from '../../services/api';
+import { usersService, authService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
@@ -604,7 +604,7 @@ const ProfileEditor = ({
 };
 
 const ProfilePage = () => {
-  const { currentUser, loading: authLoading, updateProfile, logout } = useAuth();
+  const { currentUser, loading: authLoading, updateProfile, logout, login } = useAuth();
   const { identifier } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -617,7 +617,8 @@ const ProfilePage = () => {
   // --- НОВЫЕ СТЕЙТЫ ДЛЯ TELEGRAM ---
   const [isTelegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
-  const [isTelegramLoading, setTelegramLoading] = useState(false);
+  const [isTelegramLoading, setIsTelegramLoading] = useState(false);
+  const [telegramError, setTelegramError] = useState('');
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
@@ -743,16 +744,12 @@ const ProfilePage = () => {
   };
 
   const handleLinkTelegram = async () => {
-    setTelegramLoading(true);
-    setTelegramLinkUrl('');
+    setIsTelegramLoading(true);
+    setTelegramError('');
     try {
-      const { data } = await telegramService.generateLinkToken();
+      const { data } = await authService.generateLinkToken();
       const token = data.linkToken;
-      // Используем переменную окружения для имени бота
-      const botUsername = process.env.REACT_APP_TELEGRAM_BOT_USERNAME || 'birgekomek_bot';
-      const url = `https://t.me/${botUsername}?start=${token}`;
-      
-      setTelegramLinkUrl(url);
+      setTelegramLinkUrl(token);
       setTelegramModalOpen(true);
 
       // Запускаем поллинг статуса
@@ -766,7 +763,7 @@ const ProfilePage = () => {
         attempts++;
 
         try {
-          const statusRes = await telegramService.checkLinkStatus(token);
+          const statusRes = await authService.checkLinkStatus(token);
           if (statusRes.data.status === 'linked') {
             clearInterval(intervalId);
             toast.success('Telegram успешно привязан!');
@@ -807,26 +804,23 @@ const ProfilePage = () => {
   };
 
   const handleUnlinkTelegram = async () => {
-      if (!window.confirm('Вы уверены, что хотите отвязать Telegram? Вы перестанете получать уведомления.')) {
-          return;
-      }
-      setTelegramLoading(true);
-      try {
-          await telegramService.unlinkAccount();
-          toast.success('Telegram успешно отвязан!');
-          // Обновляем данные профиля
-          if (isMyProfile && !identifier) {
-              const response = await usersService.getUserById(currentUser._id);
-              setProfileData({ ...response.data });
-          } else {
-              fetchUserData(identifier);
-          }
-      } catch (error) {
-          toast.error('Не удалось отвязать Telegram.');
-          console.error(error);
-      } finally {
-          setTelegramLoading(false);
-      }
+    if (window.confirm('Вы уверены, что хотите отвязать Telegram? Это действие нельзя будет отменить.')) {
+        setIsTelegramLoading(true);
+        try {
+            const res = await authService.unlinkTelegram();
+            toast.success(res.data.msg);
+            // Обновляем локальное состояние пользователя, чтобы скрыть кнопку
+            setProfile(prev => ({...prev, telegramId: null, telegramUsername: null}));
+            if (isMyProfile) {
+                // Обновляем глобальный контекст
+                login(localStorage.getItem('token'), res.data.user);
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
+        } finally {
+            setIsTelegramLoading(false);
+        }
+    }
   };
 
   if (loading || authLoading) return <Loader />;
