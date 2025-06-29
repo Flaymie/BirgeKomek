@@ -123,11 +123,31 @@ export const isModerator = (req, res, next) => {
   }
 };
 
-// Проверка на модератора или администратора
+// Проверка, является ли пользователь админом или модератором
 export const isModOrAdmin = (req, res, next) => {
-  if (req.user && req.user.roles && (req.user.roles.moderator || req.user.roles.admin)) {
+  if (!req.user) {
+    return res.status(401).json({ msg: 'Требуется авторизация' });
+  }
+
+  if (req.user.roles?.admin || req.user.roles?.moderator) {
     next();
   } else {
-    res.status(403).json({ msg: 'Доступ запрещен. Требуются права модератора или администратора.' });
+    res.status(403).json({ msg: 'Доступ запрещен: требуются права администратора или модератора' });
+  }
+};
+
+// Проверка наличия привязанного Telegram
+export const hasTelegram = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ msg: 'Требуется авторизация' });
+  }
+
+  if (req.user.telegramId) {
+    next();
+  } else {
+    res.status(403).json({ 
+      msg: 'Для выполнения этого действия необходимо привязать Telegram аккаунт',
+      noTelegram: true
+    });
   }
 }; 

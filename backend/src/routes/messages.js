@@ -6,7 +6,7 @@ import fs from 'fs';
 import sizeOf from 'image-size';
 import Message from '../models/Message.js';
 import Request from '../models/Request.js';
-import { protect } from '../middleware/auth.js';
+import { protect, hasTelegram } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
 import { io } from '../index.js';
 import { sendMessageLimiter, uploadLimiter, generalLimiter } from '../middleware/rateLimiters.js';
@@ -159,42 +159,36 @@ router.get('/:requestId', [
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - requestId
- *               - content
+ *             required: [requestId, content]
  *             properties:
- *               requestId: { type: 'string', description: 'ID заявки' }
- *               content: { type: 'string', description: 'Текст сообщения' }
- *               attachments: { type: 'array', items: { type: 'string' }, description: 'Массив URL вложений (опционально)' }
+ *               requestId:
+ *                 type: string
+ *               content:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Сообщение успешно отправлено
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/Message' }
  *       400:
- *         description: Ошибка валидации или неверные данные
+ *         description: Ошибка валидации
  *       401:
  *         description: Не авторизован
  *       403:
- *         description: Доступ к чату заявки запрещен (пользователь не автор и не исполнитель)
+ *         description: Доступ запрещен или нет привязанного Telegram
  *       404:
- *         description: Заявка не найдена
+ *         description: Запрос не найден
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.post('/', sendMessageLimiter, [
-    body('requestId').isMongoId().withMessage('Неверный ID заявки'),
-    body('content').trim().notEmpty().escape().withMessage('Текст сообщения не может быть пустым'),
-    body('attachments').optional().isArray(),
-    body('attachments.*').optional().isURL().withMessage('Некорректный URL вложения')
+router.post('/', protect, hasTelegram, [
+  body('requestId').notEmpty().withMessage('ID запроса обязателен'),
+  body('content').notEmpty().withMessage('Текст сообщения обязателен').trim(),
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { requestId, content, attachments } = req.body;
+    const { requestId, content } = req.body;
     const senderId = req.user.id;
 
     try {
@@ -220,7 +214,6 @@ router.post('/', sendMessageLimiter, [
             requestId,
             sender: senderId,
             content,
-            attachments: attachments || [],
             readBy: [senderId] // Отправитель автоматически прочитал сообщение
         });
 
@@ -305,32 +298,31 @@ router.post('/:requestId/read', protect, async (req, res) => {
  *     tags: [Messages]
  *     security:
  *       - bearerAuth: []
- *     consumes:
- *       - multipart/form-data
- *     parameters:
- *       - in: formData
- *         name: requestId
- *         type: string
- *         required: true
- *         description: ID запроса
- *       - in: formData
- *         name: content
- *         type: string
- *         description: Текст сообщения (опционально)
- *       - in: formData
- *         name: attachment
- *         type: file
- *         required: true
- *         description: Файл вложения (до 10 МБ)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               requestId:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *               attachment:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Сообщение с вложением успешно отправлено
  *       400:
- *         description: Ошибка валидации или неверные данные
+ *         description: Ошибка валидации
  *       401:
  *         description: Не авторизован
  *       403:
- *         description: Доступ запрещен
+ *         description: Доступ запрещен или нет привязанного Telegram
+ *       404:
+ *         description: Запрос не найден
  *       500:
  *         description: Внутренняя ошибка сервера
  */
@@ -352,10 +344,7 @@ const uploadWithErrorHandler = (req, res, next) => {
   });
 };
 
-router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
-    body('requestId').isMongoId().withMessage('Неверный ID заявки'),
-    body('content').optional().trim().escape() // делаем контент опциональным
-], async (req, res) => {
+router.post('/upload', protect, hasTelegram, upload.single('attachment'), async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });

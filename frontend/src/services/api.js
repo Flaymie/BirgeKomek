@@ -45,6 +45,14 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     
+    // --- ОБРАБОТКА ОТСУТСТВИЯ TELEGRAM ---
+    if (error.response?.status === 403 && error.response?.data?.noTelegram) {
+      // Создаем и диспатчим кастомное событие для показа модального окна с предложением привязать Telegram
+      const noTelegramEvent = new CustomEvent('show-telegram-required-modal');
+      window.dispatchEvent(noTelegramEvent);
+      return Promise.reject(error);
+    }
+    
     // --- НОВОЕ УСЛОВИЕ ---
     // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
     const isUserNotFound = error.response?.status === 404 && error.config.url.startsWith('/users/');
@@ -192,6 +200,11 @@ const usersService = {
 
   unbanUser: (userId) => {
     return api.post(`/users/${userId}/unban`);
+  },
+
+  // Установка пароля админом
+  setPasswordByAdmin: (userId, password) => {
+    return api.post(`/users/${userId}/set-password`, { password });
   }
 };
 
