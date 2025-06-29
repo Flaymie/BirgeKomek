@@ -423,7 +423,7 @@ router.post('/check-email', [
  *   post:
  *     summary: Сгенерировать временный токен для входа через Telegram
  *     description: Создает уникальный токен, который можно использовать для генерации QR-кода или ссылки для входа через Telegram.
- *     tags: [Auth, Telegram]
+ *     tags: [Telegram]
  *     responses:
  *       200:
  *         description: Успешно сгенерированный токен.
@@ -461,7 +461,7 @@ router.post('/telegram/generate-token', generalLimiter, (req, res) => {
  *   get:
  *     summary: Проверить статус токена для входа (для поллинга)
  *     description: Позволяет фронтенду периодически проверять, был ли токен активирован в Telegram.
- *     tags: [Auth, Telegram]
+ *     tags: [Telegram]
  *     parameters:
  *       - in: path
  *         name: token
@@ -538,7 +538,7 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
  *   post:
  *     summary: Регистрация или вход пользователя через Telegram-бота (внутренний)
  *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом. Он не должен быть доступен публично. Убедитесь, что вы защитили его, например, секретным ключом в заголовках."
- *     tags: [Auth, Telegram, Internal]
+ *     tags: [Telegram, Internal]
  *     requestBody:
  *       required: true
  *       content:
@@ -652,7 +652,7 @@ router.post('/telegram/register', async (req, res) => {
  *   post:
  *     summary: Связать токен входа с пользователем из Telegram (внутренний)
  *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом после того, как пользователь подтвердил вход."
- *     tags: [Auth, Telegram, Internal]
+ *     tags: [Telegram, Internal]
  *     requestBody:
  *       required: true
  *       content:
@@ -720,7 +720,7 @@ router.post('/telegram/complete-login', async (req, res) => {
  *   post:
  *     summary: Создать токен для привязки Telegram аккаунта
  *     description: Генерирует одноразовый токен, который пользователь должен отправить боту для привязки своего аккаунта.
- *     tags: [Auth, Telegram]
+ *     tags: [Telegram]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -771,7 +771,7 @@ router.post('/generate-link-token', protect, generalLimiter, (req, res) => {
  *   get:
  *     summary: Проверить статус токена привязки Telegram
  *     description: Позволяет фронтенду периодически проверять, была ли привязка завершена в боте.
- *     tags: [Auth, Telegram]
+ *     tags: [Telegram]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -818,7 +818,7 @@ router.get('/check-link-status/:token', protect, generalLimiter, (req, res) => {
  *   post:
  *     summary: Отвязать Telegram от аккаунта
  *     description: Удаляет связь между аккаунтом на сайте и Telegram. Невозможно, если у пользователя не установлен пароль.
- *     tags: [Auth, Telegram]
+ *     tags: [Telegram]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -884,7 +884,7 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
  *   post:
  *     summary: Завершить привязку Telegram (внутренний)
  *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом после того, как пользователь отправил ему токен привязки."
- *     tags: [Auth, Telegram, Internal]
+ *     tags: [Telegram, Internal]
  *     requestBody:
  *       required: true
  *       content:
@@ -974,7 +974,7 @@ router.post('/finalizelink', async (req, res) => {
  *   post:
  *     summary: Запрос на сброс пароля
  *     description: Проверяет, привязан ли к аккаунту с указанным email Telegram, и если да, отправляет в него код для сброса пароля.
- *     tags: [Auth, Password]
+ *     tags: [Password]
  *     requestBody:
  *       required: true
  *       content:
@@ -1082,7 +1082,7 @@ router.post('/forgot-password', generalLimiter, [
  *   post:
  *     summary: Сброс пароля с использованием кода
  *     description: Устанавливает новый пароль для пользователя при предоставлении правильного email и кода, полученного в Telegram.
- *     tags: [Auth, Password]
+ *     tags: [Password]
  *     requestBody:
  *       required: true
  *       content:
