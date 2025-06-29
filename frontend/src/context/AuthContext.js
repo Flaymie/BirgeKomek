@@ -312,7 +312,7 @@ export const AuthProvider = ({ children }) => {
       
       setLoading(false);
       toast.success('Профиль успешно обновлен!');
-      return { success: true, data: response.data };
+      return { success: true, user: response.data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);
       console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));
@@ -332,6 +332,11 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return { success: false, error: errorMessage };
     }
+  };
+
+  const _updateCurrentUserState = (newUserData) => {
+    if (!newUserData) return;
+    setCurrentUser(processUserData(newUserData));
   };
 
   // Функция для обновления пароля пользователя
@@ -370,6 +375,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     register,
     updateProfile,
+    _updateCurrentUserState,
     updatePassword,
     updateAvatar,
     generateAvatarColor,

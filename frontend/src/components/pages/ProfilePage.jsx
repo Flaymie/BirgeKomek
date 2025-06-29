@@ -305,43 +305,6 @@ const ProfileEditor = ({
   onUnlinkTelegram,
   isTelegramLoading
 }) => {
-  const handlePhoneChange = (e) => {
-    const value = e.target.value;
-    let digits = value.replace(/\D/g, '');
-
-    if (digits.length === 0) {
-      handleProfileChange({ target: { name: 'phone', value: '' } });
-      return;
-    }
-
-    if (digits.startsWith('8')) {
-      digits = '7' + digits.substring(1);
-    }
-    
-    if (!digits.startsWith('7')) {
-      digits = '7' + digits;
-    }
-
-    digits = digits.substring(0, 11);
-    const numberPart = digits.substring(1);
-
-    let formatted = '+7';
-    if (numberPart.length > 0) {
-      formatted = `+7 (${numberPart.substring(0, 3)}`;
-    }
-    if (numberPart.length >= 4) {
-      formatted += `) ${numberPart.substring(3, 6)}`;
-    }
-    if (numberPart.length >= 7) {
-      formatted += `-${numberPart.substring(6, 8)}`;
-    }
-    if (numberPart.length >= 9) {
-      formatted += `-${numberPart.substring(8, 10)}`;
-    }
-
-    handleProfileChange({ target: { name: 'phone', value: formatted } });
-  };
-
   // Обработчик изменения аватара
   const handleAvatarChange = (avatarUrl) => {
     handleProfileChange({ target: { name: 'avatar', value: avatarUrl } });
@@ -436,11 +399,12 @@ const ProfileEditor = ({
                     name="phone"
                     id="phone"
                     value={profileData.phone || ''}
-                    onChange={handlePhoneChange}
-                    className="mt-1 form-input"
-                    placeholder="+7 (___) ___-__-__"
-                    maxLength="18"
+                    className="mt-1 form-input bg-gray-100 cursor-not-allowed"
+                    placeholder="Привязывается через Telegram"
+                    readOnly
+                    disabled
                   />
+                   <p className="mt-1 text-xs text-gray-500">Телефон привязывается и обновляется через Telegram.</p>
                 </div>
                  <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
@@ -604,7 +568,7 @@ const ProfileEditor = ({
 };
 
 const ProfilePage = () => {
-  const { currentUser, loading: authLoading, updateProfile, logout, login } = useAuth();
+  const { currentUser, loading: authLoading, updateProfile, logout, login, _updateCurrentUserState } = useAuth();
   const { identifier } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -809,7 +773,7 @@ const ProfilePage = () => {
         try {
             const res = await authService.unlinkTelegram();
             toast.success(res.data.msg);
-            updateProfile(res.data.user);
+            _updateCurrentUserState(res.data.user);
         } catch (err) {
             toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
         } finally {
