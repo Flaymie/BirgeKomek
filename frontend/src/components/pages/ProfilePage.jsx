@@ -713,7 +713,10 @@ const ProfilePage = () => {
     try {
       const { data } = await authService.generateLinkToken();
       const token = data.linkToken;
-      setTelegramLinkUrl(token);
+      const botUsername = 'birge_komek_bot'; // <-- ВСТАВЬ СЮДА ИМЯ БОТА, ЕСЛИ ОНО ДРУГОЕ
+      const url = `https://t.me/${botUsername}?start=${token}`;
+      
+      setTelegramLinkUrl(url);
       setTelegramModalOpen(true);
 
       // Запускаем поллинг статуса
