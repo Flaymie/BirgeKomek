@@ -482,7 +482,7 @@ router.post('/telegram/generate-token', generalLimiter, (req, res) => {
  *                   enum: [pending, completed, error]
  *                 token:
  *                   type: string
- *                   description: JWT-токен (только при status: 'completed').
+ *                   description: "JWT-токен (только при status: 'completed')."
  *                 user:
  *                   $ref: '#/components/schemas/User'
  *       404:
