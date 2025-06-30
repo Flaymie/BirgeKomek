@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileMeRedirector from './components/auth/ProfileMeRedirector';
@@ -28,27 +28,34 @@ import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 
+// Этот компонент отвечает за инициализацию перехватчика API
+// и рендер основного контента. Он должен быть внутри AuthProvider.
+const AppInitializer = () => {
+  const authContext = useAuth();
+
+  // Передаем контекст в api.js, чтобы перехватчик мог его использовать
+  useEffect(() => {
+    if (authContext) {
+      setAuthContext(authContext);
+    }
+  }, [authContext]);
+
+  return <AppContent />;
+};
+
 const AppContent = () => {
   const { 
-    currentUser, 
     isBannedModalOpen, 
     banDetails, 
     closeBanModal,
     logout
   } = useAuth();
-  const location = useLocation();
   const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
 
   useEffect(() => {
-    const handleRateLimit = () => {
-      setIsRateLimitModalOpen(true);
-    };
-
+    const handleRateLimit = () => setIsRateLimitModalOpen(true);
     window.addEventListener('show-rate-limit-modal', handleRateLimit);
-
-    return () => {
-      window.removeEventListener('show-rate-limit-modal', handleRateLimit);
-    };
+    return () => window.removeEventListener('show-rate-limit-modal', handleRateLimit);
   }, []);
 
   return (
@@ -79,7 +86,7 @@ const AppContent = () => {
         onClose={() => setIsRateLimitModalOpen(false)}
       />
 
-      <div className={`main-content ${ (banDetails && banDetails.isBanned) || isRateLimitModalOpen ? 'blurred' : ''}`}>
+      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}
@@ -104,7 +111,6 @@ const AppContent = () => {
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
             <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
-            
           </Routes>
         </Layout>
       </div>
@@ -112,18 +118,15 @@ const AppContent = () => {
   );
 };
 
-const AppWrapper = () => {
-  const authContext = useAuth();
-  
-  useEffect(() => {
-    setAuthContext(authContext);
-  }, [authContext]);
-
+// Главный компонент приложения с правильной структурой
+function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppInitializer />
+      </AuthProvider>
+    </Router>
   );
-};
+}
 
-export default AppWrapper;
+export default App;
