@@ -228,9 +228,15 @@ const RequestDetailPage = () => {
     const fetchResponderProfiles = async () => {
       if (responses.length === 0) return;
 
-      // 1. Собираем уникальные ID всех хелперов из откликов
-      const responderIds = [...new Set(responses.map(r => r.helper._id))];
+      // 1. Собираем уникальные ID всех хелперов из откликов, ИГНОРИРУЯ ПУСТЫЕ
+      const responderIds = [...new Set(
+        responses
+          .filter(r => r.helper)
+          .map(r => r.helper._id)
+      )];
       
+      if (responderIds.length === 0) return; // Если все отклики от удаленных юзеров
+
       // 2. Делаем запросы для каждого ID
       const profilePromises = responderIds.map(id => usersService.getUserById(id));
 
@@ -329,7 +335,9 @@ const RequestDetailPage = () => {
                 <Link to={`/profile/${request.author.username}`} className="hover:text-blue-600 hover:underline">
                   {request.author.username}
                 </Link>
-                <RoleBadge user={authorProfile} />
+                <div title={authorProfile?.roles?.admin ? "Администратор" : authorProfile?.roles?.moderator ? "Модератор" : ""}>
+                  <RoleBadge user={authorProfile} />
+                </div>
               </div>
             </div>
             <div className="hidden md:block">|</div>
@@ -363,7 +371,9 @@ const RequestDetailPage = () => {
                     <Link to={`/profile/${request.helper.username}`} className="hover:underline">
                       {request.helper.username}
                     </Link>
-                    <RoleBadge user={helperProfile} />
+                    <div title={helperProfile?.roles?.admin ? "Администратор" : helperProfile?.roles?.moderator ? "Модератор" : ""}>
+                      <RoleBadge user={helperProfile} />
+                    </div>
                 </div>
               </div>
             </div>

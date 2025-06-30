@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { clearAuthToken, getAuthToken } from './tokenStorage';
-import { toast } from 'react-toastify';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 const API_URL = `${SERVER_URL}/api`;
@@ -40,23 +39,28 @@ api.interceptors.request.use(
 
 // Перехватчик для обработки ошибок ответа
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error) => {
     if (error.response) {
       const { status, data } = error.response;
       
-      // ИСПРАВЛЕНО: Обработка rate limit
-      if (status === 429) {
-        // Просто показываем тост вместо модалки
-        toast.error(data.msg || 'Слишком много запросов. Пожалуйста, подождите.');
-      }
-      
-      // Обработка бана
-      else if (status === 403 && data.isBanned) {
+      // Единственная и правильная логика обработки бана
+      if (status === 403 && data && data.isBanned) {
         if (authContext && typeof authContext.showBanModal === 'function') {
           console.log("Перехват ошибки: пользователь забанен. Показываем модалку.", data.banDetails);
           authContext.showBanModal(data.banDetails);
         }
+        return Promise.reject(error);
+      }
+      
+      // --- НОВОЕ УСЛОВИЕ ДЛЯ RATE LIMIT ---
+      if (status === 429) {
+        // Создаем и диспатчим кастомное событие, чтобы App.js мог его поймать
+        const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
+        window.dispatchEvent(rateLimitEvent);
+        // Не логируем это как ошибку в консоль, чтобы не засорять
         return Promise.reject(error);
       }
       
