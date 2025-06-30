@@ -25,13 +25,11 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from './context/AuthContext';
 import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
-import TelegramRequiredModal from './components/modals/TelegramRequiredModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 
 const App = () => {
   const { banDetails, setBanDetails } = useAuth();
   const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
-  const [showTelegramRequiredModal, setShowTelegramRequiredModal] = useState(false);
 
   useEffect(() => {
     const handleRateLimit = () => {
@@ -42,19 +40,6 @@ const App = () => {
 
     return () => {
       window.removeEventListener('show-rate-limit-modal', handleRateLimit);
-    };
-  }, []);
-
-  // Обработчик для модального окна требования привязки Telegram
-  useEffect(() => {
-    const handleTelegramRequiredEvent = () => {
-      setShowTelegramRequiredModal(true);
-    };
-
-    window.addEventListener('show-telegram-required-modal', handleTelegramRequiredEvent);
-    
-    return () => {
-      window.removeEventListener('show-telegram-required-modal', handleTelegramRequiredEvent);
     };
   }, []);
 
@@ -84,12 +69,7 @@ const App = () => {
         onClose={() => setIsRateLimitModalOpen(false)}
       />
 
-      <TelegramRequiredModal 
-        show={showTelegramRequiredModal} 
-        onClose={() => setShowTelegramRequiredModal(false)} 
-      />
-
-      <div className={`main-content ${banDetails.isBanned || isRateLimitModalOpen || showTelegramRequiredModal ? 'blurred' : ''}`}>
+      <div className={`main-content ${banDetails.isBanned || isRateLimitModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}

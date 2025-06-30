@@ -2,9 +2,10 @@ import express from 'express';
 import { body, param, validationResult } from 'express-validator';
 import Response from '../models/Response.js';
 import Request from '../models/Request.js';
-import { protect, isHelper, hasTelegram } from '../middleware/auth.js';
+import { protect } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
+import tgRequired from '../middleware/tgRequired.js';
 
 export default ({ io }) => {
   const router = express.Router();
@@ -23,7 +24,7 @@ export default ({ io }) => {
    * @swagger
    * /api/responses:
    *   post:
-   *     summary: Создать новый отклик на запрос (для хелперов)
+   *     summary: Создать отклик на запрос
    *     tags: [Responses]
    *     security:
    *       - bearerAuth: []
@@ -33,31 +34,28 @@ export default ({ io }) => {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [requestId, comment]
    *             properties:
    *               requestId:
    *                 type: string
-   *                 description: ID запроса, на который откликается хелпер
-   *               comment:
+   *               message:
    *                 type: string
-   *                 description: Комментарий хелпера к отклику
    *     responses:
    *       201:
    *         description: Отклик успешно создан
    *       400:
-   *         description: Ошибка валидации или неверные данные
-   *       401:
-   *         description: Не авторизован
+   *         description: Ошибка валидации
    *       403:
-   *         description: Доступ запрещен или нет привязанного Telegram
-   *       404:
-   *         description: Запрос не найден
+   *         description: Недостаточно прав
    *       500:
-   *         description: Внутренняя ошибка сервера
+   *         description: Ошибка сервера
    */
-  router.post('/', protect, isHelper, hasTelegram, [
-    body('requestId').notEmpty().withMessage('ID запроса обязателен'),
-    body('comment').notEmpty().withMessage('Комментарий обязателен').trim(),
+  router.post('/', [
+    body('requestId').isMongoId().withMessage('Некорректный ID запроса'),
+    body('message')
+      .trim()
+      .isLength({ min: 10, max: 500 })
+      .withMessage('Сообщение должно быть от 10 до 500 символов'),
+    tgRequired
   ], async (req, res) => {
     console.log('Получен POST запрос на /api/responses:', req.body);
     
@@ -68,10 +66,10 @@ export default ({ io }) => {
     }
 
     try {
-      const { requestId, comment } = req.body;
+      const { requestId, message } = req.body;
       const helper = req.user._id;
 
-      console.log('Данные отклика:', { requestId, comment, helper });
+      console.log('Данные отклика:', { requestId, message, helper });
       
       // Проверяем существование запроса
       const request = await Request.findById(requestId);
@@ -98,7 +96,7 @@ export default ({ io }) => {
       const newResponse = new Response({
         request: requestId,
         helper: helper,
-        message: comment,
+        message: message,
         status: 'pending'
       });
 

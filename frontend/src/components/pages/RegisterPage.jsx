@@ -284,20 +284,6 @@ const RegisterPage = () => {
     }
   };
 
-  const renderValidationClass = (status) => {
-    switch (status) {
-        case 'loading':
-            return 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500';
-        case 'available':
-            return 'border-green-500 focus:ring-green-500 focus:border-green-500';
-        case 'unavailable':
-        case 'error':
-            return 'border-red-500 focus:ring-red-500 focus:border-red-500';
-        default:
-            return '';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -325,16 +311,8 @@ const RegisterPage = () => {
           <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
               <div className="mt-1 relative">
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  value={username}
-                  onChange={handleChange}
-                  autoComplete="username"
-                  className={`form-input ${renderValidationClass(usernameStatus)}`}
-                  placeholder="Например, expert_math123"
+                <input id="username" name="username" type="text" required value={username} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <ValidationIcon status={usernameStatus} />
@@ -346,16 +324,8 @@ const RegisterPage = () => {
           <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
               <div className="mt-1 relative">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={handleChange}
-                  autoComplete="email"
-                  className={`form-input ${renderValidationClass(emailStatus)}`}
-                  placeholder="user@example.com"
+                <input id="email" name="email" type="email" required value={email} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <ValidationIcon status={emailStatus} />
@@ -367,16 +337,8 @@ const RegisterPage = () => {
           <div>
               <label htmlFor="password"className="block text-sm font-medium text-gray-700">Пароль</label>
               <div className="mt-1 relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={handleChange}
-                  autoComplete="new-password"
-                  className="form-input"
-                  placeholder="Придумайте надежный пароль"
+                <input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                   {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
@@ -388,16 +350,8 @@ const RegisterPage = () => {
           <div>
               <label htmlFor="password2"className="block text-sm font-medium text-gray-700">Повторите пароль</label>
               <div className="mt-1 relative">
-                <input
-                  id="password2"
-                  name="password2"
-                  type={showPassword2 ? 'text' : 'password'}
-                  required
-                  value={password2}
-                  onChange={handleChange}
-                  autoComplete="new-password"
-                  className="form-input"
-                  placeholder="Повторите пароль"
+                <input id="password2" name="password2" type={showPassword2 ? 'text' : 'password'} required value={password2} onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                 <button type="button" onClick={() => setShowPassword2(!showPassword2)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                   {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}

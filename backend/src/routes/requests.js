@@ -3,10 +3,11 @@ import { body, validationResult, param, query } from 'express-validator';
 import Request from '../models/Request.js';
 import User from '../models/User.js'; // Убедимся, что User импортирован
 import Message from '../models/Message.js'; // Импортируем Message
-import { protect, isHelper, isAdmin, isModOrAdmin, hasTelegram } from '../middleware/auth.js';
+import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
 import mongoose from 'mongoose';
 import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
+import tgRequired from '../middleware/tgRequired';
 
 // ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
@@ -180,7 +181,7 @@ router.get('/', [
  * @swagger
  * /api/requests:
  *   post:
- *     summary: Создать новый запрос на помощь
+ *     summary: Создать новую заявку на помощь
  *     tags: [Requests]
  *     security:
  *       - bearerAuth: []
@@ -189,29 +190,29 @@ router.get('/', [
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/NewRequest'
+ *             type: object
+ *             required: [title, description, subject, grade]
+ *             properties:
+ *               title: { type: 'string', minLength: 5, maxLength: 100 }
+ *               description: { type: 'string', minLength: 10 }
+ *               subject: { type: 'string' }
+ *               grade: { type: 'integer', minimum: 1, maximum: 11 }
+ *               topic: { type: 'string', nullable: true }
  *     responses:
  *       201:
- *         description: Запрос успешно создан
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Request'
+ *         description: Заявка успешно создана
  *       400:
  *         description: Ошибка валидации
  *       401:
  *         description: Не авторизован
- *       403:
- *         description: Нет привязанного Telegram аккаунта
- *       500:
- *         description: Внутренняя ошибка сервера
  */
-router.post('/', protect, hasTelegram, [
-    body('title').notEmpty().withMessage('Заголовок обязателен').trim().escape(),
+router.post('/', createRequestLimiter, [
+    body('title').trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
     body('grade').isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
-    body('topic').optional().trim().escape()
+    body('topic').optional().trim().escape(),
+    tgRequired
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
