@@ -214,8 +214,7 @@ router.post('/', createRequestLimiter, [
     body('description').trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
     body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
     body('grade').isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
-    body('topic').optional().trim().escape(),
-    tgRequired
+    body('topic').optional().trim().escape()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
