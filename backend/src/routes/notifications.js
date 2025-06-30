@@ -223,16 +223,16 @@ router.delete('/:id', protect, generalLimiter, [
 
             if (isRedisConnected()) {
                 const onlineKey = `online:${userId}`;
-                await redis.set(onlineKey, '1', 'EX', 60);
+                await redis.set(onlineKey, '1', 'EX', 120);
             }
             
             heartbeatInterval = setInterval(async () => {
                 res.write(': heartbeat\n\n');
                 if (isRedisConnected()) {
                     const onlineKey = `online:${userId}`;
-                    await redis.expire(onlineKey, 60);
+                    await redis.expire(onlineKey, 120);
                 }
-            }, 30000);
+            }, 90000);
 
             res.write('event: connection\n');
             res.write('data: SSE connection established\n\n');
