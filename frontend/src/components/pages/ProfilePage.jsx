@@ -9,7 +9,6 @@ import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
 import BanUserModal from '../modals/BanUserModal';
 import ProfileNotFound from '../shared/ProfileNotFound';
-import LinkTelegramModal from '../modals/LinkTelegramModal';
 import { FaTelegramPlane } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
@@ -607,6 +606,7 @@ const ProfilePage = () => {
     logout, 
     _updateCurrentUserState,
     handleLinkTelegram,
+    handleUnlinkTelegram,
     isTelegramLoading,
   } = useAuth();
   const { identifier } = useParams();
@@ -804,21 +804,6 @@ const ProfilePage = () => {
     } catch (err) {
       console.error('Ошибка при разбане:', err);
       toast.error(err.response?.data?.msg || 'Не удалось разбанить пользователя.');
-    }
-  };
-
-  const handleUnlinkTelegram = async () => {
-    if (window.confirm('Вы уверены, что хотите отвязать Telegram? Это действие нельзя будет отменить.')) {
-        setIsTelegramLoading(true);
-        try {
-            const res = await authService.unlinkTelegram();
-            toast.success(res.data.msg);
-            _updateCurrentUserState(res.data.user);
-        } catch (err) {
-            toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
-        } finally {
-            setIsTelegramLoading(false);
-        }
     }
   };
 

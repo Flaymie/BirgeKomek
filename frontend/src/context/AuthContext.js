@@ -25,21 +25,29 @@ export const AuthProvider = ({ children }) => {
   const [isTelegramLoading, setIsTelegramLoading] = useState(false);
   const [pollingIntervalId, setPollingIntervalId] = useState(null);
 
-  const checkAdminTelegramRequirement = (user) => {
+  const processUserData = useCallback((userData) => {
+    if (!userData) return null;
+    return {
+      ...userData,
+      formattedAvatar: formatAvatarUrl(userData),
+    };
+  }, []);
+
+  const checkAdminTelegramRequirement = useCallback((user) => {
     if (user && (user.roles?.admin || user.roles?.moderator) && !user.telegramId) {
       setIsRequireTgModalOpen(true);
       return true;
     }
     setIsRequireTgModalOpen(false);
     return false;
-  };
+  }, []);
 
-  const showBanModal = (details) => {
+  const showBanModal = useCallback((details) => {
     setBanDetails(details);
     setIsBannedModalOpen(true);
-  };
+  }, []);
 
-  const processAndCheckBan = (userData) => {
+  const processAndCheckBan = useCallback((userData) => {
     if (checkAdminTelegramRequirement(userData)) {
       setCurrentUser(processUserData(userData));
       return;
@@ -51,7 +59,7 @@ export const AuthProvider = ({ children }) => {
       setIsBannedModalOpen(false);
     }
     setCurrentUser(processUserData(userData));
-  };
+  }, [checkAdminTelegramRequirement, processUserData, showBanModal]);
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -76,14 +84,12 @@ export const AuthProvider = ({ children }) => {
     setUnreadCount(0);
   };
 
-  // Обработка данных пользователя перед установкой в стейт
-  const processUserData = (userData) => {
-    if (!userData) return null;
-    return {
-      ...userData,
-      formattedAvatar: formatAvatarUrl(userData),
-    };
-  };
+  const _updateCurrentUserState = useCallback((newUserData) => {
+    if (!newUserData) return;
+    setCurrentUser(processUserData(newUserData));
+    setIsReadOnly(!newUserData.telegramId);
+    checkAdminTelegramRequirement(newUserData);
+  }, [processUserData, checkAdminTelegramRequirement]);
 
   // Загрузка данных пользователя
   useEffect(() => {
@@ -113,7 +119,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, processAndCheckBan]);
   
   // Управление SSE-соединением для real-time уведомлений
   useEffect(() => {
@@ -339,13 +345,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const _updateCurrentUserState = (newUserData) => {
-    if (!newUserData) return;
-    setCurrentUser(processUserData(newUserData));
-    setIsReadOnly(!newUserData.telegramId);
-    checkAdminTelegramRequirement(newUserData);
-  };
-
   // Функция для обновления пароля пользователя
   const updatePassword = async (currentPassword, newPassword) => {
     setLoading(true);
@@ -427,6 +426,21 @@ export const AuthProvider = ({ children }) => {
     }
   }, [pollingIntervalId, _updateCurrentUserState, closeLinkTelegramModal]);
 
+  const handleUnlinkTelegram = useCallback(async () => {
+    if (window.confirm('Вы уверены, что хотите отвязать Telegram? Это действие нельзя будет отменить.')) {
+        setIsTelegramLoading(true);
+        try {
+            const res = await authService.unlinkTelegram();
+            toast.success(res.data.msg);
+            _updateCurrentUserState(res.data.user);
+        } catch (err) {
+            toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
+        } finally {
+            setIsTelegramLoading(false);
+        }
+    }
+  }, [_updateCurrentUserState]);
+
   const value = {
     currentUser,
     loading,
@@ -452,9 +466,8 @@ export const AuthProvider = ({ children }) => {
     isReadOnly,
     updateUser: _updateCurrentUserState,
     isRequireTgModalOpen,
-    linkTelegramHandler,
-    setLinkTelegramHandler: (handler) => setLinkTelegramHandler(() => handler),
     handleLinkTelegram,
+    handleUnlinkTelegram,
     isLinkTelegramModalOpen,
     telegramLinkUrl,
     isTelegramLoading,

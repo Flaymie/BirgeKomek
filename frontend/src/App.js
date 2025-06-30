@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileMeRedirector from './components/auth/ProfileMeRedirector';
