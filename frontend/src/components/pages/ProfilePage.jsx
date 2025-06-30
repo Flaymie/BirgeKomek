@@ -282,13 +282,6 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                     )}
                   </div>
                 )}
-
-                {profile.phone && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-1">Телефон</h3>
-                    <p className="text-gray-900">{formatPhoneNumber(profile.phone)}</p>
-                  </div>
-                )}
               </div>
               
               <ProfileStats profile={profile} />
