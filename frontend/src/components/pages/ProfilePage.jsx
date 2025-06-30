@@ -600,7 +600,14 @@ const ProfileEditor = ({
 };
 
 const ProfilePage = () => {
-  const { currentUser, loading: authLoading, updateProfile, logout, _updateCurrentUserState } = useAuth();
+  const { 
+    currentUser, 
+    loading: authLoading, 
+    updateProfile, 
+    logout, 
+    _updateCurrentUserState,
+    setLinkTelegramHandler
+  } = useAuth();
   const { identifier } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -891,6 +898,19 @@ const ProfilePage = () => {
         }
     }
   };
+
+  // --- РЕГИСТРИРУЕМ ХЕНДЛЕР В КОНТЕКСТЕ ---
+  useEffect(() => {
+    if (isMyProfile) {
+      setLinkTelegramHandler(handleLinkTelegram);
+    }
+    // Очищаем при размонтировании
+    return () => {
+      if (isMyProfile) {
+        setLinkTelegramHandler(null);
+      }
+    };
+  }, [isMyProfile, setLinkTelegramHandler]);
 
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;

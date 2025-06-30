@@ -16,6 +16,17 @@ export const AuthProvider = ({ children }) => {
   const [banDetails, setBanDetails] = useState(null);
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(true);
+  const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
+  const [linkTelegramHandler, setLinkTelegramHandler] = useState(null);
+
+  const checkAdminTelegramRequirement = (user) => {
+    if (user && (user.roles?.admin || user.roles?.moderator) && !user.telegramId) {
+      setIsRequireTgModalOpen(true);
+      return true;
+    }
+    setIsRequireTgModalOpen(false);
+    return false;
+  };
 
   const showBanModal = (details) => {
     setBanDetails(details);
@@ -23,6 +34,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const processAndCheckBan = (userData) => {
+    if (checkAdminTelegramRequirement(userData)) {
+      setCurrentUser(processUserData(userData));
+      return;
+    }
     if (userData?.banDetails?.isBanned) {
       showBanModal(userData.banDetails);
     } else {
@@ -139,16 +154,8 @@ export const AuthProvider = ({ children }) => {
       const { data } = await authService.login(credentials);
       setAuthToken(data.token);
       
-      // Данные о бане и пользователе приходят в одном ответе
-      if (data.banDetails?.isBanned) {
-        showBanModal(data.banDetails);
-      } else {
-        setBanDetails(null);
-        setIsBannedModalOpen(false);
-      }
-
-      setCurrentUser(processUserData(data.user));
-      await fetchUnreadCount(); // Загружаем уведомления после успешного входа
+      processAndCheckBan(data.user);
+      await fetchUnreadCount();
       setIsReadOnly(!data.user.telegramId);
       
       setLoading(false);
@@ -330,6 +337,7 @@ export const AuthProvider = ({ children }) => {
     if (!newUserData) return;
     setCurrentUser(processUserData(newUserData));
     setIsReadOnly(!newUserData.telegramId);
+    checkAdminTelegramRequirement(newUserData);
   };
 
   // Функция для обновления пароля пользователя
@@ -385,6 +393,9 @@ export const AuthProvider = ({ children }) => {
     fetchUnreadCount,
     isReadOnly,
     updateUser: _updateCurrentUserState,
+    isRequireTgModalOpen,
+    linkTelegramHandler,
+    setLinkTelegramHandler: (handler) => setLinkTelegramHandler(() => handler),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

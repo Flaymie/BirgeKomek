@@ -26,6 +26,7 @@ import { useAuth, AuthProvider } from './context/AuthContext';
 import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
+import RequireTelegramModal from './components/modals/RequireTelegramModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 
 // Этот компонент отвечает за инициализацию перехватчика API
@@ -48,7 +49,9 @@ const AppContent = () => {
     isBannedModalOpen, 
     banDetails, 
     closeBanModal,
-    logout
+    logout,
+    isRequireTgModalOpen,
+    linkTelegramHandler
   } = useAuth();
   const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
 
@@ -86,7 +89,12 @@ const AppContent = () => {
         onClose={() => setIsRateLimitModalOpen(false)}
       />
 
-      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen ? 'blurred' : ''}`}>
+      <RequireTelegramModal 
+        isOpen={isRequireTgModalOpen}
+        onLinkTelegram={linkTelegramHandler}
+      />
+
+      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}
