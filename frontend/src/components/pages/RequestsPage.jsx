@@ -104,18 +104,13 @@ const RequestsPage = () => {
 
     const handleRequestUpdate = (updatedRequest) => {
       console.log('Заявка обновлена через сокет:', updatedRequest);
-      setRequests(prevRequests => 
-        prevRequests.map(req => 
-          req._id === updatedRequest._id ? updatedRequest : req
-        )
-      );
-      // --- НОВОЕ: Логика удаления из списка при смене статуса ---
-      // Если статус обновленной заявки больше не соответствует текущему фильтру,
-      // удаляем ее из списка.
+      
       const statusFilter = filters.status;
       if (statusFilter && updatedRequest.status !== statusFilter) {
+          // Если статус больше не соответствует фильтру, убираем заявку из списка
           setRequests(prevRequests => prevRequests.filter(req => req._id !== updatedRequest._id));
       } else {
+          // Иначе, просто обновляем ее в списке
            setRequests(prevRequests => 
             prevRequests.map(req => 
               req._id === updatedRequest._id ? updatedRequest : req
@@ -141,6 +136,11 @@ const RequestsPage = () => {
     const { name, value } = e.target;
     setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
     setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRequestCreated = () => {
+    // Принудительно перезагружаем список заявок с первой страницы
+    fetchRequests(true);
   };
 
   const handleSearchSubmit = (e) => {
@@ -342,6 +342,7 @@ const RequestsPage = () => {
       <CreateRequestModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={handleRequestCreated}
       />
     </div>
   );
