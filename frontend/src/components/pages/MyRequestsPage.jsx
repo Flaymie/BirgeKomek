@@ -54,8 +54,6 @@ const MyRequestsPage = () => {
 
     const handleNewRequest = (newRequest) => {
       if (newRequest.author?._id === currentUser.id) {
-        console.log('Получена новая МОЯ заявка:', newRequest);
-        
         setRequests(prevRequests => [newRequest, ...prevRequests]);
         setTotalPages(prev => prev + 1);
       }
@@ -63,7 +61,6 @@ const MyRequestsPage = () => {
 
     const handleRequestUpdate = (updatedRequest) => {
       if (updatedRequest.author?._id === currentUser._id || updatedRequest.helper?._id === currentUser._id) {
-        console.log('Моя заявка обновлена:', updatedRequest);
         setRequests(prevRequests =>
           prevRequests.map(req =>
             req._id === updatedRequest._id ? updatedRequest : req
