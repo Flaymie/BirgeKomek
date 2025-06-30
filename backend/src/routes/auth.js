@@ -734,23 +734,17 @@ router.post('/telegram/complete-login', async (req, res) => {
  *       500:
  *         description: Ошибка сервера.
  */
-router.post('/generate-link-token', protect, generalLimiter, (req, res) => {
+router.post('/generate-link-token', protect, generalLimiter, async (req, res) => {
     try {
         const linkToken = `link_${crypto.randomBytes(15).toString('hex')}`;
-        const expires = Date.now() + 10 * 60 * 1000; // 10 минут
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 минут
 
-        telegramTokens.set(linkToken, { 
-            status: 'pending_link', 
+        // --- ИСПРАВЛЕНИЕ: Сохраняем токен в MongoDB, а не в память ---
+        await LinkToken.create({
+            token: linkToken,
             userId: req.user.id,
-            expires 
+            expiresAt
         });
-
-        setTimeout(() => {
-            const tokenData = telegramTokens.get(linkToken);
-            if (tokenData && tokenData.status === 'pending_link') {
-                telegramTokens.delete(linkToken);
-            }
-        }, 10 * 60 * 1000);
 
         res.json({ linkToken });
 
@@ -921,15 +915,14 @@ router.post('/finalizelink', async (req, res) => {
         return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
     }
 
-    const tokenData = telegramTokens.get(linkToken);
+    // --- ИСПРАВЛЕНИЕ: Ищем токен в MongoDB ---
+    const tokenData = await LinkToken.findOne({ 
+        token: linkToken, 
+        expiresAt: { $gt: new Date() } 
+    });
 
-    if (!tokenData || tokenData.status !== 'pending_link') {
+    if (!tokenData) {
         return res.status(404).json({ msg: 'Токен для привязки не найден или недействителен' });
-    }
-    
-    if (Date.now() > tokenData.expires) {
-        telegramTokens.delete(linkToken);
-        return res.status(410).json({ msg: 'Срок действия токена истек' });
     }
 
     try {
@@ -953,9 +946,9 @@ router.post('/finalizelink', async (req, res) => {
         }
         await userToUpdate.save();
 
-        tokenData.status = 'linked';
-        telegramTokens.set(linkToken, tokenData);
-
+        // --- ИСПРАВЛЕНИЕ: Удаляем токен из базы после использования ---
+        await tokenData.deleteOne();
+        
         // --- УВЕДОМЛЕНИЕ О ПРИВЯЗКЕ TELEGRAM ---
         await createAndSendNotification(req.app.locals.sseConnections, {
           user: userToUpdate._id,
