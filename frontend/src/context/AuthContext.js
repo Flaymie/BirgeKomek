@@ -370,6 +370,7 @@ export const AuthProvider = ({ children }) => {
   // Функция для выхода пользователя
   const logout = useCallback(() => {
     localStorage.removeItem('token');
+    localStorage.removeItem('readOnlyBannerDismissed');
     setCurrentUser(null);
     setUnreadCount(0);
     setBanDetails({ isBanned: false, reason: '', expiresAt: null });
