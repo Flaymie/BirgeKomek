@@ -28,8 +28,8 @@ export default ({ io }) => {
             return res.status(404).json({ msg: 'Запрос не найден' });
         }
 
-        const user = await User.findById(req.user.id);
-        const isAuthor = request.author._id.toString() === req.user.id;
+        const user = req.user; 
+        const isAuthor = request.author._id.toString() === user.id;
         const isAdminOrModerator = user.roles.admin || user.roles.moderator;
         
         if (!isAuthor && !isAdminOrModerator) {

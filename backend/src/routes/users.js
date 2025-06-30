@@ -696,21 +696,31 @@ export default ({ sseConnections, io }) => {
     try {
       const { reason, duration, confirmationCode } = req.body;
       const targetUserId = req.params.id;
-      const moderator = req.user; // req.user - это наш модератор из токена
+      const moderator = req.user; // Это наш модератор или админ из токена
 
       const userToBan = await User.findById(targetUserId);
       if (!userToBan) {
         return res.status(404).json({ msg: 'Пользователь не найден.' });
       }
 
-      if (userToBan.roles.admin || (userToBan.roles.moderator && moderator.role !== 'admin')) {
-        return res.status(403).json({ msg: 'Недостаточно прав для блокировки этого пользователя.' });
+      // --- ИСПРАВЛЕННАЯ ЛОГИКА ПРОВЕРКИ ПРАВ ---
+      const isModeratorAdmin = moderator.roles && moderator.roles.admin;
+      const isTargetAdmin = userToBan.roles && userToBan.roles.admin;
+      const isTargetModerator = userToBan.roles && userToBan.roles.moderator;
+
+      // 1. Никто не может забанить админа
+      if (isTargetAdmin) {
+        return res.status(403).json({ msg: 'Администраторов нельзя заблокировать.' });
+      }
+      // 2. Модератор не может забанить другого модератора. Только админ может.
+      if (isTargetModerator && !isModeratorAdmin) {
+        return res.status(403).json({ msg: 'Модератор не может заблокировать другого модератора.' });
       }
       
       // --- НОВАЯ ЛОГИКА 2FA ---
       
       // Админы могут банить без 2FA
-      if (moderator.role !== 'admin') {
+      if (!isModeratorAdmin) {
         if (!moderator.telegramId) {
             return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
         }
@@ -749,18 +759,26 @@ export default ({ sseConnections, io }) => {
       
       let expiresAt = null;
       if (duration !== 'permanent') {
-        // ... (логика вычисления expiresAt остается прежней)
+        const d = duration.slice(0, -1);
+        const unit = duration.slice(-1);
+        const date = new Date();
+        if (unit === 'd') date.setDate(date.getDate() + parseInt(d));
+        if (unit === 'M') date.setMonth(date.getMonth() + parseInt(d));
+        if (unit === 'y') date.setFullYear(date.getFullYear() + parseInt(d));
+        expiresAt = date;
       }
       userToBan.banDetails.expiresAt = expiresAt;
+      userToBan.banDetails.bannedAt = new Date(); // Добавим и дату бана
 
       await userToBan.save();
 
       // Отправляем уведомление забаненному
       await createAndSendNotification(
-          targetUserId,
+          req.app.locals.sseConnections, // Передаем sseConnections
+          userToBan._id,
           'account_banned',
-          `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : duration}.`,
-          `/profile` // Ссылка на профиль, где он увидит инфо о бане
+          `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}.`,
+          `/profile/${userToBan.username}`
       );
 
       res.json({ msg: `Пользователь ${userToBan.username} успешно забанен.` });
