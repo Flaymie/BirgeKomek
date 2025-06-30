@@ -325,10 +325,12 @@ const RequestDetailPage = () => {
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
               <span>Автор:</span>
-              <Link to={`/profile/${request.author.username}`} className="ml-1.5 font-medium text-gray-700 hover:text-blue-600 hover:underline flex items-center">
-                {request.author.username}
+              <div className="ml-1.5 font-medium text-gray-700 flex items-center">
+                <Link to={`/profile/${request.author.username}`} className="hover:text-blue-600 hover:underline">
+                  {request.author.username}
+                </Link>
                 <RoleBadge user={authorProfile} />
-              </Link>
+              </div>
             </div>
             <div className="hidden md:block">|</div>
             <div className="flex items-center">
@@ -357,10 +359,12 @@ const RequestDetailPage = () => {
                <CheckBadgeIcon className="h-6 w-6 text-green-600 mr-3" />
               <div>
                 <span className="font-semibold">Помощь оказывает:</span>
-                <Link to={`/profile/${request.helper.username}`} className="ml-2 font-bold text-green-800 hover:underline flex items-center">
-                  {request.helper.username}
-                  <RoleBadge user={helperProfile} />
-                </Link>
+                <div className="ml-2 font-bold text-green-800 flex items-center">
+                    <Link to={`/profile/${request.helper.username}`} className="hover:underline">
+                      {request.helper.username}
+                    </Link>
+                    <RoleBadge user={helperProfile} />
+                </div>
               </div>
             </div>
           )}
@@ -401,7 +405,11 @@ const RequestDetailPage = () => {
                 {myResponse && (
                   <div>
                     <h3 className="text-lg font-semibold mb-3 text-gray-800">Ваш отклик:</h3>
-                    <ResponseCard response={myResponse} isMyResponse={true} />
+                    <ResponseCard 
+                      response={myResponse} 
+                      isMyResponse={true}
+                      fullHelperProfile={responderProfiles[myResponse.helper._id]}
+                    />
                   </div>
                 )}
               </>

@@ -798,18 +798,22 @@ const ChatPage = () => {
           <div className="mt-2 text-sm">
             <div className="flex items-center">
               <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
-              <Link to={`/profile/${requestDetails.author.username}`} className="hover:underline flex items-center">
-                {requestDetails.author.username}
+              <div className="flex items-center">
+                <Link to={`/profile/${requestDetails.author.username}`} className="hover:underline">
+                  {requestDetails.author.username}
+                </Link>
                 <RoleBadge user={authorProfile} />
-              </Link>
+              </div>
             </div>
             {requestDetails.helper && (
               <div className="flex items-center mt-1">
                 <span className="font-medium text-gray-500 w-16 flex-shrink-0">Хелпер:</span>
-                <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline flex items-center">
-                  {requestDetails.helper.username}
-                  <RoleBadge user={helperProfile} />
-                </Link>
+                <div className="flex items-center">
+                    <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline">
+                      {requestDetails.helper.username}
+                    </Link>
+                    <RoleBadge user={helperProfile} />
+                </div>
               </div>
             )}
           </div>
