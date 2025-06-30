@@ -1235,7 +1235,7 @@ router.post('/telegram/link-user', async (req, res) => {
     } catch (err) {
         console.error('Ошибка привязки пользователя через бота:', err);
         res.status(500).json({ msg: 'Ошибка сервера' });
-    }
+  }
 });
 
 export default router; 

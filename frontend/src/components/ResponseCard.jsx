@@ -2,9 +2,13 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { responsesService } from '../services/api';
 import { toast } from 'react-toastify';
-import UsernameWithBadge from './shared/UsernameWithBadge';
+import { useAuth } from '../context/AuthContext';
+import { FaCrown, FaShieldAlt } from 'react-icons/fa';
+import RoleBadge from './shared/RoleBadge';
 
 const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
+  const { currentUser } = useAuth();
+
   const handleAccept = async () => {
     try {
       await responsesService.acceptResponse(response._id);
@@ -60,22 +64,26 @@ const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
     <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-white shadow-sm hover:shadow-md transition-shadow">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
         <div className="flex items-center mb-2 sm:mb-0">
-          <Link to={`/profile/${response.helper._id}`} className="flex-shrink-0">
-            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 overflow-hidden">
-              {response.helper.avatar ? (
-                <img 
-                  src={`${process.env.REACT_APP_API_URL}${response.helper.avatar}`} 
-                  alt={response.helper.username}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="text-blue-700 font-bold">
-                  {response.helper.username.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
+          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 overflow-hidden">
+            {response.helper.avatar ? (
+              <img 
+                src={`${process.env.REACT_APP_API_URL}${response.helper.avatar}`} 
+                alt={response.helper.username}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-blue-700 font-bold">
+                {response.helper.username.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+          <Link 
+            to={`/profile/${response.helper._id}`} 
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            {response.helper.username}
+            <RoleBadge user={response.helper} className="ml-1" />
           </Link>
-          <UsernameWithBadge user={response.helper} />
           {getStatusBadge() && <div className="ml-3">{getStatusBadge()}</div>}
         </div>
         

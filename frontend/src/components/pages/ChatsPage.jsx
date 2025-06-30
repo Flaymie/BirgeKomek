@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
-import UsernameWithBadge from '../shared/UsernameWithBadge';
 
 const ChatAvatar = ({ user }) => {
   const avatarUrl = formatAvatarUrl(user);
@@ -155,17 +154,10 @@ const ChatsPage = () => {
                       <ChatAvatar user={chat.helper} />
                     )}
                   </div>
-                  <span className="ml-3 text-sm text-gray-500 flex items-center gap-1">
+                  <span className="ml-3 text-sm text-gray-500">
                     {currentUser._id === chat.author._id ? 
-                      (<>
-                        <span>Хелпер:</span>
-                        {chat.helper ? <UsernameWithBadge user={chat.helper} /> : 'Не назначен'}
-                      </>) : 
-                      (<>
-                        <span>Ученик:</span>
-                        <UsernameWithBadge user={chat.author} />
-                      </>)
-                    }
+                      `Хелпер: ${chat.helper ? chat.helper.username : 'Не назначен'}` : 
+                      `Ученик: ${chat.author.username}`}
                   </span>
                 </div>
                 

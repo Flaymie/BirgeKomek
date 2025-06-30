@@ -16,20 +16,8 @@ import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import './ProfilePage.css';
-
-// --- ИКОНКИ ДЛЯ РОЛЕЙ ---
-const CrownIcon = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" {...props} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 5C12.5523 5 13 4.55228 13 4C13 3.44772 12.5523 3 12 3C11.4477 3 11 3.44772 11 4C11 4.55228 11.4477 5 12 5ZM7.5 6.5C7.77614 6.5 8 6.27614 8 6C8 5.72386 7.77614 5.5 7.5 5.5C7.22386 5.5 7 5.72386 7 6C7 6.27614 7.22386 6.5 7.5 6.5ZM16.5 6.5C16.7761 6.5 17 6.27614 17 6C17 5.72386 16.7761 5.5 16.5 5.5C16.2239 5.5 16 5.72386 16 6C16 6.27614 16.2239 6.5 16.5 6.5ZM19 18H5L4 10L9 12L12 7L15 12L20 10L19 18Z" />
-  </svg>
-);
-
-const ShieldIcon = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={props.className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12c5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
-  </svg>
-);
-// -----------------------
+import { CrownIcon, ShieldIcon } from '../shared/RoleIcons';
+import RoleBadge from '../shared/RoleBadge';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -194,17 +182,15 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
   const roleStyles = {
     admin: {
       borderClass: 'admin-border',
-      icon: <CrownIcon className="role-icon role-icon-admin" />,
       bannerText: 'Официальный аккаунт Администратора',
       bannerClass: 'official-banner-admin',
-      BannerIcon: CrownIcon,
+      BannerIcon: () => <RoleBadge user={profile} />,
     },
     moderator: {
       borderClass: 'moderator-border',
-      icon: <ShieldIcon className="role-icon role-icon-moderator" />,
       bannerText: 'Официальный аккаунт Модератора',
       bannerClass: 'official-banner-moderator',
-      BannerIcon: ShieldIcon,
+      BannerIcon: () => <RoleBadge user={profile} />,
     }
   };
   
@@ -236,7 +222,8 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
 
           {currentRole && (
             <div className={classNames('official-banner', styles.bannerClass)}>
-              <BannerIcon className="official-banner-icon" />
+               {targetIsAdmin && <CrownIcon className="official-banner-icon role-icon-admin" />}
+               {targetIsModerator && <ShieldIcon className="official-banner-icon role-icon-moderator" />}
               <span>{styles.bannerText}</span>
             </div>
           )}
@@ -254,7 +241,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                 <div>
                   <h2 className="text-xl font-medium text-gray-900 flex items-center">
                     {profile.username}
-                    {styles.icon}
+                    <RoleBadge user={profile} />
                   </h2>
                   <div className="flex items-center mt-1">
                     {profile.isOnline ? (

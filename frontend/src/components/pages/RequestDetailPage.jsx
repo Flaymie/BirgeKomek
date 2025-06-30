@@ -10,7 +10,7 @@ import AdminDeleteModal from '../modals/AdminDeleteModal';
 import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
-import UsernameWithBadge from '../shared/UsernameWithBadge';
+import RoleBadge from '../shared/RoleBadge';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -251,115 +251,126 @@ const RequestDetailPage = () => {
           </div>
         )}
         
-        <div className="px-6 py-5">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight">{request.title}</h1>
-              <div className="flex items-center text-sm text-gray-500 mt-2 flex-wrap gap-x-4 gap-y-1">
-                <span>
-                  Автор: <UsernameWithBadge user={request.author} />
-                </span>
-                <span>
-                  Создан: {formatDate(request.createdAt)}
-                </span>
-              </div>
-            </div>
-            <StatusBadge status={request.status} />
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full">{request.subject}</span>
-            <span className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 rounded-full">{request.grade} класс</span>
-          </div>
-        </div>
-        
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Описание</h2>
-          <div className="bg-gray-50 p-4 rounded-md">
-            <p className="text-gray-700 whitespace-pre-wrap">{formatDescription(request.description)}</p>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-100 pt-4 mb-6">
-          <div className="flex flex-col sm:flex-row justify-between">
-            <div className="mb-2 sm:mb-0">
-              <span className="text-sm text-gray-500 block">Автор</span>
-              <div className="flex items-center">
-                <span className="font-medium">{request.author.username}</span>
-                {isAuthor && (
-                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                    Вы
-                  </span>
-                )}
-              </div>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500 block">Опубликовано</span>
-              <span className="font-medium">{formatDate(request.createdAt)}</span>
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-0">
+              {request.title}
+              {request.editedByAdminInfo?.editorId && (
+                 <span 
+                    className="ml-2 text-sm text-gray-500 font-normal" 
+                    title={`Отредактировано: ${new Date(request.editedByAdminInfo.editedAt).toLocaleString('ru-RU')}\nПричина: ${request.editedByAdminInfo.reason}`}
+                 >
+                    (изм. админом)
+                 </span>
+              )}
+            </h1>
+            <div className="flex-shrink-0">
+              <StatusBadge status={request.status} />
             </div>
           </div>
-        </div>
-        
-        {request.helper && (
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 p-3 rounded-md">
+              <span className="text-sm text-gray-500 block">Предмет</span>
+              <span className="font-medium">{request.subject}</span>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-md">
+              <span className="text-sm text-gray-500 block">Класс</span>
+              <span className="font-medium">{request.grade}</span>
+            </div>
+          </div>
+          
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Описание</h2>
+            <div className="bg-gray-50 p-4 rounded-md">
+              <p className="text-gray-700 whitespace-pre-wrap">{formatDescription(request.description)}</p>
+            </div>
+          </div>
+          
           <div className="border-t border-gray-100 pt-4 mb-6">
-            <h3 className="text-lg font-semibold mb-2">Назначенный помощник</h3>
-            <div className="bg-blue-50 p-4 rounded-md">
-              <p className="font-medium text-blue-800">{request.helper.username}</p>
+            <div className="flex flex-col sm:flex-row justify-between">
+              <div className="mb-2 sm:mb-0">
+                <span className="text-sm text-gray-500 block">Автор</span>
+                <div className="flex items-center">
+                  <Link to={`/profile/${request.author.username}`} className="text-blue-600 hover:underline flex items-center">
+                    {request.author.username}
+                    <RoleBadge user={request.author} className="ml-1" />
+                  </Link>
+                  {isAuthor && (
+                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                      Вы
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500 block">Опубликовано</span>
+                <span className="font-medium">{formatDate(request.createdAt)}</span>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* === БЛОК ДЕЙСТВИЙ === */}
-        <div className="border-t border-gray-200 mt-6 pt-6">
-          {/* --- Действия для АВТОРА --- */}
-          {isAuthor && request.status === 'open' && (
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => navigate(`/request/${request._id}/edit`)}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-              >
-                Редактировать
-              </button>
-              <button
-                onClick={() => setIsDeleteModalOpen(true)}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-              >
-                Удалить
-              </button>
+          
+          {request.helper && (
+            <div className="border-t border-gray-100 pt-4 mb-6">
+              <h3 className="text-lg font-semibold mb-2">Назначенный помощник</h3>
+              <div className="bg-blue-50 p-4 rounded-md">
+                <p className="font-medium text-blue-800">{request.helper.username}</p>
+              </div>
             </div>
           )}
 
-          {/* --- Действия/Инфо для ХЕЛПЕРА --- */}
-          {isHelper() && !isAuthor && (
-            <>
-              {canHelperRespond && (
-                <div className="text-center">
-                  <button
-                    onClick={() => setIsResponseModalOpen(true)}
-                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                  >
-                    Предложить помощь
-                  </button>
-                </div>
-              )}
-              {myResponse && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-3 text-gray-800">Ваш отклик:</h3>
-                  <ResponseCard response={myResponse} isMyResponse={true} />
-                </div>
-              )}
-            </>
-          )}
+          {/* === БЛОК ДЕЙСТВИЙ === */}
+          <div className="border-t border-gray-200 mt-6 pt-6">
+            {/* --- Действия для АВТОРА --- */}
+            {isAuthor && request.status === 'open' && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => navigate(`/request/${request._id}/edit`)}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
+                >
+                  Редактировать
+                </button>
+                <button
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Удалить
+                </button>
+              </div>
+            )}
 
-          {/* --- Действие для чата, когда заявка В РАБОТЕ --- */}
-          {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
-             <button 
-                className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                onClick={() => navigate(`/requests/${request._id}/chat`)}
-             >
-               Перейти в чат
-             </button>
-          )}
+            {/* --- Действия/Инфо для ХЕЛПЕРА --- */}
+            {isHelper() && !isAuthor && (
+              <>
+                {canHelperRespond && (
+                  <div className="text-center">
+                    <button
+                      onClick={() => setIsResponseModalOpen(true)}
+                      className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                    >
+                      Предложить помощь
+                    </button>
+                  </div>
+                )}
+                {myResponse && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Ваш отклик:</h3>
+                    <ResponseCard response={myResponse} isMyResponse={true} />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* --- Действие для чата, когда заявка В РАБОТЕ --- */}
+            {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
+               <button 
+                  className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  onClick={() => navigate(`/requests/${request._id}/chat`)}
+               >
+                 Перейти в чат
+               </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -460,21 +471,6 @@ const RequestDetailPage = () => {
                 Удалить
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Отображение назначенного хелпера */}
-      {request.status !== 'open' && request.helper && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-5 mb-6">
-          <h3 className="text-lg font-semibold text-green-800 mb-2">Хелпер назначен!</h3>
-          <p className="text-green-700">
-            На ваш запрос откликнулся и был назначен хелпер: <UsernameWithBadge user={request.helper} />.
-          </p>
-          <div className="mt-4">
-            <Link to={`/requests/${id}/chat`} className="btn btn-primary">
-              Перейти в чат
-            </Link>
           </div>
         </div>
       )}

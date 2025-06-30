@@ -37,6 +37,12 @@
   height: 20px;
 }
 
+.role-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
 .role-icon-admin {
   color: #ec4899; /* Розовый */
 }
