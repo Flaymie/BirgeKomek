@@ -9,6 +9,7 @@ import AdminEditModal from '../modals/AdminEditModal';
 import AdminDeleteModal from '../modals/AdminDeleteModal';
 import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
+import StatusBadge from '../shared/StatusBadge';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -163,21 +164,6 @@ const RequestDetailPage = () => {
     });
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'open':
-        return <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Открыта</span>;
-      case 'in_progress':
-        return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">В процессе</span>;
-      case 'completed':
-        return <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">Завершена</span>;
-      case 'cancelled':
-        return <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">Отменена</span>;
-      default:
-        return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">{status}</span>;
-    }
-  };
-  
   // Проверка, является ли пользователь хелпером
   const isHelper = () => {
     return currentUser?.roles?.helper === true || 
@@ -277,7 +263,9 @@ const RequestDetailPage = () => {
                  </span>
               )}
             </h1>
-            {getStatusBadge(request.status)}
+            <div className="flex-shrink-0">
+              <StatusBadge status={request.status} />
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
