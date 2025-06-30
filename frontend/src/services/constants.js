@@ -42,7 +42,7 @@ export const REQUEST_STATUS_LABELS = {
   [REQUEST_STATUSES.ASSIGNED]: 'Назначена',
   [REQUEST_STATUSES.IN_PROGRESS]: 'В процессе',
   [REQUEST_STATUSES.PENDING]: 'В ожидании',
-  [REQUEST_STATUSES.COMPLETED]: 'Выполнена',
+  [REQUEST_STATUSES.COMPLETED]: 'Завершена',
   [REQUEST_STATUSES.CLOSED]: 'Закрыта',
   [REQUEST_STATUSES.CANCELLED]: 'Отменена'
 };
