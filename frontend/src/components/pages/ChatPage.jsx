@@ -29,11 +29,6 @@ import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
-import { Lightbox } from "yet-another-react-lightbox";
-import "yet-another-react-lightbox/styles.css";
-import Inline from "yet-another-react-lightbox/plugins/inline";
-import { FaPaperclip, FaEdit, FaTrash, FaTimes, FaDownload } from "react-icons/fa";
-import classNames from 'classnames';
 
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
@@ -128,98 +123,68 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
 };
 
 // Новый компонент сообщения
-const Message = React.memo(({ msg, currentUserId, onEdit, onDelete, requestAuthorId, onImageClick }) => {
-    const isMyMessage = msg.author._id === currentUserId;
-    const isServiceMessage = msg.isServiceMessage;
-    const hasAttachment = msg.attachments && msg.attachments.length > 0;
-    const hasOnlyAttachment = hasAttachment && !msg.text;
-    const [isHovering, setIsHovering] = React.useState(false);
-    
-    if (isServiceMessage) {
-        return (
-            <div className="text-center my-3">
-                <span className="text-sm text-gray-500 bg-gray-100 rounded-full px-3 py-1">{msg.text}</span>
-            </div>
-        );
-    }
-    
-    return (
-        <div 
-            className={`flex items-end gap-3 my-2 ${isMyMessage ? 'flex-row-reverse' : ''}`}
-            onMouseEnter={() => setIsHovering(true)}
-            onMouseLeave={() => setIsHovering(false)}
-        >
-            <Link to={`/profile/${msg.author.username}`}>
-                <img
-                    src={formatAvatarUrl(msg.author)}
-                    alt={msg.author.username}
-                    className="w-8 h-8 rounded-full"
-                />
-            </Link>
-            <div
-                className={classNames(
-                    "relative max-w-xs lg:max-w-md px-3 py-2 rounded-xl",
-                    {
-                        "bg-blue-500 text-white": isMyMessage,
-                        "bg-gray-200 text-gray-800": !isMyMessage,
-                        "rounded-br-none": isMyMessage,
-                        "rounded-bl-none": !isMyMessage,
-                        "p-0 bg-transparent shadow-none": hasOnlyAttachment,
-                        "border border-gray-200": hasOnlyAttachment,
-                    }
-                )}
-            >
-                {!isMyMessage && (
-                    <div className="font-semibold text-sm mb-1 text-gray-700 flex items-center">
-                        {msg.author.username}
-                        <RoleBadge user={msg.author} className="ml-1.5" />
-                    </div>
-                )}
-                
-                {msg.text && (
-                    <div className="whitespace-pre-wrap break-words">
-                        {msg.text}
-                        {msg.isEdited && !hasOnlyAttachment && <span className="text-xs opacity-70 ml-2">(изм.)</span>}
-                    </div>
-                )}
+const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive }) => {
+  const hasAttachments = msg.attachments && msg.attachments.length > 0;
+  const isDeleted = msg.content === 'Сообщение удалено';
+  const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
+  const avatarUrl = formatAvatarUrl(msg.sender);
 
-                {hasAttachment && msg.attachments.map((file, index) => (
-                    <FileAttachment 
-                        key={index} 
-                        file={file} 
-                        hasOnlyAttachment={hasOnlyAttachment}
-                        onClick={() => onImageClick(msg.attachments.map(f => ({ src: f.url, type: f.mimetype, title: f.originalname })), index)}
-                    />
-                ))}
-                
-                <div className={classNames(
-                    "text-xs mt-1",
-                    { 
-                        "text-white/80": isMyMessage && !hasOnlyAttachment,
-                        "text-gray-500": !isMyMessage && !hasOnlyAttachment,
-                        "absolute bottom-1 right-2 text-white text-shadow-sm": hasOnlyAttachment,
-                    }
-                )}>
-                    {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                    {msg.isEdited && hasOnlyAttachment && <span className="text-xs opacity-90 ml-2">(изм.)</span>}
-                </div>
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className={`group flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
+    >
+      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-end">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+            <DefaultAvatarIcon className="w-5 h-5 text-gray-500" />
+          </div>
+        )}
+      </Link>
 
-                 {isMyMessage && msg.text !== 'Сообщение удалено' && (
-                    <div className={`absolute top-0 transform -translate-y-1/2 flex gap-1 transition-opacity duration-200 ${isHovering ? 'opacity-100' : 'opacity-0'}`}
-                         style={{ [isMyMessage ? 'left' : 'right']: '0' }}
-                    >
-                        <button onClick={() => onEdit(msg)} className="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-100">
-                            <FaEdit className="w-3 h-3 text-gray-600" />
-                        </button>
-                        <button onClick={() => onDelete(msg._id)} className="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-100">
-                            <FaTrash className="w-3 h-3 text-red-500" />
-                        </button>
-                    </div>
-                )}
-            </div>
+      {/* Основной пузырь сообщения или просто картинка */}
+      <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
+
+        {hasAttachments && !isDeleted && (
+          <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
+            {msg.attachments.map((file, index) => (
+              <Attachment key={index} file={file} isOwnMessage={isOwnMessage} onImageClick={onImageClick} />
+            ))}
+          </div>
+        )}
+
+        {msg.content && (
+          <div className={`break-words ${hasAttachments ? 'px-2 pb-1 pt-2' : 'px-3 py-2'}`}>
+            {msg.content}
+          </div>
+        )}
+
+        {/* Timestamp - теперь с разными стилями */}
+        <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''}`}>
+          {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
+          {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
-    );
-});
+      </div>
+
+      {/* Иконки действий (появляются при наведении на всю строку) */}
+      {isOwnMessage && !isDeleted && isChatActive && (
+        <div className="self-center flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <button onClick={() => onEdit(msg)} title="Редактировать" className="p-1 text-gray-400 hover:text-gray-700">
+            <PencilIcon className="h-4 w-4" />
+          </button>
+          <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
+            <TrashIcon className="h-4 w-4" />
+          </button>
+    </div>
+      )}
+    </motion.div>
+  );
+};
 
 const ChatPage = () => {
   const { id: requestId } = useParams();
@@ -808,14 +773,18 @@ const ChatPage = () => {
           <div className="mt-2 text-sm">
             <div className="flex items-center">
               <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
-              <span className="font-semibold text-gray-800 truncate">{requestDetails.author.username}</span>
-              <RoleBadge user={requestDetails.author} />
+              <Link to={`/profile/${requestDetails.author.username}`} className="hover:underline flex items-center">
+                {requestDetails.author.username}
+                <RoleBadge user={requestDetails.author} />
+              </Link>
             </div>
             {requestDetails.helper && (
               <div className="flex items-center mt-1">
                 <span className="font-medium text-gray-500 w-16 flex-shrink-0">Хелпер:</span>
-                <span className="font-semibold text-gray-800 truncate">{requestDetails.helper.username}</span>
-                <RoleBadge user={requestDetails.helper} />
+                <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline flex items-center">
+                  {requestDetails.helper.username}
+                  <RoleBadge user={requestDetails.helper} />
+                </Link>
               </div>
             )}
           </div>
@@ -827,11 +796,11 @@ const ChatPage = () => {
               <Message
                 key={msg._id}
                 msg={msg}
-                currentUserId={currentUser._id}
+                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                onImageClick={setViewerFile}
                 onEdit={handleStartEdit}
                 onDelete={setMessageToDelete}
-                requestAuthorId={requestDetails.author._id}
-                onImageClick={setViewerFile}
+                isChatActive={isChatActive || requestDetails.status === 'open'}
               />
             ))}
           </AnimatePresence>

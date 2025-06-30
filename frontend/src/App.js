@@ -34,14 +34,14 @@ import AllReviewsPage from './components/pages/AllReviewsPage';
 // и рендер основного контента. Он должен быть внутри AuthProvider.
 const AppInitializer = () => {
   const authContext = useAuth();
-
+  
   // Передаем контекст в api.js, чтобы перехватчик мог его использовать
   useEffect(() => {
     if (authContext) {
       setAuthContext(authContext);
     }
   }, [authContext]);
-
+  
   return <AppContent />;
 };
 
@@ -107,19 +107,19 @@ const AppContent = () => {
       />
 
       <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen || isLinkTelegramModalOpen ? 'blurred' : ''}`}>
-        <Layout>
-          <Routes>
+      <Layout>
+        <Routes>
             {/* Публичные маршруты */}
-            <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/requests" element={<RequestsPage />} />
             <Route path="/auth/telegram/callback" element={<TelegramCallbackPage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/request/:id" element={<RequestDetailPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/request/:id" element={<RequestDetailPage />} />
             
             {/* Защищенные маршруты */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
@@ -131,8 +131,8 @@ const AppContent = () => {
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
             <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
-          </Routes>
-        </Layout>
+        </Routes>
+      </Layout>
       </div>
     </>
   );

@@ -252,31 +252,38 @@ const RequestDetailPage = () => {
         )}
         
         <div className="p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-0">
+          <div className="flex flex-col md:flex-row justify-between md:items-start mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0">
               {request.title}
-              {request.editedByAdminInfo?.editorId && (
-                 <span 
-                    className="ml-2 text-sm text-gray-500 font-normal" 
-                    title={`Отредактировано: ${new Date(request.editedByAdminInfo.editedAt).toLocaleString('ru-RU')}\nПричина: ${request.editedByAdminInfo.reason}`}
-                 >
-                    (изм. админом)
-                 </span>
-              )}
             </h1>
             <div className="flex-shrink-0">
               <StatusBadge status={request.status} />
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="bg-gray-50 p-3 rounded-md">
-              <span className="text-sm text-gray-500 block">Предмет</span>
-              <span className="font-medium">{request.subject}</span>
+          <div className="text-sm text-gray-500 mb-6 space-y-2 md:space-y-0 md:flex md:items-center md:space-x-6">
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+              <span>Автор:</span>
+              <Link to={`/profile/${request.author.username}`} className="ml-1.5 font-medium text-gray-700 hover:text-blue-600 hover:underline flex items-center">
+                {request.author.username}
+                <RoleBadge user={request.author} />
+              </Link>
             </div>
-            <div className="bg-gray-50 p-3 rounded-md">
-              <span className="text-sm text-gray-500 block">Класс</span>
-              <span className="font-medium">{request.grade}</span>
+            <div className="hidden md:block">|</div>
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              </svg>
+              <span>Создан: {formatDate(request.createdAt)}</span>
+            </div>
+            <div className="hidden md:block">|</div>
+            <div className="flex items-center">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {request.subject}
+              </span>
             </div>
           </div>
           
@@ -287,34 +294,17 @@ const RequestDetailPage = () => {
             </div>
           </div>
           
-          <div className="border-t border-gray-100 pt-4 mb-6">
-            <div className="flex flex-col sm:flex-row justify-between">
-              <div className="mb-2 sm:mb-0">
-                <span className="text-sm text-gray-500 block">Автор</span>
-                <div className="flex items-center">
-                  <Link to={`/profile/${request.author.username}`} className="text-blue-600 hover:underline flex items-center">
-                    {request.author.username}
-                    <RoleBadge user={request.author} className="ml-1" />
-                  </Link>
-                  {isAuthor && (
-                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                      Вы
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500 block">Опубликовано</span>
-                <span className="font-medium">{formatDate(request.createdAt)}</span>
-              </div>
-            </div>
-          </div>
-          
           {request.helper && (
-            <div className="border-t border-gray-100 pt-4 mb-6">
-              <h3 className="text-lg font-semibold mb-2">Назначенный помощник</h3>
-              <div className="bg-blue-50 p-4 rounded-md">
-                <p className="font-medium text-blue-800">{request.helper.username}</p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zM9 12a1 1 0 112 0 1 1 0 01-2 0zm-1-3a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <span className="font-semibold">Помощь оказывает:</span>
+                <Link to={`/profile/${request.helper.username}`} className="ml-2 font-bold text-green-800 hover:underline flex items-center">
+                  {request.helper.username}
+                  <RoleBadge user={request.helper} />
+                </Link>
               </div>
             </div>
           )}

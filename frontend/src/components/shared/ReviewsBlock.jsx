@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { reviewsService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion } from 'framer-motion';
+import Rating from '../pages/Rating';
+import RoleBadge from './RoleBadge';
 
 const StarRating = ({ rating }) => (
   <div className="flex items-center">
@@ -45,7 +47,12 @@ const ReviewItem = ({ review }) => {
         <div className="flex-1">
           <div className="flex justify-between items-center">
             <div>
-              <p className="font-semibold text-gray-800">{review.author.username}</p>
+              <div className="flex items-center">
+                <Link to={`/profile/${review.author.username}`} className="font-semibold text-gray-800 hover:underline">
+                  {review.author.username}
+                </Link>
+                <RoleBadge user={review.author} />
+              </div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                 <span>по заявке</span>
                 <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>

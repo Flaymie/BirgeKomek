@@ -28,29 +28,6 @@
   box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
 }
 
-/* Иконки ролей */
-.role-icon {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 8px;
-  width: 20px;
-  height: 20px;
-}
-
-.role-badge-wrapper {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-}
-
-.role-icon-admin {
-  color: #ec4899; /* Розовый */
-}
-
-.role-icon-moderator {
-  color: #22c55e; /* Зеленый */
-}
-
 /* Плашка "Официальный аккаунт" */
 .official-banner {
   padding: 8px 16px;

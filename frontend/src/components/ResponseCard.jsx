@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { responsesService } from '../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { FaCrown, FaShieldAlt } from 'react-icons/fa';
+import { formatAvatarUrl } from '../services/avatarUtils';
 import RoleBadge from './shared/RoleBadge';
 
 const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
   const { currentUser } = useAuth();
+  const { helper, comment, createdAt } = response;
 
   const handleAccept = async () => {
     try {
@@ -82,8 +83,8 @@ const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             {response.helper.username}
-            <RoleBadge user={response.helper} className="ml-1" />
           </Link>
+          <RoleBadge user={response.helper} />
           {getStatusBadge() && <div className="ml-3">{getStatusBadge()}</div>}
         </div>
         

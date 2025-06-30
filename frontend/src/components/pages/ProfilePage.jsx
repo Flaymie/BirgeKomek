@@ -16,8 +16,9 @@ import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import './ProfilePage.css';
-import { CrownIcon, ShieldIcon } from '../shared/RoleIcons';
 import RoleBadge from '../shared/RoleBadge';
+
+// --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -184,13 +185,13 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
       borderClass: 'admin-border',
       bannerText: 'Официальный аккаунт Администратора',
       bannerClass: 'official-banner-admin',
-      BannerIcon: () => <RoleBadge user={profile} />,
+      BannerIcon: () => <RoleBadge user={{ roles: { admin: true } }} />,
     },
     moderator: {
       borderClass: 'moderator-border',
       bannerText: 'Официальный аккаунт Модератора',
       bannerClass: 'official-banner-moderator',
-      BannerIcon: () => <RoleBadge user={profile} />,
+      BannerIcon: () => <RoleBadge user={{ roles: { moderator: true } }} />,
     }
   };
   
@@ -222,8 +223,9 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
 
           {currentRole && (
             <div className={classNames('official-banner', styles.bannerClass)}>
-               {targetIsAdmin && <CrownIcon className="official-banner-icon role-icon-admin" />}
-               {targetIsModerator && <ShieldIcon className="official-banner-icon role-icon-moderator" />}
+              <div className="role-banner-icon-wrapper">
+                <BannerIcon />
+              </div>
               <span>{styles.bannerText}</span>
             </div>
           )}
@@ -920,8 +922,8 @@ const ProfilePage = () => {
             onUnban={handleUnbanUser}
             isMyProfile={isMyProfile}
           />
-          {/* Отзывы показываются только при просмотре профиля и после загрузки профиля */}
-          {profile && (
+          {/* ИСПРАВЛЕНО: Отзывы показываются только для хелперов */}
+          {profile?.roles?.helper && (
             <div className="container mx-auto px-4 py-8">
               <div className="max-w-4xl mx-auto">
                   <ReviewsBlock userId={profile._id} />
