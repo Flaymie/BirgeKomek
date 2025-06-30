@@ -18,8 +18,6 @@ const ReadOnlyBanner = () => {
         setIsVisible(true);
       }
     } else {
-      // Если пользователь больше не в режиме "только чтение" (т.е. привязал телеграм),
-      // сбрасываем состояние, чтобы баннер мог появиться в будущем.
       localStorage.removeItem('readOnlyBannerDismissed');
       setIsVisible(false);
     }

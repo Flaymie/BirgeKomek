@@ -113,7 +113,7 @@ router.get('/', [
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('subject').optional().trim().escape(),
     query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
-    query('status').optional().isIn(['open', 'assigned', 'completed', 'cancelled']),
+    query('status').optional().isIn(['open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled']),
     query('authorId').optional().isMongoId(),
     query('helperId').optional().isMongoId(),
     query('search').optional().trim().escape(),
@@ -762,7 +762,7 @@ router.post('/:id/cancel', protect, [
  *           schema:
  *             type: object
    *             required: [status]
- *             properties:
+   *             properties:
    *               status:
    *                 type: string
    *                 enum: [open, assigned, in_progress, completed, cancelled, on_hold]
