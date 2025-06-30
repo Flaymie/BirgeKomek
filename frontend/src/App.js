@@ -25,10 +25,11 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAuth, AuthProvider } from './context/AuthContext';
 import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
-import RateLimitModal from './components/modals/RateLimitModal';
 import RequireTelegramModal from './components/modals/RequireTelegramModal';
 import LinkTelegramModal from './components/modals/LinkTelegramModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
+import { SocketProvider } from './context/SocketContext';
+import BanModal from './components/modals/BanModal';
 
 // Этот компонент отвечает за инициализацию перехватчика API
 // и рендер основного контента. Он должен быть внутри AuthProvider.
@@ -58,12 +59,8 @@ const AppContent = () => {
     isTelegramLoading,
     closeLinkTelegramModal,
   } = useAuth();
-  const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
 
   useEffect(() => {
-    const handleRateLimit = () => setIsRateLimitModalOpen(true);
-    window.addEventListener('show-rate-limit-modal', handleRateLimit);
-    return () => window.removeEventListener('show-rate-limit-modal', handleRateLimit);
   }, []);
 
   return (
@@ -89,11 +86,6 @@ const AppContent = () => {
         banDetails={banDetails}
       />
       
-      <RateLimitModal 
-        isOpen={isRateLimitModalOpen}
-        onClose={() => setIsRateLimitModalOpen(false)}
-      />
-
       <RequireTelegramModal 
         isOpen={isRequireTgModalOpen}
         onLinkTelegram={handleLinkTelegram}
@@ -106,7 +98,11 @@ const AppContent = () => {
         isLoading={isTelegramLoading}
       />
 
-      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen || isLinkTelegramModalOpen ? 'blurred' : ''}`}>
+      <div className={`main-content ${
+        (banDetails && banDetails.isBanned) || 
+        isRequireTgModalOpen || 
+        isLinkTelegramModalOpen ? 'blurred' : ''
+      }`}>
       <Layout>
         <Routes>
             {/* Публичные маршруты */}
