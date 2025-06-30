@@ -8,8 +8,11 @@ import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon } from '@heroicons/react
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 
-// Максимальное количество символов в описании
+// Максимальное количество символов
+const MAX_TITLE_LENGTH = 100;
+const MIN_TITLE_LENGTH = 5;
 const MAX_DESCRIPTION_LENGTH = 2000;
+const MIN_DESCRIPTION_LENGTH = 20;
 
 const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const { currentUser } = useAuth();
@@ -46,7 +49,10 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Ограничиваем длину описания
+    // Ограничиваем длину
+    if (name === 'title' && value.length > MAX_TITLE_LENGTH) {
+      return;
+    }
     if (name === 'description' && value.length > MAX_DESCRIPTION_LENGTH) {
       return;
     }
@@ -68,12 +74,14 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.title.trim() || formData.title.length < 5) {
-      newErrors.title = 'Заголовок должен содержать минимум 5 символов';
+    if (!formData.title.trim() || formData.title.length < MIN_TITLE_LENGTH) {
+      newErrors.title = `Заголовок должен содержать минимум ${MIN_TITLE_LENGTH} символов`;
+    } else if (formData.title.length > MAX_TITLE_LENGTH) {
+      newErrors.title = `Заголовок не должен превышать ${MAX_TITLE_LENGTH} символов`;
     }
     
-    if (!formData.description.trim() || formData.description.length < 20) {
-      newErrors.description = 'Описание должно содержать минимум 20 символов';
+    if (!formData.description.trim() || formData.description.length < MIN_DESCRIPTION_LENGTH) {
+      newErrors.description = `Описание должно содержать минимум ${MIN_DESCRIPTION_LENGTH} символов`;
     } else if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
       newErrors.description = `Описание не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`;
     }
@@ -118,7 +126,10 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
       onClose();
     } catch (error) {
       console.error('Ошибка при создании запроса:', error);
-      const errorMessage = error.response?.data?.message || 'Произошла ошибка при создании запроса';
+      if (error.response && error.response.data) {
+        console.error('ОТВЕТ СЕРВЕРА:', JSON.stringify(error.response.data, null, 2));
+      }
+      const errorMessage = error.response?.data?.errors?.[0]?.msg || error.response?.data?.msg || 'Произошла ошибка при создании запроса';
       toast.error(errorMessage);
       onClose();
     } finally {
@@ -126,10 +137,13 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
   
-  // Вычисляем количество оставшихся символов в описании
-  const remainingChars = MAX_DESCRIPTION_LENGTH - formData.description.length;
-  // Определяем стиль счетчика символов (меняем на предупреждающий цвет, когда остается мало)
-  const charCounterClass = remainingChars <= 100 ? 'text-orange-500' : 'text-gray-500';
+  // Вычисляем количество оставшихся символов
+  const titleRemainingChars = MAX_TITLE_LENGTH - formData.title.length;
+  const descriptionRemainingChars = MAX_DESCRIPTION_LENGTH - formData.description.length;
+  
+  // Определяем стиль счетчика символов
+  const titleCharCounterClass = titleRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
+  const descriptionCharCounterClass = descriptionRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
   
   return (
     <>
@@ -163,13 +177,17 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
           <div className="overflow-y-auto p-5 space-y-4">
             <form id="create-request-form" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Заголовок</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700">Заголовок</label>
+                  <span className={`text-sm font-medium ${titleCharCounterClass}`}>{formData.title.length}/{MAX_TITLE_LENGTH}</span>
+                </div>
                 <input
                   type="text"
                   id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
+                  maxLength={MAX_TITLE_LENGTH}
                   className={`w-full px-4 py-2 text-base border ${errors.title ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
                   placeholder="Например: Помощь с домашним заданием по алгебре"
                 />
@@ -179,7 +197,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label htmlFor="description" className="block text-sm font-medium text-gray-700">Подробное описание</label>
-                  <span className={`text-sm font-medium ${charCounterClass}`}>{remainingChars}</span>
+                  <span className={`text-sm font-medium ${descriptionCharCounterClass}`}>{formData.description.length}/{MAX_DESCRIPTION_LENGTH}</span>
                 </div>
                 <textarea
                   id="description"
