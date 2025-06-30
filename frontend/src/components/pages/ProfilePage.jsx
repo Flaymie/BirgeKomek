@@ -589,7 +589,7 @@ const ProfileEditor = ({
 };
 
 const ProfilePage = () => {
-  const { currentUser, loading: authLoading, updateProfile, logout, login, _updateCurrentUserState } = useAuth();
+  const { currentUser, loading: authLoading, updateProfile, logout, _updateCurrentUserState } = useAuth();
   const { identifier } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -610,7 +610,7 @@ const ProfilePage = () => {
   const [profileSuccess, setProfileSuccess] = useState('');
   const [profileError, setProfileError] = useState('');
   
-  const [profileData, setProfileData] = useState(null);
+  const [profileData, setProfileData] = useState({});
   
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
   
@@ -624,12 +624,17 @@ const ProfilePage = () => {
     setError(null);
     try {
       const response = await usersService.getUserById(userIdentifier);
-      setProfile(response.data);
-      setProfileData(response.data);
+      const userData = response.data;
+      setProfile(userData);
+      setProfileData(userData);
       
+      // Сброс состояния перед проверкой
+      setIsUsernameChangeBlocked(false);
+      setNextUsernameChangeDate(null);
+
       // --- Логика блокировки смены ника ---
-      if (response.data && response.data.lastUsernameChange) {
-          const lastChange = new Date(response.data.lastUsernameChange);
+      if (userData && userData.lastUsernameChange) {
+          const lastChange = new Date(userData.lastUsernameChange);
           const now = new Date();
           const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
           const timeSinceChange = now.getTime() - lastChange.getTime();
@@ -655,9 +660,28 @@ const ProfilePage = () => {
     } 
     else if (!authLoading) {
       if (currentUser) {
+        // --- ИСПРАВЛЕНИЕ: Устанавливаем и profile, и profileData ---
+        setProfile({ ...currentUser });
         setProfileData({ ...currentUser });
         setIsMyProfile(true);
         setLoading(false);
+
+        // --- ИСПРАВЛЕНИЕ: Добавляем логику кулдауна для своего профиля ---
+        setIsUsernameChangeBlocked(false);
+        setNextUsernameChangeDate(null);
+
+        if (currentUser.lastUsernameChange) {
+            const lastChange = new Date(currentUser.lastUsernameChange);
+            const now = new Date();
+            const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+            const timeSinceChange = now.getTime() - lastChange.getTime();
+      
+            if (timeSinceChange < thirtyDaysInMs) {
+                setIsUsernameChangeBlocked(true);
+                const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
+                setNextUsernameChangeDate(nextDate.toLocaleDateString('ru-RU'));
+            }
+        }
       } else {
         navigate('/login');
       }
@@ -693,8 +717,8 @@ const ProfilePage = () => {
   
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    // Проверяем, изменился ли никнейм
-    if (profileData.username && profileData.username.toLowerCase() !== profile.username) {
+    // --- ИСПРАВЛЕНИЕ: Добавляем проверку, что profile не null ---
+    if (profile && profileData.username && profileData.username.toLowerCase() !== profile.username) {
         setIsConfirmModalOpen(true); // Если да - открываем модалку для подтверждения
         return; // и прерываем сабмит
     }
