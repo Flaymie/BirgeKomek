@@ -448,9 +448,9 @@ const ChatPage = () => {
   };
   
   const handleSendMessage = async (e) => {
+    e.preventDefault();
     if (checkAndShowModal()) return;
     
-    e.preventDefault();
     if ((!newMessage.trim() && !attachment) || !socket) return;
 
     // Перед отправкой гасим наш индикатор печати

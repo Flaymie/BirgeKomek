@@ -17,7 +17,7 @@ export const useReadOnlyCheck = () => {
   const ReadOnlyModal = () => (
     // Динамический импорт, чтобы не грузить модалку без надобности
     <React.Suspense fallback={<div/>}>
-      {showModal && <TelegramRequiredModal show={showModal} handleClose={() => setShowModal(false)} />}
+      {showModal && <TelegramRequiredModal isOpen={showModal} onClose={() => setShowModal(false)} />}
     </React.Suspense>
   );
 
