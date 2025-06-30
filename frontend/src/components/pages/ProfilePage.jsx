@@ -15,6 +15,21 @@ import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import './ProfilePage.css';
+
+// --- ИКОНКИ ДЛЯ РОЛЕЙ ---
+const CrownIcon = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={props.className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2L9.16 8.24L2 9.27L7.5 14.24L5.82 21.02L12 17.5L18.18 21.02L16.5 14.24L22 9.27L14.84 8.24L12 2Z" />
+  </svg>
+);
+
+const ShieldIcon = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={props.className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12c5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+  </svg>
+);
+// -----------------------
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -173,10 +188,36 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
   
   const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
   const targetIsAdmin = profile.roles?.admin;
+  const targetIsModerator = profile.roles?.moderator;
+
+  // Определяем классы и контент для роли
+  const roleStyles = {
+    admin: {
+      borderClass: 'admin-border',
+      icon: <CrownIcon className="role-icon role-icon-admin" />,
+      bannerText: 'Официальный аккаунт Администратора',
+      bannerClass: 'official-banner-admin',
+      BannerIcon: CrownIcon,
+    },
+    moderator: {
+      borderClass: 'moderator-border',
+      icon: <ShieldIcon className="role-icon role-icon-moderator" />,
+      bannerText: 'Официальный аккаунт Модератора',
+      bannerClass: 'official-banner-moderator',
+      BannerIcon: ShieldIcon,
+    }
+  };
   
+  const currentRole = targetIsAdmin ? 'admin' : targetIsModerator ? 'moderator' : null;
+  const styles = currentRole ? roleStyles[currentRole] : {};
+  const { BannerIcon } = styles;
+
   return (
     <Container>
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className={classNames(
+        "max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden",
+        styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
+      )}>
         <div className="px-4 py-5 sm:p-6">
           <div className="flex justify-between items-start">
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">Профиль пользователя</h1>
@@ -193,6 +234,13 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
           
           <BanInfo banDetails={profile.banDetails} />
 
+          {currentRole && (
+            <div className={classNames('official-banner', styles.bannerClass)}>
+              <BannerIcon className="official-banner-icon" />
+              <span>{styles.bannerText}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-6">
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <div className="flex flex-col md:flex-row items-center mb-6">
@@ -204,7 +252,10 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                   />
                 </div>
                 <div>
-                  <h2 className="text-xl font-medium text-gray-900">{profile.username}</h2>
+                  <h2 className="text-xl font-medium text-gray-900 flex items-center">
+                    {profile.username}
+                    {styles.icon}
+                  </h2>
                   <div className="flex items-center mt-1">
                     {profile.isOnline ? (
                       <span className="flex items-center text-sm text-green-600">
