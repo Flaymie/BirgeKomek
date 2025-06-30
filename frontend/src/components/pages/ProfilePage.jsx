@@ -7,6 +7,7 @@ import { usersService, authService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
+import DeleteConfirmModal from '../modals/DeleteConfirmModal';
 import BanUserModal from '../modals/BanUserModal';
 import ProfileNotFound from '../shared/ProfileNotFound';
 import { FaTelegramPlane } from 'react-icons/fa';
@@ -616,6 +617,8 @@ const ProfilePage = () => {
   const [error, setError] = useState(null);
   const [isMyProfile, setIsMyProfile] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
+  const [isDeletingLoading, setIsDeletingLoading] = useState(false);
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -801,16 +804,41 @@ const ProfilePage = () => {
     setIsProfileLoading(false);
   };
   
-  const handleDeleteAccount = async () => {
+  const handleRequestDeletion = async () => {
+    // Эта функция вызывается из первой модалки (с вводом ника)
+    setIsDeletingLoading(true);
     try {
-      await usersService.deleteAccount();
+      // Это теперь шаг 1: запрос кода
+      const res = await usersService.requestAccountDeletion();
+      
+      // Если бэкенд ответил, что ждет подтверждения
+      if (res.status === 202) {
+        toast.success(res.data.message || 'Код подтверждения отправлен в Telegram.');
+        setIsDeleteModalOpen(false); // Закрываем первую модалку
+        setIsConfirmDeleteModalOpen(true); // Открываем вторую
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.msg || 'Не удалось запросить удаление.');
+      console.error(err);
+    } finally {
+      setIsDeletingLoading(false);
+    }
+  };
+  
+  const handleConfirmDeletion = async (confirmationCode) => {
+    // Эта функция вызывается из второй модалки (с вводом кода)
+    setIsDeletingLoading(true);
+    try {
+      await usersService.confirmAccountDeletion(confirmationCode);
       toast.success('Ваш аккаунт был успешно удален.');
-      logout();
+      logout(); // Выходим из системы
+      // Редирект на главную произойдет автоматически из-за выхода
     } catch (err) {
       toast.error(err.response?.data?.msg || 'Не удалось удалить аккаунт.');
       console.error(err);
     } finally {
-      setIsDeleteModalOpen(false);
+      setIsDeletingLoading(false);
+      setIsConfirmDeleteModalOpen(false); // Закрываем модалку в любом случае
     }
   };
 
@@ -885,8 +913,15 @@ const ProfilePage = () => {
       <DeleteAccountModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteAccount}
+        onConfirm={handleRequestDeletion}
         username={currentUser?.username}
+        isLoading={isDeletingLoading}
+      />
+      <DeleteConfirmModal 
+        isOpen={isConfirmDeleteModalOpen}
+        onClose={() => setIsConfirmDeleteModalOpen(false)}
+        onConfirm={handleConfirmDeletion}
+        isLoading={isDeletingLoading}
       />
       <BanUserModal
         isOpen={isBanModalOpen}

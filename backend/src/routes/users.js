@@ -12,6 +12,7 @@ import axios from 'axios'; // <--- Добавляю axios
 import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОРТ REDIS
 import { generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
 import tgRequired from '../middleware/tgRequired.js'; // ИМПОРТ
+import crypto from 'crypto'; // <-- ИМПОРТ ДЛЯ ГЕНЕРАЦИИ КОДА
 
 const router = express.Router();
 
@@ -565,41 +566,83 @@ export default ({ sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      // 1. "Освободить" заявки, где пользователь был хелпером
-      await Request.updateMany(
-        { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
-        { $set: { status: 'open' }, $unset: { helper: 1 } }
-      );
-
-      // 2. Найти и удалить все заявки, созданные пользователем
-      const userRequests = await Request.find({ author: userId }).select('_id');
-      const requestIds = userRequests.map(r => r._id);
-
-      if (requestIds.length > 0) {
-        // Удаляем связанные с этими заявками сообщения и отзывы
-        await Message.deleteMany({ requestId: { $in: requestIds } });
-        await Review.deleteMany({ requestId: { $in: requestIds } });
-        // Удаляем сами заявки
-        await Request.deleteMany({ _id: { $in: requestIds } });
+      // Если нет Telegram ID, удаление через этот эндпоинт невозможно
+      if (!user.telegramId) {
+        return res.status(400).json({ msg: 'Для удаления аккаунта необходимо привязать Telegram для подтверждения.' });
       }
 
-      // 3. Удалить отзывы, написанные пользователем о других
-      await Review.deleteMany({ reviewerId: userId });
-      
-      // 4. Удалить все уведомления пользователя
-      await Notification.deleteMany({ user: userId });
+      // Генерация 6-значного кода
+      const confirmationCode = crypto.randomInt(100000, 999999).toString();
+      const redisKey = `delete-confirm:${userId}`;
 
-      // 5. Удалить самого пользователя
-      await User.findByIdAndDelete(userId);
+      // Сохраняем код в Redis на 5 минут
+      await redis.set(redisKey, confirmationCode, 'EX', 300);
 
-      // Можно также добавить логику для удаления аватара из хранилища, если он есть
+      // Отправляем сообщение в Telegram
+      const telegramMessage = `❗️ *Подтверждение удаления аккаунта* ❗️\n\nВы запросили удаление вашего аккаунта на платформе Бірге Көмек. Это действие необратимо.\n\nДля подтверждения введите этот код на сайте:\n\n*Код: \`${confirmationCode}\`*\n\nКод действителен 5 минут. Если это были не вы, просто проигнорируйте это сообщение.`;
+      await sendTelegramMessage(user.telegramId, telegramMessage);
 
-      res.status(200).json({ msg: 'Аккаунт и все связанные данные были успешно удалены.' });
+      // Отвечаем фронтенду, что требуется подтверждение
+      res.status(202).json({
+        status: 'pending_confirmation',
+        message: 'Код подтверждения отправлен в ваш Telegram.'
+      });
 
     } catch (err) {
-      console.error('Ошибка при удалении аккаунта:', err);
-      res.status(500).json({ msg: 'Ошибка сервера при удалении аккаунта.' });
+      console.error('Ошибка при запросе на удаление аккаунта:', err);
+      res.status(500).json({ msg: 'Ошибка сервера при запросе на удаление аккаунта.' });
     }
+  });
+  
+  // НОВЫЙ ЭНДПОИНТ: ЭТАП 2 - Подтверждение и удаление
+  router.post('/me/delete', protect, generalLimiter, [
+      body('confirmationCode').notEmpty().isLength({ min: 6, max: 6 }).withMessage('Код подтверждения должен состоять из 6 цифр.'),
+  ], async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
+
+      try {
+          const userId = req.user._id;
+          const { confirmationCode } = req.body;
+          const redisKey = `delete-confirm:${userId}`;
+
+          const storedCode = await redis.get(redisKey);
+
+          if (!storedCode) {
+              return res.status(400).json({ msg: 'Код подтверждения истек или не был запрошен. Попробуйте снова.' });
+          }
+
+          if (storedCode !== confirmationCode) {
+              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+          }
+          
+          // --- СЮДА ПЕРЕНЕСЕНА ВСЯ ЛОГИКА УДАЛЕНИЯ ---
+          await Request.updateMany(
+            { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
+            { $set: { status: 'open' }, $unset: { helper: 1 } }
+          );
+          const userRequests = await Request.find({ author: userId }).select('_id');
+          const requestIds = userRequests.map(r => r._id);
+          if (requestIds.length > 0) {
+            await Message.deleteMany({ requestId: { $in: requestIds } });
+            await Review.deleteMany({ requestId: { $in: requestIds } });
+            await Request.deleteMany({ _id: { $in: requestIds } });
+          }
+          await Review.deleteMany({ reviewerId: userId });
+          await Notification.deleteMany({ user: userId });
+          await User.findByIdAndDelete(userId);
+          // --- КОНЕЦ ЛОГИКИ УДАЛЕНИЯ ---
+
+          await redis.del(redisKey); // Удаляем код после успешного использования
+
+          res.status(200).json({ msg: 'Аккаунт и все связанные данные были успешно удалены.' });
+
+      } catch (err) {
+          console.error('Ошибка при подтверждении удаления аккаунта:', err);
+          res.status(500).json({ msg: 'Ошибка сервера при удалении аккаунта.' });
+      }
   });
 
   /**

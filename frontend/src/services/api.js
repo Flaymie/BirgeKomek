@@ -192,9 +192,14 @@ const usersService = {
     return api.put('/users/password', { currentPassword, newPassword });
   },
 
-  // Удалить свой аккаунт
-  deleteAccount: () => {
+  // Этап 1: Запросить удаление аккаунта (отправит код в Telegram)
+  requestAccountDeletion: () => {
     return api.delete('/users/me');
+  },
+
+  // Этап 2: Подтвердить удаление с помощью кода
+  confirmAccountDeletion: (confirmationCode) => {
+    return api.post('/users/me/delete', { confirmationCode });
   },
 
   // --- Новые функции для модерации ---
