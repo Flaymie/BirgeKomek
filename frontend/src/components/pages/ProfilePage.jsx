@@ -17,7 +17,7 @@ import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
-import AttachmentModal from '../modals/AttachmentModal';
+import ImageViewerModal from '../modals/ImageViewerModal';
 
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
@@ -671,7 +671,7 @@ const ProfilePage = () => {
   const [isUsernameChangeBlocked, setIsUsernameChangeBlocked] = useState(false);
   const [nextUsernameChangeDate, setNextUsernameChangeDate] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [viewerFile, setViewerFile] = useState(null);
+  const [viewerImageSrc, setViewerImageSrc] = useState(null);
   
   const fetchUserData = useCallback(async (userIdentifier) => {
     if (!userIdentifier) return;
@@ -908,11 +908,7 @@ const ProfilePage = () => {
 
   const handleAvatarClick = () => {
     if (profile && profile.avatar) {
-      setViewerFile({
-        fileUrl: formatAvatarUrl(profile),
-        fileName: `Аватар ${profile.username}`,
-        fileType: 'image/jpeg' // Просто для совместимости с модальным окном
-      });
+      setViewerImageSrc(formatAvatarUrl(profile));
     }
   };
 
@@ -932,7 +928,6 @@ const ProfilePage = () => {
             isMyProfile={isMyProfile}
             onAvatarClick={handleAvatarClick}
           />
-          {/* ИСПРАВЛЕНО: Отзывы показываются только для хелперов */}
           {profile?.roles?.helper && (
             <div className="container mx-auto px-4 py-8">
               <div className="max-w-4xl mx-auto">
@@ -986,9 +981,11 @@ const ProfilePage = () => {
         onConfirm={handleConfirmUsernameChange}
         newUsername={profileData.username}
       />
-      {viewerFile && (
-        <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />
-      )}
+      <ImageViewerModal 
+        src={viewerImageSrc} 
+        alt={`Аватар ${profile?.username}`} 
+        onClose={() => setViewerImageSrc(null)} 
+      />
     </>
   );
 };
