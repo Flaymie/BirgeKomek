@@ -755,18 +755,50 @@ const ProfilePage = () => {
     setProfileSuccess('');
     setProfileError('');
     setProfileErrors({});
-    
-    try {
-      await updateProfile(data);
+
+    const getChangedData = (original, current) => {
+      const changes = {};
+      const editableFields = ['username', 'location', 'grade', 'bio', 'subjects', 'avatar'];
+
+      editableFields.forEach(key => {
+        const originalValue = original?.[key];
+        const currentValue = current?.[key];
+
+        if (key === 'subjects') {
+          const sortedOriginal = [...(originalValue || [])].sort();
+          const sortedCurrent = [...(currentValue || [])].sort();
+          if (JSON.stringify(sortedOriginal) !== JSON.stringify(sortedCurrent)) {
+            changes[key] = currentValue || [];
+          }
+        } else if (originalValue !== currentValue) {
+          changes[key] = currentValue;
+        }
+      });
+      return changes;
+    };
+
+    const changedData = getChangedData(profile, data);
+
+    if (Object.keys(changedData).length === 0) {
+      toast.info("Нет изменений для сохранения.");
+      setIsProfileLoading(false);
+      return;
+    }
+
+    const result = await updateProfile(changedData);
+
+    if (result.success) {
       toast.success('Профиль успешно обновлен!');
       setProfileSuccess('Профиль успешно обновлен!');
-    } catch (err) {
-      const errorMessage = err.response?.data?.msg || 'Ошибка при обновлении профиля';
+      setProfile(prev => ({ ...prev, ...result.user }));
+      setProfileData(prev => ({ ...prev, ...result.user }));
+    } else {
+      const errorMessage = result.error || 'Ошибка при обновлении профиля';
       toast.error(errorMessage);
       setProfileError(errorMessage);
-    } finally {
-      setIsProfileLoading(false);
     }
+    
+    setIsProfileLoading(false);
   };
   
   const handleDeleteAccount = async () => {
