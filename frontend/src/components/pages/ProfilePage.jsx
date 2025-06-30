@@ -185,19 +185,16 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
       borderClass: 'admin-border',
       bannerText: 'Официальный аккаунт Администратора',
       bannerClass: 'official-banner-admin',
-      BannerIcon: () => <RoleBadge user={{ roles: { admin: true } }} />,
     },
     moderator: {
       borderClass: 'moderator-border',
       bannerText: 'Официальный аккаунт Модератора',
       bannerClass: 'official-banner-moderator',
-      BannerIcon: () => <RoleBadge user={{ roles: { moderator: true } }} />,
     }
   };
   
   const currentRole = targetIsAdmin ? 'admin' : targetIsModerator ? 'moderator' : null;
   const styles = currentRole ? roleStyles[currentRole] : {};
-  const { BannerIcon } = styles;
 
   return (
     <Container>
@@ -223,9 +220,6 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
 
           {currentRole && (
             <div className={classNames('official-banner', styles.bannerClass)}>
-              <div className="role-banner-icon-wrapper">
-                <BannerIcon />
-              </div>
               <span>{styles.bannerText}</span>
             </div>
           )}
