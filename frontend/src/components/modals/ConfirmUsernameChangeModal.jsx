@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername }) => {
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && modalRef.current) {
+      modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isOpen]);
+  
   if (!isOpen) {
     return null;
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+      <div ref={modalRef} className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
         <h3 className="text-xl font-bold mb-4 text-gray-900">Подтвердите смену никнейма</h3>
         <p className="mb-4">
           Вы собираетесь сменить свой никнейм на <strong className="font-semibold text-indigo-600">{newUsername}</strong>.
