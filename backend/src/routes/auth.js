@@ -11,6 +11,7 @@ import { generalLimiter } from '../middleware/rateLimiters.js';
 import axios from 'axios';
 import { createAndSendNotification } from './notifications.js';
 import { generateAvatar } from '../utils/avatarGenerator.js';
+import LinkToken from '../models/LinkToken.js';
 
 const router = express.Router();
 
@@ -791,19 +792,28 @@ router.post('/generate-link-token', protect, generalLimiter, (req, res) => {
  *       404:
  *         description: Токен не найден.
  */
-router.get('/check-link-status/:token', protect, generalLimiter, (req, res) => {
+router.get('/check-link-status/:token', protect, generalLimiter, async (req, res) => {
     const { token } = req.params;
-    const tokenData = telegramTokens.get(token);
-
-    if (!tokenData) {
-        return res.status(404).json({ status: 'not_found' });
-    }
     
-    if (tokenData.userId !== req.user.id) {
-        return res.status(403).json({ status: 'forbidden' });
+    // Ищем токен в базе
+    const tokenData = await LinkToken.findOne({ token, expiresAt: { $gt: new Date() } });
+    if (!tokenData) {
+      return res.status(404).json({ msg: 'Токен не найден или истек.' });
     }
 
-    res.json({ status: tokenData.status });
+    if (tokenData.status === 'linked') {
+      // Находим пользователя по ID, который был сохранен в токене
+      const user = await User.findById(tokenData.userId);
+      if (!user) {
+         return res.status(404).json({ msg: 'Связанный пользователь не найден.' });
+      }
+
+      await tokenData.deleteOne(); // Удаляем использованный токен
+      
+      return res.json({ status: 'linked', user });
+    } else {
+      return res.json({ status: tokenData.status });
+    }
 });
 
 /**
@@ -1158,6 +1168,50 @@ router.post('/reset-password', generalLimiter, [
         console.error('Ошибка при сбросе пароля:', error);
         res.status(500).send('Ошибка сервера при обновлении пароля.');
   }
+});
+
+// Callback от Telegram бота после того, как юзер нажал /start {token}
+// Этот эндпоинт вызывается ИЗ ТЕЛЕГРАМ-БОТА, а не с фронтенда
+router.post('/telegram/link-user', async (req, res) => {
+    const { token, telegramId, telegramUsername, phone } = req.body;
+    
+    // Секретный ключ для "авторизации" бота
+    if (req.headers['x-bot-secret'] !== process.env.BOT_INTERNAL_SECRET) {
+        return res.status(403).json({ msg: 'Forbidden' });
+    }
+
+    try {
+        const tokenData = await LinkToken.findOne({ token, expiresAt: { $gt: new Date() } });
+        if (!tokenData) {
+            return res.status(404).json({ msg: 'Токен не найден или истек.' });
+        }
+        
+        // --- ИСПРАВЛЕНИЕ ЛОГИКИ ---
+        const userToUpdate = await User.findById(tokenData.userId);
+        if (!userToUpdate) {
+            return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });
+        }
+
+        userToUpdate.telegramId = telegramId;
+        userToUpdate.telegramUsername = telegramUsername;
+        if (phone) {
+            userToUpdate.phone = phone;
+        }
+        // Если у пользователя уже есть пароль, НЕ МЕНЯЕМ hasPassword на false
+        if (!userToUpdate.hasPassword) {
+            userToUpdate.hasPassword = false;
+        }
+        
+        await userToUpdate.save();
+
+        tokenData.status = 'linked';
+        await tokenData.save();
+
+        res.json({ success: true, username: userToUpdate.username });
+    } catch (err) {
+        console.error('Ошибка привязки пользователя через бота:', err);
+        res.status(500).json({ msg: 'Ошибка сервера' });
+    }
 });
 
 export default router; 
