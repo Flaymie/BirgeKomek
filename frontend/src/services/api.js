@@ -105,6 +105,11 @@ const requestsService = {
     return api.get(`/requests/${id}`);
   },
   
+  // --- НОВЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ДАННЫХ ДЛЯ РЕДАКТИРОВАНИЯ ---
+  getRequestForEdit: async (id) => {
+    return api.get(`/requests/${id}/edit`);
+  },
+  
   // Создать новый запрос
   createRequest: async (requestData) => {
     return api.post('/requests', requestData);

@@ -36,17 +36,6 @@ const EditRequestPage = () => {
       const response = await requestsService.getRequestById(id);
       const requestData = response.data;
       
-      const isAuthor = currentUser && currentUser._id === requestData.author._id;
-      const isAdminOrMod = currentUser && (currentUser.roles.admin || currentUser.roles.moderator);
-
-      // Права на редактирование: либо автор, либо админ/модер, пришедший с модального окна
-      if (!isAuthor && !(isAdminOrMod && fromAdmin)) {
-        setError('У вас нет прав на редактирование этого запроса');
-        setLoading(false);
-        return;
-      }
-      
-      // Преобразуем специальные символы обратно для отображения
       const formattedDescription = requestData.description
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
@@ -60,45 +49,40 @@ const EditRequestPage = () => {
         urgency: requestData.urgency || URGENCY_LEVELS.NORMAL
       });
       
-      setLoading(false);
+      setError(null);
     } catch (err) {
-      console.error('Ошибка при получении данных запроса:', err);
+      console.error('Ошибка при получении данных для редактирования:', err);
       
-      // Если ошибка 401 (Unauthorized), перенаправляем на логин
-      if (err.response && err.response.status === 401) {
-        localStorage.removeItem('token'); // Удаляем невалидный токен
-        navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
-        return;
+      if (err.response) {
+        switch (err.response.status) {
+          case 401:
+            navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
+            return;
+          case 403:
+            setError('У вас нет прав на редактирование этого запроса.');
+            break;
+          case 404:
+            setError('Запрос, который вы пытаетесь отредактировать, не найден.');
+            break;
+          default:
+            setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных.');
+        }
+      } else {
+        setError('Не удалось подключиться к серверу. Попробуйте позже.');
       }
-      
-      // Если запрос не найден
-      if (err.response && err.response.status === 404) {
-        setError('Запрос не найден');
+    } finally {
         setLoading(false);
-        return;
-      }
-      
-      setError(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
-      setLoading(false);
     }
-  }, [id, navigate, currentUser, fromAdmin]);
+  }, [id, navigate]);
   
   useEffect(() => {
-    // Проверяем наличие токена при загрузке компонента
-    const token = localStorage.getItem('token');
-    if (!token) {
-      // Если токена нет, перенаправляем на страницу логина
-      navigate('/login', { state: { message: 'Для редактирования запроса необходимо авторизоваться' } });
-      return;
-    }
-    
     // Если пользователь еще не загружен, не делаем запрос
     if (!currentUser) {
       return;
     }
     
     fetchRequestData();
-  }, [id, navigate, currentUser, fetchRequestData]);
+  }, [currentUser, fetchRequestData]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -200,15 +184,16 @@ const EditRequestPage = () => {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-12">
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-6">
-          {error}
-        </div>
-        <div className="text-center mt-4">
+        <div className="max-w-md mx-auto text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Ошибка доступа</h2>
+          <p className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-6">
+            {error}
+          </p>
           <Link 
-            to="/my-requests"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            to="/"
+            className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"
           >
-            Вернуться к моим запросам
+            Вернуться на главную
           </Link>
         </div>
       </div>

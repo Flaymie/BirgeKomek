@@ -274,9 +274,9 @@ router.post('/', createRequestLimiter, [
 
 /**
  * @swagger
- * /api/requests/{id}:
+ * /api/requests/{id}/edit:
  *   get:
-   *     summary: Получить детальную информацию о заявке
+ *     summary: Получить данные заявки для редактирования (защищенный)
  *     tags: [Requests]
  *     security:
  *       - bearerAuth: []
@@ -284,14 +284,42 @@ router.post('/', createRequestLimiter, [
  *       - in: path
  *         name: id
  *         required: true
-   *         schema: { type: 'string', format: 'mongoId' }
-   *         description: ID заявки
+ *         schema: { type: 'string', format: 'mongoId' }
+ *         description: ID заявки
  *     responses:
  *       200:
-   *         description: Детальная информация о заявке
-   *         content:
-   *           application/json:
-   *             schema: { $ref: '#/components/schemas/Request' }
+ *         description: Данные заявки
+ *       403:
+ *         description: Нет прав на редактирование
+ *       404:
+ *         description: Заявка не найдена
+ */
+router.get('/:id/edit', protect, checkEditDeletePermission, async (req, res) => {
+  // checkEditDeletePermission уже нашел заявку и проверил права.
+  // Просто возвращаем ее.
+  res.json(req.request);
+});
+
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   get:
+ *     summary: Получить детальную информацию о заявке (публичный)
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string', format: 'mongoId' }
+ *         description: ID заявки
+ *     responses:
+ *       200:
+ *         description: Детальная информация о заявке
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Request' }
  *       401:
  *         description: Не авторизован
  *       404:
