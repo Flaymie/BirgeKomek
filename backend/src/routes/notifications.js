@@ -241,9 +241,17 @@ router.delete('/:id', protect, generalLimiter, [
                 clearInterval(heartbeatInterval);
                 delete sseConnections[userId];
                 console.log(`[SSE] User disconnected: ${userId}`);
+                
                 if (isRedisConnected() && userId) {
                     const onlineKey = `online:${userId}`;
                     await redis.del(onlineKey);
+                    
+                    try {
+                        await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+                        console.log(`[lastSeen] Updated for user: ${userId}`);
+                    } catch (dbError) {
+                        console.error(`[lastSeen] Failed to update for user ${userId}:`, dbError);
+                    }
                 }
             });
 
