@@ -17,6 +17,7 @@ import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
+import AttachmentModal from '../modals/AttachmentModal';
 
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
@@ -172,7 +173,7 @@ const BanInfo = ({ banDetails }) => {
 };
 
 // === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
-const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyProfile }) => {
+const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyProfile, onAvatarClick }) => {
   if (!profile) return null;
   
   const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
@@ -227,7 +228,10 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
           <div className="grid grid-cols-1 gap-6">
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <div className="flex flex-col md:flex-row items-center mb-6">
-                <div className="mb-4 md:mb-0 md:mr-6">
+                <div 
+                  className={`mb-4 md:mb-0 md:mr-6 ${!isMyProfile ? 'cursor-pointer' : ''}`}
+                  onClick={!isMyProfile ? onAvatarClick : undefined}
+                >
                   <AvatarUpload 
                     currentAvatar={formatAvatarUrl(profile)} 
                     size="lg" 
@@ -667,6 +671,7 @@ const ProfilePage = () => {
   const [isUsernameChangeBlocked, setIsUsernameChangeBlocked] = useState(false);
   const [nextUsernameChangeDate, setNextUsernameChangeDate] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [viewerFile, setViewerFile] = useState(null);
   
   const fetchUserData = useCallback(async (userIdentifier) => {
     if (!userIdentifier) return;
@@ -901,6 +906,16 @@ const ProfilePage = () => {
     }
   };
 
+  const handleAvatarClick = () => {
+    if (profile && profile.avatar) {
+      setViewerFile({
+        fileUrl: formatAvatarUrl(profile),
+        fileName: `Аватар ${profile.username}`,
+        fileType: 'image/jpeg' // Просто для совместимости с модальным окном
+      });
+    }
+  };
+
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
 
@@ -915,6 +930,7 @@ const ProfilePage = () => {
             onBan={() => setIsBanModalOpen(true)}
             onUnban={handleUnbanUser}
             isMyProfile={isMyProfile}
+            onAvatarClick={handleAvatarClick}
           />
           {/* ИСПРАВЛЕНО: Отзывы показываются только для хелперов */}
           {profile?.roles?.helper && (
@@ -970,6 +986,9 @@ const ProfilePage = () => {
         onConfirm={handleConfirmUsernameChange}
         newUsername={profileData.username}
       />
+      {viewerFile && (
+        <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />
+      )}
     </>
   );
 };
