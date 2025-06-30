@@ -1,0 +1,75 @@
+/* ProfilePage.css */
+
+/* --- Стили для ролей --- */
+.profile-card-wrapper {
+  position: relative;
+  border-radius: 0.5rem; /* Соответствует rounded-lg в Tailwind */
+  overflow: hidden; /* Чтобы градиент не вылезал за скругленные углы */
+  transition: all 0.3s ease-in-out;
+}
+
+/* Рамка для админа */
+.admin-border {
+  border: 2px solid transparent;
+  background-image: linear-gradient(white, white), 
+                    linear-gradient(135deg, #ec4899, #f472b6, #a855f7); /* Розово-фиолетовый градиент */
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);
+}
+
+/* Рамка для модератора */
+.moderator-border {
+  border: 2px solid transparent;
+  background-image: linear-gradient(white, white), 
+                    linear-gradient(135deg, #22c55e, #16a34a, #15803d); /* Зеленый градиент */
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}
+
+/* Иконки ролей */
+.role-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  width: 20px;
+  height: 20px;
+}
+
+.role-icon-admin {
+  color: #ec4899; /* Розовый */
+}
+
+.role-icon-moderator {
+  color: #22c55e; /* Зеленый */
+}
+
+/* Плашка "Официальный аккаунт" */
+.official-banner {
+  padding: 8px 16px;
+  border-radius: 0.375rem; /* rounded-md */
+  margin-bottom: 1.5rem; /* mb-6 */
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  border-width: 1px;
+}
+
+.official-banner-admin {
+  background-color: #fdf2f8; /* pink-50 */
+  border-color: #fbcfe8; /* pink-200 */
+  color: #be185d; /* pink-700 */
+}
+
+.official-banner-moderator {
+  background-color: #f0fdf4; /* green-50 */
+  border-color: #bbf7d0; /* green-200 */
+  color: #166534; /* green-700 */
+}
+
+.official-banner-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+} 
