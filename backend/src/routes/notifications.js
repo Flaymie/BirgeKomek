@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { generalLimiter } from '../middleware/rateLimiters.js';
+import redis, { isRedisConnected } from '../config/redis.js';
 
 const router = express.Router();
 
@@ -199,7 +200,10 @@ router.delete('/:id', protect, generalLimiter, [
     }
 });
 
-    router.get('/subscribe', (req, res) => {
+    router.get('/subscribe', async (req, res) => {
+        let userId;
+        let heartbeatInterval;
+
         try {
             const token = req.query.token;
             if (!token) {
@@ -207,27 +211,48 @@ router.delete('/:id', protect, generalLimiter, [
             }
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const userId = decoded.id;
+            userId = decoded.id;
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
             res.flushHeaders();
 
             sseConnections[userId] = res;
             console.log(`[SSE] User connected: ${userId}`);
 
+            if (isRedisConnected()) {
+                const onlineKey = `online:${userId}`;
+                await redis.set(onlineKey, '1', 'EX', 60);
+            }
+            
+            heartbeatInterval = setInterval(async () => {
+                res.write(': heartbeat\n\n');
+                if (isRedisConnected()) {
+                    const onlineKey = `online:${userId}`;
+                    await redis.expire(onlineKey, 60);
+                }
+            }, 30000);
+
             res.write('event: connection\n');
             res.write('data: SSE connection established\n\n');
 
-  req.on('close', () => {
+            req.on('close', async () => {
+                clearInterval(heartbeatInterval);
                 delete sseConnections[userId];
                 console.log(`[SSE] User disconnected: ${userId}`);
-  });
+                if (isRedisConnected() && userId) {
+                    const onlineKey = `online:${userId}`;
+                    await redis.del(onlineKey);
+                }
+            });
 
         } catch (err) {
             console.error('[SSE] Auth Error:', err.message);
-            return res.status(401).json({ msg: "Токен недействителен" });
+            if (userId) delete sseConnections[userId];
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            
+            res.end();
         }
     });
 
