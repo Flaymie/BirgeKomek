@@ -17,7 +17,7 @@ const router = express.Router();
 
 // Список зарезервированных имен пользователей, которые нельзя использовать при регистрации
 const RESERVED_USERNAMES = [
-    'admin', 'administrator', 'moderator', 'support', 'root', 'system',
+    'admin', 'administrator', 'moderator', 'moder', 'support', 'root', 'system',
     'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo',
     'birge', 'komek', 'birgekomek', 'guest', 'user', 'test', 'anonymous',
     'хелпер', 'админ', 'модератор', 'саппорт', 'поддержка', 'помощь'
@@ -711,7 +711,11 @@ router.post('/telegram/complete-login', async (req, res) => {
         if (!finalUserId) {
             const user = await User.findOne({ telegramId });
             if (!user) {
-                return res.status(404).json({ msg: 'Пользователь с таким Telegram ID не найден в системе.' });
+                // Если пользователь не найден, отправляем команду на регистрацию
+                return res.status(404).json({ 
+                    action: 'register',
+                    msg: 'Вы не зарегистрированы. Давайте начнем регистрацию прямо здесь!' 
+                });
             }
             finalUserId = user._id;
         }
@@ -719,8 +723,9 @@ router.post('/telegram/complete-login', async (req, res) => {
         tokenData.status = 'completed';
         tokenData.userId = finalUserId;
         loginTokens.set(loginToken, tokenData);
-
-        res.status(200).json({ msg: 'Аккаунт успешно привязан. Вернитесь на сайт.' });
+        
+        // --- ИСПРАВЛЕННЫЙ ТЕКСТ ---
+        res.status(200).json({ msg: 'Вход подтвержден! Можете возвращаться на сайт, вы уже вошли в систему.' });
 
     } catch (error) {
         console.error('Ошибка при завершении входа через Telegram:', error);
