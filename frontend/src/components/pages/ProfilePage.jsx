@@ -13,6 +13,7 @@ import LinkTelegramModal from '../modals/LinkTelegramModal';
 import { FaTelegramPlane } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
+import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -304,7 +305,9 @@ const ProfileEditor = ({
   onDeleteAccount,
   onLinkTelegram,
   onUnlinkTelegram,
-  isTelegramLoading
+  isTelegramLoading,
+  isUsernameChangeBlocked,
+  nextUsernameChangeDate
 }) => {
   // Обработчик изменения аватара
   const handleAvatarChange = (avatarUrl) => {
@@ -348,7 +351,7 @@ const ProfileEditor = ({
             
             <h2 className="text-xl font-medium text-gray-900 my-4">Личные данные</h2>
             
-            <form onSubmit={handleProfileSubmit} className="space-y-6">
+            <form onSubmit={handleProfileSubmit} className="space-y-8">
               {profileSuccess && (
                 <div className="bg-green-50 p-4 rounded-md">
                   <div className="flex">
@@ -381,9 +384,26 @@ const ProfileEditor = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
-                  <input type="text" name="username" id="username" value={profileData.username || ''} onChange={handleProfileChange} className="mt-1 form-input" />
-                  {profileErrors?.username && <p className="mt-1 text-sm text-red-600">{profileErrors.username}</p>}
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">Никнейм</label>
+                  <input
+                    type="text"
+                    name="username"
+                    id="username"
+                    value={profileData.username || ''}
+                    onChange={handleProfileChange}
+                    disabled={isUsernameChangeBlocked || isProfileLoading}
+                    className={classNames(
+                      "mt-1 block w-full shadow-sm sm:text-sm rounded-md",
+                      { "bg-gray-100 cursor-not-allowed": isUsernameChangeBlocked || isProfileLoading },
+                      profileErrors.username ? "border-red-500" : "border-gray-300"
+                    )}
+                  />
+                  {isUsernameChangeBlocked && (
+                    <p className="mt-2 text-sm text-red-600">
+                      Вы сможете изменить никнейм только после {nextUsernameChangeDate}.
+                    </p>
+                  )}
+                  {profileErrors.username && <p className="mt-2 text-sm text-red-600">{profileErrors.username}</p>}
                 </div>
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
@@ -594,6 +614,10 @@ const ProfilePage = () => {
   
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
   
+  const [isUsernameChangeBlocked, setIsUsernameChangeBlocked] = useState(false);
+  const [nextUsernameChangeDate, setNextUsernameChangeDate] = useState(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  
   const fetchUserData = useCallback(async (userIdentifier) => {
     if (!userIdentifier) return;
     setLoading(true);
@@ -601,6 +625,21 @@ const ProfilePage = () => {
     try {
       const response = await usersService.getUserById(userIdentifier);
       setProfile(response.data);
+      setProfileData(response.data);
+      
+      // --- Логика блокировки смены ника ---
+      if (response.data && response.data.lastUsernameChange) {
+          const lastChange = new Date(response.data.lastUsernameChange);
+          const now = new Date();
+          const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+          const timeSinceChange = now.getTime() - lastChange.getTime();
+    
+          if (timeSinceChange < thirtyDaysInMs) {
+              setIsUsernameChangeBlocked(true);
+              const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
+              setNextUsernameChangeDate(nextDate.toLocaleDateString('ru-RU'));
+          }
+      }
     } catch (err) {
       console.error('Ошибка при загрузке профиля:', err);
       setError('Не удалось загрузить профиль. Возможно, он не существует.');
@@ -654,14 +693,28 @@ const ProfilePage = () => {
   
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    if (checkAndShowModal()) return;
+    // Проверяем, изменился ли никнейм
+    if (profileData.username && profileData.username.toLowerCase() !== profile.username) {
+        setIsConfirmModalOpen(true); // Если да - открываем модалку для подтверждения
+        return; // и прерываем сабмит
+    }
+    // Если ник не менялся - просто сохраняем
+    await saveProfile(profileData);
+  };
+  
+  const handleConfirmUsernameChange = async () => {
+      setIsConfirmModalOpen(false); // Закрываем модалку
+      await saveProfile(profileData); // И сохраняем профиль
+  };
+
+  const saveProfile = async (data) => {
     setIsProfileLoading(true);
     setProfileSuccess('');
     setProfileError('');
     setProfileErrors({});
     
     try {
-      await updateProfile(profileData);
+      await updateProfile(data);
       toast.success('Профиль успешно обновлен!');
       setProfileSuccess('Профиль успешно обновлен!');
     } catch (err) {
@@ -837,6 +890,8 @@ const ProfilePage = () => {
           onLinkTelegram={handleLinkTelegram}
           onUnlinkTelegram={handleUnlinkTelegram}
           isTelegramLoading={isTelegramLoading}
+          isUsernameChangeBlocked={isUsernameChangeBlocked}
+          nextUsernameChangeDate={nextUsernameChangeDate}
         />
       )}
       <DeleteAccountModal 
@@ -858,6 +913,12 @@ const ProfilePage = () => {
         isLoading={isTelegramLoading && !telegramLinkUrl}
       />
       <ReadOnlyModalComponent />
+      <ConfirmUsernameChangeModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={handleConfirmUsernameChange}
+        newUsername={profileData.username}
+      />
     </>
   );
 };

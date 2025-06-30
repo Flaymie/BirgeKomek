@@ -123,6 +123,10 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  lastUsernameChange: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
 

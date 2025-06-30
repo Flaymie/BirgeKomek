@@ -135,14 +135,57 @@ export default ({ sseConnections, io }) => {
    *       500:
    *         description: Внутренняя ошибка сервера
    */
-  router.put('/me', protect, generalLimiter, tgRequired, async (req, res) => {
+  router.put('/me', protect, generalLimiter, tgRequired, [
+    body('username').optional().trim().isLength({ min: 3, max: 20 }).withMessage('Никнейм должен быть от 3 до 20 символов.')
+      .matches(/^[a-zA-Z0-9_]+$/).withMessage('Никнейм может содержать только латинские буквы, цифры и знак подчеркивания.'),
+    body('email').optional().isEmail().withMessage('Неверный формат email'),
+    body('phone').optional().isMobilePhone().withMessage('Неверный формат номера телефона'),
+    body('location').optional().isLength({ max: 100 }).withMessage('Город не может превышать 100 символов'),
+    body('bio').optional().isLength({ max: 500 }).withMessage('Текст биографии не может превышать 500 символов'),
+    body('grade').optional().isInt({ min: 1, max: 11 }).withMessage('Неверный формат класса'),
+    body('subjects').optional().isArray().withMessage('Неверный формат списка предметов'),
+    body('currentPassword').notEmpty().withMessage('Текущий пароль обязателен'),
+    body('newPassword').optional().isLength({ min: 6 }).withMessage('Новый пароль должен быть минимум 6 символов'),
+  ], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     try {
       const { username, email, phone, location, bio, grade, subjects, currentPassword, newPassword } = req.body;
       const userId = req.user.id;
-      const user = await User.findById(userId);
+      const user = await User.findById(userId).select('+password');
+
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
+
+      // --- НОВАЯ ЛОГИКА СМЕНЫ НИКНЕЙМА ---
+      if (username && username.toLowerCase() !== user.username) {
+          // 1. Проверка на уникальность (без учета регистра)
+          const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+          if (existingUser && existingUser._id.toString() !== userId) {
+              return res.status(400).json({ msg: 'Этот никнейм уже занят.' });
+          }
+
+          // 2. Проверка на время смены
+          const lastChange = user.lastUsernameChange;
+          const now = new Date();
+          const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+
+          if (lastChange && (now.getTime() - lastChange.getTime()) < thirtyDaysInMs) {
+              const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
+              return res.status(400).json({
+                  msg: `Вы сможете изменить никнейм только после ${nextDate.toLocaleDateString('ru-RU')}.`
+              });
+          }
+
+          user.username = username;
+          user.lastUsernameChange = now;
+      }
+
+      // --- СТАРАЯ ЛОГИКА ДЛЯ ДРУГИХ ПОЛЕЙ ---
       const isEmailChanging = email && email !== user.email;
       if ((isEmailChanging || newPassword) && !currentPassword) {
         return res.status(400).json({ msg: 'Требуется текущий пароль для изменения email или пароля' });
@@ -153,13 +196,7 @@ export default ({ sseConnections, io }) => {
           return res.status(401).json({ msg: 'Неверный текущий пароль' });
         }
       }
-      if (username && username !== user.username) {
-        const existingUser = await User.findOne({ username });
-        if (existingUser && existingUser._id.toString() !== userId) {
-          return res.status(400).json({ msg: 'Имя пользователя уже занято' });
-        }
-        user.username = username;
-      }
+      
       if (isEmailChanging) {
         const existingUser = await User.findOne({ email });
         if (existingUser && existingUser._id.toString() !== userId) {
@@ -167,20 +204,29 @@ export default ({ sseConnections, io }) => {
         }
         user.email = email;
       }
-      if (newPassword) user.password = newPassword;
+      if (newPassword) {
+        user.password = newPassword;
+        user.hasPassword = true;
+      }
       if (phone !== undefined) user.phone = phone;
       if (location !== undefined) user.location = location;
       if (bio !== undefined) user.bio = bio;
       if (grade !== undefined) user.grade = grade;
       if (subjects !== undefined && Array.isArray(subjects) && user.roles?.helper) {
         user.subjects = subjects;
-        }
+      }
+
       await user.save();
       const updatedUser = user.toObject();
       delete updatedUser.password;
       res.json(updatedUser);
+
     } catch (err) {
       console.error('Ошибка при обновлении пользователя:', err);
+      if (err.name === 'ValidationError') {
+          const messages = Object.values(err.errors).map(val => val.message);
+          return res.status(400).json({ msg: messages.join(', ') });
+      }
       res.status(500).json({ msg: 'Ошибка сервера' });
     }
   });
