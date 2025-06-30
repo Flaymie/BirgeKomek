@@ -6,9 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import { formatAvatarUrl } from '../services/avatarUtils';
 import RoleBadge from './shared/RoleBadge';
 
-const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
+const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile }) => {
   const { currentUser } = useAuth();
-  const { helper, comment, createdAt } = response;
+  const helper = fullHelperProfile || response.helper;
+  const { comment, createdAt } = response;
 
   const handleAccept = async () => {
     try {
@@ -32,7 +33,7 @@ const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
     }
   };
   
-  if (!response.helper) {
+  if (!helper) {
     return (
        <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50 shadow-sm">
          <div className="flex items-center mb-2">
@@ -66,25 +67,25 @@ const ResponseCard = ({ response, isAuthor, onResponseAction }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
         <div className="flex items-center mb-2 sm:mb-0">
           <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 overflow-hidden">
-            {response.helper.avatar ? (
+            {helper.avatar ? (
               <img 
-                src={`${process.env.REACT_APP_API_URL}${response.helper.avatar}`} 
-                alt={response.helper.username}
+                src={`${process.env.REACT_APP_API_URL}${helper.avatar}`} 
+                alt={helper.username}
                 className="h-full w-full object-cover"
               />
             ) : (
               <span className="text-blue-700 font-bold">
-                {response.helper.username.charAt(0).toUpperCase()}
+                {helper.username.charAt(0).toUpperCase()}
               </span>
             )}
           </div>
           <Link 
-            to={`/profile/${response.helper._id}`} 
+            to={`/profile/${helper._id}`} 
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
-            {response.helper.username}
+            {helper.username}
           </Link>
-          <RoleBadge user={response.helper} />
+          <RoleBadge user={helper} />
           {getStatusBadge() && <div className="ml-3">{getStatusBadge()}</div>}
         </div>
         

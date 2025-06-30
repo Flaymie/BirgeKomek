@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { requestsService, messagesService, reviewsService, serverURL, baseURL } from '../../services/api';
+import { requestsService, messagesService, reviewsService, serverURL, baseURL, usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { toast } from 'react-toastify';
 import {
@@ -209,6 +209,31 @@ const ChatPage = () => {
   const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
   const [typingUsers, setTypingUsers] = useState({});
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
+
+  // --- Стейты для полных профилей ---
+  const [authorProfile, setAuthorProfile] = useState(null);
+  const [helperProfile, setHelperProfile] = useState(null);
+
+  // --- Эффект для подгрузки полных профилей ---
+  useEffect(() => {
+    const fetchFullUserData = async (user, setUserProfile) => {
+      if (!user?._id) return;
+      try {
+        const res = await usersService.getUserById(user._id);
+        setUserProfile(res.data);
+      } catch (error) {
+        console.error(`Failed to fetch full profile for ${user.username}`, error);
+        setUserProfile(user); // Фоллбэк на неполные данные
+      }
+    };
+
+    if (requestDetails?.author) {
+      fetchFullUserData(requestDetails.author, setAuthorProfile);
+    }
+    if (requestDetails?.helper) {
+      fetchFullUserData(requestDetails.helper, setHelperProfile);
+    }
+  }, [requestDetails]);
 
   // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
   const onDrop = useCallback((acceptedFiles) => {
@@ -775,7 +800,7 @@ const ChatPage = () => {
               <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
               <Link to={`/profile/${requestDetails.author.username}`} className="hover:underline flex items-center">
                 {requestDetails.author.username}
-                <RoleBadge user={requestDetails.author} />
+                <RoleBadge user={authorProfile} />
               </Link>
             </div>
             {requestDetails.helper && (
@@ -783,7 +808,7 @@ const ChatPage = () => {
                 <span className="font-medium text-gray-500 w-16 flex-shrink-0">Хелпер:</span>
                 <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline flex items-center">
                   {requestDetails.helper.username}
-                  <RoleBadge user={requestDetails.helper} />
+                  <RoleBadge user={helperProfile} />
                 </Link>
               </div>
             )}

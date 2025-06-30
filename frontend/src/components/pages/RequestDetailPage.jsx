@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { requestsService, responsesService } from '../../services/api';
+import { requestsService, responsesService, usersService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import ResponseModal from '../ResponseModal';
@@ -11,6 +11,7 @@ import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -32,6 +33,35 @@ const RequestDetailPage = () => {
 
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
+
+  // --- НОВЫЙ СТЕЙТ ДЛЯ ПОЛНЫХ ДАННЫХ ЮЗЕРОВ ---
+  const [authorProfile, setAuthorProfile] = useState(null);
+  const [helperProfile, setHelperProfile] = useState(null);
+
+  // --- НОВЫЙ СТЕЙТ ДЛЯ ПРОФИЛЕЙ ИЗ ОТКЛИКОВ ---
+  const [responderProfiles, setResponderProfiles] = useState({});
+
+  // --- НОВЫЙ ЭФФЕКТ ДЛЯ ПОДГРУЗКИ ПОЛНЫХ ПРОФИЛЕЙ ---
+  useEffect(() => {
+    const fetchFullUserData = async (user, setUserProfile) => {
+      if (!user?._id) return;
+      try {
+        const res = await usersService.getUserById(user._id);
+        setUserProfile(res.data);
+      } catch (error) {
+        console.error(`Failed to fetch full profile for ${user.username}`, error);
+        // Если не удалось, оставляем урезанные данные из заявки
+        setUserProfile(user);
+      }
+    };
+
+    if (request?.author) {
+      fetchFullUserData(request.author, setAuthorProfile);
+    }
+    if (request?.helper) {
+      fetchFullUserData(request.helper, setHelperProfile);
+    }
+  }, [request]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -193,6 +223,34 @@ const RequestDetailPage = () => {
            !myResponse;
   }, [currentUser, request, myResponse]);
 
+  useEffect(() => {
+    // --- НОВЫЙ КОД ДЛЯ ПОДГРУЗКИ ПРОФИЛЕЙ ОТКЛИКНУВШИХСЯ ---
+    const fetchResponderProfiles = async () => {
+      if (responses.length === 0) return;
+
+      // 1. Собираем уникальные ID всех хелперов из откликов
+      const responderIds = [...new Set(responses.map(r => r.helper._id))];
+      
+      // 2. Делаем запросы для каждого ID
+      const profilePromises = responderIds.map(id => usersService.getUserById(id));
+
+      try {
+        const profileResponses = await Promise.all(profilePromises);
+        // 3. Создаем карту { userId: fullProfile }
+        const profilesMap = profileResponses.reduce((acc, res) => {
+          acc[res.data._id] = res.data;
+          return acc;
+        }, {});
+        setResponderProfiles(profilesMap);
+      } catch (error) {
+        console.error('Failed to fetch responder profiles', error);
+      }
+    };
+
+    fetchResponderProfiles();
+
+  }, [request, responses]); // <<< Добавляем responses в зависимость
+
   if (authLoading || loading) {
     return (
       <div className="container mx-auto px-4 py-12">
@@ -269,7 +327,7 @@ const RequestDetailPage = () => {
               <span>Автор:</span>
               <Link to={`/profile/${request.author.username}`} className="ml-1.5 font-medium text-gray-700 hover:text-blue-600 hover:underline flex items-center">
                 {request.author.username}
-                <RoleBadge user={request.author} />
+                <RoleBadge user={authorProfile} />
               </Link>
             </div>
             <div className="hidden md:block">|</div>
@@ -296,14 +354,12 @@ const RequestDetailPage = () => {
           
           {request.helper && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zM9 12a1 1 0 112 0 1 1 0 01-2 0zm-1-3a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
+               <CheckBadgeIcon className="h-6 w-6 text-green-600 mr-3" />
               <div>
                 <span className="font-semibold">Помощь оказывает:</span>
                 <Link to={`/profile/${request.helper.username}`} className="ml-2 font-bold text-green-800 hover:underline flex items-center">
                   {request.helper.username}
-                  <RoleBadge user={request.helper} />
+                  <RoleBadge user={helperProfile} />
                 </Link>
               </div>
             </div>
@@ -379,7 +435,9 @@ const RequestDetailPage = () => {
               {responses.map(response => (
                 <ResponseCard 
                   key={response._id} 
-                  response={response} 
+                  response={response}
+                  // Передаем полный профиль, если он есть
+                  fullHelperProfile={responderProfiles[response.helper._id]}
                   isAuthor={isAuthor} 
                   onResponseAction={handleResponseAction} 
                 />
@@ -393,9 +451,9 @@ const RequestDetailPage = () => {
         </div>
       )}
       
-      {/* Кнопки управления для админа/модератора */}
-      {isPrivilegedUser && !isAuthor && (
-        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex items-center justify-between">
+      {/* ИСПРАВЛЕНО: Кнопки управления для админа/модератора */}
+      {isPrivilegedUser && !isAuthor && !['completed', 'cancelled', 'closed'].includes(request.status) && (
+        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg my-6 flex items-center justify-between">
             <p className="text-yellow-800 font-medium">Панель модератора</p>
             <div>
                 <button

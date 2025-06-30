@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { reviewsService } from '../../services/api';
+import { reviewsService, usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { StarIcon } from '@heroicons/react/24/solid';
@@ -19,12 +19,13 @@ const StarRating = ({ rating }) => (
   </div>
 );
 
-const ReviewItem = ({ review }) => {
+const ReviewItem = ({ review, fullAuthorProfile }) => {
   if (!review || !review.author || !review.request) {
     return null;
   }
   
-  const avatarUrl = formatAvatarUrl(review.author);
+  const author = fullAuthorProfile || review.author;
+  const avatarUrl = formatAvatarUrl(author);
 
   return (
     <motion.div
@@ -35,9 +36,9 @@ const ReviewItem = ({ review }) => {
       className="bg-white p-4 rounded-lg border border-gray-200"
     >
       <div className="flex items-start gap-4">
-        <Link to={`/profile/${review.author._id}`}>
+        <Link to={`/profile/${author._id}`}>
           {avatarUrl ? (
-            <img src={avatarUrl} alt={review.author.username} className="w-10 h-10 rounded-full object-cover" />
+            <img src={avatarUrl} alt={author.username} className="w-10 h-10 rounded-full object-cover" />
           ) : (
             <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
               <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
@@ -48,10 +49,10 @@ const ReviewItem = ({ review }) => {
           <div className="flex justify-between items-center">
             <div>
               <div className="flex items-center">
-                <Link to={`/profile/${review.author.username}`} className="font-semibold text-gray-800 hover:underline">
-                  {review.author.username}
+                <Link to={`/profile/${author.username}`} className="font-semibold text-gray-800 hover:underline">
+                  {author.username}
                 </Link>
-                <RoleBadge user={review.author} />
+                <RoleBadge user={author} />
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                 <span>по заявке</span>
@@ -82,14 +83,30 @@ const ReviewsBlock = ({ userId }) => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [authorProfiles, setAuthorProfiles] = useState({});
 
   useEffect(() => {
-    const fetchReviews = async () => {
+    const fetchReviewsAndProfiles = async () => {
       if (!userId) return;
       try {
         setLoading(true);
         const res = await reviewsService.getReviewsForUser(userId);
-        setReviews(res.data);
+        const reviewsData = res.data;
+        setReviews(reviewsData);
+
+        if (reviewsData.length === 0) return;
+
+        const authorIds = [...new Set(reviewsData.map(r => r.author._id))];
+        
+        const profilePromises = authorIds.map(id => usersService.getUserById(id));
+        const profileResponses = await Promise.all(profilePromises);
+
+        const profilesMap = profileResponses.reduce((acc, profileRes) => {
+          acc[profileRes.data._id] = profileRes.data;
+          return acc;
+        }, {});
+        setAuthorProfiles(profilesMap);
+
       } catch (err) {
         setError('Не удалось загрузить отзывы.');
         console.error(err);
@@ -97,7 +114,7 @@ const ReviewsBlock = ({ userId }) => {
         setLoading(false);
       }
     };
-    fetchReviews();
+    fetchReviewsAndProfiles();
   }, [userId]);
 
   if (loading) {
@@ -127,7 +144,11 @@ const ReviewsBlock = ({ userId }) => {
         <div className="space-y-4">
           <AnimatePresence>
             {reviews.slice(0, 3).map(review => (
-              <ReviewItem key={review._id} review={review} />
+              <ReviewItem
+                key={review._id}
+                review={review}
+                fullAuthorProfile={authorProfiles[review.author._id]}
+              />
             ))}
           </AnimatePresence>
           {reviews.length > 3 && (
