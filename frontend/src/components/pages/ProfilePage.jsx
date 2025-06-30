@@ -14,6 +14,7 @@ import { FaTelegramPlane } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -82,6 +83,16 @@ const subjectOptions = [
   { value: 'Информатика', label: 'Информатика' },
   { value: 'Другое', label: 'Другое' },
 ];
+
+// === НОВАЯ ФУНКЦИЯ ФОРМАТИРОВАНИЯ ТЕЛЕФОНА ---
+const formatPhoneNumber = (phone) => {
+  if (!phone) return '';
+  const phoneNumber = parsePhoneNumberFromString(phone, 'KZ'); // KZ - Казахстан как страна по умолчанию
+  if (phoneNumber) {
+    return phoneNumber.formatInternational();
+  }
+  return phone; // Возвращаем как есть, если не распознали
+};
 
 // === НОВЫЙ КОМПОНЕНТ СТАТИСТИКИ ===
 const ProfileStats = ({ profile }) => {
@@ -271,6 +282,13 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                     )}
                   </div>
                 )}
+
+                {profile.phone && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-1">Телефон</h3>
+                    <p className="text-gray-900">{formatPhoneNumber(profile.phone)}</p>
+                  </div>
+                )}
               </div>
               
               <ProfileStats profile={profile} />
@@ -419,7 +437,7 @@ const ProfileEditor = ({
                     type="tel"
                     name="phone"
                     id="phone"
-                    value={profileData.phone || ''}
+                    value={formatPhoneNumber(profileData.phone) || ''}
                     className="mt-1 form-input bg-gray-100 cursor-not-allowed"
                     placeholder="Привязывается через Telegram"
                     readOnly

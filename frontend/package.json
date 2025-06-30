@@ -18,6 +18,7 @@
     "classnames": "^2.5.1",
     "framer-motion": "^12.16.0",
     "jwt-decode": "^4.0.0",
+    "libphonenumber-js": "^1.12.9",
     "lucide-react": "^0.523.0",
     "postcss": "^8.5.3",
     "qrcode.react": "^4.2.0",
