@@ -19,13 +19,13 @@ const ImageViewerModal = ({ src, alt, onClose }) => {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="relative max-w-4xl max-h-[90vh]"
+          className="relative"
           onClick={(e) => e.stopPropagation()}
         >
           <img
             src={src}
             alt={alt}
-            className="w-full h-full object-contain rounded-lg shadow-2xl"
+            className="rounded-lg shadow-2xl max-w-[90vw] max-h-[90vh]"
           />
           <button
             onClick={onClose}
