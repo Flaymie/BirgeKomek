@@ -27,6 +27,8 @@ import { downloadFile } from '../../services/downloadService';
 import ResolveConfirmationModal from '../modals/ResolveConfirmationModal';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import axios from 'axios';
+import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
+import TelegramRequiredModal from '../modals/TelegramRequiredModal';
 
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
@@ -206,6 +208,7 @@ const ChatPage = () => {
   const [ratingContext, setRatingContext] = useState('complete'); // 'complete' или 'reopen'
   const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
   const [typingUsers, setTypingUsers] = useState({});
+  const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
 
   // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
   const onDrop = useCallback((acceptedFiles) => {
@@ -446,6 +449,8 @@ const ChatPage = () => {
   };
   
   const handleSendMessage = async (e) => {
+    if (checkAndShowModal()) return;
+    
     e.preventDefault();
     if ((!newMessage.trim() && !attachment) || !socket) return;
 
@@ -934,6 +939,7 @@ const ChatPage = () => {
         onConfirm={handleConfirmResolved}
         onReject={handleRejectResolved}
       />
+      <ReadOnlyModalComponent />
     </div>
   );
 };

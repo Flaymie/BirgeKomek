@@ -1,0 +1,24 @@
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+
+export const useReadOnlyCheck = () => {
+  const { isReadOnly } = useAuth();
+  const [showModal, setShowModal] = useState(false);
+
+  const checkAndShowModal = () => {
+    if (isReadOnly) {
+      setShowModal(true);
+      return true; // Возвращаем true, если пользователь "только для чтения"
+    }
+    return false; // Возвращаем false, если все в порядке
+  };
+
+  const ReadOnlyModal = () => (
+    // Динамический импорт, чтобы не грузить модалку без надобности
+    <React.Suspense fallback={<div/>}>
+      {showModal && <TelegramRequiredModal show={showModal} handleClose={() => setShowModal(false)} />}
+    </React.Suspense>
+  );
+
+  return { checkAndShowModal, ReadOnlyModalComponent: ReadOnlyModal };
+}; 

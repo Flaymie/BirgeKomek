@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [banDetails, setBanDetails] = useState({ isBanned: false, reason: '', expiresAt: null });
+  const [isReadOnly, setIsReadOnly] = useState(true);
 
   const processAndCheckBan = (userData) => {
     if (userData?.banDetails?.isBanned) {
@@ -90,6 +91,7 @@ export const AuthProvider = ({ children }) => {
         const response = await usersService.getCurrentUser();
         processAndCheckBan(response.data);
         await fetchUnreadCount();
+        setIsReadOnly(!response.data.telegramId);
       } catch (err) {
         console.error('Ошибка при загрузке пользователя:', err);
         // Если токен недействителен, удаляем его
@@ -97,6 +99,7 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('token');
         }
         setError(err.message);
+        setIsReadOnly(true);
       } finally {
         setLoading(false);
       }
@@ -163,6 +166,7 @@ export const AuthProvider = ({ children }) => {
 
       setCurrentUser(processUserData(data.user));
       await fetchUnreadCount(); // Загружаем уведомления после успешного входа
+      setIsReadOnly(!data.user.telegramId);
       
       setLoading(false);
       toast.success('Вход выполнен успешно!');
@@ -183,6 +187,7 @@ export const AuthProvider = ({ children }) => {
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
+      setIsReadOnly(true);
       return { success: false, error: errorMessage };
     }
   };
@@ -247,6 +252,7 @@ export const AuthProvider = ({ children }) => {
           console.log('AuthContext: Устанавливаем данные пользователя в стейт');
           processAndCheckBan(response.data.user);
           await fetchUnreadCount();
+          setIsReadOnly(!response.data.user.telegramId);
         }
         
       setLoading(false);
@@ -278,6 +284,7 @@ export const AuthProvider = ({ children }) => {
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
+      setIsReadOnly(true);
       
       return { 
         success: false, 
@@ -309,6 +316,7 @@ export const AuthProvider = ({ children }) => {
       
       const updatedUserData = processUserData({...currentUser, ...response.data});
       setCurrentUser(updatedUserData);
+      setIsReadOnly(!updatedUserData.telegramId);
       
       setLoading(false);
       toast.success('Профиль успешно обновлен!');
@@ -330,6 +338,7 @@ export const AuthProvider = ({ children }) => {
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
+      setIsReadOnly(true);
       return { success: false, error: errorMessage };
     }
   };
@@ -337,6 +346,7 @@ export const AuthProvider = ({ children }) => {
   const _updateCurrentUserState = (newUserData) => {
     if (!newUserData) return;
     setCurrentUser(processUserData(newUserData));
+    setIsReadOnly(!newUserData.telegramId);
   };
 
   // Функция для обновления пароля пользователя
@@ -346,11 +356,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await usersService.updatePassword(currentPassword, newPassword);
       setLoading(false);
+      setIsReadOnly(!response.data.telegramId);
       return { success: true, data: response.data };
     } catch (err) {
       console.error('Ошибка обновления пароля:', err);
       setError(err.response?.data?.msg || 'Ошибка при обновлении пароля');
       setLoading(false);
+      setIsReadOnly(true);
       return { success: false, error: err.response?.data?.msg || 'Ошибка при обновлении пароля' };
     }
   };
@@ -361,6 +373,7 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
     setUnreadCount(0);
     setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+    setIsReadOnly(true);
   }, []);
 
   const value = {
@@ -382,6 +395,8 @@ export const AuthProvider = ({ children }) => {
     markNotificationsAsRead,
     loginWithToken,
     fetchUnreadCount,
+    isReadOnly,
+    updateUser: _updateCurrentUserState,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

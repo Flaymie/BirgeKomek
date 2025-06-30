@@ -12,6 +12,8 @@ import ProfileNotFound from '../shared/ProfileNotFound';
 import LinkTelegramModal from '../modals/LinkTelegramModal';
 import { FaTelegramPlane } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
+import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
+import TelegramRequiredModal from '../modals/TelegramRequiredModal';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -591,6 +593,8 @@ const ProfilePage = () => {
   
   const [profileData, setProfileData] = useState(null);
   
+  const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
+  
   const fetchUserData = useCallback(async (userIdentifier) => {
     if (!userIdentifier) return;
     setLoading(true);
@@ -651,6 +655,7 @@ const ProfilePage = () => {
   
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
+    if (checkAndShowModal()) return;
     setIsProfileLoading(true);
     setProfileSuccess('');
     setProfileError('');
@@ -853,6 +858,7 @@ const ProfilePage = () => {
         linkUrl={telegramLinkUrl}
         isLoading={isTelegramLoading && !telegramLinkUrl}
       />
+      <ReadOnlyModalComponent />
     </>
   );
 };

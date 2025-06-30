@@ -7,7 +7,7 @@ import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js'
 import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
 import mongoose from 'mongoose';
 import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
-import tgRequired from '../middleware/tgRequired';
+import tgRequired from '../middleware/tgRequired.js';
 
 // ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
