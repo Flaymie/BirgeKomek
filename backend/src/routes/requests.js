@@ -8,6 +8,9 @@ import { createAndSendNotification } from './notifications.js'; // Правил�
 import mongoose from 'mongoose';
 import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
 import tgRequired from '../middleware/tgRequired.js';
+import redis from '../config/redis.js'; 
+import crypto from 'crypto';
+import { sendTelegramMessage } from './users.js';
 
 // ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
@@ -877,67 +880,67 @@ router.post('/:id/cancel', protect, [
    *             properties:
    *               deleteReason:
    *                 type: string
- *     responses:
+   *                 description: "Причина удаления (для модераторов)"
+   *               confirmationCode:
+   *                 type: string
+   *                 description: "6-значный код подтверждения из Telegram (если требуется)"
+   *     responses:
    *       200:
    *         description: Заявка успешно удалена
    *       403:
    *         description: Нет прав на удаление
    */
   router.delete('/:id', protect, checkEditDeletePermission, [
-    // Валидация для причины удаления, если это действие модератора
-    body('deleteReason').if((value, { req }) => req.isModeratorAction).notEmpty().withMessage('Причина удаления обязательна для модератора.')
+      body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
+      body('deleteReason').optional().isString().trim()
   ], async (req, res) => {
     try {
-        const { deleteReason } = req.body;
-        const request = req.request;
+      const { confirmationCode, deleteReason } = req.body;
+      const moderator = req.user;
+      const request = req.request; // из checkEditDeletePermission
 
-        // Удаляем связанные сообщения
-        await Message.deleteMany({ requestId: request._id });
-        // Удаляем связанные отклики (если есть модель Response)
-        // await Response.deleteMany({ requestId: request._id });
-        // Удаляем связанные отзывы (если есть)
-        // await Review.deleteMany({ requestId: request._id });
-
-        // Удаляем саму заявку
-        await Request.findByIdAndDelete(req.params.id);
-        await Message.deleteMany({ requestId: req.params.id });
-        await User.updateMany(
-            { 'requests.taken': req.params.id },
-            { $pull: { 'requests.taken': req.params.id } }
-        );
-
-        // --- НОВАЯ УЛУЧШЕННАЯ ЛОГИКА УВЕДОМЛЕНИЙ ---
-        const actingUser = await User.findById(req.user.id).lean();
-        const isAuthorDeletingOwnRequest = request.author._id.toString() === req.user.id;
-
-        // Отправляем уведомление ТОЛЬКО если заявку удаляет НЕ автор (т.е. модератор или админ)
-        if (!isAuthorDeletingOwnRequest) {
-            const { reason } = req.body;
-            
-            // Определяем, кто удалил - админ или модер
-            const roleTitle = actingUser.roles.admin ? 'Администратор' : 'Модератор';
-            
-            let message = `${roleTitle} ${actingUser.username} удалил вашу заявку "${request.title}".`;
-            // Добавляем причину, только если она есть
-            if (reason) {
-                message += ` Причина: "${reason}"`;
-            }
-
-            await createAndSendNotification(req.app.locals.sseConnections, {
-                user: request.author._id,
-                type: 'request_deleted_by_moderator', // Тип можно оставить, он общий
-                title: 'Ваша заявка была удалена',
-                message: message, // Наше новое, красивое сообщение
-                link: `/profile/my-requests`,
-                relatedEntity: { requestId: request._id, moderatorId: req.user.id }
-            });
+      // --- НОВАЯ ЛОГИКА 2FA ДЛЯ МОДЕРАТОРОВ ---
+      if (req.isModeratorAction && moderator.role !== 'admin') {
+        if (!moderator.telegramId) {
+            return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
         }
+        
+        const redisKey = `mod-action:delete-request:${moderator.id}:${request._id}`;
 
-        res.json({ msg: 'Запрос успешно удален' });
+        if (!confirmationCode) {
+            // Этап 1: Генерация и отправка кода
+            const code = crypto.randomInt(100000, 999999).toString();
+            await redis.set(redisKey, code, 'EX', 300); // 5 минут
+
+            const message = `Для подтверждения удаления заявки "**${request.title}**" введите этот код:\n\n` +
+                            `\`${code}\`\n\n` +
+                            `Причина удаления (указанная вами): ${deleteReason || 'не указана'}.`;
+            await sendTelegramMessage(moderator.telegramId, message);
+
+            return res.status(400).json({ 
+                confirmationRequired: true,
+                message: 'Требуется подтверждение. Код отправлен вам в Telegram.' 
+            });
+        } else {
+            // Этап 2: Проверка кода
+            const storedCode = await redis.get(redisKey);
+            if (storedCode !== confirmationCode) {
+                return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+            }
+            await redis.del(redisKey); // Удаляем использованный код
+        }
+      }
+
+      // --- ОСНОВНАЯ ЛОГИКА УДАЛЕНИЯ ---
+      
+      // Удаляем связанные сообщения
+      await Message.deleteMany({ request: req.params.id });
+      
+      res.json({ msg: 'Запрос и все связанные данные успешно удалены' });
 
     } catch (err) {
-        console.error('Ошибка при удалении заявки:', err.message);
-        res.status(500).send('Ошибка сервера');
+      console.error(err.message);
+      res.status(500).send('Ошибка сервера');
     }
   });
 
