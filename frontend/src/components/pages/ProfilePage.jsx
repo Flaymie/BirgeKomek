@@ -606,7 +606,8 @@ const ProfilePage = () => {
     updateProfile, 
     logout, 
     _updateCurrentUserState,
-    setLinkTelegramHandler
+    handleLinkTelegram,
+    isTelegramLoading,
   } = useAuth();
   const { identifier } = useParams();
   const navigate = useNavigate();
@@ -616,12 +617,6 @@ const ProfilePage = () => {
   const [isMyProfile, setIsMyProfile] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
-  
-  // --- НОВЫЕ СТЕЙТЫ ДЛЯ TELEGRAM ---
-  const [isTelegramModalOpen, setTelegramModalOpen] = useState(false);
-  const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
-  const [isTelegramLoading, setIsTelegramLoading] = useState(false);
-  const [telegramError, setTelegramError] = useState('');
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
@@ -812,78 +807,6 @@ const ProfilePage = () => {
     }
   };
 
-  const handleLinkTelegram = async () => {
-    setIsTelegramLoading(true);
-    setTelegramError('');
-    try {
-      const { data } = await authService.generateLinkToken();
-      const token = data.linkToken;
-      // Правильный способ: получаем имя бота из переменных окружения
-      const botUsername = process.env.REACT_APP_BOT_USERNAME;
-
-      if (!botUsername) {
-        toast.error('Имя бота не настроено. Обратитесь к администратору.');
-        console.error('Ошибка: переменная окружения REACT_APP_BOT_USERNAME не установлена.');
-        setIsTelegramLoading(false);
-        return;
-      }
-
-      const url = `https://t.me/${botUsername}?start=${token}`;
-      
-      setTelegramLinkUrl(url);
-      setTelegramModalOpen(true);
-
-      // Запускаем поллинг статуса
-      let attempts = 0;
-      const maxAttempts = 40; // 40 * 3s = 120s = 2 минуты
-      const intervalId = setInterval(async () => {
-        if (attempts >= maxAttempts) {
-          clearInterval(intervalId);
-          return;
-        }
-        attempts++;
-
-        try {
-          const statusRes = await authService.checkLinkStatus(token);
-          if (statusRes.data.status === 'linked') {
-            clearInterval(intervalId);
-            toast.success('Telegram успешно привязан!');
-            setTelegramModalOpen(false);
-            // Обновляем данные профиля на странице
-            // Если мы на странице редактирования, обновляем currentUser, иначе - профиль по ID
-            if (isMyProfile && !identifier) {
-               const response = await usersService.getUserById(currentUser._id);
-               setProfileData({ ...response.data });
-            } else {
-               fetchUserData(identifier);
-            }
-          }
-        } catch (pollError) {
-           console.error('Ошибка опроса статуса привязки:', pollError);
-           // Можно остановить поллинг при определенной ошибке, например 404
-           if(pollError.response?.status === 404) {
-               clearInterval(intervalId);
-           }
-        }
-      }, 3000);
-
-      // Привязываем функцию очистки интервала к onClose модального окна
-      // Это более чистый способ, чем хак с состоянием
-      const originalOnClose = () => {
-        clearInterval(intervalId);
-        setTelegramModalOpen(false);
-      };
-      setTelegramModalOpen(prev => (typeof prev === 'boolean' ? { isOpen: true, onClose: originalOnClose } : { ...prev, isOpen: true, onClose: originalOnClose }));
-
-    } catch (error) {
-      toast.error('Не удалось сгенерировать ссылку для привязки.');
-      console.error(error);
-    } finally {
-      // Не выключаем лоадер сразу, он выключится когда придет ссылка
-      // setTelegramLoading(false); 
-    }
-  };
-
   const handleUnlinkTelegram = async () => {
     if (window.confirm('Вы уверены, что хотите отвязать Telegram? Это действие нельзя будет отменить.')) {
         setIsTelegramLoading(true);
@@ -898,19 +821,6 @@ const ProfilePage = () => {
         }
     }
   };
-
-  // --- РЕГИСТРИРУЕМ ХЕНДЛЕР В КОНТЕКСТЕ ---
-  useEffect(() => {
-    if (isMyProfile) {
-      setLinkTelegramHandler(handleLinkTelegram);
-    }
-    // Очищаем при размонтировании
-    return () => {
-      if (isMyProfile) {
-        setLinkTelegramHandler(null);
-      }
-    };
-  }, [isMyProfile, setLinkTelegramHandler]);
 
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
@@ -966,12 +876,6 @@ const ProfilePage = () => {
         onClose={() => setIsBanModalOpen(false)}
         onConfirm={handleBanUser}
         username={profile?.username}
-      />
-      <LinkTelegramModal 
-        isOpen={typeof isTelegramModalOpen === 'object' ? isTelegramModalOpen.isOpen : isTelegramModalOpen}
-        onClose={() => (typeof isTelegramModalOpen === 'object' && isTelegramModalOpen.onClose) ? isTelegramModalOpen.onClose() : setTelegramModalOpen(false)}
-        linkUrl={telegramLinkUrl}
-        isLoading={isTelegramLoading && !telegramLinkUrl}
       />
       <ReadOnlyModalComponent />
       <ConfirmUsernameChangeModal

@@ -27,6 +27,7 @@ import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
 import RequireTelegramModal from './components/modals/RequireTelegramModal';
+import LinkTelegramModal from './components/modals/LinkTelegramModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 
 // Этот компонент отвечает за инициализацию перехватчика API
@@ -51,7 +52,11 @@ const AppContent = () => {
     closeBanModal,
     logout,
     isRequireTgModalOpen,
-    linkTelegramHandler
+    handleLinkTelegram,
+    isLinkTelegramModalOpen,
+    telegramLinkUrl,
+    isTelegramLoading,
+    closeLinkTelegramModal,
   } = useAuth();
   const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
 
@@ -64,8 +69,8 @@ const AppContent = () => {
   return (
     <>
       <ToastContainer
-        position="top-right"
-        autoClose={3000}
+        position="bottom-right"
+        autoClose={5000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -91,10 +96,17 @@ const AppContent = () => {
 
       <RequireTelegramModal 
         isOpen={isRequireTgModalOpen}
-        onLinkTelegram={linkTelegramHandler}
+        onLinkTelegram={handleLinkTelegram}
       />
 
-      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen ? 'blurred' : ''}`}>
+      <LinkTelegramModal 
+        isOpen={isLinkTelegramModalOpen}
+        onClose={closeLinkTelegramModal}
+        linkUrl={telegramLinkUrl}
+        isLoading={isTelegramLoading}
+      />
+
+      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen || isLinkTelegramModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}

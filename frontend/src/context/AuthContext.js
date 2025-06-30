@@ -18,6 +18,12 @@ export const AuthProvider = ({ children }) => {
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
   const [linkTelegramHandler, setLinkTelegramHandler] = useState(null);
+  
+  // --- НОВЫЕ ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ ПРИВЯЗКИ TELEGRAM ---
+  const [isLinkTelegramModalOpen, setLinkTelegramModalOpen] = useState(false);
+  const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
+  const [isTelegramLoading, setIsTelegramLoading] = useState(false);
+  const [pollingIntervalId, setPollingIntervalId] = useState(null);
 
   const checkAdminTelegramRequirement = (user) => {
     if (user && (user.roles?.admin || user.roles?.moderator) && !user.telegramId) {
@@ -369,6 +375,58 @@ export const AuthProvider = ({ children }) => {
     setIsReadOnly(true);
   }, []);
 
+  const closeLinkTelegramModal = useCallback(() => {
+    if (pollingIntervalId) {
+      clearInterval(pollingIntervalId);
+      setPollingIntervalId(null);
+    }
+    setLinkTelegramModalOpen(false);
+  }, [pollingIntervalId]);
+
+  const handleLinkTelegram = useCallback(async () => {
+    setIsTelegramLoading(true);
+    try {
+      if (pollingIntervalId) clearInterval(pollingIntervalId);
+
+      const { data } = await authService.generateLinkToken();
+      const token = data.linkToken;
+      const botUsername = process.env.REACT_APP_BOT_USERNAME;
+
+      if (!botUsername) {
+        toast.error('Имя бота не настроено. Обратитесь к администратору.');
+        return;
+      }
+
+      const url = `https://t.me/${botUsername}?start=${token}`;
+      setTelegramLinkUrl(url);
+      setLinkTelegramModalOpen(true);
+
+      const intervalId = setInterval(async () => {
+        try {
+          const statusRes = await authService.checkLinkStatus(token);
+          if (statusRes.data.status === 'linked') {
+            toast.success('Telegram успешно привязан!');
+            const response = await usersService.getMe();
+            _updateCurrentUserState(response.data);
+            closeLinkTelegramModal(); // Закроет модалку и очистит интервал
+          }
+        } catch (pollError) {
+           console.error('Ошибка опроса статуса привязки:', pollError);
+           if (pollError.response?.status === 404) {
+               closeLinkTelegramModal();
+           }
+        }
+      }, 3000);
+      setPollingIntervalId(intervalId);
+
+    } catch (error) {
+      toast.error('Не удалось сгенерировать ссылку для привязки.');
+      console.error(error);
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  }, [pollingIntervalId, _updateCurrentUserState, closeLinkTelegramModal]);
+
   const value = {
     currentUser,
     loading,
@@ -396,6 +454,11 @@ export const AuthProvider = ({ children }) => {
     isRequireTgModalOpen,
     linkTelegramHandler,
     setLinkTelegramHandler: (handler) => setLinkTelegramHandler(() => handler),
+    handleLinkTelegram,
+    isLinkTelegramModalOpen,
+    telegramLinkUrl,
+    isTelegramLoading,
+    closeLinkTelegramModal,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
