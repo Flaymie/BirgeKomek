@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 const API_URL = `${SERVER_URL}/api`;
@@ -32,51 +33,9 @@ api.interceptors.request.use(
 
 // Перехватчик для обработки ошибок ответа
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // --- НОВОЕ УСЛОВИЕ ДЛЯ RATE LIMIT ---
-    if (error.response?.status === 429) {
-      // Создаем и диспатчим кастомное событие, чтобы App.js мог его поймать
-      const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
-      window.dispatchEvent(rateLimitEvent);
-      // Не логируем это как ошибку в консоль, чтобы не засорять
-      return Promise.reject(error);
-    }
-    
-    // --- НОВОЕ УСЛОВИЕ ---
-    // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
-    const isUserNotFound = error.response?.status === 404 && error.config.url.startsWith('/users/');
-    const isRequestNotFound = (error.response?.status === 404 || error.response?.status === 400) && error.config.url.startsWith('/requests/');
-
-    if (isUserNotFound || isRequestNotFound) {
-      return Promise.reject(error); // Просто пробрасываем ошибку дальше без логирования
-    }
-
-    console.error('Перехват ошибки в api interceptor:', error.message);
-    if (error.response) {
-      console.error('Данные ответа:', error.response.data);
-      console.error('Статус ответа:', error.response.status);
-      
-      // Обработка бана пользователя
-      if (error.response?.data?.isBanned) {
-        if (window.authContext) {
-          // Вызываем единый обработчик бана из AuthContext
-          window.authContext.handleBan(error.response.data.banDetails);
-        }
-      }
-    }
-    
-    const isRegistrationPage = window.location.pathname.includes('/register');
-    
-    if (error.response && error.response.status === 401 && !isRegistrationPage) {
-      localStorage.removeItem('token');
-      if (!window.location.pathname.includes('/login')) {
-        sessionStorage.setItem('auth_message', 'Сессия истекла, пожалуйста, авторизуйтесь снова');
-        window.location.href = '/login';
-      }
-    }
+    // Просто пробрасываем ошибку дальше, AuthContext ее поймает
     return Promise.reject(error);
   }
 );
