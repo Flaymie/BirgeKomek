@@ -11,7 +11,7 @@ import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 // Максимальное количество символов в описании
 const MAX_DESCRIPTION_LENGTH = 2000;
 
-const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
+const CreateRequestModal = ({ isOpen, onClose }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -100,12 +100,19 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     }
     
     setIsSubmitting(true);
-    
+    setErrors({});
+
     try {
-      await requestsService.createRequest(formData);
+      const requestData = {
+        title: formData.title,
+        description: formData.description,
+        subject: formData.subject,
+        grade: formData.grade,
+      };
+      await requestsService.createRequest(requestData);
       
-      toast.success('Запрос на помощь успешно создан!');
-      onClose(true);
+      toast.success('Запрос успешно создан!');
+      onClose();
     } catch (error) {
       console.error('Ошибка при создании запроса:', error);
       const errorMessage = error.response?.data?.message || 'Произошла ошибка при создании запроса';

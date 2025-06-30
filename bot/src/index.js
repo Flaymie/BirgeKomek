@@ -1,14 +1,6 @@
 require('dotenv').config();
 const { Telegraf, Markup, Scenes, session } = require('telegraf');
 const axios = require('axios');
-const TelegramBot = require('node-telegram-bot-api');
-import { getIO } from './utils/socket.js';
-import User from './models/User.js';
-import Request from './models/Request.js';
-import Message from './models/Message.js';
-import Notification from './models/Notification.js';
-const redis = require('../config/redis_telegraf'); // Нужен редис для Telegraf
-const { getIo, findSocketByUserId } = require('../utils/socketManager'); // Правильный импорт сокетов
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_URL = process.env.API_URL;
@@ -275,119 +267,33 @@ bot.command('settings', async (ctx) => {
 // Обработчик для колбэков от инлайн-кнопок
 bot.on('callback_query', async (ctx) => {
     const data = ctx.callbackQuery.data;
-    const chatId = ctx.chat.id;
-    const messageId = ctx.callbackQuery.message.message_id;
 
-    // --- ЛОГИКА ДЛЯ ПОДТВЕРЖДЕНИЯ ДЕЙСТВИЙ МОДЕРАТОРА ---
-    if (data.startsWith('confirm_action:') || data.startsWith('deny_action:')) {
-        const [type, token] = data.split(':');
-
-        try {
-            const actionDetailsJSON = await redis.get(`moderator_action:${token}`);
-            if (!actionDetailsJSON) {
-                await ctx.editMessageText('Это действие истекло или уже было выполнено.', {
-                    chat_id: chatId,
-                    message_id: messageId,
-                });
-                return ctx.answerCbQuery();
-            }
-
-            await redis.del(`moderator_action:${token}`); // Удаляем сразу
-            
-            const actionDetails = JSON.parse(actionDetailsJSON);
-            const { action, moderatorId, targetUserId, reason, duration } = actionDetails;
-            
-            const io = getIo();
-
-            if (type === 'deny_action') {
-                await ctx.editMessageText('Действие отменено.', {
-                    chat_id: chatId,
-                    message_id: messageId
-                });
-                const moderatorSocket = findSocketByUserId(moderatorId);
-                if (moderatorSocket) {
-                    io.to(moderatorSocket.id).emit('moderator_action_failed', { message: 'Действие было отклонено в Telegram.' });
-                }
-                return ctx.answerCbQuery('Действие отменено');
-            }
-
-            // Если type === 'confirm_action'
-            if (action === 'ban_user') {
-                // Выполняем POST-запрос на основной бэкенд для бана
-                // Это лучше, чем дублировать логику моделей прямо в боте
-                await axios.post(`${API_URL}/api/users/${targetUserId}/ban`, {
-                    reason,
-                    duration
-                }, { 
-                    // Добавляем некий "внутренний" ключ, чтобы не любой мог дернуть этот эндпоинт
-                    headers: { 'X-Internal-Bot-Key': process.env.INTERNAL_BOT_KEY }
-                });
-                
-                // Получаем обновленные данные юзера, чтобы достать имя
-                const userResponse = await axios.get(`${API_URL}/api/users/id/${targetUserId}`, {
-                    headers: { 'X-Internal-Bot-Key': process.env.INTERNAL_BOT_KEY }
-                });
-                const targetUsername = userResponse.data.username;
-                
-                const successText = `Пользователь *${targetUsername}* успешно забанен.`;
-                await ctx.editMessageText(successText, {
-                    parse_mode: 'Markdown',
-                });
-                
-                const moderatorSocket = findSocketByUserId(moderatorId);
-                if (moderatorSocket) {
-                    io.to(moderatorSocket.id).emit('moderator_action_confirmed', { message: `Пользователь ${targetUsername} забанен.` });
-                }
-            }
-
-            return ctx.answerCbQuery('Действие подтверждено!');
-
-        } catch (error) {
-            console.error('Ошибка при обработке callback_query модератора:', error.response?.data || error.message);
-            await ctx.reply('Произошла ошибка при выполнении действия.');
-            const moderatorSocket = findSocketByUserId(JSON.parse(await redis.get(`moderator_action:${token}`)).moderatorId);
-            if(moderatorSocket) {
-                getIo().to(moderatorSocket.id).emit('moderator_action_failed', { message: 'Произошла внутренняя ошибка на стороне бота.' });
-            }
-            return ctx.answerCbQuery('Ошибка!', { show_alert: true });
-        }
-    }
-
-    // --- СУЩЕСТВУЮЩАЯ ЛОГИКА ДЛЯ НАСТРОЕК УВЕДОМЛЕНИЙ ---
     if (data === 'toggle_notifications') {
         try {
             const telegramId = ctx.from.id;
+            // ИСПРАВЛЕННЫЙ РОУТ
             const response = await axios.post(`${API_URL}/api/users/by-telegram/${telegramId}/toggle-notifications`);
             const { telegramNotificationsEnabled } = response.data;
-             
+            
             const statusText = telegramNotificationsEnabled ? '✅ Включены' : '❌ Отключены';
             const buttonText = telegramNotificationsEnabled ? 'Выключить' : 'Включить';
             const buttonEmoji = telegramNotificationsEnabled ? '🔴' : '🟢';
 
             await ctx.editMessageText(`Настройки ваших уведомлений в Telegram:\n\n*Статус:* ${statusText}`, {
-                 parse_mode: 'Markdown',
-                 reply_markup: {
-                     inline_keyboard: [[
-                         { text: `${buttonEmoji} ${buttonText}`, callback_data: 'toggle_notifications' }
-                     ]]
-                 }
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: `${buttonEmoji} ${buttonText}`, callback_data: 'toggle_notifications' }
+                ]]
+              }
             });
             await ctx.answerCbQuery(telegramNotificationsEnabled ? 'Уведомления включены!' : 'Уведомления выключены.');
+
         } catch (error) {
             console.error('Ошибка при переключении настроек:', error.response?.data || error.message);
             await ctx.answerCbQuery('Не удалось изменить настройки. Попробуйте позже.', { show_alert: true });
         }
     }
-
-    // --- Логика для регистрации ---
-    if (data.startsWith('role_') || data.startsWith('subject_') || data === 'subjects_done') {
-        // Эта логика обрабатывается внутри сцены, но Telegraf всё равно сначала прогоняет её здесь.
-        // Не добавляем ctx.answerCbQuery(), чтобы сцена могла его обработать.
-        return; 
-    }
-    
-    // По дефолту отвечаем на колбэк, чтобы убрать "часики"
-    // return ctx.answerCbQuery();
 });
 
 // --- ОБРАБОТЧИК ПОЛУЧЕНИЯ КОНТАКТА ДЛЯ ПРИВЯЗКИ ---
@@ -486,18 +392,4 @@ bot.launch().then(() => {
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-// Мне нужна функция для поиска сокета по ID юзера
-// Я предполагаю, что она может быть в `utils/socket.js`, но если ее там нет - нужно создать
-function findSocketByUserId(userId) {
-  const io = getIO();
-  if (!io || !io.sockets.sockets) return null;
-
-  for (const [id, socket] of io.sockets.sockets) {
-    if (socket.userId === userId) {
-      return socket;
-    }
-  }
-  return null;
-} 
+process.once('SIGTERM', () => bot.stop('SIGTERM')); 

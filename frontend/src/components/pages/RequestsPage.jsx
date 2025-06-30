@@ -49,15 +49,17 @@ const RequestsPage = () => {
     navigate(newUrl, { replace: true });
   }, [filters, location.pathname, navigate]);
   
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (isPageReset = true) => {
     setLoading(true);
-    setError(null); // Сбрасываем ошибку перед новым запросом
+    setError(null);
     try {
-      const params = {
-        page: currentPage,
-        ...filters,
-      };
-
+      const pageToFetch = isPageReset ? 1 : currentPage;
+      if (isPageReset) {
+        setCurrentPage(1);
+      }
+      
+      const params = { page: pageToFetch, ...filters };
+      
       if (!filters.status) delete params.status;
       if (!filters.subject) delete params.subject;
       if (!filters.search) delete params.search;
@@ -81,20 +83,23 @@ const RequestsPage = () => {
   useEffect(() => {
     if (!socket) return;
 
-    // Слушаем событие 'new_request'
     const handleNewRequest = (newRequest) => {
       console.log('Получена новая заявка через сокет:', newRequest);
-      // Добавляем новую заявку в начало списка
-      // Проверяем, чтобы заявка не дублировалась, если вдруг она уже есть
-      setRequests(prevRequests => {
-        if (prevRequests.some(req => req._id === newRequest._id)) {
-          return prevRequests;
-        }
-        return [newRequest, ...prevRequests];
-      });
+      // Проверяем, соответствует ли новая заявка текущим фильтрам
+      const matchesFilters = 
+        (filters.status === '' || newRequest.status === filters.status) &&
+        (filters.subject === '' || newRequest.subject === filters.subject);
 
-      // Обновляем общее количество заявок
-      setTotalPages(prevTotal => prevTotal + 1);
+      if (matchesFilters) {
+        setRequests(prevRequests => {
+          // Избегаем дублирования
+          if (prevRequests.some(req => req._id === newRequest._id)) {
+            return prevRequests;
+          }
+          // Добавляем в начало списка
+          return [newRequest, ...prevRequests];
+        });
+      }
     };
 
     const handleRequestUpdate = (updatedRequest) => {
@@ -109,16 +114,15 @@ const RequestsPage = () => {
     socket.on('new_request', handleNewRequest);
     socket.on('request_updated', handleRequestUpdate);
 
-    // Отписываемся от события при размонтировании компонента
     return () => {
       socket.off('new_request', handleNewRequest);
       socket.off('request_updated', handleRequestUpdate);
     };
-  }, [socket]); // Зависимость от сокета
+  }, [socket, filters]); // <-- Добавляем filters в зависимости
 
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests, currentUser]); // Добавляем currentUser в зависимости
+    fetchRequests(true); // Загружаем при монтировании и смене фильтров
+  }, [filters, currentUser]); // Убрали fetchRequests из зависимостей
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -152,14 +156,6 @@ const RequestsPage = () => {
   // Получение названия статуса
   const getStatusLabel = (status) => {
     return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
-  };
-  
-  // Обработчик успешного создания запроса
-  const handleRequestCreated = (newRequest) => {
-    // Добавляем новый запрос в начало списка
-    setRequests(prevRequests => [newRequest, ...prevRequests]);
-    // Перезагружаем список для получения актуальных данных
-    fetchRequests();
   };
 
   return (
@@ -330,10 +326,9 @@ const RequestsPage = () => {
       )}
       
       {/* Модальное окно создания запроса */}
-      <CreateRequestModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={handleRequestCreated} 
+      <CreateRequestModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
     </div>
   );

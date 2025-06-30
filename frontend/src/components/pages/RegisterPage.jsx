@@ -201,18 +201,14 @@ const RegisterPage = () => {
       username,
       email,
       password,
-      roles: {
-        student: role === 'student',
-        helper: role === 'helper'
-      },
-      avatar: formData.avatar, // Добавляем аватар в регистрационные данные
+      role: role,
+      avatar: formData.avatar,
     };
     
     if (role === 'helper') {
       registrationData.subjects = subjects;
     }
 
-    // Добавляем класс, если он указан, для любой роли
     if (grade) {
       registrationData.grade = grade;
     }

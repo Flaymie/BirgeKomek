@@ -896,18 +896,20 @@ router.post('/:id/cancel', protect, [
   ], async (req, res) => {
     try {
       const { confirmationCode, deleteReason } = req.body;
-      const moderator = req.user;
+      const actingUser = req.user;
       const request = req.request; // из checkEditDeletePermission
 
       // --- НОВАЯ ЛОГИКА 2FA ДЛЯ МОДЕРАТОРОВ ---
-      if (req.isModeratorAction && moderator.role !== 'admin') {
-        if (!moderator.telegramId) {
+      if (req.isModeratorAction) {
+        // Если это модер, но не админ, требуем 2FA
+        if (actingUser.role !== 'admin') {
+          if (!actingUser.telegramId) {
             return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
-        }
-        
-        const redisKey = `mod-action:delete-request:${moderator.id}:${request._id}`;
+          }
+          
+          const redisKey = `mod-action:delete-request:${actingUser.id}:${request._id}`;
 
-        if (!confirmationCode) {
+          if (!confirmationCode) {
             // Этап 1: Генерация и отправка кода
             const code = crypto.randomInt(100000, 999999).toString();
             await redis.set(redisKey, code, 'EX', 300); // 5 минут
@@ -915,26 +917,38 @@ router.post('/:id/cancel', protect, [
             const message = `Для подтверждения удаления заявки "**${request.title}**" введите этот код:\n\n` +
                             `\`${code}\`\n\n` +
                             `Причина удаления (указанная вами): ${deleteReason || 'не указана'}.`;
-            await sendTelegramMessage(moderator.telegramId, message);
+            await sendTelegramMessage(actingUser.telegramId, message);
 
             return res.status(400).json({ 
                 confirmationRequired: true,
                 message: 'Требуется подтверждение. Код отправлен вам в Telegram.' 
             });
-        } else {
+          } else {
             // Этап 2: Проверка кода
             const storedCode = await redis.get(redisKey);
             if (storedCode !== confirmationCode) {
-                return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
             }
             await redis.del(redisKey); // Удаляем использованный код
+          }
         }
+        // Если это админ или модер с верным кодом, уведомляем автора
+        await createAndSendNotification(req.app.locals.sseConnections, {
+            user: request.author,
+            type: 'request_deleted_by_admin',
+            title: 'Ваша заявка была удалена',
+            message: `Модератор ${actingUser.username} удалил вашу заявку \"${request.title}\". Причина: \"${deleteReason || 'не указана'}.\"`,
+            link: `/request/${request._id}`,
+            relatedEntity: { requestId: request._id }
+        });
       }
 
-      // --- ОСНОВНАЯ ЛОГИКА УДАЛЕНИЯ ---
+      // --- ОБЩАЯ ЛОГИКА УДАЛЕНИЯ ДЛЯ ВСЕХ (и для автора, и для модератора после проверки) ---
       
-      // Удаляем связанные сообщения
-      await Message.deleteMany({ request: req.params.id });
+      await Request.findByIdAndDelete(request._id);
+      await Message.deleteMany({ request: request._id });
+      
+      // Дополнительно: можно удалить отклики, отзывы и т.д.
       
       res.json({ msg: 'Запрос и все связанные данные успешно удалены' });
 
