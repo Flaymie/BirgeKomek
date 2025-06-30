@@ -85,20 +85,20 @@ const RequestsPage = () => {
 
     const handleNewRequest = (newRequest) => {
       console.log('Получена новая заявка через сокет:', newRequest);
-      // Проверяем, соответствует ли новая заявка текущим фильтрам
-      const matchesFilters = 
-        (filters.status === '' || newRequest.status === filters.status) &&
-        (filters.subject === '' || newRequest.subject === filters.subject);
-
-      if (matchesFilters) {
-        setRequests(prevRequests => {
-          // Избегаем дублирования
-          if (prevRequests.some(req => req._id === newRequest._id)) {
-            return prevRequests;
-          }
-          // Добавляем в начало списка
-          return [newRequest, ...prevRequests];
-        });
+      
+      // --- ИСПРАВЛЕННАЯ ЛОГИКА ---
+      // Новая заявка всегда имеет статус 'open'.
+      // Добавляем ее в список, если у нас выбран фильтр 'open' (по умолчанию) или статус не фильтруется.
+      // Игнорируем остальные фильтры (по предмету, поиску), т.к. пользователь только что создал эту заявку и ожидает ее увидеть.
+      if (filters.status === REQUEST_STATUSES.OPEN || !filters.status) {
+          setRequests(prevRequests => {
+            // Избегаем дублирования, на всякий случай
+            if (prevRequests.some(req => req._id === newRequest._id)) {
+              return prevRequests;
+            }
+            // Добавляем в начало списка
+            return [newRequest, ...prevRequests];
+          });
       }
     };
 
@@ -109,6 +109,19 @@ const RequestsPage = () => {
           req._id === updatedRequest._id ? updatedRequest : req
         )
       );
+      // --- НОВОЕ: Логика удаления из списка при смене статуса ---
+      // Если статус обновленной заявки больше не соответствует текущему фильтру,
+      // удаляем ее из списка.
+      const statusFilter = filters.status;
+      if (statusFilter && updatedRequest.status !== statusFilter) {
+          setRequests(prevRequests => prevRequests.filter(req => req._id !== updatedRequest._id));
+      } else {
+           setRequests(prevRequests => 
+            prevRequests.map(req => 
+              req._id === updatedRequest._id ? updatedRequest : req
+            )
+          );
+      }
     };
 
     socket.on('new_request', handleNewRequest);
