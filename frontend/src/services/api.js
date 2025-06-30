@@ -116,8 +116,16 @@ const requestsService = {
   },
   
   // Удалить запрос
-  deleteRequest: async (id, data) => {
-    return api.delete(`/requests/${id}`, { data });
+  deleteRequest: async (id, data = {}) => {
+    const { deleteReason, confirmationCode } = data;
+    const config = {};
+    if (deleteReason) {
+      config.data = { deleteReason };
+    }
+    if (confirmationCode) {
+      config.data = { ...config.data, confirmationCode };
+    }
+    return api.delete(`/requests/${id}`, config);
   },
   
   // Назначить помощника
@@ -126,7 +134,7 @@ const requestsService = {
   },
 
   // --- Новая функция для обновления статуса ---
-  updateRequestStatus: (id, status) => {
+  updateRequestStatus: async (id, status) => {
     return api.put(`/requests/${id}/status`, { status });
   },
 
@@ -203,11 +211,15 @@ const usersService = {
   },
 
   // --- Новые функции для модерации ---
-  banUser: (userId, reason, duration) => {
-    return api.post(`/users/${userId}/ban`, { reason, duration });
+  banUser: async (userId, reason, duration, confirmationCode) => {
+    const payload = { reason, duration };
+    if (confirmationCode) {
+      payload.confirmationCode = confirmationCode;
+    }
+    return api.post(`/users/${userId}/ban`, payload);
   },
 
-  unbanUser: (userId) => {
+  unbanUser: async (userId) => {
     return api.post(`/users/${userId}/unban`);
   }
 };

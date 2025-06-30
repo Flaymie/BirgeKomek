@@ -12,6 +12,7 @@ import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
+import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -30,6 +31,11 @@ const RequestDetailPage = () => {
   
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
   const [isAdminDeleteModalOpen, setAdminDeleteModalOpen] = useState(false);
+
+  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
+  const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
+  const [modActionArgs, setModActionArgs] = useState(null);
+  const [modActionLoading, setModActionLoading] = useState(false);
 
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
@@ -164,14 +170,47 @@ const RequestDetailPage = () => {
     navigate(`/request/${id}/edit`, { state: { editReason: reason, fromAdmin: true } });
   };
   
-  const handleAdminDelete = async (reason) => {
+  // Шаг 2: Функция, которая вызывается ПОСЛЕ ввода кода
+  const confirmAdminDelete = useCallback(async (confirmationCode) => {
+    if (!modActionArgs) return;
+    
+    setModActionLoading(true);
     try {
+      await requestsService.deleteRequest(id, { 
+        deleteReason: modActionArgs.reason, 
+        confirmationCode 
+      });
+      toast.success('Заявка успешно удалена модератором');
+      setIsConfirmingModAction(false);
+      navigate('/requests');
+    } catch (err) {
+      console.error('Ошибка при подтверждении удаления:', err);
+      toast.error(err.response?.data?.msg || 'Не удалось удалить заявку');
+    } finally {
+      setModActionLoading(false);
+      setModActionArgs(null); // Очищаем аргументы
+    }
+  }, [id, modActionArgs, navigate]);
+
+  // Шаг 1: Функция, которая ИНИЦИИРУЕТ удаление (с модалки)
+  const handleAdminDelete = async (reason) => {
+    setAdminDeleteModalOpen(false); // Сразу закрываем первую модалку
+    try {
+      // Первая попытка без кода
       await requestsService.deleteRequest(id, { deleteReason: reason });
       toast.success('Заявка успешно удалена модератором');
       navigate('/requests');
     } catch (err) {
-      console.error('Ошибка при удалении:', err);
-      toast.error(err.response?.data?.msg || 'Не удалось удалить заявку');
+      if (err.response && err.response.data.confirmationRequired) {
+        // Если требуется код
+        setModActionArgs({ reason }); // Сохраняем причину для второго шага
+        setIsConfirmingModAction(true); // Открываем модалку с кодом
+        toast.info(err.response.data.message);
+      } else {
+        // Если другая ошибка
+        console.error('Ошибка при удалении:', err);
+        toast.error(err.response?.data?.msg || 'Не удалось удалить заявку');
+      }
     }
   };
 
@@ -536,6 +575,15 @@ const RequestDetailPage = () => {
           </div>
         </div>
       )}
+
+      {/* НОВАЯ МОДАЛКА ПОДТВЕРЖДЕНИЯ ДЛЯ МОДЕРАТОРА */}
+      <ModeratorActionConfirmModal
+        isOpen={isConfirmingModAction}
+        onClose={() => setIsConfirmingModAction(false)}
+        onConfirm={confirmAdminDelete}
+        actionTitle={`Удаление заявки "${request?.title}"`}
+        isLoading={modActionLoading}
+      />
     </div>
   );
 };

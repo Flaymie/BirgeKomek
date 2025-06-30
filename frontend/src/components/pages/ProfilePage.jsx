@@ -18,7 +18,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
 import ImageViewerModal from '../modals/ImageViewerModal';
-import { useSocket } from '../../context/SocketContext';
+import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
@@ -649,7 +649,6 @@ const ProfilePage = () => {
     handleUnlinkTelegram,
     isTelegramLoading,
   } = useAuth();
-  const { socket } = useSocket();
   const { identifier } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -674,6 +673,12 @@ const ProfilePage = () => {
   const [nextUsernameChangeDate, setNextUsernameChangeDate] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [viewerImageSrc, setViewerImageSrc] = useState(null);
+  
+  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
+  const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
+  const [modActionArgs, setModActionArgs] = useState(null);
+  const [modActionCallback, setModActionCallback] = useState(null);
+  const [modActionLoading, setModActionLoading] = useState(false);
   
   const fetchUserData = useCallback(async (userIdentifier) => {
     if (!userIdentifier) return;
@@ -884,16 +889,43 @@ const ProfilePage = () => {
   };
 
   const handleBanUser = async (reason, duration) => {
-    if (!profile) return false;
+    if (!profile) return;
+    setModActionArgs({ reason, duration }); // Сохраняем аргументы
+    setModActionCallback(() => async (confirmationCode) => { // Сохраняем коллбэк
+      setModActionLoading(true);
+      try {
+        // Вызываем сервис с кодом
+        await usersService.banUser(profile._id, reason, duration, confirmationCode);
+        toast.success(`Пользователь ${profile.username} забанен.`);
+        setIsConfirmingModAction(false); // Закрываем модалку подтверждения
+        fetchUserData(profile._id); // Обновляем данные
+      } catch (err) {
+        console.error('Ошибка при подтверждении бана:', err);
+        toast.error(err.response?.data?.msg || 'Не удалось забанить пользователя.');
+      } finally {
+        setModActionLoading(false);
+      }
+    });
+
     try {
-      await usersService.initiateBan(profile._id, reason, duration);
-      toast.info('Запрос на бан отправлен. Пожалуйста, подтвердите действие в вашем Telegram.');
-      return true;
+      // Первая попытка без кода
+      await usersService.banUser(profile._id, reason, duration);
+      // Если прошло без ошибки (например, для админа без 2FA), просто обновляем
+      toast.success(`Пользователь ${profile.username} забанен.`);
+      fetchUserData(profile._id);
     } catch (err) {
-      console.error('Ошибка при инициации бана:', err);
-      toast.error(err.response?.data?.msg || 'Не удалось инициировать бан.');
-      return false;
+      // Ожидаемая ошибка, требующая подтверждения
+      if (err.response && err.response.data.confirmationRequired) {
+        setIsBanModalOpen(false); // Закрываем модалку с причиной
+        setIsConfirmingModAction(true); // Открываем модалку с кодом
+        toast.info(err.response.data.message);
+      } else {
+        // Неожиданная ошибка
+        console.error('Ошибка при бане:', err);
+        toast.error(err.response?.data?.msg || 'Не удалось забанить пользователя.');
+      }
     }
+    setIsBanModalOpen(false); // Закрываем в любом случае
   };
 
   const handleUnbanUser = async () => {
@@ -913,29 +945,6 @@ const ProfilePage = () => {
       setViewerImageSrc(formatAvatarUrl(profile));
     }
   };
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleConfirmation = (data) => {
-      toast.success(data.message || 'Действие успешно подтверждено!');
-      setIsBanModalOpen(false);
-      fetchUserData(identifier);
-    };
-
-    const handleFailure = (data) => {
-      toast.error(data.message || 'Действие было отклонено или не удалось.');
-      setIsBanModalOpen(false);
-    };
-
-    socket.on('moderator_action_confirmed', handleConfirmation);
-    socket.on('moderator_action_failed', handleFailure);
-
-    return () => {
-      socket.off('moderator_action_confirmed', handleConfirmation);
-      socket.off('moderator_action_failed', handleFailure);
-    };
-  }, [socket, fetchUserData, identifier]);
 
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
@@ -1005,6 +1014,13 @@ const ProfilePage = () => {
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={handleConfirmUsernameChange}
         newUsername={profileData.username}
+      />
+      <ModeratorActionConfirmModal
+        isOpen={isConfirmingModAction}
+        onClose={() => setIsConfirmingModAction(false)}
+        onConfirm={modActionCallback}
+        actionTitle={`Бан пользователя ${profile?.username}`}
+        isLoading={modActionLoading}
       />
       <ImageViewerModal 
         src={viewerImageSrc} 
