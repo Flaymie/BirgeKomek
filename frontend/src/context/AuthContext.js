@@ -17,37 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [banDetails, setBanDetails] = useState(null);
   const [isReadOnly, setIsReadOnly] = useState(true);
 
-  const processAndCheckBan = (userData) => {
-    if (userData?.banDetails?.isBanned) {
-      setBanDetails({
-        isBanned: true,
-        reason: userData.banDetails.reason,
-        expiresAt: userData.banDetails.expiresAt,
-      });
-    } else {
-      setBanDetails({ isBanned: false, reason: '', expiresAt: null });
-    }
-    setCurrentUser(processUserData(userData));
-  };
-
-  // Сохраняем ссылку на методы в глобальной переменной для доступа из api.js
-  useEffect(() => {
-    window.authContext = {
-      handleBan: (details) => {
-        setBanDetails({
-          isBanned: true,
-          reason: details.reason || 'Причина не указана',
-          expiresAt: details.expiresAt || null,
-        });
-      },
-      logout
-    };
-    
-    return () => {
-      delete window.authContext;
-    };
-  }, []);
-
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
     let hash = 0;
@@ -72,18 +41,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Обработка данных пользователя перед установкой в стейт
-  const processUserData = (userData) => {
+  const processUserData = useCallback((userData) => {
     if (!userData) return null;
     return {
       ...userData,
       formattedAvatar: formatAvatarUrl(userData),
     };
-  };
+  }, []);
 
   const _updateCurrentUserState = useCallback((user) => {
     if (user) {
-      setCurrentUser(user);
-      // Проверяем бан статус при обновлении
+      setCurrentUser(processUserData(user));
       if (user.banDetails && user.banDetails.isBanned) {
         setIsBanned(true);
         setBanDetails(user.banDetails);
@@ -91,12 +59,21 @@ export const AuthProvider = ({ children }) => {
         setIsBanned(false);
         setBanDetails(null);
       }
+      setIsReadOnly(!user.telegramId);
     } else {
       setCurrentUser(null);
       setIsBanned(false);
       setBanDetails(null);
+      setIsReadOnly(true);
     }
-  }, []);
+  }, [processUserData]);
+  
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setAuthToken(null);
+    _updateCurrentUserState(null);
+    toast.info("Вы вышли из аккаунта.");
+  }, [_updateCurrentUserState]);
   
   const checkUserStatus = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -105,16 +82,14 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await usersService.getMe();
         _updateCurrentUserState(res.data);
+        await fetchUnreadCount();
       } catch (error) {
         if (error.response && error.response.status === 403 && error.response.data.banDetails) {
-            // Пользователь забанен - не выходим, а показываем модалку
             setIsBanned(true);
             setBanDetails(error.response.data.banDetails);
-            setCurrentUser(error.response.data.user); // Сохраняем данные юзера, чтобы показать инфу в модалке
+            setCurrentUser(processUserData(error.response.data.user));
         } else {
-            // Другая ошибка - выходим
             logout();
-            console.error("Ошибка при проверке статуса, выход из системы", error);
         }
       } finally {
         setLoading(false);
@@ -122,42 +97,12 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
-  }, [_updateCurrentUserState]);
+  }, [_updateCurrentUserState, logout, fetchUnreadCount, processUserData]);
 
   useEffect(() => {
     checkUserStatus();
   }, [checkUserStatus]);
 
-  // Загрузка данных пользователя
-  useEffect(() => {
-    const loadUser = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await usersService.getCurrentUser();
-        processAndCheckBan(response.data);
-        await fetchUnreadCount();
-        setIsReadOnly(!response.data.telegramId);
-      } catch (err) {
-        console.error('Ошибка при загрузке пользователя:', err);
-        // Если токен недействителен, удаляем его
-        if (err.response && err.response.status === 401) {
-          localStorage.removeItem('token');
-        }
-        setError(err.message);
-        setIsReadOnly(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUser();
-  }, [fetchUnreadCount]);
-  
   // Управление SSE-соединением для real-time уведомлений
   useEffect(() => {
     let eventSource;
@@ -209,7 +154,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       localStorage.setItem('token', token);
-      processAndCheckBan(user);
+      processUserData(user);
       fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
       // Прямой редирект на страницу запросов
@@ -268,14 +213,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Функция для выхода пользователя
-  const logout = () => {
-    localStorage.removeItem('token');
-    setAuthToken(null);
-    _updateCurrentUserState(null);
-    toast.info("Вы вышли из аккаунта.");
-  };
-
   const value = {
     currentUser,
     loading,
@@ -306,10 +243,7 @@ export const AuthProvider = ({ children }) => {
       {!loading && children}
       <BannedUserModal 
         isOpen={isBanned}
-        onClose={() => {
-            /* Не даем закрыть модалку просто так */
-            /* Закрытие только через выход */
-        }}
+        onClose={() => {}}
         banDetails={banDetails}
       />
     </AuthContext.Provider>

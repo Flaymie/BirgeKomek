@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { toast } from 'react-toastify';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 const API_URL = `${SERVER_URL}/api`;
@@ -13,23 +12,18 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Функция для установки токена авторизации
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
 // Экспортируем ОБА URL для разных нужд
 export const serverURL = SERVER_URL; // Для статики (картинки и т.д.)
 export const baseURL = API_URL;     // Для запросов к API
-
-// Перехватчик для добавления токена к запросам
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Перехватчик для обработки ошибок ответа
 api.interceptors.response.use(
