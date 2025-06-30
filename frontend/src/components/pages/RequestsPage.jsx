@@ -138,11 +138,6 @@ const RequestsPage = () => {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleRequestCreated = () => {
-    // Принудительно перезагружаем список заявок с первой страницы
-    fetchRequests(true);
-  };
-
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     // fetchRequests() вызывается через useEffect при изменении filters,
@@ -342,7 +337,6 @@ const RequestsPage = () => {
       <CreateRequestModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={handleRequestCreated}
       />
     </div>
   );

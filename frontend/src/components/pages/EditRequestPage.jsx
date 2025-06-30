@@ -5,8 +5,11 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS, URGENCY_LEVELS } from '../../services/constants';
 
-// Максимальное количество символов в описании
+// Максимальное количество символов
+const MAX_TITLE_LENGTH = 100;
+const MIN_TITLE_LENGTH = 5;
 const MAX_DESCRIPTION_LENGTH = 2000;
+const MIN_DESCRIPTION_LENGTH = 20;
 
 const EditRequestPage = () => {
   const { id } = useParams();
@@ -86,51 +89,40 @@ const EditRequestPage = () => {
   
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // Ограничиваем длину описания
+    // Ограничиваем длину
+    if (name === 'title' && value.length > MAX_TITLE_LENGTH) {
+      return;
+    }
     if (name === 'description' && value.length > MAX_DESCRIPTION_LENGTH) {
       return;
     }
-    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    
-    // Очищаем ошибку поля при изменении
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
   
   const validateForm = () => {
     const newErrors = {};
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Введите заголовок запроса';
-    } else if (formData.title.length < 5) {
-      newErrors.title = 'Заголовок должен содержать минимум 5 символов';
+    if (!formData.title.trim() || formData.title.length < MIN_TITLE_LENGTH) {
+      newErrors.title = `Заголовок должен содержать минимум ${MIN_TITLE_LENGTH} символов`;
+    } else if (formData.title.length > MAX_TITLE_LENGTH) {
+      newErrors.title = `Заголовок не должен превышать ${MAX_TITLE_LENGTH} символов`;
     }
     
-    if (!formData.description.trim()) {
-      newErrors.description = 'Введите описание запроса';
-    } else if (formData.description.length < 20) {
-      newErrors.description = 'Описание должно содержать минимум 20 символов';
-    } else if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
-      newErrors.description = `Описание не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`;
+    if (!formData.description.trim() || formData.description.length < MIN_DESCRIPTION_LENGTH) {
+        newErrors.description = `Описание должно содержать минимум ${MIN_DESCRIPTION_LENGTH} символов`;
     }
-    
+
     if (!formData.subject) {
       newErrors.subject = 'Выберите предмет';
     }
-    
     if (!formData.grade) {
       newErrors.grade = 'Укажите класс';
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -166,10 +158,13 @@ const EditRequestPage = () => {
     }
   };
   
-  // Вычисляем количество оставшихся символов в описании
-  const remainingChars = MAX_DESCRIPTION_LENGTH - formData.description.length;
-  // Определяем стиль счетчика символов (меняем на предупреждающий цвет, когда остается мало)
-  const charCounterClass = remainingChars <= 100 ? 'text-orange-500' : 'text-gray-500';
+  // Вычисляем количество оставшихся символов
+  const titleRemainingChars = MAX_TITLE_LENGTH - (formData.title?.length || 0);
+  const descriptionRemainingChars = MAX_DESCRIPTION_LENGTH - (formData.description?.length || 0);
+  
+  // Определяем стиль счетчика символов
+  const titleCharCounterClass = titleRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
+  const descriptionCharCounterClass = descriptionRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
   
   if (loading || !currentUser) {
     return (
@@ -230,34 +225,28 @@ const EditRequestPage = () => {
           <form onSubmit={handleSubmit}>
             {/* Заголовок запроса */}
             <div className="mb-4">
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Заголовок запроса*
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700">Заголовок</label>
+                <span className={`text-sm font-medium ${titleCharCounterClass}`}>{formData.title?.length || 0}/{MAX_TITLE_LENGTH}</span>
+              </div>
               <input
                 type="text"
                 id="title"
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 text-sm border ${errors.title ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                placeholder="Например: Помощь с решением уравнений"
+                maxLength={MAX_TITLE_LENGTH}
+                className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.title ? 'border-red-500' : ''}`}
+                placeholder="Например: Помощь с домашним заданием по алгебре"
               />
-              {errors.title && (
-                <p className="mt-1 text-xs text-red-600">{errors.title}</p>
-              )}
+              {errors.title && <p className="mt-2 text-sm text-red-600">{errors.title}</p>}
             </div>
             
             {/* Описание */}
             <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Описание запроса*
-                </label>
-                {remainingChars <= 100 && (
-                  <span className={`text-xs ${charCounterClass}`}>
-                    {formData.description.length}/{MAX_DESCRIPTION_LENGTH}
-                  </span>
-                )}
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700">Подробное описание</label>
+                <span className={`text-sm font-medium ${descriptionCharCounterClass}`}>{formData.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}</span>
               </div>
               <textarea
                 id="description"
@@ -266,12 +255,10 @@ const EditRequestPage = () => {
                 onChange={handleChange}
                 rows="6"
                 maxLength={MAX_DESCRIPTION_LENGTH}
-                className={`w-full px-3 py-2 text-sm border ${errors.description ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                placeholder="Опишите, с чем вам нужна помощь..."
+                className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.description ? 'border-red-500' : ''}`}
+                placeholder="Опишите вашу проблему как можно подробнее..."
               ></textarea>
-              {errors.description && (
-                <p className="mt-1 text-xs text-red-600">{errors.description}</p>
-              )}
+              {errors.description && <p className="mt-2 text-sm text-red-600">{errors.description}</p>}
             </div>
             
             {/* Предмет и класс */}
