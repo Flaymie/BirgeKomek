@@ -15,6 +15,14 @@ import LinkToken from '../models/LinkToken.js';
 
 const router = express.Router();
 
+// Список зарезервированных имен пользователей, которые нельзя использовать при регистрации
+const RESERVED_USERNAMES = [
+    'admin', 'administrator', 'moderator', 'support', 'root', 'system',
+    'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo',
+    'birge', 'komek', 'birgekomek', 'guest', 'user', 'test', 'anonymous',
+    'хелпер', 'админ', 'модератор', 'саппорт', 'поддержка', 'помощь'
+];
+
 /**
  * @swagger
  * /api/auth/register:
@@ -93,7 +101,15 @@ router.post('/register', generalLimiter,
     .trim()
     .not().isEmpty().withMessage('Имя пользователя обязательно')
     .isLength({ min: 3, max: 10 }).withMessage('Имя пользователя должно быть от 3 до 10 символов')
-    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания'),
+    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания')
+    .custom(value => {
+        // Проверяем, не является ли имя зарезервированным
+        if (RESERVED_USERNAMES.includes(value.toLowerCase())) {
+            // Выбрасываем ошибку валидации
+            return Promise.reject('Это имя пользователя зарезервировано и не может быть использовано.');
+        }
+        return true;
+    }),
   
   body('email')
     .trim()
@@ -362,7 +378,14 @@ router.post('/check-username', [
         return res.status(400).json({ errors: errors.array() });
     }
     try {
-        const user = await User.findOne({ username: req.body.username.toLowerCase() });
+        const username = req.body.username.toLowerCase();
+
+        // --- ПРОВЕРКА НА ЗАРЕЗЕРВИРОВАННЫЕ ИМЕНА ---
+        if (RESERVED_USERNAMES.includes(username)) {
+            return res.json({ available: false, message: 'Это имя пользователя зарезервировано.' });
+        }
+
+        const user = await User.findOne({ username });
         res.json({ available: !user });
     } catch (e) {
         res.status(500).json({ message: 'Ошибка сервера' });
