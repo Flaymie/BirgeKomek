@@ -11,7 +11,7 @@ import { createAndSendNotification } from './notifications.js';
 import axios from 'axios'; // <--- Добавляю axios
 import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОРТ REDIS
 import { generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
-import tgRequired from '../middleware/tgRequired'; // ИМПОРТ
+import tgRequired from '../middleware/tgRequired.js'; // ИМПОРТ
 
 const router = express.Router();
 

@@ -28,7 +28,6 @@ import ResolveConfirmationModal from '../modals/ResolveConfirmationModal';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
-import TelegramRequiredModal from '../modals/TelegramRequiredModal';
 
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({

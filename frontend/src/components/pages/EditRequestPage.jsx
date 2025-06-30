@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { SUBJECTS, URGENCY_LEVELS, URGENCY_LABELS } from '../../services/constants';
+import { SUBJECTS, URGENCY_LEVELS } from '../../services/constants';
 
 // Максимальное количество символов в описании
 const MAX_DESCRIPTION_LENGTH = 2000;

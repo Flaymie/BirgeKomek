@@ -7,7 +7,6 @@ import { motion } from 'framer-motion';
 import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
-import TelegramRequiredModal from './TelegramRequiredModal';
 
 // Максимальное количество символов в описании
 const MAX_DESCRIPTION_LENGTH = 2000;

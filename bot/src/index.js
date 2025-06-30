@@ -205,15 +205,14 @@ bot.start(async (ctx) => {
       return ctx.reply('Некорректная ссылка для входа. Пожалуйста, попробуйте снова с сайта.');
     }
     try {
-      // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
       // Этот эндпоинт свяжет сессию на сайте (по токену) с telegramId
       await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
         telegramId: ctx.from.id,
         loginToken: token 
       });
-      await ctx.reply('✅ Отлично! Ваш Telegram-аккаунт успешно привязан. Теперь вернитесь на сайт, чтобы завершить вход.');
+      await ctx.reply('✅ Вход подтвержден! Теперь вернитесь на сайт, сессия должна была обновиться автоматически.');
     } catch (error) {
-      console.error("Ошибка при привязке аккаунта:", error.response?.data || error.message);
+      console.error("Ошибка при подтверждении входа:", error.response?.data || error.message);
       await ctx.reply('Упс! Не удалось войти. Возможно, ссылка устарела или недействительна. Попробуйте снова с сайта.');
     }
     return;

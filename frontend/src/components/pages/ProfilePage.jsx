@@ -13,7 +13,6 @@ import LinkTelegramModal from '../modals/LinkTelegramModal';
 import { FaTelegramPlane } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
-import TelegramRequiredModal from '../modals/TelegramRequiredModal';
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {

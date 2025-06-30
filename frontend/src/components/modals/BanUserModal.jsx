@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Ban } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import Modal from 'react-modal';
 
 const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const { currentUser } = useAuth();

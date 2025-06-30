@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import AvatarUpload from '../layout/AvatarUpload';
 import { authService } from '../../services/api';
-import { SUBJECTS } from '../../services/constants';
 import zxcvbn from 'zxcvbn';
 import PasswordStrengthMeter from '../shared/PasswordStrengthMeter';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';

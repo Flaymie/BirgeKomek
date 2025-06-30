@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import TelegramRequiredModal from '../components/modals/TelegramRequiredModal';
 
 export const useReadOnlyCheck = () => {
   const { isReadOnly } = useAuth();
