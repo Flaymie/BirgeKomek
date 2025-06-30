@@ -717,7 +717,13 @@ const ProfilePage = () => {
   
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    // --- ИСПРАВЛЕНИЕ: Добавляем проверку, что profile не null ---
+    
+    // --- ИСПРАВЛЕНИЕ: Добавляем проверку на read-only режим ---
+    if (checkAndShowModal()) {
+      return; // Если юзер в ридонли, прерываем выполнение
+    }
+
+    // Проверяем, изменился ли никнейм
     if (profile && profileData.username && profileData.username.toLowerCase() !== profile.username) {
         setIsConfirmModalOpen(true); // Если да - открываем модалку для подтверждения
         return; // и прерываем сабмит
