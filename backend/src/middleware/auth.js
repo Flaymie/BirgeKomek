@@ -3,57 +3,65 @@ import User from '../models/User.js';
 
 export const protect = async (req, res, next) => {
   let token;
-
-  // 1. Извлекаем токен из заголовка или query-параметра
+  
+  // проверяем хедер на наличие токена
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-  } else if (req.query.token) { // Для SSE
+  }
+  // Добавляем проверку токена в query параметрах для SSE
+  else if (req.query.token) {
     token = req.query.token;
   }
-
-  // 2. Если токена нет нигде - отказ
+  
   if (!token) {
-    return res.status(401).json({ msg: 'Не авторизован, нет токена' });
+    return res.status(401).json({ msg: 'Нет токена, авторизуйтесь' });
   }
-
-  // 3. Если токен есть - проверяем его
+  
   try {
+    // проверяем токен
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // ищем юзера и не возвращаем пароль
     const user = await User.findById(decoded.id).select('-password');
-
-    // 4. Если юзер с таким токеном не найден - отказ
+    
     if (!user) {
-      return res.status(401).json({ msg: 'Пользователь не найден, отказ в доступе' });
+      return res.status(401).json({ msg: 'Не найден юзер с этим токеном' });
     }
-
-    // 5. Проверяем бан
-    if (user.banDetails?.isBanned) {
+    
+    // ПРОВЕРКА НА БАН
+    if (user.banDetails.isBanned) {
       const now = new Date();
-      if (user.banDetails.expiresAt && user.banDetails.expiresAt < now) {
-        // Бан истек, снимаем его и пропускаем дальше
+      // Если есть срок бана и он истек, снимаем бан
+      if (user.banDetails.expiresAt && user.banDetails.expiresAt <= now) {
         user.banDetails.isBanned = false;
         user.banDetails.reason = null;
         user.banDetails.bannedAt = null;
         user.banDetails.expiresAt = null;
         await user.save();
       } else {
-        // Бан активен, возвращаем 403 с деталями
-        return res.status(403).json({
-          msg: 'Доступ запрещен: аккаунт заблокирован.',
-          banDetails: user.banDetails,
-          user: user
+        // Если бан все еще активен
+        const banReason = user.banDetails.reason || 'Причина не указана';
+        let message = `Ваш аккаунт заблокирован. Причина: ${banReason}`;
+        if (user.banDetails.expiresAt) {
+          message += ` Бан до: ${user.banDetails.expiresAt.toLocaleString('ru-RU')}`;
+        } else {
+          message += ' Бан перманентный.';
+        }
+        
+        return res.status(403).json({ 
+          msg: message,
+          isBanned: true,
+          banDetails: user.banDetails
         });
       }
     }
     
-    // 6. Все в порядке - добавляем юзера в запрос и пропускаем
+    // добавляем юзера в запрос
     req.user = user;
     next();
-
-  } catch (error) {
-    // 7. Если токен недействителен (ошибка верификации) - отказ
-    console.error('Ошибка авторизации:', error.message);
-    return res.status(401).json({ msg: 'Не авторизован, токен недействителен' });
+  } catch (err) {
+    console.error('Ошибка авторизации:', err);
+    res.status(401).json({ msg: 'Невалидный токен' });
   }
 };
 

@@ -233,6 +233,102 @@ export default ({ sseConnections, io }) => {
 
   /**
    * @swagger
+   * /api/users/{identifier}:
+   *   get:
+   *     summary: Получить публичный профиль пользователя по ID или username
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: identifier
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID или username пользователя
+   *     responses:
+   *       200:
+   *         description: Публичный профиль пользователя
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 _id:
+   *                   type: string
+   *                 username:
+   *                   type: string
+   *                 roles:
+   *                   type: object
+   *                 grade:
+   *                   type: integer
+   *                 points:
+   *                    type: integer
+   *                 rating:
+   *                    type: number
+   *                 helperSubjects:
+   *                    type: array
+   *                    items: { type: 'string' }
+   *                 completedRequests:
+   *                    type: integer
+   *                 createdAt:
+   *                    type: string
+   *                    format: date-time
+   *       400:
+   *         description: Неверный формат идентификатора
+   *       404:
+   *         description: Пользователь не найден
+   *       500:
+   *         description: Внутренняя ошибка сервера
+   */
+  router.get('/:identifier', [
+    param('identifier').notEmpty().withMessage('Необходим идентификатор пользователя').trim()
+  ], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    try {
+      const { identifier } = req.params;
+      let user;
+
+      // Сначала пытаемся найти по ID, если это валидный ObjectId
+      if (mongoose.Types.ObjectId.isValid(identifier)) {
+        user = await User.findById(identifier).select('-password').lean();
+      }
+
+      // Если по ID не нашли или это был не ObjectId, ищем по username
+      if (!user) {
+        user = await User.findOne({ username: identifier }).select('-password').lean();
+      }
+
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+      
+      // --- НОВАЯ ПРОВЕРКА ОНЛАЙН-СТАТУСА ЧЕРЕЗ REDIS ---
+      let isOnline = false;
+      if (isRedisConnected()) {
+        const onlineKey = `online:${user._id.toString()}`;
+        const result = await redis.exists(onlineKey);
+        isOnline = result === 1;
+      }
+      
+      const createdRequests = await Request.countDocuments({ author: user._id });
+      const completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
+      const publicProfile = {
+        ...user,
+        isOnline: isOnline,
+        createdRequests,
+        completedRequests
+      };
+      res.json(publicProfile);
+    } catch (err) {
+      console.error('Ошибка при получении профиля пользователя:', err.message);
+      res.status(500).send('Ошибка сервера');
+    }
+  });
+
+  /**
+   * @swagger
    * /api/users/helpers:
    *   get:
    *     summary: Поиск помощников (хелперов)
@@ -356,102 +452,6 @@ export default ({ sseConnections, io }) => {
 
     } catch (err) {
       console.error('Ошибка при поиске помощников:', err.message);
-      res.status(500).send('Ошибка сервера');
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/users/{identifier}:
-   *   get:
-   *     summary: Получить публичный профиль пользователя по ID или username
-   *     tags: [Users]
-   *     parameters:
-   *       - in: path
-   *         name: identifier
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: ID или username пользователя
-   *     responses:
-   *       200:
-   *         description: Публичный профиль пользователя
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 _id:
-   *                   type: string
-   *                 username:
-   *                   type: string
-   *                 roles:
-   *                   type: object
-   *                 grade:
-   *                   type: integer
-   *                 points:
-   *                    type: integer
-   *                 rating:
-   *                    type: number
-   *                 helperSubjects:
-   *                    type: array
-   *                    items: { type: 'string' }
-   *                 completedRequests:
-   *                    type: integer
-   *                 createdAt:
-   *                    type: string
-   *                    format: date-time
-   *       400:
-   *         description: Неверный формат идентификатора
-   *       404:
-   *         description: Пользователь не найден
-   *       500:
-   *         description: Внутренняя ошибка сервера
-   */
-  router.get('/:identifier', [
-    param('identifier').notEmpty().withMessage('Необходим идентификатор пользователя').trim()
-  ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-      const { identifier } = req.params;
-      let user;
-
-      // Сначала пытаемся найти по ID, если это валидный ObjectId
-      if (mongoose.Types.ObjectId.isValid(identifier)) {
-        user = await User.findById(identifier).select('-password').lean();
-      }
-
-      // Если по ID не нашли или это был не ObjectId, ищем по username
-      if (!user) {
-        user = await User.findOne({ username: identifier }).select('-password').lean();
-      }
-
-      if (!user) {
-        return res.status(404).json({ msg: 'Пользователь не найден' });
-      }
-      
-      // --- НОВАЯ ПРОВЕРКА ОНЛАЙН-СТАТУСА ЧЕРЕЗ REDIS ---
-      let isOnline = false;
-      if (isRedisConnected()) {
-        const onlineKey = `online:${user._id.toString()}`;
-        const result = await redis.exists(onlineKey);
-        isOnline = result === 1;
-      }
-      
-      const createdRequests = await Request.countDocuments({ author: user._id });
-      const completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
-      const publicProfile = {
-        ...user,
-        isOnline: isOnline,
-        createdRequests,
-        completedRequests
-      };
-      res.json(publicProfile);
-    } catch (err) {
-      console.error('Ошибка при получении профиля пользователя:', err.message);
       res.status(500).send('Ошибка сервера');
     }
   });

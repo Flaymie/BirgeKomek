@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileMeRedirector from './components/auth/ProfileMeRedirector';
@@ -22,18 +22,33 @@ import TermsPage from './components/pages/TermsPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import { useAuth } from './context/AuthContext';
+import { useAuth, AuthProvider } from './context/AuthContext';
+import { setAuthContext } from './services/api';
+import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 
-const App = () => {
-  const { currentUser } = useAuth();
+const AppContent = () => {
+  const { 
+    currentUser, 
+    isBannedModalOpen, 
+    banDetails, 
+    closeBanModal,
+    logout
+  } = useAuth();
+  const location = useLocation();
   const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
 
   useEffect(() => {
-    const handleRateLimit = () => setIsRateLimitModalOpen(true);
+    const handleRateLimit = () => {
+      setIsRateLimitModalOpen(true);
+    };
+
     window.addEventListener('show-rate-limit-modal', handleRateLimit);
-    return () => window.removeEventListener('show-rate-limit-modal', handleRateLimit);
+
+    return () => {
+      window.removeEventListener('show-rate-limit-modal', handleRateLimit);
+    };
   }, []);
 
   return (
@@ -50,12 +65,21 @@ const App = () => {
         pauseOnHover
       />
       
+      <BannedUserModal 
+        isOpen={isBannedModalOpen}
+        onClose={() => {
+          closeBanModal();
+          logout();
+        }}
+        banDetails={banDetails}
+      />
+      
       <RateLimitModal 
         isOpen={isRateLimitModalOpen}
         onClose={() => setIsRateLimitModalOpen(false)}
       />
 
-      <div className={`main-content ${isRateLimitModalOpen ? 'blurred' : ''}`}>
+      <div className={`main-content ${banDetails.isBanned || isRateLimitModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}
@@ -88,4 +112,18 @@ const App = () => {
   );
 };
 
-export default App;
+const AppWrapper = () => {
+  const authContext = useAuth();
+  
+  useEffect(() => {
+    setAuthContext(authContext);
+  }, [authContext]);
+
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
+export default AppWrapper;

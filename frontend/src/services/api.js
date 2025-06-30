@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthToken, getAuthToken } from './tokenStorage';
 
 const SERVER_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
 const API_URL = `${SERVER_URL}/api`;
@@ -12,24 +13,92 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Функция для установки токена авторизации
-export const setAuthToken = (token) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
+let authContext = null;
+
+export const setAuthContext = (context) => {
+  authContext = context;
 };
 
 // Экспортируем ОБА URL для разных нужд
 export const serverURL = SERVER_URL; // Для статики (картинки и т.д.)
 export const baseURL = API_URL;     // Для запросов к API
 
+// Перехватчик для добавления токена к запросам
+api.interceptors.request.use(
+  (config) => {
+    const token = getAuthToken();
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Перехватчик для обработки ошибок ответа
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error) => {
-    // Просто пробрасываем ошибку дальше, AuthContext ее поймает
+    // --- НОВАЯ ЛОГИКА ОБРАБОТКИ БАНА ---
+    if (error.response) {
+      const { status, data } = error.response;
+      
+      // Если статус 403 и в ответе есть флаг isBanned
+      if (status === 403 && data && data.isBanned) {
+        if (authContext && typeof authContext.showBanModal === 'function') {
+          console.log("Перехват ошибки: пользователь забанен. Показываем модалку.", data.banDetails);
+          authContext.showBanModal(data.banDetails);
+        }
+        // Не разлогиниваем, а просто передаем ошибку дальше, чтобы модалка показалась
+        return Promise.reject(error);
+      }
+      
+      // --- НОВОЕ УСЛОВИЕ ДЛЯ RATE LIMIT ---
+      if (status === 429) {
+        // Создаем и диспатчим кастомное событие, чтобы App.js мог его поймать
+        const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
+        window.dispatchEvent(rateLimitEvent);
+        // Не логируем это как ошибку в консоль, чтобы не засорять
+        return Promise.reject(error);
+      }
+      
+      // --- НОВОЕ УСЛОВИЕ ---
+      // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
+      const isUserNotFound = status === 404 && error.config.url.startsWith('/users/');
+      const isRequestNotFound = (status === 404 || status === 400) && error.config.url.startsWith('/requests/');
+
+      if (isUserNotFound || isRequestNotFound) {
+        return Promise.reject(error); // Просто пробрасываем ошибку дальше без логирования
+      }
+
+      console.error('Перехват ошибки в api interceptor:', error.message);
+      if (error.response) {
+        console.error('Данные ответа:', error.response.data);
+        console.error('Статус ответа:', error.response.status);
+        
+        // Обработка бана пользователя
+        if (data && data.isBanned) {
+          if (authContext) {
+            // Вызываем единый обработчик бана из AuthContext
+            authContext.handleBan(data.banDetails);
+          }
+        }
+      }
+      
+      const isRegistrationPage = window.location.pathname.includes('/register');
+      
+      if (status === 401 && !isRegistrationPage) {
+        clearAuthToken();
+        if (!window.location.pathname.includes('/login')) {
+          sessionStorage.setItem('auth_message', 'Сессия истекла, пожалуйста, авторизуйтесь снова');
+          window.location.href = '/login';
+        }
+      }
+    }
     return Promise.reject(error);
   }
 );

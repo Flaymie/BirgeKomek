@@ -1,8 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { authService, usersService, notificationsService, baseURL, setAuthToken } from '../services/api';
+import { authService, usersService, notificationsService, baseURL } from '../services/api';
 import { formatAvatarUrl } from '../services/avatarUtils';
-import BannedUserModal from '../components/modals/BannedUserModal';
 
 const AuthContext = createContext();
 
@@ -13,9 +12,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isBanned, setIsBanned] = useState(false);
-  const [banDetails, setBanDetails] = useState(null);
+  const [banDetails, setBanDetails] = useState({ isBanned: false, reason: '', expiresAt: null });
   const [isReadOnly, setIsReadOnly] = useState(true);
+
+  const processAndCheckBan = (userData) => {
+    if (userData?.banDetails?.isBanned) {
+      setBanDetails({
+        isBanned: true,
+        reason: userData.banDetails.reason,
+        expiresAt: userData.banDetails.expiresAt,
+      });
+    } else {
+      setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+    }
+    setCurrentUser(processUserData(userData));
+  };
+
+  // Сохраняем ссылку на методы в глобальной переменной для доступа из api.js
+  useEffect(() => {
+    window.authContext = {
+      handleBan: (details) => {
+        setBanDetails({
+          isBanned: true,
+          reason: details.reason || 'Причина не указана',
+          expiresAt: details.expiresAt || null,
+        });
+      },
+      logout
+    };
+    
+    return () => {
+      delete window.authContext;
+    };
+  }, []);
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -41,68 +70,44 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Обработка данных пользователя перед установкой в стейт
-  const processUserData = useCallback((userData) => {
+  const processUserData = (userData) => {
     if (!userData) return null;
     return {
       ...userData,
       formattedAvatar: formatAvatarUrl(userData),
     };
-  }, []);
+  };
 
-  const _updateCurrentUserState = useCallback((user) => {
-    if (user) {
-      setCurrentUser(processUserData(user));
-      if (user.banDetails && user.banDetails.isBanned) {
-        setIsBanned(true);
-        setBanDetails(user.banDetails);
-      } else {
-        setIsBanned(false);
-        setBanDetails(null);
+  // Загрузка данных пользователя
+  useEffect(() => {
+    const loadUser = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
       }
-      setIsReadOnly(!user.telegramId);
-    } else {
-      setCurrentUser(null);
-      setIsBanned(false);
-      setBanDetails(null);
-      setIsReadOnly(true);
-    }
-  }, [processUserData]);
-  
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    setAuthToken(null);
-    _updateCurrentUserState(null);
-    toast.info("Вы вышли из аккаунта.");
-  }, [_updateCurrentUserState]);
-  
-  const checkUserStatus = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setAuthToken(token);
+
       try {
-        const res = await usersService.getMe();
-        _updateCurrentUserState(res.data);
+        const response = await usersService.getCurrentUser();
+        processAndCheckBan(response.data);
         await fetchUnreadCount();
-      } catch (error) {
-        if (error.response && error.response.status === 403 && error.response.data.banDetails) {
-            setIsBanned(true);
-            setBanDetails(error.response.data.banDetails);
-            setCurrentUser(processUserData(error.response.data.user));
-        } else {
-            logout();
+        setIsReadOnly(!response.data.telegramId);
+      } catch (err) {
+        console.error('Ошибка при загрузке пользователя:', err);
+        // Если токен недействителен, удаляем его
+        if (err.response && err.response.status === 401) {
+          localStorage.removeItem('token');
         }
+        setError(err.message);
+        setIsReadOnly(true);
       } finally {
         setLoading(false);
       }
-    } else {
-      setLoading(false);
-    }
-  }, [_updateCurrentUserState, logout, fetchUnreadCount, processUserData]);
+    };
 
-  useEffect(() => {
-    checkUserStatus();
-  }, [checkUserStatus]);
-
+    loadUser();
+  }, [fetchUnreadCount]);
+  
   // Управление SSE-соединением для real-time уведомлений
   useEffect(() => {
     let eventSource;
@@ -141,20 +146,58 @@ export const AuthProvider = ({ children }) => {
   }, [currentUser]);
 
   // Функция для входа пользователя
-  const login = useCallback(async (email, password) => {
-    const res = await authService.login(email, password);
-    localStorage.setItem('token', res.data.token);
-    setAuthToken(res.data.token);
-    await checkUserStatus();
-    return res.data.user;
-  }, [checkUserStatus]);
+  const login = async (credentials) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await authService.login(credentials);
+      localStorage.setItem('token', data.token);
+      
+      // Данные о бане и пользователе приходят в одном ответе
+      if (data.banDetails?.isBanned) {
+        setBanDetails({
+          isBanned: true,
+          reason: data.banDetails.reason || 'Причина не указана.',
+          expiresAt: data.banDetails.expiresAt,
+        });
+      } else {
+        setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+      }
+
+      setCurrentUser(processUserData(data.user));
+      await fetchUnreadCount(); // Загружаем уведомления после успешного входа
+      setIsReadOnly(!data.user.telegramId);
+      
+      setLoading(false);
+      toast.success('Вход выполнен успешно!');
+      return { success: true };
+
+    } catch (err) {
+      console.error('Ошибка входа:', err);
+
+      let errorMessage;
+      if (err.response && err.response.status === 429) {
+        errorMessage = 'Слишком много попыток входа. Попробуйте снова через час.';
+      } else if (err.response && err.response.status === 403) {
+        errorMessage = err.response?.data?.msg || 'Доступ запрещен. Ваш аккаунт может быть заблокирован.';
+      } else {
+        errorMessage = err.response?.data?.msg || 'Неверный email или пароль';
+      }
+
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      setIsReadOnly(true);
+      return { success: false, error: errorMessage };
+    }
+  };
 
   // Вход с использованием токена (например, после Telegram)
   const loginWithToken = (token, user) => {
     setLoading(true);
     try {
       localStorage.setItem('token', token);
-      processUserData(user);
+      processAndCheckBan(user);
       fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
       // Прямой редирект на страницу запросов
@@ -170,12 +213,85 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Функция для регистрации пользователя
-  const register = useCallback(async (userData) => {
-    const res = await authService.register(userData);
-    localStorage.setItem('token', res.data.token);
-    setAuthToken(res.data.token);
-    await checkUserStatus();
-  }, [checkUserStatus]);
+  const register = async (userData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
+      
+      // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
+      let processedUserData = { ...userData };
+      
+      if (userData.avatar) {
+        if (userData.avatar.startsWith('data:image')) {
+          console.log('AuthContext: В данных присутствует аватар в формате base64');
+          // Если аватар в base64, не нужно его загружать отдельно - просто отправляем
+          // Бэкенд должен распознать, что это base64, и обработать соответственно
+        } else {
+          console.log('AuthContext: В данных присутствует аватар в формате URL:', userData.avatar.substring(0, 100) + '...');
+        }
+      } else {
+        console.log('AuthContext: Аватар не предоставлен в данных регистрации');
+      }
+      
+      const response = await authService.register(processedUserData);
+      console.log('AuthContext: Ответ сервера о регистрации:', response);
+      
+      if (response && response.data) {
+        console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
+        
+        // Проверяем, содержит ли ответ токен, который нужно сохранить
+        if (response.data.token) {
+          console.log('AuthContext: Токен получен, сохраняем в localStorage');
+          localStorage.setItem('token', response.data.token);
+        }
+        
+        // Устанавливаем пользователя в стейт, если в ответе есть данные пользователя
+        if (response.data.user) {
+          console.log('AuthContext: Устанавливаем данные пользователя в стейт');
+          processAndCheckBan(response.data.user);
+          await fetchUnreadCount();
+          setIsReadOnly(!response.data.user.telegramId);
+        }
+        
+      setLoading(false);
+        toast.success('Регистрация прошла успешно!');
+      return { success: true, data: response.data };
+      } else {
+        console.error('AuthContext: Неожиданный формат ответа:', response);
+        setLoading(false);
+        throw new Error('Неожиданный формат ответа от сервера');
+      }
+    } catch (error) {
+      console.error('AuthContext: Ошибка при регистрации:', error);
+      
+      // Расширенное логирование информации об ошибке
+      if (error.response) {
+        console.error('AuthContext: Данные ошибки:', error.response.data);
+        console.error('AuthContext: Статус ошибки:', error.response.status);
+        console.error('AuthContext: Заголовки ответа:', error.response.headers);
+        
+        // Полезно для отладки - сериализуем полностью ответ об ошибке
+        try {
+          console.error('AuthContext: Полный объект ответа:', JSON.stringify(error.response));
+        } catch (e) {
+          console.error('AuthContext: Не удалось сериализовать объект ответа');
+        }
+      }
+      
+      const errorMessage = error.response?.data?.msg || error.message || 'Ошибка регистрации';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      setIsReadOnly(true);
+      
+      return { 
+        success: false, 
+        error: errorMessage 
+      };
+    }
+  };
 
   // Функция для обновления аватара пользователя
   const updateAvatar = (avatarUrl) => {
@@ -190,10 +306,48 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Функция для обновления профиля пользователя
-  const updateProfile = useCallback(async (profileData) => {
-      const { data } = await usersService.updateMyProfile(profileData);
-      _updateCurrentUserState(data);
-  }, [_updateCurrentUserState]);
+  const updateProfile = async (userData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('Отправка данных на сервер:', JSON.stringify(userData));
+      const response = await usersService.updateProfile(userData);
+      console.log('Ответ сервера:', response);
+      
+      const updatedUserData = processUserData({...currentUser, ...response.data});
+      setCurrentUser(updatedUserData);
+      setIsReadOnly(!updatedUserData.telegramId);
+      
+      setLoading(false);
+      toast.success('Профиль успешно обновлен!');
+      return { success: true, user: response.data };
+    } catch (err) {
+      console.error('Ошибка обновления профиля:', err);
+      console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));
+      
+      // Более детальная обработка ошибок
+      let errorMessage = 'Ошибка при обновлении профиля';
+      if (err.response) {
+        if (err.response.data.errors && err.response.data.errors.length > 0) {
+          errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
+        } else if (err.response.data.msg) {
+          errorMessage = err.response.data.msg;
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+      setLoading(false);
+      setIsReadOnly(true);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const _updateCurrentUserState = (newUserData) => {
+    if (!newUserData) return;
+    setCurrentUser(processUserData(newUserData));
+    setIsReadOnly(!newUserData.telegramId);
+  };
 
   // Функция для обновления пароля пользователя
   const updatePassword = async (currentPassword, newPassword) => {
@@ -212,6 +366,16 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: err.response?.data?.msg || 'Ошибка при обновлении пароля' };
     }
   };
+
+  // Функция для выхода пользователя
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('readOnlyBannerDismissed');
+    setCurrentUser(null);
+    setUnreadCount(0);
+    setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+    setIsReadOnly(true);
+  }, []);
 
   const value = {
     currentUser,
@@ -234,20 +398,9 @@ export const AuthProvider = ({ children }) => {
     fetchUnreadCount,
     isReadOnly,
     updateUser: _updateCurrentUserState,
-    isBanned,
-    setIsBanned,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-      <BannedUserModal 
-        isOpen={isBanned}
-        onClose={() => {}}
-        banDetails={banDetails}
-      />
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export default AuthContext; 
