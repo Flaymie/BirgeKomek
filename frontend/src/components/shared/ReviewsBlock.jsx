@@ -5,6 +5,7 @@ import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion } from 'framer-motion';
+import UsernameWithBadge from './UsernameWithBadge';
 
 const StarRating = ({ rating }) => (
   <div className="flex items-center">
@@ -45,7 +46,7 @@ const ReviewItem = ({ review }) => {
         <div className="flex-1">
           <div className="flex justify-between items-center">
             <div>
-              <p className="font-semibold text-gray-800">{review.author.username}</p>
+              <UsernameWithBadge user={review.author} className="font-semibold text-gray-800" />
               <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                 <span>по заявке</span>
                 <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>

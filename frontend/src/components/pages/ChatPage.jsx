@@ -28,6 +28,7 @@ import ResolveConfirmationModal from '../modals/ResolveConfirmationModal';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
+import UsernameWithBadge from '../shared/UsernameWithBadge';
 
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
@@ -134,9 +135,9 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className={`group flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
+      className={`group flex items-start gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
     >
-      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-end">
+      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-start mt-1">
         {avatarUrl ? (
           <img src={avatarUrl} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
         ) : (
@@ -146,31 +147,36 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
         )}
       </Link>
 
-      {/* Основной пузырь сообщения или просто картинка */}
-      <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
-
-        {hasAttachments && !isDeleted && (
-          <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
-            {msg.attachments.map((file, index) => (
-              <Attachment key={index} file={file} isOwnMessage={isOwnMessage} onImageClick={onImageClick} />
-            ))}
+      <div className="flex-1">
+        {!isOwnMessage && (
+          <div className="mb-1">
+             <UsernameWithBadge user={msg.sender} className="text-sm font-medium text-gray-800" />
           </div>
         )}
+        
+        <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
 
-        {msg.content && (
-          <div className={`break-words ${hasAttachments ? 'px-2 pb-1 pt-2' : 'px-3 py-2'}`}>
-            {msg.content}
+          {hasAttachments && !isDeleted && (
+            <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
+              {msg.attachments.map((file, index) => (
+                <Attachment key={index} file={file} isOwnMessage={isOwnMessage} onImageClick={onImageClick} />
+              ))}
+            </div>
+          )}
+
+          {msg.content && (
+            <div className={`break-words ${hasAttachments ? 'px-2 pb-1 pt-2' : 'px-3 py-2'}`}>
+              {msg.content}
+            </div>
+          )}
+
+          <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''}`}>
+            {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
+            {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
           </div>
-        )}
-
-        {/* Timestamp - теперь с разными стилями */}
-        <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''}`}>
-          {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
-          {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
 
-      {/* Иконки действий (появляются при наведении на всю строку) */}
       {isOwnMessage && !isDeleted && isChatActive && (
         <div className="self-center flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button onClick={() => onEdit(msg)} title="Редактировать" className="p-1 text-gray-400 hover:text-gray-700">
@@ -179,7 +185,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-    </div>
+        </div>
       )}
     </motion.div>
   );
@@ -636,6 +642,12 @@ const ChatPage = () => {
     );
   };
 
+  const otherUser = requestDetails
+    ? currentUser._id === requestDetails.author._id
+      ? requestDetails.helper
+      : requestDetails.author
+    : null;
+
   if (isArchived) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16 text-center">
@@ -743,43 +755,39 @@ const ChatPage = () => {
           )}
         </AnimatePresence>
 
-        <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
-          <div className="flex justify-between items-center gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
-              <p className="text-sm text-gray-500">
-                {requestDetails.subject} • {requestDetails.grade} класс
-              </p>
-            </div>
-            <div className="flex items-center gap-4 flex-shrink-0">
-            <Link 
-              to={`/request/${requestId}`}
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
-            >
-              К деталям запроса
-            </Link>
-              {isAuthor && isChatActive && (
-                <button
-                  onClick={handleOpenResolveModal}
-                  className="w-full sm:w-auto flex-grow sm:flex-grow-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <CheckBadgeIcon className="h-5 w-5" />
-                  Завершить и оценить
+        <header className="bg-white p-4 border-b border-gray-200 rounded-t-lg sticky top-0 bg-opacity-80 backdrop-blur-sm z-10">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <button onClick={() => navigate('/chats')} className="p-2 rounded-full hover:bg-gray-100">
+                  <ArrowLeftIcon className="h-6 w-6 text-gray-700" />
                 </button>
-              )}
-            </div>
-          </div>
-          <div className="mt-2 text-sm">
-            <div className="flex items-center">
-              <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
-              <span className="font-semibold text-gray-800 truncate">{requestDetails.author.username}</span>
-            </div>
-            {requestDetails.helper && (
-              <div className="flex items-center mt-1">
-                <span className="font-medium text-gray-500 w-16 flex-shrink-0">Хелпер:</span>
-                <span className="font-semibold text-gray-800 truncate">{requestDetails.helper.username}</span>
+                {otherUser && (
+                  <>
+                    <img src={formatAvatarUrl(otherUser)} alt={otherUser.username} className="w-10 h-10 rounded-full" />
+                    <div>
+                      <h1 className="text-lg font-semibold text-gray-900 leading-tight">
+                        <UsernameWithBadge user={otherUser} />
+                      </h1>
+                      <p className="text-xs text-gray-500 leading-tight">
+                        {otherUser.isOnline ? 'Онлайн' : 'Оффлайн'}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-4 flex-shrink-0">
+                {isAuthor && isChatActive && (
+                  <button
+                    onClick={handleOpenResolveModal}
+                    className="w-full sm:w-auto flex-grow sm:flex-grow-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <CheckBadgeIcon className="h-5 w-5" />
+                    Завершить и оценить
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </header>
 
@@ -819,7 +827,6 @@ const ChatPage = () => {
 
         <footer className="bg-white border-t border-gray-200 rounded-b-lg">
           {(() => {
-            // УДАЛЕНА ЛОГИКА ОЦЕНКИ ИЗ ФУТЕРА
             if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed') {
                 return (
                   <div className="p-4 text-center text-gray-500">
@@ -889,7 +896,6 @@ const ChatPage = () => {
         </footer>
       </div>
 
-      {/* НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ОЦЕНКИ */}
       {isRatingModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
@@ -897,7 +903,6 @@ const ChatPage = () => {
              <p className="text-center text-gray-600 mb-6">
                 Пожалуйста, оцените работу хелпера <span className="font-bold">{requestDetails?.helper?.username}</span>.
              </p>
-            {/* Рендерим компонент оценки прямо здесь */}
             <Rating onSubmit={handleCompleteOrReopen} />
              <button
                 onClick={() => setIsRatingModalOpen(false)}
