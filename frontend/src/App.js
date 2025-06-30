@@ -121,11 +121,9 @@ const AppContent = () => {
 // Главный компонент приложения с правильной структурой
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppInitializer />
-      </AuthProvider>
-    </Router>
+    <AuthProvider>
+      <AppInitializer />
+    </AuthProvider>
   );
 }
 
