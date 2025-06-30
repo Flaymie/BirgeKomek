@@ -17,9 +17,9 @@ const router = express.Router();
 
 // Список зарезервированных имен пользователей, которые нельзя использовать при регистрации
 const RESERVED_USERNAMES = [
-    'admin', 'administrator', 'moderator', 'moder', 'support', 'root', 'system',
-    'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo',
-    'birge', 'komek', 'birgekomek', 'guest', 'user', 'test', 'anonymous',
+    'admin', 'administrator', 'moderator', 'moder', 'support', 'root', 'system', 'api', 'backend', 'auth', 'login', 'logout', 'register',
+    'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo', 'undefined', 'NaN', 'true', 'false', 'me', 'profile', 'user',
+    'birge', 'komek', 'birgekomek', 'guest', 'user', 'dev', 'developer', 'sysadmin', 'telegram', 'tg_bot', 'null', 'test', 'anonymous',
     'хелпер', 'админ', 'модератор', 'саппорт', 'поддержка', 'помощь'
 ];
 
@@ -103,10 +103,12 @@ router.post('/register', generalLimiter,
     .isLength({ min: 3, max: 10 }).withMessage('Имя пользователя должно быть от 3 до 10 символов')
     .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания')
     .custom(value => {
-        // Проверяем, не является ли имя зарезервированным
-        if (RESERVED_USERNAMES.includes(value.toLowerCase())) {
+        const lowerCaseValue = value.toLowerCase();
+        // Проверяем, не СОДЕРЖИТ ли имя пользователя зарезервированное слово
+        const isReserved = RESERVED_USERNAMES.some(reserved => lowerCaseValue.includes(reserved));
+        if (isReserved) {
             // Выбрасываем ошибку валидации
-            return Promise.reject('Это имя пользователя зарезервировано и не может быть использовано.');
+            return Promise.reject('Имя пользователя содержит зарезервированные слова.');
         }
         return true;
     }),
@@ -380,9 +382,10 @@ router.post('/check-username', [
     try {
         const username = req.body.username.toLowerCase();
 
-        // --- ПРОВЕРКА НА ЗАРЕЗЕРВИРОВАННЫЕ ИМЕНА ---
-        if (RESERVED_USERNAMES.includes(username)) {
-            return res.json({ available: false, message: 'Это имя пользователя зарезервировано.' });
+        // --- ПРОВЕРКА НА СОДЕРЖАНИЕ ЗАРЕЗЕРВИРОВАННЫХ СЛОВ ---
+        const isReserved = RESERVED_USERNAMES.some(reserved => username.includes(reserved));
+        if (isReserved) {
+            return res.json({ available: false, message: 'Имя пользователя содержит зарезервированные слова.' });
         }
 
         const user = await User.findOne({ username });
