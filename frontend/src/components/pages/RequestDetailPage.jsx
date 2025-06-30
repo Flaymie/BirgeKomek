@@ -335,9 +335,7 @@ const RequestDetailPage = () => {
                 <Link to={`/profile/${request.author.username}`} className="hover:text-blue-600 hover:underline">
                   {request.author.username}
                 </Link>
-                <div title={authorProfile?.roles?.admin ? "Администратор" : authorProfile?.roles?.moderator ? "Модератор" : ""}>
-                  <RoleBadge user={authorProfile} />
-                </div>
+                <RoleBadge user={authorProfile} />
               </div>
             </div>
             <div className="hidden md:block">|</div>
@@ -371,9 +369,7 @@ const RequestDetailPage = () => {
                     <Link to={`/profile/${request.helper.username}`} className="hover:underline">
                       {request.helper.username}
                     </Link>
-                    <div title={helperProfile?.roles?.admin ? "Администратор" : helperProfile?.roles?.moderator ? "Модератор" : ""}>
-                      <RoleBadge user={helperProfile} />
-                    </div>
+                    <RoleBadge user={helperProfile} />
                 </div>
               </div>
             </div>

@@ -28,23 +28,33 @@ const RoleBadge = ({ user }) => {
   const badgeConfig = {
     admin: {
       Icon: CrownIcon,
-      title: 'Официальный аккаунт Администратора',
-      className: 'role-icon role-icon-admin',
+      title: 'Администратор',
+      iconClassName: 'w-4 h-4 text-yellow-500',
     },
     moderator: {
       Icon: ShieldIcon,
-      title: 'Официальный аккаунт Модератора',
-      className: 'role-icon role-icon-moderator',
+      title: 'Модератор',
+      iconClassName: 'w-4 h-4 text-blue-500',
     },
   };
 
   const role = isAdmin ? 'admin' : 'moderator';
-  const { Icon, title, className } = badgeConfig[role];
+  const { Icon, title, iconClassName } = badgeConfig[role];
 
   return (
-    <span title={title} className="role-badge-wrapper">
-      <Icon className={className} />
-    </span>
+    <div className="relative group inline-block ml-1.5 align-middle">
+      <Icon className={iconClassName} />
+      <div 
+        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 
+                   opacity-0 group-hover:opacity-100 
+                   bg-gray-800 text-white text-xs rounded-md px-2 py-1
+                   transition-opacity duration-300 pointer-events-none z-20
+                   whitespace-nowrap shadow-lg"
+      >
+        {title}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800"></div>
+      </div>
+    </div>
   );
 };
 

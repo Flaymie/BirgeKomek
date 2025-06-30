@@ -802,9 +802,7 @@ const ChatPage = () => {
                 <Link to={`/profile/${requestDetails.author.username}`} className="hover:underline">
                   {requestDetails.author.username}
                 </Link>
-                <div title={authorProfile?.roles?.admin ? "Администратор" : authorProfile?.roles?.moderator ? "Модератор" : ""}>
-                  <RoleBadge user={authorProfile} />
-                </div>
+                <RoleBadge user={authorProfile} />
               </div>
             </div>
             {requestDetails.helper && (
@@ -814,9 +812,7 @@ const ChatPage = () => {
                     <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline">
                       {requestDetails.helper.username}
                     </Link>
-                    <div title={helperProfile?.roles?.admin ? "Администратор" : helperProfile?.roles?.moderator ? "Модератор" : ""}>
-                      <RoleBadge user={helperProfile} />
-                    </div>
+                    <RoleBadge user={helperProfile} />
                 </div>
               </div>
             )}
