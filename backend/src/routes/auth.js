@@ -220,8 +220,16 @@ router.post('/register', generalLimiter,
 
     await user.save();
     
+    // --- ИСПРАВЛЕННАЯ ЛОГИКА ТОКЕНА ---
+    const payload = {
+      id: user._id,
+      username: user.username,
+      roles: user.roles,
+      telegramId: user.telegramId
+    };
+
     const token = jwt.sign(
-      { id: user._id, username: user.username },
+      payload,
       process.env.JWT_SECRET, 
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -313,19 +321,27 @@ router.post('/login', generalLimiter, [
         return res.status(400).json({ msg: 'Неверный email или пароль' });
     }
     
-    const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        return res.status(400).json({ msg: 'Неверный email или пароль' });
-      }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ msg: 'Неверные учетные данные' });
+    }
 
-      // Если пользователь забанен, мы все равно даем ему токен,
-      // но фронтенд должен будет показать модалку с причиной бана.
-      if (user.banDetails.isBanned) {
-        console.log(`[Login] Забаненный пользователь ${user.username} пытается войти.`);
-      }
-      
+    // Если пользователь забанен, мы все равно даем ему токен,
+    // но фронтенд должен будет показать модалку с причиной бана.
+    if (user.banDetails.isBanned) {
+      console.log(`[Login] Забаненный пользователь ${user.username} пытается войти.`);
+    }
+    
+    // --- ИСПРАВЛЕННАЯ ЛОГИКА ТОКЕНА ---
+    const payload = {
+      id: user._id,
+      username: user.username,
+      roles: user.roles,
+      telegramId: user.telegramId
+    };
+
     const token = jwt.sign(
-        { id: user._id, username: user.username, roles: user.roles },
+      payload,
       process.env.JWT_SECRET, 
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
