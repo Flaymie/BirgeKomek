@@ -43,17 +43,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // --- НОВАЯ ЛОГИКА ОБРАБОТКИ БАНА ---
     if (error.response) {
       const { status, data } = error.response;
       
-      // Если статус 403 и в ответе есть флаг isBanned
+      // Единственная и правильная логика обработки бана
       if (status === 403 && data && data.isBanned) {
         if (authContext && typeof authContext.showBanModal === 'function') {
           console.log("Перехват ошибки: пользователь забанен. Показываем модалку.", data.banDetails);
           authContext.showBanModal(data.banDetails);
         }
-        // Не разлогиниваем, а просто передаем ошибку дальше, чтобы модалка показалась
         return Promise.reject(error);
       }
       
@@ -79,14 +77,6 @@ api.interceptors.response.use(
       if (error.response) {
         console.error('Данные ответа:', error.response.data);
         console.error('Статус ответа:', error.response.status);
-        
-        // Обработка бана пользователя
-        if (data && data.isBanned) {
-          if (authContext) {
-            // Вызываем единый обработчик бана из AuthContext
-            authContext.handleBan(data.banDetails);
-          }
-        }
       }
       
       const isRegistrationPage = window.location.pathname.includes('/register');

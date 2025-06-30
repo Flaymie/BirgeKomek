@@ -12,39 +12,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [banDetails, setBanDetails] = useState({ isBanned: false, reason: '', expiresAt: null });
+  const [banDetails, setBanDetails] = useState(null);
+  const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(true);
+
+  const showBanModal = (details) => {
+    setBanDetails(details);
+    setIsBannedModalOpen(true);
+  };
 
   const processAndCheckBan = (userData) => {
     if (userData?.banDetails?.isBanned) {
-      setBanDetails({
-        isBanned: true,
-        reason: userData.banDetails.reason,
-        expiresAt: userData.banDetails.expiresAt,
-      });
+      showBanModal(userData.banDetails);
     } else {
-      setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+      setBanDetails(null);
+      setIsBannedModalOpen(false);
     }
     setCurrentUser(processUserData(userData));
   };
-
-  // Сохраняем ссылку на методы в глобальной переменной для доступа из api.js
-  useEffect(() => {
-    window.authContext = {
-      handleBan: (details) => {
-        setBanDetails({
-          isBanned: true,
-          reason: details.reason || 'Причина не указана',
-          expiresAt: details.expiresAt || null,
-        });
-      },
-      logout
-    };
-    
-    return () => {
-      delete window.authContext;
-    };
-  }, []);
 
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
@@ -155,13 +140,10 @@ export const AuthProvider = ({ children }) => {
       
       // Данные о бане и пользователе приходят в одном ответе
       if (data.banDetails?.isBanned) {
-        setBanDetails({
-          isBanned: true,
-          reason: data.banDetails.reason || 'Причина не указана.',
-          expiresAt: data.banDetails.expiresAt,
-        });
+        showBanModal(data.banDetails);
       } else {
-        setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+        setBanDetails(null);
+        setIsBannedModalOpen(false);
       }
 
       setCurrentUser(processUserData(data.user));
@@ -373,7 +355,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('readOnlyBannerDismissed');
     setCurrentUser(null);
     setUnreadCount(0);
-    setBanDetails({ isBanned: false, reason: '', expiresAt: null });
+    setBanDetails(null);
+    setIsBannedModalOpen(false);
     setIsReadOnly(true);
   }, []);
 
@@ -383,6 +366,9 @@ export const AuthProvider = ({ children }) => {
     error,
     unreadCount,
     banDetails,
+    isBannedModalOpen,
+    showBanModal,
+    closeBanModal: () => setIsBannedModalOpen(false),
     setUnreadCount,
     setBanDetails,
     login,
