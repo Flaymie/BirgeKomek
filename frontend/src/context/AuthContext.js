@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { toast } from 'react-toastify';
 import { authService, usersService, notificationsService, baseURL } from '../services/api';
 import { formatAvatarUrl } from '../services/avatarUtils';
+import { getAuthToken, setAuthToken, clearAuthToken } from '../services/tokenStorage';
 
 const AuthContext = createContext();
 
@@ -66,7 +67,7 @@ export const AuthProvider = ({ children }) => {
   // Загрузка данных пользователя
   useEffect(() => {
     const loadUser = async () => {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         setLoading(false);
         return;
@@ -81,7 +82,7 @@ export const AuthProvider = ({ children }) => {
         console.error('Ошибка при загрузке пользователя:', err);
         // Если токен недействителен, удаляем его
         if (err.response && err.response.status === 401) {
-          localStorage.removeItem('token');
+          clearAuthToken();
         }
         setError(err.message);
         setIsReadOnly(true);
@@ -97,7 +98,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let eventSource;
     if (currentUser) {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       // Прямое использование EventSource, так как axios не подходит для SSE
       eventSource = new EventSource(`${baseURL}/notifications/subscribe?token=${token}`);
 
@@ -136,7 +137,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { data } = await authService.login(credentials);
-      localStorage.setItem('token', data.token);
+      setAuthToken(data.token);
       
       // Данные о бане и пользователе приходят в одном ответе
       if (data.banDetails?.isBanned) {
@@ -178,7 +179,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithToken = (token, user) => {
     setLoading(true);
     try {
-      localStorage.setItem('token', token);
+      setAuthToken(token);
       processAndCheckBan(user);
       fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
@@ -226,7 +227,7 @@ export const AuthProvider = ({ children }) => {
         // Проверяем, содержит ли ответ токен, который нужно сохранить
         if (response.data.token) {
           console.log('AuthContext: Токен получен, сохраняем в localStorage');
-          localStorage.setItem('token', response.data.token);
+          setAuthToken(response.data.token);
         }
         
         // Устанавливаем пользователя в стейт, если в ответе есть данные пользователя
@@ -351,7 +352,7 @@ export const AuthProvider = ({ children }) => {
 
   // Функция для выхода пользователя
   const logout = useCallback(() => {
-    localStorage.removeItem('token');
+    clearAuthToken();
     localStorage.removeItem('readOnlyBannerDismissed');
     setCurrentUser(null);
     setUnreadCount(0);
