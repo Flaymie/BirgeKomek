@@ -1,7 +1,7 @@
 import express from 'express';
 import { body, validationResult, param, query } from 'express-validator'; // Добавил query
 import User from '../models/User.js';
-import { protect, isAdmin, isModOrAdmin } from '../middleware/auth.js';
+import { protect, isAdmin, isModOrAdmin, adminOrModerator } from '../middleware/auth.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import Review from '../models/Review.js';
@@ -13,6 +13,7 @@ import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОР�
 import { generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
 import tgRequired from '../middleware/tgRequired.js'; // ИМПОРТ
 import crypto from 'crypto'; // <-- ИМПОРТ ДЛЯ ГЕНЕРАЦИИ КОДА
+import { internalBotAuth } from '../middleware/internalAuth.js'; // <-- Импортируем новую мидлварь
 
 const router = express.Router();
 
@@ -873,6 +874,122 @@ export default ({ sseConnections, io }) => {
     } catch (error) {
       console.error('Ошибка при переключении настроек для бота:', error);
       res.status(500).json({ msg: 'Ошибка сервера' });
+    }
+  });
+
+  // --- НОВЫЙ РОУТ ДЛЯ ИНИЦИАЦИИ БАНА ---
+  router.post('/:id/initiate-ban', protect, adminOrModerator, [
+    param('id').isMongoId().withMessage('Неверный ID пользователя.'),
+    body('reason').isString().trim().notEmpty().withMessage('Причина обязательна.'),
+    body('duration').optional({ nullable: true }).isNumeric().withMessage('Длительность должна быть числом.'),
+  ], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id: targetUserId } = req.params;
+    const { reason, duration } = req.body;
+    const moderator = req.user;
+
+    try {
+      const targetUser = await User.findById(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+
+      if (!moderator.telegramId) {
+        return res.status(400).json({ msg: 'Ваш аккаунт не привязан к Telegram. Подтверждение невозможно.' });
+      }
+
+      const token = crypto.randomBytes(20).toString('hex');
+      const actionDetails = {
+        action: 'ban_user',
+        moderatorId: moderator._id.toString(),
+        targetUserId: targetUserId,
+        reason,
+        duration
+      };
+
+      // Сохраняем детали в Redis на 5 минут
+      await redis.set(`moderator_action:${token}`, JSON.stringify(actionDetails), 'EX', 300);
+
+      // --- ОТПРАВКА СООБЩЕНИЯ В TELEGRAM ---
+      const bot = req.app.get('telegramBot');
+      if (!bot) {
+        return res.status(500).json({ msg: 'Ошибка сервера: бот не инициализирован.' });
+      }
+
+      const text = `Вы действительно хотите забанить пользователя *${targetUser.username}*?\n\n*Причина:* ${reason}\n*Срок:* ${duration ? `${duration} ч.` : 'навсегда'}`;
+      const inlineKeyboard = {
+        inline_keyboard: [
+          [
+            { text: '✅ Подтвердить бан', callback_data: `confirm_action:${token}` },
+            { text: '❌ Отклонить', callback_data: `deny_action:${token}` }
+          ]
+        ]
+      };
+
+      await bot.sendMessage(moderator.telegramId, text, {
+        parse_mode: 'Markdown',
+        reply_markup: inlineKeyboard
+      });
+
+      res.status(202).json({ msg: 'Запрос на бан отправлен. Ожидается подтверждение в Telegram.' });
+
+    } catch (error) {
+      console.error('Ошибка при инициации бана:', error);
+      res.status(500).json({ msg: 'Внутренняя ошибка сервера' });
+    }
+  });
+
+  // --- НОВЫЙ ВНУТРЕННИЙ РОУТ ДЛЯ БАНА (ИСПОЛЬЗУЕТСЯ БОТОМ) ---
+  router.post('/:id/ban', internalBotAuth, [
+    param('id').isMongoId(),
+    body('reason').isString().notEmpty(),
+    body('duration').optional({ nullable: true }).isNumeric(),
+  ], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+
+      user.isBanned = true;
+      user.banReason = req.body.reason;
+      user.banExpires = req.body.duration ? new Date(Date.now() + req.body.duration * 60 * 60 * 1000) : null;
+      
+      await user.save();
+      res.status(200).json({ msg: `Пользователь ${user.username} забанен.` });
+    } catch (error) {
+      console.error('Ошибка при бане пользователя (внутренний роут):', error);
+      res.status(500).json({ msg: 'Внутренняя ошибка сервера' });
+    }
+  });
+
+  // --- НОВЫЙ ВНУТРЕННИЙ РОУТ ДЛЯ ПОЛУЧЕНИЯ ДАННЫХ ЮЗЕРА (ИСПОЛЬЗУЕТСЯ БОТОМ) ---
+  router.get('/id/:id', internalBotAuth, [
+    param('id').isMongoId()
+  ], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const user = await User.findById(req.params.id).select('username');
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Ошибка при получении пользователя по ID (внутренний роут):', error);
+      res.status(500).json({ msg: 'Внутренняя ошибка сервера' });
     }
   });
 

@@ -18,6 +18,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
 import ImageViewerModal from '../modals/ImageViewerModal';
+import { useSocket } from '../../context/SocketContext';
 
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
@@ -648,6 +649,7 @@ const ProfilePage = () => {
     handleUnlinkTelegram,
     isTelegramLoading,
   } = useAuth();
+  const { socket } = useSocket();
   const { identifier } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -882,15 +884,15 @@ const ProfilePage = () => {
   };
 
   const handleBanUser = async (reason, duration) => {
-    if (!profile) return;
+    if (!profile) return false;
     try {
-      await usersService.banUser(profile._id, reason, duration);
-      toast.success(`Пользователь ${profile.username} забанен.`);
-      setIsBanModalOpen(false);
-      fetchUserData(profile._id);
+      await usersService.initiateBan(profile._id, reason, duration);
+      toast.info('Запрос на бан отправлен. Пожалуйста, подтвердите действие в вашем Telegram.');
+      return true;
     } catch (err) {
-      console.error('Ошибка при бане:', err);
-      toast.error(err.response?.data?.msg || 'Не удалось забанить пользователя.');
+      console.error('Ошибка при инициации бана:', err);
+      toast.error(err.response?.data?.msg || 'Не удалось инициировать бан.');
+      return false;
     }
   };
 
@@ -911,6 +913,29 @@ const ProfilePage = () => {
       setViewerImageSrc(formatAvatarUrl(profile));
     }
   };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConfirmation = (data) => {
+      toast.success(data.message || 'Действие успешно подтверждено!');
+      setIsBanModalOpen(false);
+      fetchUserData(identifier);
+    };
+
+    const handleFailure = (data) => {
+      toast.error(data.message || 'Действие было отклонено или не удалось.');
+      setIsBanModalOpen(false);
+    };
+
+    socket.on('moderator_action_confirmed', handleConfirmation);
+    socket.on('moderator_action_failed', handleFailure);
+
+    return () => {
+      socket.off('moderator_action_confirmed', handleConfirmation);
+      socket.off('moderator_action_failed', handleFailure);
+    };
+  }, [socket, fetchUserData, identifier]);
 
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;

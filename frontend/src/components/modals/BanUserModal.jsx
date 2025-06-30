@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Ban } from 'lucide-react';
+import { Ban, LoaderCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
@@ -10,6 +10,9 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const [isPermanent, setIsPermanent] = useState(false);
   const [error, setError] = useState('');
   const modalRef = useRef(null);
+  
+  // --- НОВОЕ СОСТОЯНИЕ ДЛЯ ОЖИДАНИЯ ---
+  const [isAwaitingConfirmation, setIsAwaitingConfirmation] = useState(false);
   
   const isModeratorOnly = currentUser?.roles?.moderator && !currentUser?.roles?.admin;
   const isAdmin = currentUser?.roles?.admin;
@@ -42,6 +45,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
       setTimeUnit('hours');
       setIsPermanent(false);
       setError('');
+      setIsAwaitingConfirmation(false);
       if (modalRef.current) {
         modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -57,6 +61,8 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   }, [timeUnit, duration, isModeratorOnly]);
   
   const handleSubmit = () => {
+    if (isAwaitingConfirmation) return;
+
     if (!reason.trim()) {
       setError('Причина бана обязательна');
       return;
@@ -79,8 +85,17 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
     }
     
     const finalDuration = isPermanent ? null : durationInHours;
-    onConfirm(reason.trim(), finalDuration);
-    setError('');
+    
+    // --- ИЗМЕНЕННАЯ ЛОГИКА ---
+    // Теперь onConfirm будет асинхронным и вернет true/false
+    onConfirm(reason.trim(), finalDuration)
+      .then(success => {
+        if (success) {
+          setError('');
+          setIsAwaitingConfirmation(true);
+        }
+        // Если success = false, значит, на бэке ошибка, и тост уже показан в родительском компоненте
+      });
   };
   
   const handlePresetClick = (presetValue) => {
@@ -193,16 +208,27 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
             type="button"
             className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all duration-200"
             onClick={onClose}
+            disabled={isAwaitingConfirmation}
           >
             Отмена
           </button>
           <button
             type="button"
-            className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200 flex items-center gap-1"
+            className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200 flex items-center gap-1 disabled:bg-red-400 disabled:cursor-wait"
             onClick={handleSubmit}
+            disabled={isAwaitingConfirmation}
           >
-            <Ban className="w-3 h-3" />
-            Заблокировать
+            {isAwaitingConfirmation ? (
+              <>
+                <LoaderCircle className="animate-spin w-3 h-3" />
+                <span>Ожидание...</span>
+              </>
+            ) : (
+              <>
+                <Ban className="w-3 h-3" />
+                <span>Заблокировать</span>
+              </>
+            )}
           </button>
         </div>
       </div>
