@@ -79,7 +79,7 @@ const AppContent = () => {
         onClose={() => setIsRateLimitModalOpen(false)}
       />
 
-      <div className={`main-content ${banDetails.isBanned || isRateLimitModalOpen ? 'blurred' : ''}`}>
+      <div className={`main-content ${ (banDetails && banDetails.isBanned) || isRateLimitModalOpen ? 'blurred' : ''}`}>
         <Layout>
           <Routes>
             {/* Публичные маршруты */}
