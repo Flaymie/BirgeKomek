@@ -10,7 +10,7 @@ const tgRequired = async (req, res, next) => {
         const user = await User.findById(req.user.id);
 
         if (!user || !user.telegramId) {
-            return res.status(403).json({ msg: 'Для выполнения этого действия необходимо привязать Telegram.' });
+            return res.status(403).json({ msg: "Привяжи Telegram, бро 😐" });
         }
         
         next();

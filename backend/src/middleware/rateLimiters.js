@@ -5,8 +5,9 @@ const commonOptions = {
   standardHeaders: true, // Возвращать информацию о лимитах в заголовках `RateLimit-*`
   legacyHeaders: false, // Отключить заголовки `X-RateLimit-*`
   keyGenerator: (req, res) => {
-    // Используем ID пользователя если он есть, иначе IP. Это ключ для подсчета запросов.
-    return req.user ? req.user.id : req.ip;
+    // Приоритет - IP. Это защищает от абуза с одного IP под разными аккаунтами.
+    // Если IP недоступен (что редкость), используем ID пользователя.
+    return req.ip || (req.user ? req.user.id : null);
   },
 };
 
@@ -72,5 +73,8 @@ export const generalLimiter = rateLimit({
   ...commonOptions,
   windowMs: 15 * 60 * 1000, // 15 минутное окно для предотвращения кратковременных всплесков
   max: (req, res) => getMaxRequestsByRole(req),
+  keyGenerator: (req, res) => { // Явно указываем здесь для надежности
+    return req.ip || (req.user ? req.user.id : null);
+  },
   message: { msg: 'Вы делаете слишком много запросов. Пожалуйста, подождите.' },
 }); 
