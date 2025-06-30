@@ -312,22 +312,29 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Отправка данных на сервер:', JSON.stringify(userData));
-      const response = await usersService.updateProfile(userData);
-      console.log('Ответ сервера:', response);
+      const payload = { ...userData };
+      // Принудительно удаляем поля, которые могут вызвать проверку пароля на бэкенде
+      delete payload.email;
+      delete payload.password;
+      delete payload.roles;
+      delete payload._id;
+      delete payload.id;
+
+      console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
+      const response = await usersService.updateProfile(payload);
       
       const updatedUserData = processUserData({...currentUser, ...response.data});
       setCurrentUser(updatedUserData);
       setIsReadOnly(!updatedUserData.telegramId);
       
       setLoading(false);
-      toast.success('Профиль успешно обновлен!');
+      // НЕ показываем тост здесь, чтобы избежать дублирования
+      // toast.success('Профиль успешно обновлен!');
       return { success: true, user: response.data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);
       console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));
       
-      // Более детальная обработка ошибок
       let errorMessage = 'Ошибка при обновлении профиля';
       if (err.response) {
         if (err.response.data.errors && err.response.data.errors.length > 0) {
@@ -338,7 +345,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage); // Показываем тост с ошибкой здесь
       setLoading(false);
       setIsReadOnly(true);
       return { success: false, error: errorMessage };

@@ -144,8 +144,8 @@ export default ({ sseConnections, io }) => {
     body('bio').optional().isLength({ max: 500 }).withMessage('Текст биографии не может превышать 500 символов'),
     body('grade').optional().isInt({ min: 1, max: 11 }).withMessage('Неверный формат класса'),
     body('subjects').optional().isArray().withMessage('Неверный формат списка предметов'),
-    body('currentPassword').notEmpty().withMessage('Текущий пароль обязателен'),
     body('newPassword').optional().isLength({ min: 6 }).withMessage('Новый пароль должен быть минимум 6 символов'),
+    body('currentPassword').optional().isString(),
   ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -161,6 +161,21 @@ export default ({ sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
+      const isEmailChanging = email && email.toLowerCase() !== user.email;
+
+      // --- НОВАЯ, ПРАВИЛЬНАЯ ПРОВЕРКА ПАРОЛЯ ---
+      if (isEmailChanging || newPassword) {
+        if (!currentPassword) {
+          return res.status(400).json({ 
+            errors: [{ msg: 'Текущий пароль обязателен для смены email или установки нового пароля.' }] 
+          });
+        }
+        const isMatch = await user.comparePassword(currentPassword);
+        if (!isMatch) {
+          return res.status(401).json({ errors: [{ msg: 'Неверный текущий пароль.' }] });
+        }
+      }
+      
       // --- НОВАЯ ЛОГИКА СМЕНЫ НИКНЕЙМА ---
       if (username && username.toLowerCase() !== user.username) {
           // 1. Проверка на уникальность (без учета регистра)
@@ -185,24 +200,13 @@ export default ({ sseConnections, io }) => {
           user.lastUsernameChange = now;
       }
 
-      // --- СТАРАЯ ЛОГИКА ДЛЯ ДРУГИХ ПОЛЕЙ ---
-      const isEmailChanging = email && email !== user.email;
-      if ((isEmailChanging || newPassword) && !currentPassword) {
-        return res.status(400).json({ msg: 'Требуется текущий пароль для изменения email или пароля' });
-      }
-      if (currentPassword) {
-        const isMatch = await user.comparePassword(currentPassword);
-        if (!isMatch) {
-          return res.status(401).json({ msg: 'Неверный текущий пароль' });
-        }
-      }
-      
+      // --- ЛОГИКА ОБНОВЛЕНИЯ ПОЛЕЙ ---
       if (isEmailChanging) {
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email: email.toLowerCase() });
         if (existingUser && existingUser._id.toString() !== userId) {
           return res.status(400).json({ msg: 'Email уже занят' });
         }
-        user.email = email;
+        user.email = email.toLowerCase();
       }
       if (newPassword) {
         user.password = newPassword;
