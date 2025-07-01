@@ -13,6 +13,7 @@ import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
+import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -553,28 +554,13 @@ const RequestDetailPage = () => {
       />
       
       {/* Модальное окно подтверждения удаления */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Подтверждение удаления</h3>
-            <p className="mb-6">Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить.</p>
-            <div className="flex justify-end gap-3">
-              <button 
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Отмена
-              </button>
-              <button 
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                onClick={handleDeleteRequest}
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteRequest}
+        title="Подтверждение удаления"
+        body="Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить."
+      />
 
       {/* НОВАЯ МОДАЛКА ПОДТВЕРЖДЕНИЯ ДЛЯ МОДЕРАТОРА */}
       <ModeratorActionConfirmModal

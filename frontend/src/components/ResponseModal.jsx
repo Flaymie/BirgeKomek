@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { responsesService } from '../services/api';
 import { toast } from 'react-toastify';
 import { useReadOnlyCheck } from '../hooks/useReadOnlyCheck';
@@ -8,6 +8,14 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
+  const modalRef = useRef(null);
+  const charLimit = 1000;
+
+  useEffect(() => {
+    if (isOpen) {
+      modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isOpen]);
 
   // Если модальное окно не открыто, не рендерим его
   if (!isOpen) return null;
@@ -78,7 +86,7 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div ref={modalRef} className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Предложить помощь</h3>
             <button 
@@ -102,7 +110,11 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
               className="w-full p-2 border border-gray-300 rounded-md"
               rows="4"
               placeholder="Напишите ваше сообщение..."
+              maxLength={charLimit}
             ></textarea>
+            <p className="text-right text-sm text-gray-500 mt-1">
+              {message.length} / {charLimit}
+            </p>
             <div className="mt-4 flex justify-end">
               <button 
                   type="submit" 
