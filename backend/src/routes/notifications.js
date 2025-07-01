@@ -200,68 +200,62 @@ router.delete('/:id', protect, generalLimiter, [
     }
 });
 
-    router.get('/subscribe', async (req, res) => {
-        let userId;
+    router.get('/subscribe', protect, async (req, res) => {
         let heartbeatInterval;
+        const userId = req.user.id;
 
-        try {
-            const token = req.query.token;
-            if (!token) {
-                return res.status(401).json({ msg: "Отсутствует токен, авторизация отклонена" });
-            }
+        if (!userId) {
+            console.error('[SSE] Subscribe attempt without userId after protect middleware.');
+            return res.status(401).json({ msg: 'Unauthorized' });
+        }
 
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            userId = decoded.id;
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
 
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
-            res.flushHeaders();
+        sseConnections[userId] = res;
+        console.log(`[SSE] User connected: ${req.user.username} (${userId})`);
 
-            sseConnections[userId] = res;
-            console.log(`[SSE] User connected: ${userId}`);
-
-            if (isRedisConnected()) {
-                const onlineKey = `online:${userId}`;
-                await redis.set(onlineKey, '1', 'EX', 120);
-            }
-            
-            heartbeatInterval = setInterval(async () => {
-                res.write(': heartbeat\n\n');
-                if (isRedisConnected()) {
-                    const onlineKey = `online:${userId}`;
-                    await redis.expire(onlineKey, 120);
-                }
-            }, 90000);
-
-            res.write('event: connection\n');
-            res.write('data: SSE connection established\n\n');
-
-            req.on('close', async () => {
+        if (isRedisConnected()) {
+            const onlineKey = `online:${userId}`;
+            await redis.set(onlineKey, '1', 'EX', 120);
+        }
+        
+        heartbeatInterval = setInterval(async () => {
+            if (!res.writable) {
                 clearInterval(heartbeatInterval);
                 delete sseConnections[userId];
-                console.log(`[SSE] User disconnected: ${userId}`);
-                
-                if (isRedisConnected() && userId) {
-                    const onlineKey = `online:${userId}`;
-                    await redis.del(onlineKey);
-                    
-                    try {
-                        await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
-                        console.log(`[lastSeen] Updated for user: ${userId}`);
-                    } catch (dbError) {
-                        console.error(`[lastSeen] Failed to update for user ${userId}:`, dbError);
-                    }
-                }
-            });
+                console.log(`[SSE] Stale connection cleared for user: ${userId}`);
+                return;
+            }
+            res.write(': heartbeat\\n\\n');
+            if (isRedisConnected()) {
+                const onlineKey = `online:${userId}`;
+                await redis.expire(onlineKey, 120);
+            }
+        }, 90000);
 
-        } catch (err) {
-            console.error('[SSE] Auth Error:', err.message);
-            if (userId) delete sseConnections[userId];
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
+        res.write('event: connection\\n');
+        res.write('data: SSE connection established\\n\\n');
+
+        req.on('close', async () => {
+            clearInterval(heartbeatInterval);
+            delete sseConnections[userId];
+            console.log(`[SSE] User disconnected: ${req.user.username} (${userId})`);
             
-            res.end();
-        }
+            if (isRedisConnected() && userId) {
+                const onlineKey = `online:${userId}`;
+                await redis.del(onlineKey);
+                
+                try {
+                    await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+                    console.log(`[lastSeen] Updated for user: ${userId}`);
+                } catch (dbError) {
+                    console.error(`[lastSeen] Failed to update for user ${userId}:`, dbError);
+                }
+            }
+        });
     });
 
     return router;

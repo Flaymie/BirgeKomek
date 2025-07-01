@@ -21,8 +21,19 @@ export const protect = async (req, res, next) => {
     // проверяем токен
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+    // ВЫВОДИМ В ЛОГ, ЧТОБЫ УВИДЕТЬ СТРУКТУРУ ТОКЕНА
+
+    // ВРЕМЕННЫЙ КОСТЫЛЬ для поддержки старых и новых токенов
+    const userId = decoded.user ? decoded.user.id : decoded.id;
+    
+    // ДОПОЛНИТЕЛЬНЫЙ ЛОГ
+
+    if (!userId) {
+      return res.status(401).json({ msg: 'Невалидный токен (нет ID пользователя)' });
+    }
+
     // ищем юзера и не возвращаем пароль
-    const user = await User.findById(decoded.user.id).select('-password');
+    const user = await User.findById(userId).select('-password');
     
     if (!user) {
       return res.status(401).json({ msg: 'Не найден юзер с этим токеном' });
@@ -77,7 +88,17 @@ export const protectSocket = async (socket, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.user.id).select('-password');
+
+
+    // ВРЕМЕННЫЙ КОСТЫЛЬ для поддержки старых и новых токенов
+    const userId = decoded.user ? decoded.user.id : decoded.id;
+
+
+    if (!userId) {
+       return next(new Error('Невалидный токен (нет ID пользователя)'));
+    }
+
+    const user = await User.findById(userId).select('-password');
     
     if (!user) {
       return next(new Error('Не найден юзер с этим токеном'));

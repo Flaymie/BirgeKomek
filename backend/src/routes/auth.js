@@ -556,17 +556,17 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
             }
 
             const jwtToken = jwt.sign(
-              { 
-                user: {
-                  id: user._id, 
-                  roles: user.roles 
-                }
-              },
-              process.env.JWT_SECRET,
-              { expiresIn: process.env.JWT_EXPIRES_IN }
-          );
+                { 
+                  user: {
+                    id: user._id, 
+                    roles: user.roles 
+                  }
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN }
+            );
 
-          loginTokens.delete(token);
+            loginTokens.delete(token);
             
             return res.json({ status: 'completed', token: jwtToken, user });
 
@@ -679,18 +679,18 @@ router.post('/telegram/register', async (req, res) => {
 
         // 7. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но пусть будет)
         const jwtToken = jwt.sign(
-          { 
-            user: {
-              id: newUser._id, 
-              roles: newUser.roles
-            }
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: '5m' } 
-      );
-      
-      // Отправляем ID нового юзера, чтобы бот мог его использовать
-      res.status(201).json({ userId: newUser._id, token: jwtToken });
+            { 
+              user: {
+                id: newUser._id, 
+                roles: newUser.roles
+              }
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '5m' } 
+        );
+        
+        // Отправляем ID нового юзера, чтобы бот мог его использовать
+        res.status(201).json({ userId: newUser._id, token: jwtToken });
 
     } catch (error) {
         console.error('Ошибка регистрации через Telegram:', error.message);
@@ -1270,6 +1270,21 @@ router.post('/telegram/link-user', async (req, res) => {
         console.error('Ошибка привязки пользователя через бота:', err);
         res.status(500).json({ msg: 'Ошибка сервера' });
   }
+});
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Выход пользователя из системы
+ *     description: Формально, этот эндпоинт просто дает сигнал клиенту, что можно очистить токен. На бэкенде с JWT ничего не происходит.
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Успешный выход.
+ */
+router.post('/logout', (req, res) => {
+  res.status(200).json({ msg: 'Вы успешно вышли из системы' });
 });
 
 export default router; 

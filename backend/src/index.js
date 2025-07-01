@@ -25,9 +25,11 @@ import notificationRoutes, { createAndSendNotification } from './routes/notifica
 import statsRoutes from './routes/stats.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
+import configRoutes from './routes/config.js';
 import Message from './models/Message.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
+import { protectSocket } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -141,24 +143,19 @@ app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/config', configRoutes);
 
-// Socket.IO логика
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error('Authentication error: Token not provided'));
-  }
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return next(new Error('Authentication error: Invalid token'));
-    }
-    socket.user = decoded; // Сохраняем данные пользователя в сокете
-    next();
-  });
-});
+// ПРАВИЛЬНАЯ Socket.IO логика
+io.use(protectSocket);
 
 io.on('connection', (socket) => {
-  console.log(`[Socket.IO] User connected: ${socket.user.id}`);
+  // Теперь здесь socket.user - это ПОЛНОЦЕННЫЙ ОБЪЕКТ ПОЛЬЗОВАТЕЛЯ, а не кусок токена
+  if (!socket.user || !socket.user.id) {
+    console.error('[Socket.IO] Connection without user ID. Disconnecting.');
+    return socket.disconnect();
+  }
+
+  console.log(`[Socket.IO] User connected: ${socket.user.username} (${socket.user.id})`);
   const userId = socket.user.id;
   const onlineKey = `online:${userId}`;
 

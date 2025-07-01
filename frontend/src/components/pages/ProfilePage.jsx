@@ -481,10 +481,12 @@ const ProfileEditor = ({
                  <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
                   <CityAutocomplete
-                    value={profileData.location || ''}
-                    onChange={handleProfileChange}
-                    placeholder="Например: Алматы"
+                    name="location"
+                    value={profileData.location}
+                    onCitySelect={handleProfileChange}
+                    placeholder="Например, Алматы"
                   />
+                  {profileErrors.location && <p className="text-red-500 text-xs mt-1">{profileErrors.location}</p>}
                 </div>
               </div>
 
