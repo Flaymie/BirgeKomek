@@ -454,7 +454,7 @@ const RequestDetailPage = () => {
                     <ResponseCard 
                       response={myResponse} 
                       isMyResponse={true}
-                      fullHelperProfile={responderProfiles[myResponse.helper._id]}
+                      fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser}
                     />
                   </div>
                 )}
