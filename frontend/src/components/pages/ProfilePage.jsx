@@ -433,6 +433,7 @@ const ProfileEditor = ({
                 </div>
               )}
               
+              {/* Никнейм и телефон в одной строке на десктопе, друг под другом на мобиле */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700">Никнейм</label>
@@ -468,12 +469,13 @@ const ProfileEditor = ({
                     readOnly
                     disabled
                   />
-                   <p className="mt-1 text-xs text-gray-500">Телефон привязывается и обновляется через Telegram.</p>
+                  <p className="mt-1 text-xs text-gray-500">Телефон привязывается и обновляется через Telegram.</p>
                 </div>
               </div>
 
+              {/* Город и класс в одной строке */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div>
+                <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
                   <CityAutocomplete
                     name="location"
@@ -483,12 +485,9 @@ const ProfileEditor = ({
                   />
                   {profileErrors.location && <p className="text-red-500 text-xs mt-1">{profileErrors.location}</p>}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
-                  <select id="grade" name="grade" value={profileData.grade || ''} onChange={handleProfileChange} className="mt-1 form-select w-full">
+                  <select id="grade" name="grade" value={profileData.grade || ''} onChange={handleProfileChange} className="block w-full shadow-sm sm:text-sm rounded-md border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
                     <option value="">Выберите класс</option>
                     {[...Array(5)].map((_, i) => (<option key={i + 7} value={i + 7}>{i + 7} класс</option>))}
                   </select>
@@ -497,7 +496,7 @@ const ProfileEditor = ({
 
               <div>
                 <label htmlFor="bio" className="block text-sm font-medium text-gray-700">О себе</label>
-                <textarea id="bio" name="bio" rows="3" value={profileData.bio || ''} onChange={handleProfileChange} className="mt-1 form-textarea w-full" placeholder="Расскажите немного о себе..."></textarea>
+                <textarea id="bio" name="bio" rows="3" value={profileData.bio || ''} onChange={handleProfileChange} className="mt-1 block w-full shadow-sm sm:text-sm rounded-md border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Расскажите немного о себе..."></textarea>
               </div>
               
               {/* ЧЕКБОКСЫ */}
