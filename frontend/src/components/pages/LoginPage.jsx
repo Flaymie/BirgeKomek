@@ -10,7 +10,7 @@ const LoginPage = () => {
   const { login, currentUser, error: authError } = useAuth();
   
   const [formData, setFormData] = useState({
-    username: '',
+    emailOrUsername: '',
     password: '',
     rememberMe: false
   });
@@ -63,8 +63,8 @@ const LoginPage = () => {
   const validate = () => {
     const newErrors = {};
     
-    if (!formData.username.trim()) {
-      newErrors.username = 'Введите имя пользователя';
+    if (!formData.emailOrUsername.trim()) {
+      newErrors.emailOrUsername = 'Введите email или имя пользователя';
     }
     
     if (!formData.password) {
@@ -86,7 +86,7 @@ const LoginPage = () => {
     
     // Удаляем try-catch, так как AuthContext больше не бросает исключения
     const result = await login({
-      username: formData.username,
+      emailOrUsername: formData.emailOrUsername,
       password: formData.password
     });
     
@@ -148,20 +148,20 @@ const LoginPage = () => {
           
           <div className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
+              <label htmlFor="emailOrUsername" className="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
               <input
-                id="username"
-                name="username"
+                id="emailOrUsername"
+                name="emailOrUsername"
                 type="text"
                 autoComplete="username"
                 required
-                value={formData.username}
+                value={formData.emailOrUsername}
                 onChange={handleChange}
-                className={`form-input ${errors.username ? 'form-input-error' : ''}`}
+                className={`form-input ${errors.emailOrUsername ? 'form-input-error' : ''}`}
                 placeholder="Например, my_nickname"
               />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.username}</p>
+              {errors.emailOrUsername && (
+                <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.emailOrUsername}</p>
               )}
             </div>
             

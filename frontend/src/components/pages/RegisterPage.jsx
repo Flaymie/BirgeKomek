@@ -220,144 +220,161 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Создание аккаунта
-          </h2>
-        </div>
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Уже есть аккаунт?{' '}
+          <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+            Войти
+          </Link>
+        </p>
+      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl">
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={onSubmit}>
             
-            <div className="flex flex-col items-center">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Фотография (необязательно)
-            </label>
-            <AvatarUpload 
-              currentAvatar={formData.avatar}
-              onAvatarChange={handleAvatarChange}
-              size="lg"
-                  isRegistration={true}
-            />
-          </div>
-          
-          <div className="mt-8 space-y-6">
-            <div className="relative">
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
+            <AvatarUpload onAvatarChange={handleAvatarChange} />
+
+            {/* Имя пользователя */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Имя пользователя
+              </label>
               <div className="mt-1 relative rounded-md shadow-sm">
-                <input id="username" name="username" type="text" required value={username} onChange={handleChange}
-                     className={`form-input pr-10 ${usernameStatus === 'unavailable' || usernameStatus === 'error' ? 'form-input-error' : ''}`}
-                     placeholder="my_nickname" />
+                <input
+                  type="text"
+                  name="username"
+                  id="username"
+                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm ${
+                    usernameStatus === 'available' ? 'border-green-500 focus:ring-green-500 focus:border-green-500' : 
+                    (usernameStatus === 'unavailable' || usernameStatus === 'error') ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                  }`}
+                  value={username}
+                  onChange={handleChange}
+                  required
+                  minLength="3"
+                />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <ValidationIcon status={usernameStatus} />
+                   <ValidationIcon status={usernameStatus} />
                 </div>
               </div>
-              {usernameStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{usernameError}</p>}
+              {usernameError && <p className="mt-2 text-sm text-red-600">{usernameError}</p>}
             </div>
 
+            {/* Пароль */}
             <div>
-              <label htmlFor="password-input" className="block text-sm font-medium text-gray-700">Пароль</label>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Пароль
+              </label>
               <div className="mt-1 relative">
                 <input
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={handleChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                </button>
+                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                    {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                 </button>
               </div>
-              {formData.password && <PasswordStrengthMeter score={passwordScore} password={formData.password} />}
+               <PasswordStrengthMeter score={passwordScore} />
             </div>
-            
+
+            {/* Подтверждение пароля */}
             <div>
-              <label htmlFor="password2" className="block text-sm font-medium text-gray-700">Повторите пароль</label>
-              <div className="mt-1 relative">
-                <input
-                  id="password2"
-                  name="password2"
-                  type={showPassword2 ? 'text' : 'password'}
-                  required
-                  value={password2}
-                  onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword2(!showPassword2)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                </button>
-              </div>
+              <label
+                htmlFor="password2"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Подтвердите пароль
+              </label>
+                <div className="mt-1 relative">
+                    <input
+                      id="password2"
+                      name="password2"
+                      type={showPassword2 ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      required
+                      value={password2}
+                      onChange={onChange}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                    <button type="button" onClick={() => setShowPassword2(!showPassword2)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                        {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                    </button>
+                </div>
             </div>
 
-            <div className="rounded-md shadow-sm -space-y-px">
-              <div>
-                <label htmlFor="role" className="sr-only">Роль</label>
-                <select
-                  id="role"
-                  name="role"
-                  value={role}
-                  onChange={handleChange}
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                >
-                  <option value="student">Я Ученик</option>
-                  <option value="helper">Я Хелпер</option>
-                </select>
-              </div>
-            </div>
-
-            {(role === 'student' || role === 'helper') && (
-              <div className="mt-4">
-                <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
-                <select id="grade" name="grade" value={grade} onChange={handleChange} className="mt-1 form-select w-full">
-                  <option value="">Выберите ваш класс</option>
-                  {[...Array(5)].map((_, i) => (
-                    <option key={i + 7} value={i + 7}>{i + 7} класс</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {role === 'helper' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Предметы, в которых вы можете помочь
-                </label>
-                <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
-                  {subjectOptions.map((option) => (
-                    <div key={option.value} className="flex items-center">
-                      <input
-                        id={`subject-reg-${option.value}`}
-                        name={option.value}
-                        type="checkbox"
-                        checked={subjects.includes(option.value)}
-                        onChange={handleSubjectChange}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
-                        {option.label}
-                      </label>
-                    </div>
-                  ))}
+            {/* Выбор роли */}
+            <div className="space-y-4">
+              <span className="block text-sm font-medium text-gray-700">Кто вы?</span>
+              <div className="rounded-md shadow-sm -space-y-px">
+                <div>
+                  <label htmlFor="role" className="sr-only">Роль</label>
+                  <select
+                    id="role"
+                    name="role"
+                    value={role}
+                      onChange={handleChange}
+                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  >
+                    <option value="student">Я Ученик</option>
+                    <option value="helper">Я Хелпер</option>
+                  </select>
                 </div>
               </div>
-            )}
+
+              {(role === 'student' || role === 'helper') && (
+                <div className="mt-4">
+                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
+                  <select id="grade" name="grade" value={grade} onChange={handleChange} className="mt-1 form-select w-full">
+                    <option value="">Выберите ваш класс</option>
+                    {[...Array(5)].map((_, i) => (
+                      <option key={i + 7} value={i + 7}>{i + 7} класс</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {role === 'helper' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Предметы, в которых вы можете помочь
+                  </label>
+                  <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
+                    {subjectOptions.map((option) => (
+                      <div key={option.value} className="flex items-center">
+                        <input
+                          id={`subject-reg-${option.value}`}
+                          name={option.value}
+                          type="checkbox"
+                          checked={subjects.includes(option.value)}
+                          onChange={handleSubjectChange}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
+                          {option.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div>
-              <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
-                Зарегистрироваться
-              </button>
+                <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
+              Зарегистрироваться
+            </button>
             </div>
 
             <div className="relative flex py-2 items-center">
@@ -376,23 +393,6 @@ const RegisterPage = () => {
             </button>
 
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Уже есть аккаунт?</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <Link to="/login" className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Войти
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
       <TelegramAuthModal

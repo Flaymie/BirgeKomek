@@ -10,7 +10,7 @@ const ForgotPasswordPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  const [step, setStep] = useState(1); // 1: enter username, 2: enter code and new password
+  const [step, setStep] = useState(1); // 1: enter email, 2: enter code and new password
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -67,7 +67,7 @@ const ForgotPasswordPage = () => {
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           {step === 1 
-            ? 'Введите ваш никнейм, и мы отправим код в Telegram.'
+            ? 'Введите ваше имя пользователя, и мы отправим код в Telegram.'
             : 'Введите код из Telegram и новый пароль.'
           }
         </p>
@@ -97,7 +97,7 @@ const ForgotPasswordPage = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="my_nickname"
+                    placeholder="ваш_никнейм"
                   />
                 </div>
               </div>

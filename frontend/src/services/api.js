@@ -249,9 +249,23 @@ const authService = {
   resetPassword: (data) => api.post('/auth/reset-password', data),
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   updateProfile: (userId, profileData) => api.put(`/users/profile/${userId}`, profileData),
+  // --- Новые функции для проверки ---
   checkUsername: (username) => api.post('/auth/check-username', { username }),
-  generateTelegramToken: () => api.get('/auth/telegram/generate-token'),
+
+  // Генерация токена для входа через Telegram
+  generateTelegramToken: () => api.post('/auth/telegram/generate-token'),
+
+  // Проверка статуса токена Telegram
   checkTelegramToken: (token) => api.get(`/auth/telegram/check-token/${token}`),
+  
+  // Генерация токена для привязки Telegram
+  generateLinkToken: () => api.post('/auth/generate-link-token'),
+
+  // Проверка статуса привязки
+  checkLinkStatus: (token) => api.get(`/auth/check-link-status/${token}`),
+
+  // Отвязка Telegram
+  unlinkTelegram: () => api.post('/auth/telegram/unlink'),
 };
 
 // Сервис для работы с сообщениями
@@ -308,9 +322,7 @@ const chatsService = {
   // Получить количество непрочитанных сообщений
   getUnreadCount: async () => {
     return api.get('/chats/unread');
-  },
-
-  getChatHistory: (requestId) => api.get(`/chat/${requestId}`),
+  }
 };
 
 // Сервис для работы с уведомлениями
