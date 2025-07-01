@@ -250,15 +250,8 @@ const authService = {
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   updateProfile: (userId, profileData) => api.put(`/users/profile/${userId}`, profileData),
   checkUsername: (username) => api.post('/auth/check-username', { username }),
-
-  // Телеграм-специфичные роуты
-  generateLinkToken: () => api.post('/auth/generate-link-token'),
-
-  // Проверка статуса привязки
-  checkLinkStatus: (token) => api.get(`/auth/check-link-status/${token}`),
-
-  // Отвязка Telegram
-  unlinkTelegram: () => api.post('/auth/telegram/unlink'),
+  generateTelegramToken: () => api.get('/auth/telegram/generate-token'),
+  checkTelegramToken: (token) => api.get(`/auth/telegram/check-token/${token}`),
 };
 
 // Сервис для работы с сообщениями
@@ -315,7 +308,9 @@ const chatsService = {
   // Получить количество непрочитанных сообщений
   getUnreadCount: async () => {
     return api.get('/chats/unread');
-  }
+  },
+
+  getChatHistory: (requestId) => api.get(`/chat/${requestId}`),
 };
 
 // Сервис для работы с уведомлениями
