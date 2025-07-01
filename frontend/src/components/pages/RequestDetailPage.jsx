@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService, responsesService, usersService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import ResponseModal from '../ResponseModal';
+import ResponseModal from '../modals/ResponseModal';
 import ResponseCard from '../ResponseCard';
 import AdminEditModal from '../modals/AdminEditModal';
 import AdminDeleteModal from '../modals/AdminDeleteModal';
