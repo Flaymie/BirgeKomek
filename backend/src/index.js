@@ -198,6 +198,10 @@ io.on('connection', (socket) => {
         return socket.emit('message_error', { error: 'Request not found.' });
       }
 
+      // Получаем всех пользователей, которые сейчас в комнате
+      const socketsInRoom = await io.in(requestId).fetchSockets();
+      const userIdsInRoom = socketsInRoom.map(s => s.user.id);
+
       const senderId = socket.user.id;
       const isAuthor = request.author.toString() === senderId;
       const recipientId = isAuthor ? request.helper : request.author;
@@ -206,6 +210,8 @@ io.on('connection', (socket) => {
         requestId: requestId,
         sender: senderId,
         content,
+        // Сразу помечаем сообщение прочитанным для всех, кто в чате
+        readBy: userIdsInRoom 
       });
       await message.save();
       await message.populate('sender', 'username avatar');
@@ -213,12 +219,10 @@ io.on('connection', (socket) => {
       io.to(requestId).emit('new_message', message);
       
       if (recipientId) {
-        // ПРОВЕРКА, НАХОДИТСЯ ЛИ ПОЛЬЗОВАТЕЛЬ УЖЕ В ЧАТЕ
-        const socketsInRoom = await io.in(requestId).fetchSockets();
-        const isRecipientInChat = socketsInRoom.some(s => s.user.id === recipientId.toString());
-
-        // Если получателя нет в чате, отправляем уведомление
-        if (!isRecipientInChat) {
+        // Проверка, что получатель - не отправитель, и его нет в комнате
+        const isRecipientInChat = userIdsInRoom.includes(recipientId.toString());
+        
+        if (senderId !== recipientId.toString() && !isRecipientInChat) {
             const senderUser = await User.findById(senderId).lean();
             await createAndSendNotification(sseConnections, {
               user: recipientId,

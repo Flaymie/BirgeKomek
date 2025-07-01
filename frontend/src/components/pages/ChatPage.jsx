@@ -910,7 +910,7 @@ const ChatPage = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               onClick={() => scrollToBottom()}
-              className="absolute bottom-24 right-6 bg-indigo-600 text-white rounded-full p-2 shadow-lg z-20 hover:bg-indigo-700"
+              className="absolute bottom-28 right-6 bg-indigo-600 text-white rounded-full p-2 shadow-lg z-20 hover:bg-indigo-700"
             >
               <ArrowDownCircleIcon className="h-7 w-7" />
             </motion.button>
