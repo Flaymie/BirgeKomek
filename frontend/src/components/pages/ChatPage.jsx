@@ -885,7 +885,7 @@ const ChatPage = () => {
           </div>
         </header>
 
-        <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
+        <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 relative">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <Message
@@ -901,21 +901,26 @@ const ChatPage = () => {
           </AnimatePresence>
 
           <TypingIndicator />
+          
+          {/* ИЗМЕНЕННАЯ КНОПКА ВНИЗ - ТЕПЕРЬ ВНУТРИ И С POSITION: STICKY */}
+          <AnimatePresence>
+            {showScrollDown && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="sticky bottom-4 w-full flex justify-center"
+              >
+                <button
+                  onClick={() => scrollToBottom()}
+                  className="bg-black/60 backdrop-blur-sm text-white rounded-full p-2 shadow-lg hover:bg-black/80 transition-all"
+                >
+                  <ArrowDownCircleIcon className="h-8 w-8" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
-
-        <AnimatePresence>
-          {showScrollDown && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              onClick={() => scrollToBottom()}
-              className="absolute bottom-28 right-6 bg-indigo-600 text-white rounded-full p-2 shadow-lg z-20 hover:bg-indigo-700"
-            >
-              <ArrowDownCircleIcon className="h-7 w-7" />
-            </motion.button>
-          )}
-        </AnimatePresence>
 
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
