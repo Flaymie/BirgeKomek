@@ -36,16 +36,11 @@ const RESERVED_USERNAMES = [
  *             type: object
  *             required:
  *               - username
- *               - email
  *               - password
  *             properties:
  *               username:
  *                 type: string
  *                 description: Уникальное имя пользователя
- *               email:
- *                 type: string
- *                 format: email
- *                 description: Email пользователя
  *               password:
  *                 type: string
  *                 format: password
@@ -255,16 +250,14 @@ router.post('/register', generalLimiter,
  *           schema:
  *             type: object
  *             required:
- *               - emailOrUsername
+ *               - username
  *               - password
  *             properties:
- *               emailOrUsername:
+ *               username:
  *                 type: string
- *                 description: Email или имя пользователя
+ *                 description: Имя пользователя
  *               password:
  *                 type: string
- *                 format: password
- *                 description: Пароль пользователя
  *     responses:
  *       200:
  *         description: Успешная авторизация
@@ -977,7 +970,7 @@ router.post('/finalizelink', async (req, res) => {
  * /api/auth/forgot-password:
  *   post:
  *     summary: Запрос на сброс пароля
- *     description: Проверяет, привязан ли к аккаунту с указанным email Telegram, и если да, отправляет в него код для сброса пароля.
+ *     description: Проверяет, привязан ли к аккаунту с указанным именем пользователя Telegram, и если да, отправляет в него код для сброса пароля.
  *     tags: [Password]
  *     requestBody:
  *       required: true
@@ -985,18 +978,18 @@ router.post('/finalizelink', async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email]
+ *             required:
+ *               - username
  *             properties:
- *               email:
+ *               username:
  *                 type: string
- *                 format: email
  *     responses:
  *       200:
  *         description: Код для сброса пароля отправлен в Telegram.
  *       400:
- *         description: Некорректный email или к аккаунту не привязан Telegram.
+ *         description: Некорректные данные или к аккаунту не привязан Telegram.
  *       404:
- *         description: Пользователь с таким email не найден.
+ *         description: Пользователь с таким именем не найден.
  *       429:
  *         description: Слишком частые запросы на сброс пароля.
  *       500:
@@ -1085,7 +1078,7 @@ router.post('/forgot-password', generalLimiter, [
  * /api/auth/reset-password:
  *   post:
  *     summary: Сброс пароля с использованием кода
- *     description: Устанавливает новый пароль для пользователя при предоставлении правильного email и кода, полученного в Telegram.
+ *     description: Устанавливает новый пароль для пользователя при предоставлении правильного имени пользователя и кода, полученного в Telegram.
  *     tags: [Password]
  *     requestBody:
  *       required: true
@@ -1093,22 +1086,19 @@ router.post('/forgot-password', generalLimiter, [
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, code, password]
+ *             required: [username, code, password]
  *             properties:
- *               email:
+ *               username:
  *                 type: string
- *                 format: email
  *               code:
  *                 type: string
- *                 description: 6-значный код из Telegram.
  *               password:
  *                 type: string
- *                 description: Новый пароль (мин. 6 символов).
  *     responses:
  *       200:
  *         description: Пароль успешно сброшен.
  *       400:
- *         description: Неверные данные (email, код, пароль) или код истек.
+ *         description: Неверные данные (username, code, password) или код истек.
  *       404:
  *         description: Пользователь не найден.
  *       500:

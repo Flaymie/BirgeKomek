@@ -435,7 +435,7 @@ const ProfileEditor = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">Никнейм</label>
                   <input
                     type="text"
                     name="username"
@@ -457,19 +457,6 @@ const ProfileEditor = ({
                   {profileErrors.username && <p className="mt-2 text-sm text-red-600">{profileErrors.username}</p>}
                 </div>
                 <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
-                  <CityAutocomplete
-                    name="location"
-                    value={profileData.location}
-                    onCitySelect={handleProfileChange}
-                    placeholder="Например, Алматы"
-                  />
-                  {profileErrors.location && <p className="text-red-500 text-xs mt-1">{profileErrors.location}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Телефон</label>
                   <input
                     type="tel"
@@ -483,7 +470,23 @@ const ProfileEditor = ({
                   />
                    <p className="mt-1 text-xs text-gray-500">Телефон привязывается и обновляется через Telegram.</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
+                  <CityAutocomplete
+                    name="location"
+                    value={profileData.location}
+                    onCitySelect={handleProfileChange}
+                    placeholder="Например, Алматы"
+                  />
+                  {profileErrors.location && <p className="text-red-500 text-xs mt-1">{profileErrors.location}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
                   <select id="grade" name="grade" value={profileData.grade || ''} onChange={handleProfileChange} className="mt-1 form-select w-full">
                     <option value="">Выберите класс</option>

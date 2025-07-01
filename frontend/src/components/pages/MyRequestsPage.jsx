@@ -24,7 +24,7 @@ const MyRequestsPage = () => {
     subject: '',
     search: ''
   });
-
+  
   const fetchRequests = useCallback(async (page = 1) => {
     if (!currentUser) return;
     setLoading(true);
@@ -232,12 +232,12 @@ const MyRequestsPage = () => {
           Создать запрос
         </button>
       </div>
-
+      
       <div className="flex items-center gap-2 mb-6">
         <TabButton tabName="published" label="Опубликованные" />
         <TabButton tabName="drafts" label="Черновики" />
       </div>
-      
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-6">
           {error}
@@ -257,8 +257,8 @@ const MyRequestsPage = () => {
             totalPages={totalPages}
             onPageChange={handlePageChange}
           />
-        </div>
-      )}
+            </div>
+          )}
 
       <CreateRequestModal
         isOpen={isModalOpen}
@@ -275,15 +275,15 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
   return (
     <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-      <button
+                <button
         onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
+                  disabled={currentPage === 1}
         className="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors"
-      >
-        &laquo;
-      </button>
+                >
+                  &laquo;
+                </button>
       {pageNumbers.map(number => (
-        <button
+                  <button
           key={number}
           onClick={() => onPageChange(number)}
           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors ${
@@ -293,17 +293,17 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
           }`}
         >
           {number}
-        </button>
-      ))}
-      <button
+                  </button>
+                ))}
+                <button
         onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages}
         className="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors"
-      >
-        &raquo;
-      </button>
-    </nav>
+                >
+                  &raquo;
+                </button>
+              </nav>
   );
 };
 
-export default MyRequestsPage;
+export default MyRequestsPage; 

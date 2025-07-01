@@ -10,7 +10,7 @@ const ForgotPasswordPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  const [step, setStep] = useState(1); // 1: enter email, 2: enter code and new password
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');

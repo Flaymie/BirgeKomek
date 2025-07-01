@@ -29,7 +29,6 @@ const options = {
           properties: {
             _id: { type: 'string', example: '60d21b4667d0d8992e610c84' },
             username: { type: 'string', example: 'testuser' },
-            email: { type: 'string', format: 'email', example: 'test@example.com' },
             phone: { type: 'string', example: '+77001234567' },
             roles: {
               type: 'object',

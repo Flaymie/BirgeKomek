@@ -186,7 +186,7 @@ export const AuthProvider = ({ children }) => {
       } else if (err.response && err.response.status === 403) {
         errorMessage = err.response?.data?.msg || 'Доступ запрещен. Ваш аккаунт может быть заблокирован.';
       } else {
-        errorMessage = err.response?.data?.msg || 'Неверное имя пользователя или пароль';
+        errorMessage = err.response?.data?.msg || 'Неверные учетные данные';
       }
 
       setError(errorMessage);
@@ -312,29 +312,22 @@ export const AuthProvider = ({ children }) => {
     try {
       const payload = { ...userData };
       // Принудительно удаляем поля, которые могут вызвать проверку пароля на бэкенде
-      delete payload.email;
       delete payload.password;
       delete payload.roles;
       delete payload._id;
       delete payload.id;
 
       console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
+      const response = await usersService.updateProfile(payload);
       
-      // ВАЖНО: Мы не меняем hasPassword, если пользователь уже его установил.
-      // Это предотвратит случайную блокировку аккаунта, если он решит перепривязать телеграм
-      if (currentUser && !currentUser.hasPassword) {
-         payload.hasPassword = false;
-      }
-      
-      delete payload.username; // Не даем менять username этим методом
-      
-      const { data } = await usersService.updateProfile(payload);
-      _updateCurrentUserState(data.user); // Обновляем состояние пользователя
+      const updatedUserData = processUserData({...currentUser, ...response.data});
+      setCurrentUser(updatedUserData);
+      setIsReadOnly(!updatedUserData.telegramId);
       
       setLoading(false);
       // НЕ показываем тост здесь, чтобы избежать дублирования
       // toast.success('Профиль успешно обновлен!');
-      return { success: true, user: data };
+      return { success: true, user: response.data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);
       console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));

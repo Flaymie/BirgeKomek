@@ -53,9 +53,8 @@ const registrationScene = new Scenes.WizardScene(
     }
     const role = ctx.callbackQuery.data.split('_')[1];
     ctx.wizard.state.data.role = role;
-
     ctx.reply(
-        'Принято. В каком классе вы учитесь? (для хелперов это поможет лучше подбирать запросы)',
+        'Отлично. В каком классе вы учитесь? (для хелперов это поможет лучше подбирать запросы)',
         Markup.keyboard([
             ['7', '8', '9'],
             ['10', '11']
@@ -86,8 +85,8 @@ const registrationScene = new Scenes.WizardScene(
         Markup.button.contactRequest('📱 Поделиться номером')
       ]).resize().oneTime()
     );
-    // Для студентов это будет шаг 4, поэтому мы пропускаем шаг 3 (выбор предметов)
-    return ctx.wizard.selectStep(ctx.wizard.cursor + 2);
+    // Для студентов это будет шаг 4, поэтому мы пропускаем шаг выбора предметов
+    return ctx.wizard.selectStep(ctx.wizard.cursor + 1);
   },
   // Step 4 (для хелперов): обработка выбора предметов
   async (ctx) => {
@@ -315,65 +314,62 @@ bot.on('contact', async (ctx) => {
 });
 
 async function registerUser(ctx) {
-  try {
     const { role, grade, subjects, phone } = ctx.wizard.state.data;
-    const { id: telegramId, username } = ctx.from;
+    const { id: telegramId, username, first_name, last_name } = ctx.from;
     const { loginToken } = ctx.scene.state; // Получаем токен из состояния сцены
 
-    // 1. Проверяем, есть ли уже пользователь с таким ID
-    const existingUserResponse = await axios.get(`${API_URL}/api/users/by-telegram/${telegramId}`);
-    if (existingUserResponse.data.exists) {
-      ctx.reply('Похоже, вы уже зарегистрированы. Вход выполнен автоматически.');
-      // Попытаемся завершить логин, если есть токен
-      if(loginToken) {
-         await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
-            telegramId: telegramId,
-            loginToken: loginToken
-         });
-      }
-      return ctx.scene.leave();
-    }
+    // Создаем резервное имя пользователя, если у юзера в телеграме его нет
+    const candidateUsername = username || `${first_name || ''}${last_name || ''}`.replace(/[^a-zA-Z0-9_]/g, '') || `user${telegramId.toString().slice(-4)}`;
     
-    // 2. Если пользователя нет - регистрируем
-    const userData = {
-      role,
-      grade,
-      subjects,
-      phone,
-      telegramId,
-      // Генерируем уникальный никнейм на основе телеграм-ника или ID
-      username: username || `user${telegramId}`,
-      loginToken // Отправляем токен на бэкенд
-    };
-
-    // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
-    const response = await axios.post(`${API_URL}/api/auth/telegram/register`, userData, {
-      headers: { 'X-Bot-Internal-Secret': process.env.BOT_INTERNAL_SECRET }
-    });
-
-    if (response.status === 201 || response.status === 200) {
-      await ctx.reply('Супер! Вы успешно зарегистрированы. Теперь вы можете войти на сайт, используя свой никнейм.');
-      // После успешной регистрации пытаемся завершить сеанс входа на сайте
-      if (loginToken) {
-          await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
-              telegramId,
-              loginToken
-          });
-          await ctx.reply('Возвращайтесь на сайт, вы уже должны быть авторизованы!');
-      }
+    if (!candidateUsername) {
+        await ctx.reply('Не удалось сгенерировать имя пользователя. Регистрация прервана.');
+        return ctx.scene.leave();
     }
-    
-    return ctx.scene.leave();
-  } catch (error) {
-    let errorMessage = 'Произошла ошибка при регистрации.';
-    if (error.response) {
-      // error.response.data.msg - это сообщение с бэкенда (например, "Имя пользователя занято")
-      errorMessage = error.response.data.msg || errorMessage;
+
+    try {
+        await ctx.reply(`Проверяю данные...`);
+
+        // 1. Проверяем, доступно ли имя пользователя
+        const checkResponse = await axios.post(`${API_URL}/api/auth/check-username`, { username: candidateUsername });
+        if (!checkResponse.data.available) {
+            // TODO: В будущем можно попросить пользователя ввести другое имя
+            await ctx.reply(`К сожалению, ваше имя пользователя в Telegram ('${candidateUsername}') уже занято на нашей платформе. Пожалуйста, измените его в настройках Telegram или зарегистрируйтесь на сайте, а затем привяжите аккаунт.`);
+            return ctx.scene.leave();
+        }
+        
+        // 2. Отправляем данные на бэкенд для создания пользователя
+        const regResponse = await axios.post(`${API_URL}/api/auth/telegram/register`, {
+            role,
+            grade,
+            subjects,
+            telegramId,
+            username: candidateUsername,
+            firstName: first_name,
+            lastName: last_name,
+            phone: phone
+        });
+
+        const { userId } = regResponse.data; // Получаем ID нового юзера
+
+        // 3. После успешной регистрации привязываем сессию на сайте
+        if (loginToken && userId) {
+             await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
+                telegramId: telegramId,
+                loginToken: loginToken,
+                userId: userId // <-- Отправляем ID нового юзера
+            });
+            await ctx.reply('Супер! Вы успешно зарегистрированы. Теперь вернитесь на вкладку сайта, она должна обновиться автоматически.');
+        } else {
+             await ctx.reply('Супер! Вы успешно зарегистрированы. Теперь вы можете войти на сайт, используя свое имя пользователя.');
+        }
+
+    } catch (error) {
+        console.error("Ошибка при регистрации:", error.response?.data || error.message);
+        const errorMessage = error.response?.data?.msg || 'Произошла неизвестная ошибка при регистрации.';
+        await ctx.reply(`Ой, ошибка! ${errorMessage}. Попробуйте начать заново с команды /start`);
     }
-    console.error('Ошибка регистрации:', error.response?.data || error.message);
-    await ctx.reply(`Ошибка: ${errorMessage} Попробуйте позже или обратитесь в поддержку.`);
+
     return ctx.scene.leave();
-  }
 }
 
 bot.launch().then(() => {

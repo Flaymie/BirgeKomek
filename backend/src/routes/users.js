@@ -98,10 +98,6 @@ export default ({ sseConnections, io }) => {
    *               username:
    *                 type: string
    *                 description: Новое имя пользователя (опционально)
-   *               email:
-   *                 type: string
-   *                 format: email
-   *                 description: Новый email (опционально, требует осторожности, т.к. уникален)
    *               phone:
    *                 type: string
    *                 description: Новый номер телефона (опционально)
@@ -123,7 +119,7 @@ export default ({ sseConnections, io }) => {
    *                 description: Список предметов, по которым пользователь готов помогать (опционально, для хелперов)
    *               currentPassword:
    *                 type: string
-   *                 description: Текущий пароль (обязателен для смены email или пароля)
+   *                 description: Текущий пароль (обязателен для смены пароля)
    *               newPassword:
    *                 type: string
    *                 description: Новый пароль (опционально, для смены пароля)
@@ -142,7 +138,6 @@ export default ({ sseConnections, io }) => {
   router.put('/me', protect, generalLimiter, tgRequired, [
     body('username').optional().trim().isLength({ min: 3, max: 20 }).withMessage('Никнейм должен быть от 3 до 20 символов.')
       .matches(/^[a-zA-Z0-9_]+$/).withMessage('Никнейм может содержать только латинские буквы, цифры и знак подчеркивания.'),
-    body('email').optional().isEmail().withMessage('Неверный формат email'),
     body('phone').optional().isMobilePhone().withMessage('Неверный формат номера телефона'),
     body('location').optional().isLength({ max: 100 }).withMessage('Город не может превышать 100 символов'),
     body('bio').optional().isLength({ max: 500 }).withMessage('Текст биографии не может превышать 500 символов'),
@@ -157,7 +152,7 @@ export default ({ sseConnections, io }) => {
     }
 
     try {
-      const { username, email, phone, location, bio, grade, subjects, currentPassword, newPassword } = req.body;
+      const { username, phone, location, bio, grade, subjects, currentPassword, newPassword } = req.body;
       const userId = req.user.id;
       const user = await User.findById(userId).select('+password');
 
@@ -165,13 +160,11 @@ export default ({ sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      const isEmailChanging = email && email.toLowerCase() !== user.email;
-
       // --- НОВАЯ, ПРАВИЛЬНАЯ ПРОВЕРКА ПАРОЛЯ ---
-      if (isEmailChanging || newPassword) {
+      if (newPassword) {
         if (!currentPassword) {
           return res.status(400).json({ 
-            errors: [{ msg: 'Текущий пароль обязателен для смены email или установки нового пароля.' }] 
+            errors: [{ msg: 'Текущий пароль обязателен для установки нового пароля.' }] 
           });
         }
         const isMatch = await user.comparePassword(currentPassword);
@@ -205,13 +198,6 @@ export default ({ sseConnections, io }) => {
       }
 
       // --- ЛОГИКА ОБНОВЛЕНИЯ ПОЛЕЙ ---
-      if (isEmailChanging) {
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser && existingUser._id.toString() !== userId) {
-          return res.status(400).json({ msg: 'Email уже занят' });
-        }
-        user.email = email.toLowerCase();
-      }
       if (newPassword) {
         user.password = newPassword;
         user.hasPassword = true;
