@@ -540,7 +540,6 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               email: { type: 'string' }
  *               role: { type: 'string', enum: ['student', 'helper'] }
  *               grade: { type: 'integer' }
  *               subjects: { type: 'array', items: { type: 'string' } }
@@ -635,7 +634,7 @@ router.post('/telegram/register', async (req, res) => {
     } catch (error) {
         console.error('Ошибка регистрации через Telegram:', error.message);
         if (error.code === 11000) {
-            return res.status(400).json({ msg: `Имя пользователя или email уже заняты.` });
+            return res.status(400).json({ msg: `Имя пользователя уже занято.` });
         }
         res.status(500).json({ msg: 'Ошибка на сервере' });
     }
