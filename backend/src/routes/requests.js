@@ -327,25 +327,32 @@ router.get('/:id/edit', protect, checkEditDeletePermission, async (req, res) => 
  *         description: Заявка не найдена
  */
 router.get('/:id', [
-    param('id').isMongoId().withMessage('Неверный ID заявки')
+    param('id').isMongoId().withMessage('Некорректный ID запроса')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        // Если ID невалиден, сразу возвращаем 404, а не 400.
-        return res.status(404).json({ msg: 'Заявка не найдена' });
+        return res.status(400).json({ errors: errors.array() });
     }
-
+    
     try {
         const request = await Request.findById(req.params.id)
-            .populate('author', 'username _id rating avatar')
-            .populate('helper', 'username _id rating avatar');
+            .populate('author', 'username _id rating avatar roles.moderator roles.admin')
+            .populate('helper', 'username _id rating avatar roles.moderator roles.admin')
+            .lean();
 
         if (!request) {
-            return res.status(404).json({ msg: 'Заявка не найдена' });
+            return res.status(404).json({ msg: 'Запрос не найден' });
         }
-        res.json(request);
+        
+        // Явное добавление editReason, если оно есть
+        const responseData = { ...request };
+        if (request.editReason) {
+            responseData.editReason = request.editReason;
+        }
+
+        res.json(responseData);
     } catch (err) {
-        console.error('Ошибка при получении заявки:', err.message);
+        console.error(err);
         res.status(500).send('Ошибка сервера');
     }
 });

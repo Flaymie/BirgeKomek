@@ -50,11 +50,11 @@ export default ({ io }) => {
    *         description: Ошибка сервера
    */
   router.post('/', [
-    body('requestId').isMongoId().withMessage('Некорректный ID запроса'),
+    body('request').isMongoId().withMessage('Некорректный ID запроса'),
     body('message')
       .trim()
-      .isLength({ min: 10, max: 500 })
-      .withMessage('Сообщение должно быть от 10 до 500 символов'),
+      .isLength({ min: 1, max: 1000 })
+      .withMessage('Сообщение должно быть от 1 до 1000 символов'),
     tgRequired
   ], async (req, res) => {
     console.log('Получен POST запрос на /api/responses:', req.body);
@@ -66,7 +66,7 @@ export default ({ io }) => {
     }
 
     try {
-      const { requestId, message } = req.body;
+      const { request: requestId, message } = req.body;
       const helper = req.user._id;
 
       console.log('Данные отклика:', { requestId, message, helper });
