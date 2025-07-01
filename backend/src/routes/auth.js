@@ -5,7 +5,6 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import uploadAvatar from '../middleware/uploadMiddleware.js';
 import crypto from 'crypto';
-import { telegramTokens } from '../utils/telegramTokenStore.js';
 import { protect } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
 import axios from 'axios';
@@ -218,30 +217,39 @@ router.post('/register', generalLimiter,
 
     user = new User(newUser);
 
+    // Сохраняем пользователя
     await user.save();
-    
-    // --- ИСПРАВЛЕННАЯ ЛОГИКА ТОКЕНА ---
+
+    // Генерируем токен
     const payload = {
-      id: user._id,
-      username: user.username,
-      roles: user.roles,
-      telegramId: user.telegramId
+        user: {
+            id: user.id,
+            roles: user.roles
+        }
     };
 
     const token = jwt.sign(
-      payload,
-      process.env.JWT_SECRET, 
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
     );
-    
-    user.password = undefined;
-    
+
     res.status(201).json({
-      token,
-      user
+        token,
+        user: {
+            _id: user.id,
+            username: user.username,
+            email: user.email,
+            roles: user.roles,
+            rating: user.rating,
+            avatar: user.avatar,
+            grade: user.grade,
+            // не отправляем пароль и прочую чувствительную инфу
+        }
     });
+
   } catch (err) {
-    console.error('Ошибка регистрации:', err);
+    console.error(err.message);
     res.status(500).json({ msg: 'Что-то сломалось при регистрации' });
   }
   }

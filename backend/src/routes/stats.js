@@ -107,10 +107,8 @@ router.get('/user/:userId', protect, generalLimiter, async (req, res) => {
   try {
     const requestedUserId = req.params.userId;
     const currentUserId = req.user.id;
-    // const currentUserRoles = req.user.roles; // Для проверки роли администратора в будущем
 
     // Пока что, позволяем пользователю смотреть только свою статистику
-    // В будущем здесь можно добавить проверку: if (requestedUserId !== currentUserId && !currentUserRoles.admin)
     if (requestedUserId !== currentUserId) {
         // return res.status(403).json({ msg: 'Доступ запрещен. Вы можете просматривать только свою статистику.' });
         // Пока разрешим смотреть всем аутентифицированным, для простоты разработки.
@@ -124,7 +122,7 @@ router.get('/user/:userId', protect, generalLimiter, async (req, res) => {
 
     const createdRequests = await Request.countDocuments({ author: requestedUserId });
     let completedRequestsAsHelper = 0;
-    let averageRatingAsHelper = user.rating; // Рейтинг уже есть в модели User
+    let averageRatingAsHelper = user.rating;
 
     if (user.roles && user.roles.helper) {
       completedRequestsAsHelper = await Request.countDocuments({ helper: requestedUserId, status: 'completed' });

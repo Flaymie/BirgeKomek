@@ -65,7 +65,6 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// --- НОВАЯ ФУНКЦИЯ ДЛЯ ЗАЩИТЫ SOCKET.IO ---
 export const protectSocket = async (socket, next) => {
   let token;
   if (socket.handshake.auth && socket.handshake.auth.token) {
@@ -85,7 +84,6 @@ export const protectSocket = async (socket, next) => {
     }
 
     if (user.banDetails.isBanned) {
-      // Можно добавить логику разбана, как в protect, но для простоты пока просто отклоняем
       return next(new Error('Аккаунт забанен'));
     }
 

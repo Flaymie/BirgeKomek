@@ -210,8 +210,8 @@ router.get('/', [
  *         description: Не авторизован
  */
 router.post('/', createRequestLimiter, [
-    body('title').trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
-    body('description').optional().trim().escape(),
+    body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Заголовок должен быть от 5 до 100 символов'),
+    body('description').optional().trim(),
     body('subject').optional().trim().escape(),
     body('grade').optional().isInt({ min: 1, max: 11 }),
     body('topic').optional().trim().escape(),
@@ -272,37 +272,41 @@ router.post('/', createRequestLimiter, [
         // но он не решает проблему обновления списка заявок.
         // Оповещаем хелперов, только если это НЕ черновик
         if (request.status === 'open') {
-            const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject }); // Исправлено на 'subjects'
+            const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
             if (helpersForSubject.length > 0) {
-                const helperIds = helpersForSubject.map(h => h._id);
-                const notificationPromises = helperIds.map(helperId => {
-                    return createAndSendNotification(req.app.locals.sseConnections, {
-                        user: helperId,
-                        type: 'new_request_for_subject',
-                        title: `Новая заявка по предмету: ${subject}`,
-                        message: `Пользователь ${req.user.username} создал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                        link: `/requests/${request._id}`
-                    });
-                });
-                await Promise.all(notificationPromises);
+                // Убираем ID автора из списка получателей
+                const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== req.user.id);
 
-                // Отправка в Telegram
-                const tgUsers = await User.find({
-                    _id: { $in: helperIds }, 
-                    'telegramIntegration.notificationsEnabled': true,
-                    telegramId: { $exists: true }
-                });
-
-                for (const tgUser of tgUsers) {
-                    const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${request.title}\n*Предмет:* ${request.subject}, ${request.grade} класс\n\nВы можете откликнуться на нее на сайте.`;
-                    await sendTelegramMessage(tgUser.telegramId, messageText, {
-                        parse_mode: 'Markdown',
-                        reply_markup: {
-                            inline_keyboard: [
-                                [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${request._id}` }]
-                            ]
-                        }
+                if (helperIds.length > 0) {
+                    const notificationPromises = helperIds.map(helperId => {
+                        return createAndSendNotification(req.app.locals.sseConnections, {
+                            user: helperId,
+                            type: 'new_request_for_subject',
+                            title: `Новая заявка по вашему предмету: ${subject}`,
+                            message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
+                            link: `/requests/${request._id}`
+                        });
                     });
+                    await Promise.all(notificationPromises);
+
+                    // Отправка в Telegram
+                    const tgUsers = await User.find({
+                        _id: { $in: helperIds }, 
+                        'telegramIntegration.notificationsEnabled': true,
+                        telegramId: { $exists: true }
+                    });
+
+                    for (const tgUser of tgUsers) {
+                        const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
+                        await sendTelegramMessage(tgUser.telegramId, messageText, {
+                            parse_mode: 'Markdown',
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${request._id}` }]
+                                ]
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -764,8 +768,8 @@ router.post('/:id/cancel', protect, [
    */
   router.put('/:id', protect, checkEditDeletePermission, [
     // Валидация остается прежней, но добавляем необязательное поле
-    body('title').optional().trim().isLength({ min: 5, max: 100 }).escape(),
-    body('description').optional().trim().isLength({ min: 10 }).escape(),
+    body('title').optional().trim().isLength({ min: 5, max: 100 }),
+    body('description').optional().trim().isLength({ min: 10 }),
     body('subject').optional().trim().notEmpty().escape(),
     body('grade').optional().isInt({ min: 1, max: 11 }),
     body('editReason').optional().trim().escape()

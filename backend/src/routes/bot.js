@@ -1,7 +1,6 @@
 import express from 'express';
 import axios from 'axios';
 import Notification from '../models/Notification.js';
-import User from '../models/User.js';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -13,7 +12,6 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
 
     const { callback_query } = req.body;
 
-    // Обрабатываем только нажатия на инлайн-кнопки
     if (callback_query) {
         const { data, message } = callback_query;
         const [action, notificationId] = data.split('_');
@@ -28,13 +26,10 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
             });
             
             try {
-                // 1. Проверяем, существует ли уведомление
                 console.log('[DEBUG] Проверяем существование уведомления с ID:', realNotificationId);
                 const notificationExists = await Notification.findById(realNotificationId);
                 console.log('[DEBUG] Результат проверки:', notificationExists ? 'Существует' : 'Не существует');
                 
-                // 2. Обновляем уведомление в нашей базе данных
-                console.log('[DEBUG] Обновляем уведомление в базе данных');
                 const notification = await Notification.findByIdAndUpdate(
                     realNotificationId, 
                     { isRead: true },
@@ -42,14 +37,11 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
                 );
 
                 if (notification) {
-                    console.log('[DEBUG] Уведомление успешно обновлено:', notification._id);
-                    // 2. Отвечаем Telegram, что колбэк получен
                     await axios.post(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
                         callback_query_id: callback_query.id,
                         text: 'Уведомление отмечено как прочитанное.'
                     });
 
-                    // 3. Редактируем исходное сообщение, чтобы изменить кнопку
                     await axios.post(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
                         chat_id: message.chat.id,
                         message_id: message.message_id,
@@ -78,7 +70,6 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
     res.sendStatus(200);
 });
 
-// Новый роут для обработки запросов от бота на отметку уведомления как прочитанного
 router.post('/mark-notification-read', async (req, res) => {
     const { notificationId, telegramId } = req.body;
     
@@ -123,9 +114,9 @@ router.post('/mark-notification-read', async (req, res) => {
     }
 });
 
-// Роут для установки вебхука (удобно для разработки)
+// Роут для установки вебхука
 router.get('/set-webhook', async (req, res) => {
-    const serverUrl = process.env.SERVER_URL; // Например, https://your-domain.com
+    const serverUrl = process.env.SERVER_URL;
     if (!serverUrl) {
         return res.status(500).json({ msg: 'SERVER_URL не задан в .env' });
     }
