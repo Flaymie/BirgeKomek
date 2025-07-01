@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 const AdminDeleteModal = ({ isOpen, onClose, onConfirm, requestTitle }) => {
   const [reason, setReason] = useState('');
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isOpen]);
 
   const handleConfirm = () => {
     if (reason.trim()) {
@@ -14,7 +21,7 @@ const AdminDeleteModal = ({ isOpen, onClose, onConfirm, requestTitle }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+      <div ref={modalRef} className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
         <h2 className="text-xl font-bold mb-4 text-red-600">Подтверждение удаления</h2>
         <p className="mb-4">Вы собираетесь удалить заявку: <span className="font-semibold">{requestTitle}</span>.</p>
         <p className="mb-2">Это действие необратимо. Пожалуйста, укажите причину удаления. Автор получит уведомление.</p>

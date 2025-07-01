@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, isLoading }) => {
   const [code, setCode] = useState('');
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       setCode(''); // Сбрасываем код при каждом открытии
+      modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isOpen]);
 
@@ -24,6 +26,7 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
     <AnimatePresence>
       <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
         <motion.div
+          ref={modalRef}
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 50, opacity: 0 }}
