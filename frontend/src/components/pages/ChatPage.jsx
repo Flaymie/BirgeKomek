@@ -632,6 +632,7 @@ const ChatPage = () => {
         toast.success('Заявка успешно завершена!');
         // Обновляем локально статус, чтобы UI стал неактивным
         setRequestDetails(prev => ({...prev, status: 'completed'}));
+        window.location.reload();
       } else { // 'reopen'
         const response = await requestsService.reopenRequest(requestId);
         toast.success(response.data.msg || 'Заявка снова в поиске!');
