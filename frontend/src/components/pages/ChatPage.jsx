@@ -29,6 +29,7 @@ import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
+import StatusBadge from '../shared/StatusBadge';
 
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
@@ -123,7 +124,7 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
 };
 
 // Новый компонент для рендера текста сообщения с поддержкой "Читать далее"
-const MessageContent = ({ text }) => {
+const MessageContent = ({ text, isOwnMessage }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Простое определение, нужно ли скрывать часть текста
@@ -138,7 +139,7 @@ const MessageContent = ({ text }) => {
         {isLong && (
            <button 
              onClick={() => setIsExpanded(false)}
-             className="text-indigo-200 hover:underline ml-2 text-sm font-semibold"
+             className={`ml-2 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-indigo-600'}`}
            >
              Свернуть
            </button>
@@ -157,7 +158,7 @@ const MessageContent = ({ text }) => {
       </div>
       <button 
         onClick={() => setIsExpanded(true)}
-        className="text-indigo-200 hover:underline mt-1 text-sm font-semibold"
+        className={`mt-1 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-gray-600'}`}
       >
         Показать полностью
       </button>
@@ -203,7 +204,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
 
         {msg.content && (
           <div className={`break-words ${hasAttachments ? 'px-2 pb-1 pt-2' : 'px-3 py-2'}`}>
-            <MessageContent text={msg.content} />
+            <MessageContent text={msg.content} isOwnMessage={isOwnMessage} />
           </div>
         )}
 
@@ -427,8 +428,8 @@ const ChatPage = () => {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-      // Показываем кнопку, если пользователь отскроллил вверх больше чем на 300px
-      setShowScrollDown(scrollHeight - scrollTop > clientHeight + 300);
+      // Показываем кнопку, если пользователь отскроллил вверх больше чем на 150px (было 300)
+      setShowScrollDown(scrollHeight - scrollTop > clientHeight + 150);
     };
 
     chatContainer.addEventListener('scroll', handleScroll);
@@ -835,9 +836,12 @@ const ChatPage = () => {
           <div className="flex justify-between items-center gap-4">
             <div>
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
-              <p className="text-sm text-gray-500">
-                {requestDetails.subject} • {requestDetails.grade} класс
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <StatusBadge status={requestDetails.status} />
+                <p className="text-sm text-gray-500">
+                  {requestDetails.subject} • {requestDetails.grade} класс
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
             <Link 

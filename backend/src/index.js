@@ -213,15 +213,22 @@ io.on('connection', (socket) => {
       io.to(requestId).emit('new_message', message);
       
       if (recipientId) {
-        const senderUser = await User.findById(senderId).lean();
-        await createAndSendNotification(sseConnections, {
-          user: recipientId,
-          type: 'new_message_in_request',
-          title: `Новое сообщение в чате: "${request.title}"`,
-          message: `${senderUser.username}: ${content.substring(0, 50)}...`,
-          link: `/requests/${requestId}/chat`, // ПРАВИЛЬНАЯ ССЫЛКА
-          relatedEntity: { requestId: requestId, userId: senderId }
-        });
+        // ПРОВЕРКА, НАХОДИТСЯ ЛИ ПОЛЬЗОВАТЕЛЬ УЖЕ В ЧАТЕ
+        const socketsInRoom = await io.in(requestId).fetchSockets();
+        const isRecipientInChat = socketsInRoom.some(s => s.user.id === recipientId.toString());
+
+        // Если получателя нет в чате, отправляем уведомление
+        if (!isRecipientInChat) {
+            const senderUser = await User.findById(senderId).lean();
+            await createAndSendNotification(sseConnections, {
+              user: recipientId,
+              type: 'new_message_in_request',
+              title: `Новое сообщение в чате: "${request.title}"`,
+              message: `${senderUser.username}: ${content.substring(0, 50)}...`,
+              link: `/requests/${requestId}/chat`,
+              relatedEntity: { requestId: requestId, userId: senderId }
+            });
+        }
       }
     } catch (error) {
       console.error('Socket: Error sending message:', error);
