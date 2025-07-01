@@ -424,17 +424,30 @@ const ChatPage = () => {
   // НОВАЯ, НАДЕЖНАЯ ЛОГИКА СКРОЛЛА
   useEffect(() => {
     const chatContainer = chatContainerRef.current;
-    if (!chatContainer) return;
+    // Добавлена проверка на loading. Эффект перезапустится, когда loading станет false
+    if (!chatContainer || loading) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-      // Показываем кнопку, если пользователь отскроллил вверх больше чем на 150px (было 300)
-      setShowScrollDown(scrollHeight - scrollTop > clientHeight + 150);
+      const chat = chatContainer;
+
+      // --- ДЕБАГ-ЛОГ ---
+      console.log(
+        `[SCROLL DEBUG] scrollT: ${chat.scrollTop}, scrollH: ${chat.scrollHeight}, clientH: ${chat.clientHeight}`
+      );
+
+      // Кнопка появляется, если мы НЕ у самого низа (отступ < 100px)
+      const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100;
+      setShowScrollDown(!nearBottom);
     };
 
     chatContainer.addEventListener('scroll', handleScroll);
-    return () => chatContainer.removeEventListener('scroll', handleScroll);
-  }, []);
+    return () => {
+      // Убедимся, что chatContainer все еще существует при размонтировании
+      if (chatContainer) {
+        chatContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [loading]); // <--- ВОТ ОН, КЛЮЧ К ПОБЕДЕ
 
   // Эффект, который сохраняет позицию скролла при получении новых сообщений
   useEffect(() => {
@@ -885,48 +898,52 @@ const ChatPage = () => {
           </div>
         </header>
 
-        <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 relative">
-          <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <Message
-                key={msg._id}
-                msg={msg}
-                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                onImageClick={setViewerFile}
-                onEdit={handleStartEdit}
-                onDelete={setMessageToDelete}
-                isChatActive={isChatActive || requestDetails.status === 'open'}
-              />
-            ))}
-          </AnimatePresence>
+        <main className="flex-1 p-0 relative min-h-0">
+          <div
+            ref={chatContainerRef}
+            className="absolute inset-0 overflow-y-auto p-4"
+          >
+            <AnimatePresence initial={false}>
+              {messages.map((msg) => (
+                <Message
+                  key={msg._id}
+                  msg={msg}
+                  isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                  onImageClick={setViewerFile}
+                  onEdit={handleStartEdit}
+                  onDelete={setMessageToDelete}
+                  isChatActive={isChatActive || requestDetails.status === 'open'}
+                />
+              ))}
+            </AnimatePresence>
 
-          <TypingIndicator />
-          
-          {/* ИЗМЕНЕННАЯ КНОПКА ВНИЗ - ТЕПЕРЬ ВНУТРИ И С POSITION: STICKY */}
-          <AnimatePresence>
-            {showScrollDown && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="sticky bottom-4 w-full flex justify-center"
-              >
-                <button
-                  onClick={() => scrollToBottom()}
-                  className="bg-black/60 backdrop-blur-sm text-white rounded-full p-2 shadow-lg hover:bg-black/80 transition-all"
+            <TypingIndicator />
+            
+            <AnimatePresence>
+              {showScrollDown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="sticky bottom-4 w-full flex justify-center z-10"
                 >
-                  <ArrowDownCircleIcon className="h-8 w-8" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <button
+                    onClick={() => scrollToBottom()}
+                    className="bg-black/60 backdrop-blur-sm text-white rounded-full p-2 shadow-lg hover:bg-black/80 transition-all"
+                    title="Прокрутить вниз"
+                  >
+                    <ArrowDownCircleIcon className="h-8 w-8" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </main>
 
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
         <footer className="bg-white border-t border-gray-200 rounded-b-lg">
           {(() => {
-            // УДАЛЕНА ЛОГИКА ОЦЕНКИ ИЗ ФУТЕРА
             if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed') {
                 return (
                   <div className="p-4 text-center text-gray-500">
@@ -997,7 +1014,6 @@ const ChatPage = () => {
         </footer>
       </div>
 
-      {/* НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ОЦЕНКИ */}
       {isRatingModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
@@ -1005,7 +1021,6 @@ const ChatPage = () => {
              <p className="text-center text-gray-600 mb-6">
                 Пожалуйста, оцените работу хелпера <span className="font-bold">{requestDetails?.helper?.username}</span>.
              </p>
-            {/* Рендерим компонент оценки прямо здесь */}
             <Rating onSubmit={handleCompleteOrReopen} />
              <button
                 onClick={() => setIsRatingModalOpen(false)}
