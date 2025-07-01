@@ -100,6 +100,11 @@ const requestsService = {
     return api.get('/requests', { params });
   },
   
+  // Получить "мои" запросы с фильтрацией (включая черновики)
+  getMyRequests: async (params = {}) => {
+    return api.get('/requests', { params }); // Используем тот же эндпоинт, но с authorId
+  },
+  
   // Получить запрос по ID
   getRequestById: async (id) => {
     return api.get(`/requests/${id}`);
@@ -110,9 +115,9 @@ const requestsService = {
     return api.get(`/requests/${id}/edit`);
   },
   
-  // Создать новый запрос
-  createRequest: async (requestData) => {
-    return api.post('/requests', requestData);
+  // Создать новый запрос (или черновик)
+  createRequest: async (requestData, isDraft = false) => {
+    return api.post('/requests', { ...requestData, isDraft });
   },
   
   // Обновить запрос
@@ -141,6 +146,11 @@ const requestsService = {
   // --- Новая функция для обновления статуса ---
   updateRequestStatus: async (id, status) => {
     return api.put(`/requests/${id}/status`, { status });
+  },
+
+  // Опубликовать черновик (синтаксический сахар над updateRequestStatus)
+  publishDraft: async (id) => {
+    return api.put(`/requests/${id}/status`, { status: 'open' });
   },
 
   // Отклик на заявку

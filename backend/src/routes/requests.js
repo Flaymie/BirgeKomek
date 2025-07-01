@@ -116,7 +116,7 @@ router.get('/', [
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('subject').optional().trim().escape(),
     query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
-    query('status').optional().isIn(['open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled']),
+    query('status').optional().isIn(['draft', 'open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled']),
     query('authorId').optional().isMongoId(),
     query('helperId').optional().isMongoId(),
     query('search').optional().trim().escape(),
@@ -138,8 +138,8 @@ router.get('/', [
         if (status) {
             filters.status = status;
         } else if (!authorId && !helperId) {
-            // По умолчанию показываем только 'open', если не запрашиваются заявки конкретного пользователя
-            filters.status = 'open';
+            // По умолчанию ПОКАЗЫВАЕМ ВСЕ, КРОМЕ ЧЕРНОВИКОВ, если не запрашиваются заявки конкретного пользователя
+            filters.status = { $ne: 'draft' };
         }
 
         if (authorId) filters.author = authorId;
@@ -211,11 +211,12 @@ router.get('/', [
  */
 router.post('/', createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
-    body('description').trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
-    body('subject').trim().notEmpty().escape().withMessage('Предмет обязателен'),
-    body('grade').isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
+    body('description').if(body('isDraft').not().exists()).trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
+    body('subject').if(body('isDraft').not().exists()).trim().notEmpty().escape().withMessage('Предмет обязателен'),
+    body('grade').if(body('isDraft').not().exists()).isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
     body('topic').optional().trim().escape(),
-    tgRequired
+    body('isDraft').optional().isBoolean(),
+    // tgRequired убрал, т.к. для черновика он не нужен. Но нужен при публикации.
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -223,8 +224,19 @@ router.post('/', createRequestLimiter, [
     }
 
     try {
-        const { title, description, subject, grade, topic } = req.body;
+        const { title, description, subject, grade, topic, isDraft } = req.body;
         const author = req.user.id;
+
+        // При публикации черновика, проверяем наличие Telegram
+        if (!isDraft) {
+            const user = await User.findById(author);
+            if (!user.telegramId) {
+                return res.status(403).json({ 
+                    message: 'Для публикации заявки необходимо привязать Telegram аккаунт в профиле.',
+                    code: 'TELEGRAM_REQUIRED'
+                });
+            }
+        }
 
         const request = new Request({
             title,
@@ -232,7 +244,8 @@ router.post('/', createRequestLimiter, [
             subject,
             grade,
             topic,
-            author
+            author,
+            status: isDraft ? 'draft' : 'open' // <-- УСТАНАВЛИВАЕМ СТАТУС
         });
         await request.save();
         
@@ -241,31 +254,51 @@ router.post('/', createRequestLimiter, [
             .populate('author', 'username rating avatar') // Добавляем нужные поля автора
             .lean(); // .lean() для производительности
 
-        // 2. Используем io, переданный в роутер, для отправки события всем клиентам
-        io.emit('new_request', populatedRequest);
+        // 2. Отправляем сокет, только если это НЕ черновик
+        if (populatedRequest.status !== 'draft') {
+            io.emit('new_request', populatedRequest);
+        }
 
         // Старый код с уведомлениями хелперам можно пока оставить или убрать,
         // но он не решает проблему обновления списка заявок.
-        // Оставим его для обратной совместимости, если он где-то используется.
-        const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject }); // Исправлено на 'subjects'
-        if (helpersForSubject.length > 0) {
-            const notificationPromises = helpersForSubject.map(helper => {
-                 if (helper._id.toString() !== author) { 
-                    // Здесь используется sseConnections, это для колокольчика-уведомлений, а не для обновления списка
+        // Оповещаем хелперов, только если это НЕ черновик
+        if (request.status === 'open') {
+            const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject }); // Исправлено на 'subjects'
+            if (helpersForSubject.length > 0) {
+                const helperIds = helpersForSubject.map(h => h._id);
+                const notificationPromises = helperIds.map(helperId => {
                     return createAndSendNotification(req.app.locals.sseConnections, {
-                        user: helper._id,
+                        user: helperId,
                         type: 'new_request_for_subject',
                         title: `Новая заявка по предмету: ${subject}`,
                         message: `Пользователь ${req.user.username} создал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
                         link: `/requests/${request._id}`
                     });
-                 }
-                 return null;
-            }).filter(p => p);
-            await Promise.all(notificationPromises);
+                });
+                await Promise.all(notificationPromises);
+
+                // Отправка в Telegram
+                const tgUsers = await User.find({
+                    _id: { $in: helperIds }, 
+                    'telegramIntegration.notificationsEnabled': true,
+                    telegramId: { $exists: true }
+                });
+
+                for (const tgUser of tgUsers) {
+                    const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${request.title}\n*Предмет:* ${request.subject}, ${request.grade} класс\n\nВы можете откликнуться на нее на сайте.`;
+                    await sendTelegramMessage(tgUser.telegramId, messageText, {
+                        parse_mode: 'Markdown',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${request._id}` }]
+                            ]
+                        }
+                    });
+                }
+            }
         }
 
-        res.status(201).json(populatedRequest); // Возвращаем полный объект
+        res.status(201).json(populatedRequest);
 
     } catch (err) {
         console.error('Ошибка при создании заявки:', err.message);
@@ -818,7 +851,7 @@ router.post('/:id/cancel', protect, [
    */
   router.put('/:id/status', protect, [
     param('id').isMongoId().withMessage('Неверный ID заявки'),
-    body('status').isIn(['open', 'assigned', 'in_progress', 'completed', 'cancelled', 'on_hold']).withMessage('Недопустимый статус')
+    body('status').isIn(['completed', 'cancelled', 'closed', 'in_progress', 'open'])
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -851,9 +884,34 @@ router.post('/:id/cancel', protect, [
              return res.status(403).json({ msg: 'Только автор или исполнитель могут завершить заявку.' });
         }
 
+        // Публиковать черновик может только автор
+        if (request.status === 'draft' && status === 'open' && !isAuthor) {
+            return res.status(403).json({ msg: 'Только автор может опубликовать черновик.' });
+        }
+
+        // Завершать заявку может только автор
+        if (status === 'completed' && !isAuthor) {
+            return res.status(403).json({ msg: 'Только автор может завершить заявку.' });
+        }
+        
+        // --- ПРОВЕРКА НАЛИЧИЯ TELEGRAM ПРИ ПУБЛИКАЦИИ ---
+        if (request.status === 'draft' && status === 'open') {
+            const user = await User.findById(req.user.id);
+            if (!user.telegramId) {
+                return res.status(403).json({
+                    message: 'Для публикации заявки необходимо привязать Telegram аккаунт в профиле.',
+                    code: 'TELEGRAM_REQUIRED'
+                });
+            }
+            // Также убедимся, что все поля заполнены
+            if (!request.description || !request.subject || !request.grade) {
+                return res.status(400).json({ msg: 'Перед публикацией необходимо заполнить описание, предмет и класс.' });
+            }
+        }
+
         if (status === 'completed') {
             if (req.user._id.toString() !== request.author.toString()) {
-                return res.status(403).json({ msg: 'Только автор может закрыть заявку.' });
+                return res.status(403).json({ msg: 'Только автор может завершить заявку.' });
             }
             
             // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О ЗАКРЫТИИ ЗАЯВКИ ---
@@ -882,9 +940,18 @@ router.post('/:id/cancel', protect, [
             .lean();
 
         // СОКЕТ-УВЕДОМЛЕНИЕ ОБ ОБНОВЛЕНИИ СТАТУСА
-        io.emit('request_updated', populatedRequest);
-
-        res.json(populatedRequest);
+        // Отправляем событие о новой заявке, если она была опубликована из черновика
+        if (request.status === 'draft' && status === 'open') {
+            // Сохраняем и получаем обновленный документ
+            request.status = status;
+            await request.save();
+            const populatedRequest = await Request.findById(id).populate('author', 'username _id rating avatar').lean();
+            io.emit('new_request', populatedRequest);
+            return res.json(populatedRequest);
+        } else {
+            io.emit('request_updated', populatedRequest);
+            res.json(populatedRequest);
+        }
 
     } catch (err) {
         console.error('Ошибка при обновлении статуса заявки:', err.message);

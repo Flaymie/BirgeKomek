@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS } from '../../services/constants';
 import { motion } from 'framer-motion';
-import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 
@@ -14,7 +14,7 @@ const MIN_TITLE_LENGTH = 5;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 20;
 
-const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
+const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,21 +30,32 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
   
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
   
+  const isEditing = Boolean(requestToEdit);
+  
   // Сбрасываем форму при открытии/закрытии модального окна
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        title: '',
-        description: '',
-        subject: '',
-        grade: currentUser?.grade || '',
-      });
+      if (isEditing) {
+        setFormData({
+          title: requestToEdit.title || '',
+          description: requestToEdit.description || '',
+          subject: requestToEdit.subject || '',
+          grade: requestToEdit.grade || '',
+        });
+      } else {
+        setFormData({
+          title: '',
+          description: '',
+          subject: '',
+          grade: currentUser?.grade || '',
+        });
+      }
       setErrors({});
       if (modalRef.current) {
         modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
-  }, [isOpen, currentUser]);
+  }, [isOpen, currentUser, requestToEdit, isEditing]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,7 +82,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
   
-  const validateForm = () => {
+  const validateForm = (isDraft = false) => {
     const newErrors = {};
     
     if (!formData.title.trim() || formData.title.length < MIN_TITLE_LENGTH) {
@@ -80,32 +91,29 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
       newErrors.title = `Заголовок не должен превышать ${MAX_TITLE_LENGTH} символов`;
     }
     
-    if (!formData.description.trim() || formData.description.length < MIN_DESCRIPTION_LENGTH) {
-      newErrors.description = `Описание должно содержать минимум ${MIN_DESCRIPTION_LENGTH} символов`;
-    } else if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
-      newErrors.description = `Описание не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`;
-    }
-    
-    if (!formData.subject) {
-      newErrors.subject = 'Выберите предмет';
-    }
-    
-    if (!formData.grade) {
-      newErrors.grade = 'Укажите класс';
+    if (!isDraft) {
+      if (!formData.description.trim() || formData.description.length < MIN_DESCRIPTION_LENGTH) {
+        newErrors.description = `Описание должно содержать минимум ${MIN_DESCRIPTION_LENGTH} символов`;
+      } else if (formData.description.length > MAX_DESCRIPTION_LENGTH) {
+        newErrors.description = `Описание не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`;
+      }
+      
+      if (!formData.subject) {
+        newErrors.subject = 'Выберите предмет';
+      }
+      
+      if (!formData.grade) {
+        newErrors.grade = 'Укажите класс';
+      }
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const handleAction = async ({ isDraft = false, isPublish = false } = {}) => {
     if (checkAndShowModal()) return;
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm(isDraft)) return;
     
     setIsSubmitting(true);
     setErrors({});
@@ -117,21 +125,30 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         subject: formData.subject,
         grade: formData.grade,
       };
-      const response = await requestsService.createRequest(requestData);
-      
-      toast.success('Запрос успешно создан!');
-      if (onSuccess) {
-        onSuccess(response.data);
+
+      let response;
+      if (isEditing) {
+        if (isPublish) {
+          response = await requestsService.publishDraft(requestToEdit._id);
+          toast.success('Черновик успешно опубликован!');
+        } else {
+          // Просто обновляем черновик
+          response = await requestsService.updateRequest(requestToEdit._id, requestData);
+          toast.success('Черновик успешно сохранен!');
+        }
+      } else {
+        // Создаем новый
+        response = await requestsService.createRequest(requestData, isDraft);
+        toast.success(isDraft ? 'Черновик успешно сохранен!' : 'Запрос успешно создан!');
       }
+
+      if (onSuccess) onSuccess(response.data);
       onClose();
+
     } catch (error) {
-      console.error('Ошибка при создании запроса:', error);
-      if (error.response && error.response.data) {
-        console.error('ОТВЕТ СЕРВЕРА:', JSON.stringify(error.response.data, null, 2));
-      }
-      const errorMessage = error.response?.data?.errors?.[0]?.msg || error.response?.data?.msg || 'Произошла ошибка при создании запроса';
+      console.error('Ошибка при операции с запросом:', error);
+      const errorMessage = error.response?.data?.errors?.[0]?.msg || error.response?.data?.msg || 'Произошла ошибка';
       toast.error(errorMessage);
-      onClose();
     } finally {
       setIsSubmitting(false);
     }
@@ -161,11 +178,11 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
           <div className="flex items-center justify-between p-5 border-b border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-lg">
-                <DocumentPlusIcon className="h-6 w-6" />
+                {isEditing ? <DocumentCheckIcon className="h-6 w-6" /> : <DocumentPlusIcon className="h-6 w-6" />}
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Новый запрос о помощи</h3>
-                <p className="text-sm text-gray-500">Заполните детали, и мы найдем вам помощника</p>
+                <h3 className="text-xl font-bold text-gray-900">{isEditing ? 'Редактирование запроса' : 'Новый запрос о помощи'}</h3>
+                <p className="text-sm text-gray-500">{isEditing ? 'Измените данные и опубликуйте или сохраните черновик' : 'Заполните детали, и мы найдем вам помощника'}</p>
               </div>
             </div>
             <button onClick={() => onClose()} className="text-gray-400 hover:text-gray-600 p-2 rounded-full">
@@ -175,7 +192,10 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
           
           {/* Form Body */}
           <div className="overflow-y-auto p-5 space-y-4">
-            <form id="create-request-form" onSubmit={handleSubmit}>
+            <form id="create-request-form" onSubmit={(e) => {
+              e.preventDefault();
+              handleAction({ isPublish: isEditing });
+            }}>
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label htmlFor="title" className="block text-sm font-medium text-gray-700">Заголовок</label>
@@ -235,19 +255,30 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-            <button type="button" onClick={() => onClose()} className="px-5 py-2 text-base font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition">
-              Отмена
-            </button>
+          <div className="flex justify-between items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
             <button
-              type="submit"
-              form="create-request-form"
+              type="button"
+              onClick={() => handleAction({ isDraft: true })}
               disabled={isSubmitting}
-              className="ml-3 px-5 py-2 text-base font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed transition flex items-center gap-2"
+              className="px-5 py-2 text-base font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-100 disabled:bg-gray-50 disabled:cursor-not-allowed transition flex items-center gap-2"
             >
-              {isSubmitting ? 'Отправка...' : 'Создать запрос'}
-              {!isSubmitting && <PaperAirplaneIcon className="h-5 w-5" />}
+              <ArchiveBoxIcon className="h-5 w-5" />
+              {isEditing ? 'Сохранить черновик' : 'В черновик'}
             </button>
+            <div className="flex items-center">
+              <button type="button" onClick={() => onClose()} className="px-5 py-2 text-base font-semibold text-gray-700 rounded-xl hover:bg-gray-100 transition">
+                Отмена
+              </button>
+              <button
+                type="submit"
+                form="create-request-form"
+                disabled={isSubmitting}
+                className="ml-3 px-5 py-2 text-base font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSubmitting ? 'Публикация...' : 'Опубликовать'}
+                {!isSubmitting && <PaperAirplaneIcon className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
         </motion.div>
       </Modal>
