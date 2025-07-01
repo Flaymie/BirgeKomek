@@ -919,30 +919,32 @@ const ChatPage = () => {
 
             <TypingIndicator />
             
-            <AnimatePresence>
-              {showScrollDown && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="sticky bottom-4 w-full flex justify-center z-10"
-                >
-                  <button
-                    onClick={() => scrollToBottom()}
-                    className="bg-black/60 backdrop-blur-sm text-white rounded-full p-2 shadow-lg hover:bg-black/80 transition-all"
-                    title="Прокрутить вниз"
-                  >
-                    <ArrowDownCircleIcon className="h-8 w-8" />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* ПУСТОТА */}
           </div>
         </main>
-
+        
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
-        <footer className="bg-white border-t border-gray-200 rounded-b-lg">
+        <footer className="relative bg-white border-t border-gray-200 rounded-b-lg">
+          <AnimatePresence>
+            {showScrollDown && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10"
+              >
+                <button
+                  onClick={() => scrollToBottom()}
+                  className="bg-black/60 backdrop-blur-sm text-white rounded-full p-2 shadow-lg hover:bg-black/80 transition-all"
+                  title="Прокрутить вниз"
+                >
+                  <ArrowDownCircleIcon className="h-7 w-7" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {(() => {
             if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed') {
                 return (
