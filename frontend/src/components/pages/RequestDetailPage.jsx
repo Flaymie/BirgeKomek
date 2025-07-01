@@ -111,18 +111,23 @@ const RequestDetailPage = () => {
       setResponsesLoading(true);
       const response = await responsesService.getResponsesForRequest(id);
       setResponses(response.data);
-      const ownResponse = response.data.find(r => r.helper._id === currentUser?._id);
-      setMyResponse(ownResponse || null);
     } catch (err) {
       console.error('Ошибка при получении откликов:', err);
     } finally {
       setResponsesLoading(false);
     }
-  }, [id, currentUser]);
+  }, [id]);
 
   useEffect(() => {
     fetchResponses();
   }, [fetchResponses]);
+
+  useEffect(() => {
+    // Этот эффект будет обновлять myResponse, если он изменился в общем списке
+    // (например, после создания через модалку или получения по сокету)
+    const ownResponse = responses.find(r => r.helper._id === currentUser?._id);
+    setMyResponse(ownResponse || null);
+  }, [responses, currentUser]);
 
   useEffect(() => {
     if (!socket) return;
@@ -561,7 +566,6 @@ const RequestDetailPage = () => {
         requestId={id}
         onSuccess={(newResponse) => {
           setResponses(prev => [...prev, newResponse]);
-          setMyResponse(newResponse);
           setIsResponseModalOpen(false);
           toast.success('Ваш отклик успешно отправлен!');
         }}
