@@ -78,7 +78,7 @@ const ReviewItem = ({ review, fullAuthorProfile }) => {
   );
 };
 
-const ReviewsBlock = ({ userId }) => {
+const ReviewsBlock = ({ userId, showAll = false }) => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -142,7 +142,7 @@ const ReviewsBlock = ({ userId }) => {
       ) : (
         <div className="space-y-4">
           <AnimatePresence>
-            {reviews.slice(0, 3).map(review => (
+            {(showAll ? reviews : reviews.slice(0, 3)).map(review => (
               <ReviewItem
                 key={review._id}
                 review={review}
@@ -150,7 +150,7 @@ const ReviewsBlock = ({ userId }) => {
               />
             ))}
           </AnimatePresence>
-          {reviews.length > 3 && (
+          {reviews.length > 3 && !showAll && (
             <div className="text-center pt-4">
               <Link
                 to={`/reviews/${userId}`}
