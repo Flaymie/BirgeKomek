@@ -22,6 +22,7 @@ const RequestDetailsPage = () => {
     const [request, setRequest] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
     const fetchRequest = useCallback(async () => {
         try {
@@ -86,12 +87,15 @@ const RequestDetailsPage = () => {
     const isAuthor = currentUser?._id === request.author._id;
     const isHelper = currentUser?._id === request.helper?._id;
 
+    const description_cutoff = 300;
+    const isLongDescription = request.description.length > description_cutoff;
+
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Основная колонка */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="bg-white p-6 rounded-lg shadow-md min-w-0">
                         {/* Заголовок */}
                         <div className="flex justify-between items-start mb-4">
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 break-words pr-4">
@@ -121,8 +125,21 @@ const RequestDetailsPage = () => {
                         </div>
 
                         {/* Описание */}
-                        <div className="prose max-w-none text-gray-800 whitespace-pre-wrap break-words">
-                            <p>{request.description}</p>
+                        <div className="mt-4 text-gray-800">
+                            <p className="whitespace-pre-wrap break-words">
+                                {isLongDescription && !isDescriptionExpanded 
+                                    ? `${request.description.substring(0, description_cutoff)}...`
+                                    : request.description
+                                }
+                            </p>
+                            {isLongDescription && (
+                                <button 
+                                    onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                                    className="text-blue-600 hover:text-blue-800 font-semibold mt-2"
+                                >
+                                    {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                                </button>
+                            )}
                         </div>
                     </div>
                     
