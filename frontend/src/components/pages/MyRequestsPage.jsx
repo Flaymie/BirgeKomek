@@ -4,7 +4,8 @@ import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
-import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
+import { SUBJECTS } from '../../services/constants';
+import StatusBadge from '../shared/StatusBadge';
 import { PencilIcon } from '@heroicons/react/24/solid';
 
 const MyRequestsPage = () => {
@@ -28,16 +29,17 @@ const MyRequestsPage = () => {
     if (!currentUser) return;
     setLoading(true);
     try {
+      const publishedStatuses = ['open', 'assigned', 'in_progress', 'completed', 'cancelled', 'closed'];
+
       const params = {
         page: page,
         authorId: currentUser._id,
-        status: activeTab === 'drafts' ? 'draft' : undefined,
+        status: activeTab === 'drafts' ? 'draft' : publishedStatuses,
         ...filters,
       };
       if (!filters.subject) delete params.subject;
       if (!filters.search) delete params.search;
-      if (!params.status) delete params.status;
-
+      
       const response = await requestsService.getMyRequests(params);
       setRequests(response.data.requests);
       setTotalPages(response.data.totalPages);
@@ -134,14 +136,6 @@ const MyRequestsPage = () => {
     });
   };
 
-  const getStatusClass = (status) => {
-    return STATUS_COLORS[status] || { bg: 'bg-gray-100', text: 'text-gray-800' };
-  };
-  
-  const getStatusLabel = (status) => {
-    return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
-  };
-  
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -187,12 +181,10 @@ const MyRequestsPage = () => {
             <div className="p-4 flex flex-col h-full">
               <div className="flex-grow">
                 <div className="flex justify-between items-start mb-2">
-                  <h2 className="text-lg font-semibold text-gray-900 line-clamp-2 pr-2">
+                  <h2 className="text-lg font-semibold text-gray-900 line-clamp-2 pr-2 break-words">
                     {request.title || <span className="italic text-gray-400">Без заголовка</span>}
                   </h2>
-                  <span className={`px-2 py-1 ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text} rounded-full text-xs font-medium whitespace-nowrap`}>
-                    {getStatusLabel(request.status)}
-                  </span>
+                  <StatusBadge status={request.status} />
                 </div>
                 <p className="text-sm text-gray-600 mb-3 line-clamp-3">
                   {request.description || <span className="italic text-gray-400">Нет описания</span>}

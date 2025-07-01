@@ -16,6 +16,8 @@ const getStatusColorClass = (status) => {
       return 'bg-gray-200 text-gray-800';
     case 'cancelled':
       return 'bg-red-100 text-red-800';
+    case 'draft':
+      return 'bg-purple-100 text-purple-800';
     default:
       return 'bg-gray-100 text-gray-600';
   }
@@ -37,6 +39,8 @@ const getStatusDisplayName = (status) => {
       return 'Закрыта';
     case 'cancelled':
       return 'Отменена';
+    case 'draft':
+      return 'Черновик';
     default:
       return 'Неизвестно';
   }

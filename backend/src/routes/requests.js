@@ -211,12 +211,11 @@ router.get('/', [
  */
 router.post('/', createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).escape().withMessage('Заголовок должен быть от 5 до 100 символов'),
-    body('description').if(body('isDraft').not().exists()).trim().isLength({ min: 10 }).escape().withMessage('Описание должно быть минимум 10 символов'),
-    body('subject').if(body('isDraft').not().exists()).trim().notEmpty().escape().withMessage('Предмет обязателен'),
-    body('grade').if(body('isDraft').not().exists()).isInt({ min: 1, max: 11 }).withMessage('Класс должен быть от 1 до 11'),
+    body('description').optional().trim().escape(),
+    body('subject').optional().trim().escape(),
+    body('grade').optional().isInt({ min: 1, max: 11 }),
     body('topic').optional().trim().escape(),
     body('isDraft').optional().isBoolean(),
-    // tgRequired убрал, т.к. для черновика он не нужен. Но нужен при публикации.
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -226,9 +225,19 @@ router.post('/', createRequestLimiter, [
     try {
         const { title, description, subject, grade, topic, isDraft } = req.body;
         const author = req.user.id;
-
-        // При публикации черновика, проверяем наличие Telegram
+        
+        // --- РУЧНАЯ ВАЛИДАЦИЯ ДЛЯ ПУБЛИКАЦИИ ---
         if (!isDraft) {
+            if (!description || description.trim().length < 10) {
+                return res.status(400).json({ errors: [{ msg: 'Описание должно быть минимум 10 символов' }] });
+            }
+            if (!subject || subject.trim().length === 0) {
+                return res.status(400).json({ errors: [{ msg: 'Предмет обязателен' }] });
+            }
+            if (!grade) {
+                return res.status(400).json({ errors: [{ msg: 'Класс обязателен' }] });
+            }
+
             const user = await User.findById(author);
             if (!user.telegramId) {
                 return res.status(403).json({ 
@@ -629,10 +638,6 @@ router.post('/:id/complete', protect, [
             });
         }
         
-        // TODO: Начисление баллов хелперу, если это делает автор или система
-        // if (request.helper) {
-        //    await User.findByIdAndUpdate(request.helper._id, { $inc: { points: 10 } }); 
-        // }
 
         // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О ЗАКРЫТИИ ЗАЯВКИ ---
         if (request.helper) {
@@ -689,8 +694,6 @@ router.post('/:id/cancel', protect, [
 
         const currentUserId = req.user.id;
         const isAuthor = request.author && request.author._id.toString() === currentUserId;
-        // const isHelper = request.helper && request.helper._id.toString() === currentUserId;
-        // TODO: Решить, может ли хелпер отменять заявку, и при каких условиях
 
         if (!isAuthor) { // Пока только автор
             return res.status(403).json({ msg: 'Только автор может отменить эту заявку' });
@@ -717,7 +720,6 @@ router.post('/:id/cancel', protect, [
                 relatedEntity: { requestId: request._id }
             });
         }
-        // TODO: Уведомление автору, если отменил хелпер (если будет такая логика)
 
         res.json(request);
     } catch (err) {
@@ -850,121 +852,167 @@ router.post('/:id/cancel', protect, [
    *         description: Заявка не найдена
    */
   router.put('/:id/status', protect, [
-    param('id').isMongoId().withMessage('Неверный ID заявки'),
+    param('id').isMongoId().withMessage('Некорректный ID заявки'),
     body('status').isIn(['completed', 'cancelled', 'closed', 'in_progress', 'open'])
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
+  ], async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
+  
+      try {
+          const { id } = req.params;
+          const { status: newStatus } = req.body;
+          const userId = req.user.id;
+  
+          const request = await Request.findById(id);
+  
+          if (!request) {
+              return res.status(404).json({ msg: 'Заявка не найдена' });
+          }
+  
+          const oldStatus = request.status;
+          const isAuthor = request.author.toString() === userId;
+  
+          // --- ПРОВЕРКИ ДОСТУПА ---
+          if (newStatus === 'open' && oldStatus === 'draft') {
+              if (!isAuthor) {
+                  return res.status(403).json({ msg: 'Только автор может опубликовать черновик.' });
+              }
+              // Проверка на заполненность полей перед публикацией
+              if (!request.description || !request.subject || !request.grade) {
+                  return res.status(400).json({ msg: 'Перед публикацией необходимо заполнить описание, предмет и класс.' });
+              }
+              // Проверка на привязку Telegram
+              const user = await User.findById(userId);
+              if (!user.telegramId) {
+                  return res.status(403).json({
+                      message: 'Для публикации заявки необходимо привязать Telegram аккаунт в профиле.',
+                      code: 'TELEGRAM_REQUIRED'
+                  });
+              }
+          } else if (newStatus === 'completed') {
+              if (!isAuthor) {
+                  return res.status(403).json({ msg: 'Только автор может завершить заявку.' });
+              }
+          } else {
+              // TODO: Добавить другие проверки, если они нужны для других статусов
+          }
+  
+          // --- ОБНОВЛЕНИЕ ---
+          request.status = newStatus;
+          if (newStatus === 'completed') {
+              request.completedAt = new Date();
+          }
+          await request.save();
+  
+          const populatedRequest = await Request.findById(id)
+              .populate('author', 'username _id rating avatar')
+              .populate('helper', 'username _id rating avatar')
+              .lean();
+  
+          // --- УВЕДОМЛЕНИЯ И СОКЕТЫ ---
+          if (oldStatus === 'draft' && newStatus === 'open') {
+              io.emit('new_request', populatedRequest);
+              
+              // --- ОПОВЕЩЕНИЕ ХЕЛПЕРОВ (логика, скопированная из POST /requests) ---
+              const { subject, grade, title, _id } = populatedRequest;
+              const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
 
+              if (helpersForSubject.length > 0) {
+                  const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== userId); // Убираем автора из получателей
+
+                  const notificationPromises = helperIds.map(helperId => {
+                      return createAndSendNotification(req.app.locals.sseConnections, {
+                          user: helperId,
+                          type: 'new_request_for_subject',
+                          title: `Новая заявка по вашему предмету: ${subject}`,
+                          message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
+                          link: `/request/${_id}`
+                      });
+                  });
+                  await Promise.all(notificationPromises);
+
+                  // Отправка в Telegram
+                  const tgUsers = await User.find({
+                      _id: { $in: helperIds },
+                      'telegramIntegration.notificationsEnabled': true,
+                      telegramId: { $exists: true }
+                  });
+
+                  for (const tgUser of tgUsers) {
+                      const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
+                      await sendTelegramMessage(tgUser.telegramId, messageText, {
+                          parse_mode: 'Markdown',
+                          reply_markup: {
+                              inline_keyboard: [
+                                  [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${_id}` }]
+                              ]
+                          }
+                      });
+                  }
+              }
+          } else {
+              io.emit('request_updated', populatedRequest);
+          }
+  
+          if (newStatus === 'completed' && request.helper) {
+              await createAndSendNotification(req.app.locals.sseConnections, {
+                  user: request.helper,
+                  type: 'request_completed',
+                  title: `Заявка "${request.title}" была закрыта`,
+                  message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
+                  link: `/request/${request._id}`
+              });
+          }
+  
+          res.json(populatedRequest);
+  
+      } catch (err) {
+          console.error('Ошибка при обновлении статуса заявки:', err.message);
+          res.status(500).send('Ошибка сервера');
+      }
+  });
+
+/**
+ * @route   DELETE api/requests/:id
+ * @desc    Удалить заявку (доступно только автору)
+ * @access  Private
+ */
+router.delete('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { status } = req.body;
-        const userId = req.user.id;
-        const userRoles = req.user.roles;
-
-        const request = await Request.findById(id);
+        const request = await Request.findById(req.params.id);
 
         if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
         }
 
-        const isAuthor = request.author.toString() === userId;
-        const isHelper = request.helper && request.helper.toString() === userId;
-        const isAdminOrMod = userRoles.admin || userRoles.moderator;
-
-        // Определяем права на изменение статуса
-        if (!isAuthor && !isHelper && !isAdminOrMod) {
-            return res.status(403).json({ msg: 'У вас нет прав для изменения статуса этой заявки' });
-        }
-        
-        // Дополнительные проверки. Например, только автор или хелпер могут 'завершить' заявку
-        if (status === 'completed' && !isAuthor && !isHelper && !isAdminOrMod) {
-             return res.status(403).json({ msg: 'Только автор или исполнитель могут завершить заявку.' });
+        // Проверяем, является ли пользователь автором заявки
+        if (request.author.toString() !== req.user.id) {
+            return res.status(401).json({ msg: 'Нет прав для удаления этой заявки' });
         }
 
-        // Публиковать черновик может только автор
-        if (request.status === 'draft' && status === 'open' && !isAuthor) {
-            return res.status(403).json({ msg: 'Только автор может опубликовать черновик.' });
+        await request.deleteOne();
+
+        // Оповещение через сокеты (опционально, но полезно)
+        // req.io.emit('request_deleted', { id: req.params.id });
+
+        res.json({ msg: 'Заявка успешно удалена' });
+
+    } catch (error) {
+        console.error('Ошибка при удалении заявки:', error);
+        if (error.kind === 'ObjectId') {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
         }
-
-        // Завершать заявку может только автор
-        if (status === 'completed' && !isAuthor) {
-            return res.status(403).json({ msg: 'Только автор может завершить заявку.' });
-        }
-        
-        // --- ПРОВЕРКА НАЛИЧИЯ TELEGRAM ПРИ ПУБЛИКАЦИИ ---
-        if (request.status === 'draft' && status === 'open') {
-            const user = await User.findById(req.user.id);
-            if (!user.telegramId) {
-                return res.status(403).json({
-                    message: 'Для публикации заявки необходимо привязать Telegram аккаунт в профиле.',
-                    code: 'TELEGRAM_REQUIRED'
-                });
-            }
-            // Также убедимся, что все поля заполнены
-            if (!request.description || !request.subject || !request.grade) {
-                return res.status(400).json({ msg: 'Перед публикацией необходимо заполнить описание, предмет и класс.' });
-            }
-        }
-
-        if (status === 'completed') {
-            if (req.user._id.toString() !== request.author.toString()) {
-                return res.status(403).json({ msg: 'Только автор может завершить заявку.' });
-            }
-            
-            // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О ЗАКРЫТИИ ЗАЯВКИ ---
-            if (request.helper) {
-                await createAndSendNotification(req.app.locals.sseConnections, {
-                    user: request.helper,
-                    type: 'request_completed',
-                    title: `Заявка "${request.title}\" была закрыта`,
-                    message: 'Автор заявки отметил ее как выполненную. Теперь вы можете оставить отзыв.',
-                    link: `/request/${request._id}`
-                });
-            }
-        }
-
-        request.status = status;
-        // При завершении заявки фиксируем дату
-        if (status === 'completed') {
-            request.completedAt = new Date();
-        }
-
-        await request.save();
-
-        const populatedRequest = await Request.findById(id)
-            .populate('author', 'username _id rating avatar')
-            .populate('helper', 'username _id rating avatar')
-            .lean();
-
-        // СОКЕТ-УВЕДОМЛЕНИЕ ОБ ОБНОВЛЕНИИ СТАТУСА
-        // Отправляем событие о новой заявке, если она была опубликована из черновика
-        if (request.status === 'draft' && status === 'open') {
-            // Сохраняем и получаем обновленный документ
-            request.status = status;
-            await request.save();
-            const populatedRequest = await Request.findById(id).populate('author', 'username _id rating avatar').lean();
-            io.emit('new_request', populatedRequest);
-            return res.json(populatedRequest);
-        } else {
-            io.emit('request_updated', populatedRequest);
-            res.json(populatedRequest);
-        }
-
-    } catch (err) {
-        console.error('Ошибка при обновлении статуса заявки:', err.message);
         res.status(500).send('Ошибка сервера');
     }
 });
 
 /**
  * @swagger
- * /api/requests/{id}:
- *   delete:
-   *     summary: Удалить заявку
-   *     description: Доступно только автору или модератору/администратору.
+ * /api/requests/{id}/reopen:
+ *   post:
+ *     summary: Переоткрыть заявку, если помощь не устроила
  *     tags: [Requests]
  *     security:
  *       - bearerAuth: []
@@ -972,115 +1020,14 @@ router.post('/:id/cancel', protect, [
  *       - in: path
  *         name: id
  *         required: true
-   *         description: ID заявки
-   *     requestBody:
-   *       description: Причина удаления (обязательна для модераторов/админов).
-   *       required: false
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               deleteReason:
-   *                 type: string
-   *                 description: "Причина удаления (для модераторов)"
-   *               confirmationCode:
-   *                 type: string
-   *                 description: "6-значный код подтверждения из Telegram (если требуется)"
-   *     responses:
-   *       200:
-   *         description: Заявка успешно удалена
-   *       403:
-   *         description: Нет прав на удаление
-   */
-  router.delete('/:id', protect, checkEditDeletePermission, [
-      body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
-      body('deleteReason').optional().isString().trim()
-  ], async (req, res) => {
-    try {
-      const { confirmationCode, deleteReason } = req.body;
-      const actingUser = req.user;
-      const request = req.request; // из checkEditDeletePermission
-
-      // --- НОВАЯ ЛОГИКА 2FA ДЛЯ МОДЕРАТОРОВ ---
-      if (req.isModeratorAction) {
-        // Если это модер, но не админ, требуем 2FA
-        if (actingUser.role !== 'admin') {
-          if (!actingUser.telegramId) {
-            return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
-          }
-          
-          const redisKey = `mod-action:delete-request:${actingUser.id}:${request._id}`;
-
-          if (!confirmationCode) {
-            // Этап 1: Генерация и отправка кода
-            const code = crypto.randomInt(100000, 999999).toString();
-            await redis.set(redisKey, code, 'EX', 300); // 5 минут
-
-            const message = `Для подтверждения удаления заявки "**${request.title}**" введите этот код:\n\n` +
-                            `\`${code}\`\n\n` +
-                            `Причина удаления (указанная вами): ${deleteReason || 'не указана'}.`;
-            await sendTelegramMessage(actingUser.telegramId, message);
-
-            return res.status(400).json({ 
-                confirmationRequired: true,
-                message: 'Требуется подтверждение. Код отправлен вам в Telegram.' 
-            });
-          } else {
-            // Этап 2: Проверка кода
-            const storedCode = await redis.get(redisKey);
-            if (storedCode !== confirmationCode) {
-              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
-            }
-            await redis.del(redisKey); // Удаляем использованный код
-          }
-        }
-        // Если это админ или модер с верным кодом, уведомляем автора
-        await createAndSendNotification(req.app.locals.sseConnections, {
-            user: request.author,
-            type: 'request_deleted_by_admin',
-            title: 'Ваша заявка была удалена',
-            message: `Модератор ${actingUser.username} удалил вашу заявку \"${request.title}\". Причина: \"${deleteReason || 'не указана'}.\"`,
-            link: `/request/${request._id}`,
-            relatedEntity: { requestId: request._id }
-        });
-      }
-
-      // --- ОБЩАЯ ЛОГИКА УДАЛЕНИЯ ДЛЯ ВСЕХ (и для автора, и для модератора после проверки) ---
-      
-      await Request.findByIdAndDelete(request._id);
-      await Message.deleteMany({ request: request._id });
-      
-      // Дополнительно: можно удалить отклики, отзывы и т.д.
-      
-      res.json({ msg: 'Запрос и все связанные данные успешно удалены' });
-
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send('Ошибка сервера');
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/requests/{id}/reopen:
-   *   post:
-   *     summary: Переоткрыть заявку, если помощь не устроила
-   *     tags: [Requests]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: 'string', description: 'ID заявки' }
-   *     responses:
-   *       200: { description: 'Заявка успешно переоткрыта' }
-   *       403: { description: 'Только автор может выполнить это действие' }
+ *         schema: { type: 'string', description: 'ID заявки' }
+ *     responses:
+ *       200: { description: 'Заявка успешно переоткрыта' }
+ *       403: { description: 'Только автор может выполнить это действие' }
  *       404: { description: 'Заявка не найдена' }
-   *       400: { description: 'Неверный статус заявки для этого действия' }
+ *       400: { description: 'Неверный статус заявки для этого действия' }
  */
-  router.post('/:id/reopen', protect, [
+router.post('/:id/reopen', protect, [
     param('id').isMongoId().withMessage('Неверный ID заявки')
 ], async (req, res) => {
     const errors = validationResult(req);

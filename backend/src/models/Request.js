@@ -7,17 +7,14 @@ const requestSchema = new mongoose.Schema({
     trim: true
   },
   description: {
-    type: String,
-    required: true
+    type: String
   },
   subject: {
     type: String,
-    required: true,
     trim: true
   },
   grade: {
     type: Number,
-    required: true,
     min: 1,
     max: 11
   },
@@ -45,7 +42,7 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'in_progress', 'pending', 'completed', 'closed'],
+    enum: ['draft', 'open', 'assigned', 'in_progress', 'completed', 'cancelled', 'closed'],
     default: 'open'
   },
   editedByAdminInfo: {

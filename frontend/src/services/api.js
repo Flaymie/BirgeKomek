@@ -357,6 +357,10 @@ const reviewsService = {
   }
 };
 
+export const adminService = {
+    // ... существующие методы
+};
+
 export {
   api,
   requestsService,
