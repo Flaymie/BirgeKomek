@@ -572,13 +572,6 @@ const RequestDetailPage = () => {
         isOpen={isResponseModalOpen}
         onClose={() => setIsResponseModalOpen(false)}
         requestId={id}
-        onSuccess={() => {
-          // Костыль для перезагрузки страницы, как ты и просил
-          setIsResponseModalOpen(false);
-          toast.success('Ваш отклик успешно отправлен! Перезагружаем...');
-          // Небольшая задержка, чтобы ты успел прочитать сообщение
-          setTimeout(() => window.location.reload(), 1500);
-        }}
       />
       
       {/* Модальное окно подтверждения удаления */}

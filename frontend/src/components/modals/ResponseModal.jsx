@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { responsesService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
+import Modal from '../shared/Modal';
 
 const ResponseModal = ({ isOpen, onClose, requestId }) => {
   const [message, setMessage] = useState('');
@@ -22,63 +23,27 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (checkAndShowModal()) return;
-    
+    if (await checkAndShowModal()) return;
     if (!message.trim()) {
-      toast.error('Пожалуйста, введите текст отклика');
+      toast.error('Сообщение не может быть пустым');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
     try {
-      console.log('Отправляем отклик с данными:', { requestId, message });
-      
       await responsesService.createResponse({
-        requestId,
-        message
+        request: requestId,
+        message,
       });
-      
-      toast.success('Ваш отклик успешно отправлен!');
-      setMessage('');
-      onClose();
+      toast.success('Ваш отклик успешно отправлен! Перезагружаем...');
+      // Жёсткий костыль с перезагрузкой
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500); // Задержка, чтобы пользователь успел увидеть сообщение
     } catch (err) {
-      console.error('Ошибка при отправке отклика:', err);
-      
-      // Выводим подробную информацию об ошибке для отладки
-      if (err.response) {
-        console.error('Данные ответа:', err.response.data);
-        console.error('Статус ответа:', err.response.status);
-        console.error('Заголовки ответа:', err.response.headers);
-      }
-      
-      // Получаем более детальную информацию об ошибке
-      let errorMessage = 'Произошла ошибка при отправке отклика';
-      
-      if (err.response) {
-        // Если сервер вернул ответ с ошибкой
-        if (err.response.data && err.response.data.msg) {
-          errorMessage = err.response.data.msg;
-        } else if (err.response.data && err.response.data.errors) {
-          errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
-        } else {
-          errorMessage = `Ошибка ${err.response.status}: ${err.response.statusText}`;
-        }
-        
-        // Если ошибка связана с авторизацией
-        if (err.response.status === 401) {
-          errorMessage = 'Необходимо авторизоваться для отправки отклика';
-        }
-      } else if (err.request) {
-        // Если запрос был сделан, но ответ не получен
-        errorMessage = 'Сервер не отвечает, проверьте соединение';
-      }
-      
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
+      setError(err.response?.data?.msg || 'Произошла ошибка');
+      toast.error(err.response?.data?.msg || 'Не удалось отправить отклик');
       setLoading(false);
     }
   };
