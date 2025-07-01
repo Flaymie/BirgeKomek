@@ -30,20 +30,6 @@ import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
 
-// --- НОВЫЙ ХУК ДЛЯ ДЕБАУНСА ---
-function useDebouncedCallback(callback, delay) {
-    const timeoutRef = useRef(null);
-
-    return (...args) => {
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-        }
-        timeoutRef.current = setTimeout(() => {
-            callback(...args);
-        }, delay);
-    };
-}
-
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
   baseURL: baseURL,
@@ -136,6 +122,49 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
   );
 };
 
+// Новый компонент для рендера текста сообщения с поддержкой "Читать далее"
+const MessageContent = ({ text }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Простое определение, нужно ли скрывать часть текста
+  // Считаем и по строкам, и по общей длине
+  const lineCount = (text.match(/\n/g) || []).length + 1;
+  const isLong = lineCount > 7 || text.length > 500;
+
+  if (!isLong || isExpanded) {
+    return (
+      <div className="whitespace-pre-wrap">
+        {text}
+        {isLong && (
+           <button 
+             onClick={() => setIsExpanded(false)}
+             className="text-indigo-200 hover:underline ml-2 text-sm font-semibold"
+           >
+             Свернуть
+           </button>
+        )}
+      </div>
+    );
+  }
+
+  // Обрезаем текст (очень простой способ, можно улучшить)
+  const truncatedText = text.split('\n').slice(0, 7).join('\n');
+
+  return (
+    <div>
+      <div className="whitespace-pre-wrap">
+        {truncatedText + '...'}
+      </div>
+      <button 
+        onClick={() => setIsExpanded(true)}
+        className="text-indigo-200 hover:underline mt-1 text-sm font-semibold"
+      >
+        Показать полностью
+      </button>
+    </div>
+  );
+};
+
 // Новый компонент сообщения
 const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive }) => {
   const hasAttachments = msg.attachments && msg.attachments.length > 0;
@@ -174,7 +203,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
 
         {msg.content && (
           <div className={`break-words ${hasAttachments ? 'px-2 pb-1 pt-2' : 'px-3 py-2'}`}>
-            {msg.content}
+            <MessageContent text={msg.content} />
           </div>
         )}
 
@@ -312,14 +341,40 @@ const ChatPage = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // --- НОВАЯ ЛОГИКА ДЛЯ ИНДИКАТОРА ПЕЧАТИ ---
+  // --- ЕДИНЫЙ useEffect ДЛЯ ВСЕЙ ЛОГИКИ SOCKET.IO ---
   useEffect(() => {
     if (!socket || !requestId) return;
 
-    // Слушаем, кто печатает
+    // 1. Присоединяемся к комнате чата
+    socket.emit('join_chat', requestId);
+
+    // 2. ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
+    const markMessagesAsRead = async () => {
+      try {
+        await messagesService.markAsRead(requestId);
+      } catch (err) {
+        console.error('Ошибка при пометке сообщений как прочитанных:', err);
+      }
+    };
+    markMessagesAsRead();
+
+    // 3. Обработчики событий
+    const handleNewMessage = (message) => {
+      if (message.requestId === requestId) {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      }
+    };
+
+    const handleUpdateMessage = (updatedMessage) => {
+      if (updatedMessage.requestId === requestId) {
+        setMessages((prevMessages) =>
+          prevMessages.map(msg => msg._id === updatedMessage._id ? updatedMessage : msg)
+        );
+      }
+    };
+    
     const handleTypingBroadcast = ({ userId, username, isTyping, chatId }) => {
       if (chatId !== requestId || userId === currentUser._id) return;
-      
       setTypingUsers(prev => {
         const newTypingUsers = { ...prev };
         if (isTyping) {
@@ -330,37 +385,29 @@ const ChatPage = () => {
         return newTypingUsers;
       });
     };
-    
+
+    const handleConnectError = (err) => {
+      console.error('Socket connection error:', err.message);
+      toast.error('Не удалось подключиться к чату.');
+    };
+
+    // 4. Подписываемся на события
+    socket.on('new_message', handleNewMessage);
+    socket.on('message_updated', handleUpdateMessage);
     socket.on('typing_started', handleTypingBroadcast);
     socket.on('typing_stopped', handleTypingBroadcast);
+    socket.on('connect_error', handleConnectError);
 
+    // 5. Отписка при выходе
     return () => {
       socket.off('new_message', handleNewMessage);
       socket.off('message_updated', handleUpdateMessage);
-      socket.off('connect_error', handleConnectError);
       socket.off('typing_started', handleTypingBroadcast);
       socket.off('typing_stopped', handleTypingBroadcast);
+      socket.off('connect_error', handleConnectError);
       socket.emit('leave_chat', requestId);
     };
-  }, [socket, requestId, currentUser]);
-  
-  // Отправляем событие, когда МЫ печатаем
-  const handleTyping = () => {
-    if (!socket || !requestId) return;
-    
-    // Сообщаем, что начали печатать
-    socket.emit('user:typing', { chatId: requestId, isTyping: true });
-
-    // Если уже есть таймер, сбрасываем его
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Устанавливаем новый таймер
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('user:typing', { chatId: requestId, isTyping: false });
-    }, 3000); // 3 секунды бездействия
-  };
+  }, [socket, requestId, currentUser]); // Добавил currentUser, так как он используется в handleTypingBroadcast
 
   // Скролл чата и страницы вниз после загрузки
   useEffect(() => {
@@ -411,58 +458,6 @@ const ChatPage = () => {
 
   }, [messages]);
 
-  // Настройка Socket.IO
-  useEffect(() => {
-    if (!socket) return; // Если сокет еще не подключен, выходим
-
-    // Присоединяемся к комнате чата
-    socket.emit('join_chat', requestId);
-
-    // ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
-    const markMessagesAsRead = async () => {
-      try {
-        await messagesService.markAsRead(requestId);
-      } catch (err) {
-        console.error('Ошибка при пометке сообщений как прочитанных:', err);
-      }
-    };
-    markMessagesAsRead();
-    
-    // Слушаем новые сообщения
-    const handleNewMessage = (message) => {
-      if (message.requestId === requestId) {
-        setMessages((prevMessages) => [...prevMessages, message]);
-      }
-    };
-
-    // Слушаем ОБНОВЛЕНИЕ сообщения (реакция на редактирование/удаление)
-    const handleUpdateMessage = (updatedMessage) => {
-      if (updatedMessage.requestId === requestId) {
-        setMessages((prevMessages) =>
-          prevMessages.map(msg => msg._id === updatedMessage._id ? updatedMessage : msg)
-        );
-      }
-    };
-
-    socket.on('new_message', handleNewMessage);
-    socket.on('message_updated', handleUpdateMessage);
-    
-    // Обработка ошибок сокета (можно оставить, если есть специфичные для чата ошибки)
-    const handleConnectError = (err) => {
-      console.error('Socket connection error:', err.message);
-      toast.error('Не удалось подключиться к чату.');
-    };
-    socket.on('connect_error', handleConnectError);
-
-    // Отключаемся от слушателей при размонтировании компонента или смене сокета/requestId
-    return () => {
-      socket.off('new_message', handleNewMessage);
-      socket.off('message_updated', handleUpdateMessage);
-      socket.off('connect_error', handleConnectError);
-      // Не нужно вызывать socket.disconnect() здесь, так как он глобальный
-    };
-  }, [socket, requestId]);
-  
   const scrollToBottom = (behavior = 'smooth') => {
     const chatContainer = chatContainerRef.current;
     if (chatContainer) {
@@ -474,7 +469,9 @@ const ChatPage = () => {
   };
   
   const handleSendMessage = async (e) => {
-    e.preventDefault();
+    // Проверяем наличие `e`, так как функция может быть вызвана без него
+    if (e) e.preventDefault(); 
+    
     if (checkAndShowModal()) return;
     
     if ((!newMessage.trim() && !attachment) || !socket) return;
@@ -482,8 +479,10 @@ const ChatPage = () => {
     // Перед отправкой гасим наш индикатор печати
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
     }
-    socket.emit('user:typing', { chatId: requestId, isTyping: false });
+    // ИСПРАВЛЕННОЕ СОБЫТИЕ
+    socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
 
     try {
       if (attachment) {
@@ -526,8 +525,10 @@ const ChatPage = () => {
     // Гасим индикатор печати
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
     }
-    socket.emit('user:typing', { chatId: requestId, isTyping: false });
+    // ИСПРАВЛЕННОЕ СОБЫТИЕ
+    socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
 
     try {
       await messagesService.editMessage(editingMessage.id, newMessage);
@@ -631,40 +632,76 @@ const ChatPage = () => {
   const isAuthor = currentUser?._id === requestDetails?.author._id;
   // ИСПРАВЛЕННАЯ ЛОГИКА: Чат активен, если есть хелпер и заявка не закрыта
   const isChatActive = requestDetails?.helper && ['assigned', 'in_progress'].includes(requestDetails?.status);
+  
+  const textareaRef = useRef(null);
+
+  // Эффект для авто-ресайза textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto'; // Сначала сбрасываем
+      const scrollHeight = textarea.scrollHeight;
+      // Устанавливаем максимальную высоту, например, 200px
+      const maxHeight = 200; 
+      textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+      // Если контент больше, показываем скролл
+      textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+    }
+  }, [newMessage]);
 
   const handleMessageChange = (e) => {
     const value = e.target.value;
     setNewMessage(value);
 
-    if (socket && value) {
-      // Отправляем 'typing_started' только если еще не отправляли
+    if (!socket) return;
+
+    if (value) {
+      // Отправляем 'typing_started' только если еще не отправляли (нет активного таймаута)
       if (!typingTimeoutRef.current) {
         socket.emit('typing_started', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
-      } else {
-        clearTimeout(typingTimeoutRef.current);
       }
-      // Устанавливаем таймаут для 'typing_stopped'
+      
+      // Сбрасываем предыдущий таймаут, чтобы начать отсчет заново
+      if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Устанавливаем новый таймаут для 'typing_stopped'
       typingTimeoutRef.current = setTimeout(() => {
         socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
         typingTimeoutRef.current = null;
-      }, 2000); // 2 секунды
+      }, 2000);
+    } else {
+      // Если поле очистили, немедленно отправляем 'stopped' и сбрасываем таймаут
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
     }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // Предотвращаем создание новой строки
+    // Для Shift+Enter просто ничего не делаем, позволяя создать новую строку
+    if (e.key === 'Enter' && e.shiftKey) {
+      return; 
+    }
+    
+    // Для обычного Enter - отправляем
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Предотвращаем создание новой строки в любом случае
       if (editingMessage) {
-        handleSaveEdit();
+        handleSaveEdit(e); // ПРОКИДЫВАЕМ СОБЫТИЕ
       } else {
-        handleSendMessage();
+        handleSendMessage(e); // ПРОКИДЫВАЕМ СОБЫТИЕ
       }
     }
   };
 
   // --- КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ПЕЧАТАЮЩИХ ---
   const TypingIndicator = () => {
-    const users = Object.values(typingUsers).map(u => u.username);
+    // ИСПРАВЛЕНО: используем Object.keys для получения имен
+    const users = Object.keys(typingUsers);
     
     if (users.length === 0) return null;
     
@@ -909,29 +946,29 @@ const ChatPage = () => {
           )}
 
                     <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
-                      <input {...getInputProps()} />
                       <button
                         type="button"
                         onClick={open}
                         disabled={!!editingMessage || requestDetails.status === 'open'}
-                        className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300`}
+                        className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300 self-end mb-2`}
                       >
                         <PaperClipIcon className="h-6 w-6" />
                       </button>
-                      <input
-                        type="text"
+                      <textarea
+                        ref={textareaRef}
+                        rows={1}
                         value={newMessage}
                         onChange={handleMessageChange}
                         onKeyDown={handleKeyDown}
                         placeholder={requestDetails.status === 'open' ? "Хелпер еще не назначен..." : "Напишите сообщение..."}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                         autoComplete="off"
                         disabled={requestDetails.status === 'open'}
                       />
                       <button
                         type="submit"
                         disabled={(!newMessage.trim() && !attachment) || requestDetails.status === 'open'}
-                        className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
+                        className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors self-end"
                       >
                         <ArrowUpCircleIcon className="h-6 w-6" />
                       </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { serverURL } from '../../services/api';
 import { ArrowDownCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { downloadFile } from '../../services/downloadService';
@@ -17,10 +17,10 @@ const AttachmentModal = ({ file, onClose }) => {
   }, [file]);
   
   // Обновленная функция закрытия с учетом анимации
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsVisible(false);
     setTimeout(onClose, 300); // Ждем завершения анимации (duration-300)
-  };
+  }, [onClose]);
 
   // Закрытие по клавише Escape, с учетом зума и анимации
   useEffect(() => {
@@ -37,7 +37,7 @@ const AttachmentModal = ({ file, onClose }) => {
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [isZoomed]); // Зависимость только от isZoomed, т.к. handleClose уже инкапсулирована
+  }, [isZoomed, handleClose]);
 
   // Сбрасываем зум при смене файла
   useEffect(() => {

@@ -229,19 +229,23 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('user:typing', (data) => {
-    const { chatId, isTyping } = data;
-    const { id, username } = socket.user; // Получаем данные из сокета
-
+  // ИСПРАВЛЕННАЯ ЛОГИКА ИНДИКАТОРА ПЕЧАТИ
+  const handleTyping = (eventName) => (data) => {
+    const { chatId } = data;
+    const { id, username } = socket.user;
     if (chatId) {
-      socket.to(chatId).emit('user:typing:broadcast', {
-        userId: id,
+      // Транслируем то же самое событие, которое пришло, всем в комнате, кроме отправителя
+      socket.to(chatId).emit(eventName, { 
+        userId: id, 
         username: username,
-        isTyping: isTyping,
-        chatId: chatId,
+        isTyping: eventName === 'typing_started', // true для started, false для stopped
+        chatId: chatId 
       });
     }
-  });
+  };
+
+  socket.on('typing_started', handleTyping('typing_started'));
+  socket.on('typing_stopped', handleTyping('typing_stopped'));
 
   socket.on('user_active', (userId) => {
     if (userId) {
