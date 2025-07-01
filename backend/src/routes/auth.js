@@ -36,16 +36,11 @@ const RESERVED_USERNAMES = [
  *             type: object
  *             required:
  *               - username
- *               - email
  *               - password
  *             properties:
  *               username:
  *                 type: string
  *                 description: Уникальное имя пользователя
- *               email:
- *                 type: string
- *                 format: email
- *                 description: Email пользователя
  *               password:
  *                 type: string
  *                 format: password
@@ -112,11 +107,6 @@ router.post('/register', generalLimiter,
         return true;
     }),
   
-  body('email')
-    .trim()
-    .isEmail().withMessage('Введите корректный email')
-    .normalizeEmail(),
-  
   body('password')
     .trim()
     .isLength({ min: 6 }).withMessage('Пароль должен быть минимум 6 символов'),
@@ -149,7 +139,7 @@ router.post('/register', generalLimiter,
     return res.status(400).json({ errors: errors.array() });
   }
 
-    const { username, email, password, grade, role } = req.body;
+    const { username, password, grade, role } = req.body;
     let { subjects } = req.body;
 
     if (subjects && typeof subjects === 'string') {
@@ -161,15 +151,9 @@ router.post('/register', generalLimiter,
     }
 
   try {
-    const lowerCaseEmail = email.toLowerCase();
     const lowerCaseUsername = username.toLowerCase();
 
-    let user = await User.findOne({ email: lowerCaseEmail });
-    if (user) {
-      return res.status(400).json({ msg: 'Регистрация невозможна. Попробуйте другой email.' });
-    }
-
-    user = await User.findOne({ username: lowerCaseUsername });
+    let user = await User.findOne({ username: lowerCaseUsername });
     if (user) {
       return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
     }
@@ -187,7 +171,6 @@ router.post('/register', generalLimiter,
 
     const newUser = {
       username,
-      email,
       password,
       hasPassword: true,
       roles: {
@@ -239,7 +222,6 @@ router.post('/register', generalLimiter,
         user: {
             _id: user.id,
             username: user.username,
-            email: user.email,
             roles: user.roles,
             rating: user.rating,
             avatar: user.avatar,
@@ -273,7 +255,7 @@ router.post('/register', generalLimiter,
  *             properties:
  *               emailOrUsername:
  *                 type: string
- *                 description: Email или имя пользователя
+ *                 description: Имя пользователя
  *               password:
  *                 type: string
  *                 format: password
@@ -305,23 +287,21 @@ router.post('/register', generalLimiter,
  */
 // логин
 router.post('/login', generalLimiter, [
-  body('emailOrUsername', 'Введите email или имя пользователя').not().isEmpty(),
+  body('emailOrUsername', 'Введите имя пользователя').not().isEmpty(),
   body('password', 'Пароль обязателен').exists(),
 ], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
   const { emailOrUsername, password } = req.body;
 
   try {
     const identifier = emailOrUsername.toLowerCase();
     
-    let user = await User.findOne({
-      $or: [{ email: identifier }, { username: identifier }],
-    }).select('+password +hasPassword');
-
+    let user = await User.findOne({ username: identifier }).select('+password +hasPassword');
+    
     if (!user) {
       return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
@@ -334,7 +314,7 @@ router.post('/login', generalLimiter, [
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-
+    
     if (!isMatch) {
       return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
@@ -416,46 +396,6 @@ router.post('/check-username', [
         }
 
         const user = await User.findOne({ username });
-        res.json({ available: !user });
-    } catch (e) {
-        res.status(500).json({ message: 'Ошибка сервера' });
-    }
-});
-
-/**
- * @swagger
- * /api/auth/check-email:
- *   post:
- *     summary: Проверить доступность email
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email: { type: 'string' }
- *     responses:
- *       200:
- *         description: Возвращает true, если email доступен
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 available: { type: 'boolean' }
- */
-router.post('/check-email', [
-    body('email').trim().isEmail().withMessage('Некорректный email')
-], async (req, res) => {
-     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        // Отправляем false, если email невалидный, чтобы фронтенд показал ошибку формата
-        return res.json({ available: false, message: errors.array()[0].msg });
-    }
-    try {
-        const user = await User.findOne({ email: req.body.email.toLowerCase() });
         res.json({ available: !user });
     } catch (e) {
         res.status(500).json({ message: 'Ошибка сервера' });
@@ -596,7 +536,6 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               email: { type: 'string' }
  *               role: { type: 'string', enum: ['student', 'helper'] }
  *               grade: { type: 'integer' }
  *               subjects: { type: 'array', items: { type: 'string' } }
@@ -618,7 +557,6 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
 router.post('/telegram/register', async (req, res) => {
     try {
         const {
-            email,
             role,
             grade,
             subjects,
@@ -644,16 +582,11 @@ router.post('/telegram/register', async (req, res) => {
         // --- Если пользователя нет, продолжаем регистрацию ---
 
         // 3. Проверяем, что все нужные данные для НОВОГО юзера есть
-        if (!email || !role || !username) {
+        if (!role || !username) {
             return res.status(400).json({ msg: 'Не хватает данных для регистрации нового пользователя.' });
         }
 
-        // 4. Проверяем, не занят ли email или username
-        const existingUserByEmail = await User.findOne({ email: email.toLowerCase() });
-        if (existingUserByEmail) {
-            return res.status(400).json({ msg: 'Этот email уже используется.' });
-        }
-
+        // 4. Проверяем, не занят ли username
         const existingUserByUsername = await User.findOne({ username: username.toLowerCase() });
         if (existingUserByUsername) {
             return res.status(400).json({ msg: `Имя пользователя '${username}' уже занято.` });
@@ -662,7 +595,6 @@ router.post('/telegram/register', async (req, res) => {
         // 5. Создаем нового пользователя
         const newUser = new User({
             username,
-            email,
             phone,
             firstName,
             lastName,
@@ -1041,7 +973,7 @@ router.post('/finalizelink', async (req, res) => {
  * /api/auth/forgot-password:
  *   post:
  *     summary: Запрос на сброс пароля
- *     description: Проверяет, привязан ли к аккаунту с указанным email Telegram, и если да, отправляет в него код для сброса пароля.
+ *     description: Проверяет, привязан ли к аккаунту с указанным именем пользователя Telegram, и если да, отправляет в него код для сброса пароля.
  *     tags: [Password]
  *     requestBody:
  *       required: true
@@ -1049,32 +981,31 @@ router.post('/finalizelink', async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email]
+ *             required: [username]
  *             properties:
- *               email:
+ *               username:
  *                 type: string
- *                 format: email
  *     responses:
  *       200:
  *         description: Код для сброса пароля отправлен в Telegram.
  *       400:
- *         description: Некорректный email или к аккаунту не привязан Telegram.
+ *         description: Некорректное имя пользователя или к аккаунту не привязан Telegram.
  *       404:
- *         description: Пользователь с таким email не найден.
+ *         description: Пользователь с таким именем пользователя не найден.
  *       429:
  *         description: Слишком частые запросы на сброс пароля.
  *       500:
  *         description: Ошибка сервера.
  */
 router.post('/forgot-password', generalLimiter, [
-    body('email', 'Введите корректный email').isEmail()
+    body('username', 'Введите имя пользователя').not().isEmpty()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email } = req.body;
+    const { username } = req.body;
     
     // Инициализируем хранилища, если их еще нет
     if (!req.app.locals.passwordResetTokens) {
@@ -1085,10 +1016,10 @@ router.post('/forgot-password', generalLimiter, [
     }
     
     const { passwordResetTokens, passwordResetRateLimiter } = req.app.locals;
-    const lowerCaseEmail = email.toLowerCase();
+    const lowerCaseUsername = username.toLowerCase();
 
     // ПРОВЕРКА ЛИМИТА ЧАСТОТЫ ЗАПРОСОВ
-    const lastRequestTimestamp = passwordResetRateLimiter.get(lowerCaseEmail);
+    const lastRequestTimestamp = passwordResetRateLimiter.get(lowerCaseUsername);
     const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
 
     if (lastRequestTimestamp && (Date.now() - lastRequestTimestamp < TEN_MINUTES_IN_MS)) {
@@ -1098,11 +1029,11 @@ router.post('/forgot-password', generalLimiter, [
     }
 
     try {
-        const user = await User.findOne({ email: lowerCaseEmail });
+        const user = await User.findOne({ username: lowerCaseUsername });
 
         if (!user) {
             // Больше не притворяемся. Если юзера нет - так и говорим.
-            return res.status(404).json({ msg: 'Пользователь с таким email не найден.' });
+            return res.status(404).json({ msg: 'Пользователь с таким именем пользователя не найден.' });
         }
 
         if (!user.telegramId) {
@@ -1112,8 +1043,8 @@ router.post('/forgot-password', generalLimiter, [
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = Date.now() + 10 * 60 * 1000; // 10 минут
 
-        passwordResetTokens.set(lowerCaseEmail, { code, expires });
-        passwordResetRateLimiter.set(lowerCaseEmail, Date.now()); // Устанавливаем метку времени для лимита
+        passwordResetTokens.set(lowerCaseUsername, { code, expires });
+        passwordResetRateLimiter.set(lowerCaseUsername, Date.now()); // Устанавливаем метку времени для лимита
 
         // Отправляем код через Telegram Bot API
         const botToken = process.env.BOT_TOKEN;
@@ -1128,12 +1059,12 @@ router.post('/forgot-password', generalLimiter, [
 
         // Удаляем токен после истечения срока
         setTimeout(() => {
-            passwordResetTokens.delete(lowerCaseEmail);
+            passwordResetTokens.delete(lowerCaseUsername);
         }, 10 * 60 * 1000);
         
         // Удаляем метку времени лимита, чтобы не засорять память
         setTimeout(() => {
-            passwordResetRateLimiter.delete(lowerCaseEmail);
+            passwordResetRateLimiter.delete(lowerCaseUsername);
         }, TEN_MINUTES_IN_MS);
 
         res.status(200).json({ msg: 'Код для сброса пароля отправлен в ваш Telegram.' });
@@ -1149,7 +1080,7 @@ router.post('/forgot-password', generalLimiter, [
  * /api/auth/reset-password:
  *   post:
  *     summary: Сброс пароля с использованием кода
- *     description: Устанавливает новый пароль для пользователя при предоставлении правильного email и кода, полученного в Telegram.
+ *     description: Устанавливает новый пароль для пользователя при предоставлении правильного имени пользователя и кода, полученного в Telegram.
  *     tags: [Password]
  *     requestBody:
  *       required: true
@@ -1157,11 +1088,10 @@ router.post('/forgot-password', generalLimiter, [
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, code, password]
+ *             required: [username, code, password]
  *             properties:
- *               email:
+ *               username:
  *                 type: string
- *                 format: email
  *               code:
  *                 type: string
  *                 description: 6-значный код из Telegram.
@@ -1172,14 +1102,14 @@ router.post('/forgot-password', generalLimiter, [
  *       200:
  *         description: Пароль успешно сброшен.
  *       400:
- *         description: Неверные данные (email, код, пароль) или код истек.
+ *         description: Неверные данные (имя пользователя, код, пароль) или код истек.
  *       404:
  *         description: Пользователь не найден.
  *       500:
  *         description: Ошибка сервера.
  */
 router.post('/reset-password', generalLimiter, [
-    body('email', 'Введите корректный email').isEmail(),
+    body('username', 'Введите имя пользователя').not().isEmpty(),
     body('code', 'Код должен состоять из 6 цифр').isLength({ min: 6, max: 6 }).isNumeric(),
     body('password', 'Пароль должен быть минимум 6 символов').isLength({ min: 6 })
 ], async (req, res) => {
@@ -1188,22 +1118,22 @@ router.post('/reset-password', generalLimiter, [
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, code, password } = req.body;
+    const { username, code, password } = req.body;
     const { passwordResetTokens } = req.app.locals;
 
-    const storedToken = passwordResetTokens.get(email.toLowerCase());
+    const storedToken = passwordResetTokens.get(username.toLowerCase());
 
     if (!storedToken || storedToken.code !== code) {
         return res.status(400).json({ msg: 'Неверный или устаревший код.' });
     }
 
     if (Date.now() > storedToken.expires) {
-        passwordResetTokens.delete(email.toLowerCase());
+        passwordResetTokens.delete(username.toLowerCase());
         return res.status(400).json({ msg: 'Срок действия кода истек. Запросите новый.' });
     }
 
     try {
-        const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+        const user = await User.findOne({ username: username.toLowerCase() }).select('+password');
         if (!user) {
             // Этого не должно произойти, если код был найден, но на всякий случай
             return res.status(404).json({ msg: 'Пользователь не найден.' });
@@ -1221,7 +1151,7 @@ router.post('/reset-password', generalLimiter, [
         user.hasPassword = true; // Теперь у юзера есть пароль
         await user.save();
 
-        passwordResetTokens.delete(email.toLowerCase()); // Код использован, удаляем
+        passwordResetTokens.delete(username.toLowerCase()); // Код использован, удаляем
 
         res.status(200).json({ msg: 'Пароль успешно сброшен. Теперь вы можете войти.' });
 

@@ -12,14 +12,6 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     match: [/^[a-zA-Z0-9_]+$/, 'Имя пользователя может содержать только латинские буквы, цифры и подчеркивания'],
   },
-  email: {
-    type: String,
-    required: [true, 'Email обязателен'],
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/.+@.+\..+/, 'Введите корректный email'],
-  },
   password: {
     type: String,
     minlength: [6, 'Пароль должен быть не менее 6 символов'],

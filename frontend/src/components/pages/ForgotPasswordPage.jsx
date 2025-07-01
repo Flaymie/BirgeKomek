@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/api';
 import { toast } from 'react-toastify';
-import { FaEnvelope, FaKey, FaLock } from 'react-icons/fa';
+import { FaUser, FaKey, FaLock } from 'react-icons/fa';
 
 const ForgotPasswordPage = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  const [step, setStep] = useState(1); // 1: enter email, 2: enter code and new password
+  const [step, setStep] = useState(1); // 1: enter username, 2: enter code and new password
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -23,7 +23,7 @@ const ForgotPasswordPage = () => {
     setError('');
     setMessage('');
     try {
-      const res = await authService.forgotPassword(email);
+      const res = await authService.forgotPassword(username);
       setMessage(res.data.msg);
       toast.success(res.data.msg);
       setStep(2);
@@ -47,7 +47,7 @@ const ForgotPasswordPage = () => {
     setError('');
     setMessage('');
     try {
-      const res = await authService.resetPassword({ email, code, password });
+      const res = await authService.resetPassword({ username, code, password });
       toast.success(res.data.msg);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
@@ -67,7 +67,7 @@ const ForgotPasswordPage = () => {
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           {step === 1 
-            ? 'Введите ваш email, и мы отправим код в Telegram.'
+            ? 'Введите ваш никнейм, и мы отправим код в Telegram.'
             : 'Введите код из Telegram и новый пароль.'
           }
         </p>
@@ -81,23 +81,23 @@ const ForgotPasswordPage = () => {
           {step === 1 ? (
             <form className="space-y-6" onSubmit={handleRequestCode}>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email адрес
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                  Имя пользователя
                 </label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaEnvelope className="h-5 w-5 text-gray-400" />
+                    <FaUser className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
+                    id="username"
+                    name="username"
+                    type="text"
+                    autoComplete="username"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="you@example.com"
+                    placeholder="my_nickname"
                   />
                 </div>
               </div>

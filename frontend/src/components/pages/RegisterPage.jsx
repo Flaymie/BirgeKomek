@@ -53,7 +53,6 @@ const RegisterPage = () => {
 
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     password: '',
     password2: '',
     role: 'student', // по умолчанию ученик
@@ -68,14 +67,11 @@ const RegisterPage = () => {
   
   // Состояния для асинхронной валидации
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle, loading, available, unavailable, error
-  const [emailStatus, setEmailStatus] = useState('idle'); // idle, loading, available, unavailable, error
   const [usernameError, setUsernameError] = useState('');
-  const [emailError, setEmailError] = useState('');
 
   const debouncedUsername = useDebounce(formData.username, 500);
-  const debouncedEmail = useDebounce(formData.email, 500);
 
-  const { username, email, password, password2, role, grade } = formData;
+  const { username, password, password2, role, grade } = formData;
   
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -128,31 +124,6 @@ const RegisterPage = () => {
     checkUsername();
   }, [debouncedUsername]);
 
-  // Валидация email
-  useEffect(() => {
-    // Простая проверка на @, чтобы не слать невалидные email
-    if (!debouncedEmail.includes('@')) {
-        setEmailStatus('idle');
-        return;
-    }
-    const checkEmail = async () => {
-        setEmailStatus('loading');
-        try {
-            const res = await authService.checkEmail(debouncedEmail);
-            if (res.data.available) {
-                setEmailStatus('available');
-            } else {
-                setEmailStatus('unavailable');
-                setEmailError(res.data.message || 'Этот email недоступен');
-            }
-        } catch (error) {
-            setEmailStatus('error');
-            setEmailError('Ошибка проверки email');
-        }
-    };
-    checkEmail();
-  }, [debouncedEmail]);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -164,19 +135,15 @@ const RegisterPage = () => {
       setUsernameStatus('idle');
       setUsernameError('');
     }
-    if (name === 'email') {
-      setEmailStatus('idle');
-      setEmailError('');
-    }
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     
     // Валидация формы перед отправкой
-    if (!username || !email || !password) {
+    if (!username || !password) {
       toast.error('Все обязательные поля должны быть заполнены');
-      console.error('Пустые обязательные поля:', { username, email, password });
+      console.error('Пустые обязательные поля:', { username, password });
       return;
     }
     
@@ -197,7 +164,6 @@ const RegisterPage = () => {
     
     const registrationData = {
       username,
-      email,
       password,
       role: role,
       avatar: formData.avatar,
@@ -275,132 +241,140 @@ const RegisterPage = () => {
             />
           </div>
           
-          <div>
+          <div className="mt-8 space-y-6">
+            <div className="relative">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">Имя пользователя</label>
-              <div className="mt-1 relative">
+              <div className="mt-1 relative rounded-md shadow-sm">
                 <input id="username" name="username" type="text" required value={username} onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
+                     className={`form-input pr-10 ${usernameStatus === 'unavailable' || usernameStatus === 'error' ? 'form-input-error' : ''}`}
+                     placeholder="my_nickname" />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <ValidationIcon status={usernameStatus} />
+                  <ValidationIcon status={usernameStatus} />
                 </div>
               </div>
               {usernameStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{usernameError}</p>}
-          </div>
+            </div>
 
-          <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+            <div>
+              <label htmlFor="password-input" className="block text-sm font-medium text-gray-700">Пароль</label>
               <div className="mt-1 relative">
-                <input id="email" name="email" type="email" required value={email} onChange={handleChange}
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={handleChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
-                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <ValidationIcon status={emailStatus} />
-                </div>
-              </div>
-              {emailStatus === 'unavailable' && <p className="mt-2 text-sm text-red-600">{emailError}</p>}
-          </div>
-
-          <div>
-              <label htmlFor="password"className="block text-sm font-medium text-gray-700">Пароль</label>
-              <div className="mt-1 relative">
-                <input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
                   {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                 </button>
               </div>
               {formData.password && <PasswordStrengthMeter score={passwordScore} password={formData.password} />}
-          </div>
+            </div>
             
-          <div>
-              <label htmlFor="password2"className="block text-sm font-medium text-gray-700">Повторите пароль</label>
+            <div>
+              <label htmlFor="password2" className="block text-sm font-medium text-gray-700">Повторите пароль</label>
               <div className="mt-1 relative">
-                <input id="password2" name="password2" type={showPassword2 ? 'text' : 'password'} required value={password2} onChange={handleChange}
+                <input
+                  id="password2"
+                  name="password2"
+                  type={showPassword2 ? 'text' : 'password'}
+                  required
+                  value={password2}
+                  onChange={handleChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
-                <button type="button" onClick={() => setShowPassword2(!showPassword2)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword2(!showPassword2)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
                   {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                 </button>
               </div>
-          </div>
+            </div>
 
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="role" className="sr-only">Роль</label>
-              <select
-                id="role"
-                name="role"
-                value={role}
+            <div className="rounded-md shadow-sm -space-y-px">
+              <div>
+                <label htmlFor="role" className="sr-only">Роль</label>
+                <select
+                  id="role"
+                  name="role"
+                  value={role}
                   onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              >
-                <option value="student">Я Ученик</option>
-                <option value="helper">Я Хелпер</option>
-              </select>
-            </div>
-          </div>
-
-            {(role === 'student' || role === 'helper') && (
-            <div className="mt-4">
-              <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
-              <select id="grade" name="grade" value={grade} onChange={handleChange} className="mt-1 form-select w-full">
-                <option value="">Выберите ваш класс</option>
-                {[...Array(5)].map((_, i) => (
-                  <option key={i + 7} value={i + 7}>{i + 7} класс</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {role === 'helper' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Предметы, в которых вы можете помочь
-              </label>
-              <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
-                {subjectOptions.map((option) => (
-                  <div key={option.value} className="flex items-center">
-                    <input
-                      id={`subject-reg-${option.value}`}
-                      name={option.value}
-                      type="checkbox"
-                      checked={subjects.includes(option.value)}
-                      onChange={handleSubjectChange}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                >
+                  <option value="student">Я Ученик</option>
+                  <option value="helper">Я Хелпер</option>
+                </select>
               </div>
             </div>
-          )}
-          
-          <div>
-                <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
-              Зарегистрироваться
+
+            {(role === 'student' || role === 'helper') && (
+              <div className="mt-4">
+                <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
+                <select id="grade" name="grade" value={grade} onChange={handleChange} className="mt-1 form-select w-full">
+                  <option value="">Выберите ваш класс</option>
+                  {[...Array(5)].map((_, i) => (
+                    <option key={i + 7} value={i + 7}>{i + 7} класс</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {role === 'helper' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Предметы, в которых вы можете помочь
+                </label>
+                <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
+                  {subjectOptions.map((option) => (
+                    <div key={option.value} className="flex items-center">
+                      <input
+                        id={`subject-reg-${option.value}`}
+                        name={option.value}
+                        type="checkbox"
+                        checked={subjects.includes(option.value)}
+                        onChange={handleSubjectChange}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div>
+              <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
+                Зарегистрироваться
+              </button>
+            </div>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-gray-300"></div>
+              <span className="flex-shrink mx-4 text-sm text-gray-500">или</span>
+              <div className="flex-grow border-t border-gray-300"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsTelegramModalOpen(true)}
+              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors mt-3"
+            >
+              <FaTelegramPlane className="mr-2" />
+              Регистрация через Telegram
             </button>
-          </div>
 
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-300"></div>
-            <span className="flex-shrink mx-4 text-sm text-gray-500">или</span>
-            <div className="flex-grow border-t border-gray-300"></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsTelegramModalOpen(true)}
-            className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors mt-3"
-          >
-            <FaTelegramPlane className="mr-2" />
-            Регистрация через Telegram
-          </button>
-
-        </form>
+          </form>
 
           <div className="mt-6">
             <div className="relative">
@@ -415,7 +389,7 @@ const RegisterPage = () => {
             <div className="mt-6">
               <Link to="/login" className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                 Войти
-          </Link>
+              </Link>
             </div>
           </div>
         </div>

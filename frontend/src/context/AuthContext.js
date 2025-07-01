@@ -186,7 +186,7 @@ export const AuthProvider = ({ children }) => {
       } else if (err.response && err.response.status === 403) {
         errorMessage = err.response?.data?.msg || 'Доступ запрещен. Ваш аккаунт может быть заблокирован.';
       } else {
-        errorMessage = err.response?.data?.msg || 'Неверный email или пароль';
+        errorMessage = err.response?.data?.msg || 'Неверное имя пользователя или пароль';
       }
 
       setError(errorMessage);
@@ -319,16 +319,22 @@ export const AuthProvider = ({ children }) => {
       delete payload.id;
 
       console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
-      const response = await usersService.updateProfile(payload);
       
-      const updatedUserData = processUserData({...currentUser, ...response.data});
-      setCurrentUser(updatedUserData);
-      setIsReadOnly(!updatedUserData.telegramId);
+      // ВАЖНО: Мы не меняем hasPassword, если пользователь уже его установил.
+      // Это предотвратит случайную блокировку аккаунта, если он решит перепривязать телеграм
+      if (currentUser && !currentUser.hasPassword) {
+         payload.hasPassword = false;
+      }
+      
+      delete payload.username; // Не даем менять username этим методом
+      
+      const { data } = await usersService.updateProfile(payload);
+      _updateCurrentUserState(data.user); // Обновляем состояние пользователя
       
       setLoading(false);
       // НЕ показываем тост здесь, чтобы избежать дублирования
       // toast.success('Профиль успешно обновлен!');
-      return { success: true, user: response.data };
+      return { success: true, user: data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);
       console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));

@@ -245,21 +245,13 @@ const authService = {
   register: (userData) => api.post('/auth/register', userData),
   checkAuth: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  forgotPassword: (username) => api.post('/auth/forgot-password', { username }),
   resetPassword: (data) => api.post('/auth/reset-password', data),
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   updateProfile: (userId, profileData) => api.put(`/users/profile/${userId}`, profileData),
-  // --- Новые функции для проверки ---
   checkUsername: (username) => api.post('/auth/check-username', { username }),
-  checkEmail: (email) => api.post('/auth/check-email', { email }),
 
-  // Генерация токена для входа через Telegram
-  generateTelegramToken: () => api.post('/auth/telegram/generate-token'),
-
-  // Проверка статуса токена Telegram
-  checkTelegramToken: (token) => api.get(`/auth/telegram/check-token/${token}`),
-  
-  // Генерация токена для привязки Telegram
+  // Телеграм-специфичные роуты
   generateLinkToken: () => api.post('/auth/generate-link-token'),
 
   // Проверка статуса привязки
