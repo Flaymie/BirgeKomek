@@ -166,7 +166,7 @@ const responsesService = {
   createResponse: async (responseData) => {
     // Проверяем формат данных и обеспечиваем правильную структуру
     const payload = {
-      requestId: responseData.requestId,
+      request: responseData.request,
       message: responseData.message,
     };
     return api.post('/responses', payload);

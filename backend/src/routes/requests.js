@@ -346,8 +346,8 @@ router.get('/:id', [
         
         // Явное добавление editReason, если оно есть
         const responseData = { ...request };
-        if (request.editReason) {
-            responseData.editReason = request.editReason;
+        if (request.editedByAdminInfo && request.editedByAdminInfo.reason) {
+            responseData.editReason = request.editedByAdminInfo.reason;
         }
 
         res.json(responseData);

@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { responsesService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
-import Modal from '../shared/Modal';
 
 const ResponseModal = ({ isOpen, onClose, requestId }) => {
   const [message, setMessage] = useState('');
