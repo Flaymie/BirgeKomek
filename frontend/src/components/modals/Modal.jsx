@@ -30,7 +30,9 @@ const Modal = ({ isOpen, onClose, children }) => {
             className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
-          {children}
+          <div className="relative z-10">
+            {children}
+          </div>
         </div>
       )}
     </AnimatePresence>,

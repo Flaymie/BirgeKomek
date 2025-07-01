@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { serverURL } from '../services/api';
 
 const SocketContext = createContext(null);
 
@@ -8,19 +9,18 @@ export const useSocket = () => {
   return useContext(SocketContext);
 };
 
-const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050';
+const SOCKET_URL = serverURL;
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { currentUser, setIsBanned, setBanReason } = useAuth();
+  const { token, setIsBanned, setBanReason } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Сокет создается только один раз при появлении пользователя
-    // и пересоздается только при смене ID пользователя.
-    if (currentUser?._id) {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+    console.log('[SocketContext] useEffect triggered by token change:', token ? 'token exists' : 'token is null');
+
+    if (token) {
+      console.log('[SocketContext] Token found. Attempting to create socket with URL:', SOCKET_URL);
 
       const newSocket = io(SOCKET_URL, {
         auth: { token },
@@ -33,6 +33,11 @@ export const SocketProvider = ({ children }) => {
         console.log('Global Socket Connected:', newSocket.id);
       });
 
+      newSocket.on('connect_error', (err) => {
+        console.error('Global Socket Connection Error:', err.message);
+        // Можно добавить доп. логику, например, попытку переподключения или выход
+      });
+
       newSocket.on('disconnect', (reason) => {
         console.log('Global Socket Disconnected:', reason);
       });
@@ -43,14 +48,14 @@ export const SocketProvider = ({ children }) => {
         newSocket.disconnect();
       };
     } else {
-      // Если пользователя нет, убедимся, что сокет отключен
+      console.log('[SocketContext] Token is missing. Disconnecting if socket exists.');
       if (socket) {
         socket.disconnect();
         setSocket(null);
       }
     }
-    // Зависимость ТОЛЬКО от ID пользователя
-  }, [currentUser?._id]);
+    // Зависимость ТОЛЬКО от токена
+  }, [token]);
 
   useEffect(() => {
     if (socket) {

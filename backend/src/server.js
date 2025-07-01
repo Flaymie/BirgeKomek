@@ -3,29 +3,24 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import messageRoutes from './routes/messages.js';
 import reviewRoutes from './routes/reviews.js';
-import responseRoutes from './routes/responses.js';
 import notificationRoutes from './routes/notifications.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
-import reviewsRoutes from './routes/reviews.js';
 import statsRoutes from './routes/stats.js';
-import telegramRoutes from './routes/telegram.js';
 import botRoutes from './routes/bot.js';
+import responsesRoutes from './routes/responses.js';
 
 // Подключение маршрутов API
-app.use('/api/requests', requestRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/responses', responseRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/chats', chatRoutes);
+app.use('/api/requests', requestRoutes({ io }));
+app.use('/api/auth', authRoutes({ sseConnections }));
+app.use('/api/users', userRoutes({ sseConnections, io }));
+app.use('/api/messages', messageRoutes({ io }));
+app.use('/api/reviews', reviewRoutes({ io }));
+app.use('/api/responses', responsesRoutes({ io }));
+app.use('/api/notifications', notificationRoutes({ sseConnections }));
+app.use('/api/chats', chatRoutes({ io }));
 app.use('/api/upload', uploadRoutes);
-app.use('/api/responses', responsesRoutes({ onlineUsers, sseConnections, io }));
-app.use('/api/reviews', reviewsRoutes({ onlineUsers, sseConnections, io }));
 app.use('/api/stats', statsRoutes);
-app.use('/api/telegram', telegramRoutes);
 app.use('/api/bot', botRoutes);
 
 // Статические файлы

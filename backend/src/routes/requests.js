@@ -236,36 +236,37 @@ router.post('/', createRequestLimiter, [
         });
         await request.save();
         
-        // Уведомление хелперам по этому предмету (если такие есть и подписаны)
-        // Эту часть можно доработать, чтобы не слать всем подряд, а, например, тем, кто онлайн
-        // или добавить настройки подписки на предметы
-        const helpersForSubject = await User.find({ 'roles.helper': true, helperSubjects: subject });
+        // 1. Получаем полный объект заявки с данными автора, чтобы сразу показать на фронте
+        const populatedRequest = await Request.findById(request._id)
+            .populate('author', 'username rating avatar') // Добавляем нужные поля автора
+            .lean(); // .lean() для производительности
+
+        // 2. Используем io, переданный в роутер, для отправки события всем клиентам
+        io.emit('new_request', populatedRequest);
+
+        // Старый код с уведомлениями хелперам можно пока оставить или убрать,
+        // но он не решает проблему обновления списка заявок.
+        // Оставим его для обратной совместимости, если он где-то используется.
+        const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject }); // Исправлено на 'subjects'
         if (helpersForSubject.length > 0) {
             const notificationPromises = helpersForSubject.map(helper => {
-                 if (helper._id.toString() !== author) { // Не уведомлять автора, если он тоже хелпер по этому предмету
+                 if (helper._id.toString() !== author) { 
+                    // Здесь используется sseConnections, это для колокольчика-уведомлений, а не для обновления списка
                     return createAndSendNotification(req.app.locals.sseConnections, {
                         user: helper._id,
                         type: 'new_request_for_subject',
                         title: `Новая заявка по предмету: ${subject}`,
                         message: `Пользователь ${req.user.username} создал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                        link: `/request/${request._id}`,
-                        relatedEntity: { requestId: request._id }
+                        link: `/requests/${request._id}`
                     });
-                }
-                return Promise.resolve();
-            });
+                 }
+                 return null;
+            }).filter(p => p);
             await Promise.all(notificationPromises);
         }
 
-        // НОВОЕ: Отправляем событие через сокеты после успешного создания
-        // Сначала населяем заявку автором, чтобы на фронте сразу были нужные данные
-        const populatedRequest = await Request.findById(request._id)
-            .populate('author', 'username _id rating avatar')
-            .lean();
+        res.status(201).json(populatedRequest); // Возвращаем полный объект
 
-        io.emit('new_request', populatedRequest);
-
-        res.status(201).json(populatedRequest);
     } catch (err) {
         console.error('Ошибка при создании заявки:', err.message);
         res.status(500).send('Ошибка сервера');

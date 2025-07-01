@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { toast } from 'react-toastify';
 import { authService, usersService, notificationsService, baseURL } from '../services/api';
 import { formatAvatarUrl } from '../services/avatarUtils';
-import { getAuthToken, setAuthToken, clearAuthToken } from '../services/tokenStorage';
+import { getAuthToken, setAuthToken as storeToken, clearAuthToken as removeToken } from '../services/tokenStorage';
 
 const AuthContext = createContext();
 
@@ -10,6 +10,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [token, setToken] = useState(getAuthToken());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -109,7 +110,8 @@ export const AuthProvider = ({ children }) => {
         console.error('Ошибка при загрузке пользователя:', err);
         // Если токен недействителен, удаляем его
         if (err.response && err.response.status === 401) {
-          clearAuthToken();
+          removeToken();
+          setToken(null);
         }
         setError(err.message);
         setIsReadOnly(true);
@@ -164,7 +166,8 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { data } = await authService.login(credentials);
-      setAuthToken(data.token);
+      storeToken(data.token);
+      setToken(data.token);
       
       processAndCheckBan(data.user);
       await fetchUnreadCount();
@@ -198,7 +201,8 @@ export const AuthProvider = ({ children }) => {
   const loginWithToken = (token, user) => {
     setLoading(true);
     try {
-      setAuthToken(token);
+      storeToken(token);
+      setToken(token);
       processAndCheckBan(user);
       fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
@@ -246,7 +250,8 @@ export const AuthProvider = ({ children }) => {
         // Проверяем, содержит ли ответ токен, который нужно сохранить
         if (response.data.token) {
           console.log('AuthContext: Токен получен, сохраняем в localStorage');
-          setAuthToken(response.data.token);
+          storeToken(response.data.token);
+          setToken(response.data.token);
         }
         
         // Устанавливаем пользователя в стейт, если в ответе есть данные пользователя
@@ -371,15 +376,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Функция для выхода пользователя
-  const logout = useCallback(() => {
-    clearAuthToken();
-    localStorage.removeItem('readOnlyBannerDismissed');
-    setCurrentUser(null);
-    setUnreadCount(0);
-    setBanDetails(null);
-    setIsBannedModalOpen(false);
-    setIsReadOnly(true);
-  }, []);
+  const logout = async (showToast = true) => {
+    console.log('Выполняется выход...');
+    try {
+        const token = getAuthToken();
+        if (token) {
+            await authService.logout();
+        }
+    } catch (err) {
+        console.error("Ошибка при выходе на сервере, но выходим локально", err);
+    } finally {
+        setCurrentUser(null);
+        removeToken();
+        setToken(null);
+        // Закрываем все модальные окна и сбрасываем состояния
+        setIsBannedModalOpen(false);
+        setBanDetails(null);
+        setUnreadCount(0);
+        setIsReadOnly(true);
+    }
+  };
 
   const closeLinkTelegramModal = useCallback(() => {
     if (pollingIntervalId) {
@@ -452,6 +468,7 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     loading,
     error,
+    token,
     unreadCount,
     banDetails,
     isBannedModalOpen,

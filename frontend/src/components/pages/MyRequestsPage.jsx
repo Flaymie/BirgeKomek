@@ -53,9 +53,13 @@ const MyRequestsPage = () => {
     if (!socket || !currentUser) return;
 
     const handleNewRequest = (newRequest) => {
-      if (newRequest.author?._id === currentUser.id) {
-        setRequests(prevRequests => [newRequest, ...prevRequests]);
-        setTotalPages(prev => prev + 1);
+      if (newRequest.author?._id === currentUser._id) {
+        setRequests(prevRequests => {
+          if (prevRequests.some(req => req._id === newRequest._id)) {
+            return prevRequests;
+          }
+          return [newRequest, ...prevRequests];
+        });
       }
     };
 
@@ -83,7 +87,7 @@ const MyRequestsPage = () => {
     if (!token && !currentUser) {
       navigate('/login', { state: { message: 'Для просмотра ваших запросов необходимо авторизоваться' } });
     } else if (currentUser) {
-      fetchRequests(currentPage);
+      fetchRequests(Number(currentPage) || 1);
     }
   }, [currentUser, currentPage, fetchRequests, navigate]);
   
@@ -118,10 +122,6 @@ const MyRequestsPage = () => {
     return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
   };
   
-  const handleRequestCreated = () => {
-    fetchRequests(1);
-  };
-
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -281,7 +281,7 @@ const MyRequestsPage = () => {
       <CreateRequestModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={handleRequestCreated}
+        onSuccess={() => fetchRequests(1)}
       />
     </div>
   );
