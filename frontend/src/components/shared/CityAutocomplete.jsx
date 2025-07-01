@@ -59,12 +59,20 @@ const CityAutocomplete = ({ value, onCitySelect, name, placeholder }) => {
         }
       );
       
-      const uniqueSuggestions = Array.from(new Set(response.data.suggestions.map(s => s.data.city || s.data.settlement)))
-        .filter(Boolean) // Убираем null/undefined
-        .map(city => ({
-            city: city, 
-            region: response.data.suggestions.find(s => s.data.city === city || s.data.settlement === city)?.data.region_with_type
-        }));
+      const rawSuggestions = response.data.suggestions
+        .map(s => ({
+          city: s.data.city || s.data.settlement,
+          region: s.data.region_with_type,
+        }))
+        .filter(s => s.city);
+
+      // Убираем дубликаты, оставляя уникальные пары город+регион
+      const uniqueSuggestions = rawSuggestions.reduce((acc, current) => {
+        if (!acc.some(item => item.city === current.city && item.region === current.region)) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
       
       setSuggestions(uniqueSuggestions);
       setShowSuggestions(true);
@@ -106,11 +114,16 @@ const CityAutocomplete = ({ value, onCitySelect, name, placeholder }) => {
   };
 
   const handleSuggestionClick = (suggestion) => {
-    const fullLocation = `${suggestion.city}, ${suggestion.region}`;
-    setInputValue(fullLocation);
+    let finalValue = suggestion.city;
+    // Если регион это не просто 'г. Город', а что-то осмысленное, добавляем его
+    if (suggestion.region && !suggestion.region.toLowerCase().includes(suggestion.city.toLowerCase())) {
+        finalValue = `${suggestion.city}, ${suggestion.region}`;
+    }
+
+    setInputValue(finalValue);
     setSuggestions([]);
     setShowSuggestions(false);
-    onCitySelect({ target: { name: name, value: fullLocation } });
+    onCitySelect({ target: { name: name, value: finalValue } });
   };
   
   // Устанавливаем начальное значение из пропсов

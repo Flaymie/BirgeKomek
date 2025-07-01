@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
+
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
 
 // @route   GET /api/config/dadata-key
 // @desc    Get DaData API key
 // @access  Private
-router.get('/dadata-key', protect, (req, res) => {
+router.get('/dadata-key', (req, res) => {
     try {
         const apiKey = process.env.DADATA_API_KEY;
         if (!apiKey) {
@@ -19,4 +19,4 @@ router.get('/dadata-key', protect, (req, res) => {
     }
 });
 
-module.exports = router; 
+export default router; 

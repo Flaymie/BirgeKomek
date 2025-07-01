@@ -4,6 +4,7 @@ import { reviewsService, usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { StarIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+import RoleBadge from '../shared/RoleBadge';
 
 const StarRating = ({ rating }) => (
   <div className="flex items-center">
@@ -29,7 +30,10 @@ const ReviewItem = ({ review }) => {
       <div className="flex-1">
         <div className="flex justify-between items-center">
           <div>
-            <p className="font-semibold text-gray-800">{review.author.username}</p>
+            <div className="flex items-center gap-2">
+                <p className="font-semibold text-gray-800">{review.author.username}</p>
+                <RoleBadge user={review.author} />
+            </div>
             <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
               <span>по заявке</span>
               <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>

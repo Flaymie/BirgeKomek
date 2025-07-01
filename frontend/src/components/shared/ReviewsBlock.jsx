@@ -5,7 +5,6 @@ import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion } from 'framer-motion';
-import Rating from '../pages/Rating';
 import RoleBadge from './RoleBadge';
 
 const StarRating = ({ rating }) => (
