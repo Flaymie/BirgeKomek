@@ -49,16 +49,11 @@ const RequestsPage = () => {
     navigate(newUrl, { replace: true });
   }, [filters, location.pathname, navigate]);
   
-  const fetchRequests = useCallback(async (isPageReset = true) => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const pageToFetch = isPageReset ? 1 : currentPage;
-      if (isPageReset) {
-        setCurrentPage(1);
-      }
-      
-      const params = { page: pageToFetch, ...filters };
+      const params = { page: currentPage, ...filters };
       
       if (!filters.status) delete params.status;
       if (!filters.subject) delete params.subject;
@@ -128,21 +123,28 @@ const RequestsPage = () => {
     };
   }, [socket, filters]); // <-- Добавляем filters в зависимости
 
+  // Загружаем данные при изменении зависимостей в fetchRequests (currentPage, filters) или при смене пользователя
   useEffect(() => {
-    fetchRequests(true); // Загружаем при монтировании и смене фильтров
-  }, [filters, currentUser]); // Убрали fetchRequests из зависимостей
+    fetchRequests();
+  }, [fetchRequests, currentUser]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
     setFilters(prev => ({ ...prev, [name]: value }));
+    setCurrentPage(1); // Сбрасываем на первую страницу, useEffect выше подхватит изменение
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // fetchRequests() вызывается через useEffect при изменении filters,
-    // но для мгновенной реакции на сабмит формы можно вызвать и здесь.
-    fetchRequests();
+    // useEffect сам отреагирует на изменение filters.
+    // На всякий случай сбрасываем страницу, если она не первая.
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      // Если мы уже на первой странице, но поиск обновился и нажат Enter,
+      // можно принудительно вызвать fetch для лучшего UX.
+      fetchRequests();
+    }
   };
   
   const formatDate = (dateString) => {

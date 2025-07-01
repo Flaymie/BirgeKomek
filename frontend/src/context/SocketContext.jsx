@@ -16,44 +16,41 @@ export const SocketProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (currentUser) {
+    // Сокет создается только один раз при появлении пользователя
+    // и пересоздается только при смене ID пользователя.
+    if (currentUser?._id) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
       const newSocket = io(SOCKET_URL, {
         auth: { token },
-        transports: ['websocket'] // Для стабильности
+        transports: ['websocket']
       });
 
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
         console.log('Global Socket Connected:', newSocket.id);
-        
-        // Запускаем пинги, чтобы сервер знал, что мы онлайн
-        const pingInterval = setInterval(() => {
-          if (newSocket.connected) {
-            newSocket.emit('user_ping');
-          }
-        }, 30000); // каждые 30 секунд
-
-        newSocket.on('disconnect', () => {
-          console.log('Global Socket Disconnected');
-          clearInterval(pingInterval);
-        });
       });
 
-      // Очистка при разлогине или смене пользователя
+      newSocket.on('disconnect', (reason) => {
+        console.log('Global Socket Disconnected:', reason);
+      });
+      
+      // Очистка при разлогине или смене ID пользователя
       return () => {
+        console.log('Cleaning up socket connection.');
         newSocket.disconnect();
-        setSocket(null);
       };
-    } else if (socket) {
-      // Если пользователь разлогинился, отключаем сокет
-      socket.disconnect();
-      setSocket(null);
+    } else {
+      // Если пользователя нет, убедимся, что сокет отключен
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
     }
-  }, [currentUser, setUnreadCount]);
+    // Зависимость ТОЛЬКО от ID пользователя
+  }, [currentUser?._id]);
 
   useEffect(() => {
     if (socket) {
@@ -76,7 +73,7 @@ export const SocketProvider = ({ children }) => {
         socket.off('user_banned', handleUserBanned);
       };
     }
-  }, [socket, setBanReason, setIsBanned]);
+  }, [socket, setBanReason, setIsBanned, setUnreadCount]);
 
   const value = {
     socket,

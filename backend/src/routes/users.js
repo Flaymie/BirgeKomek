@@ -66,7 +66,10 @@ export default ({ sseConnections, io }) => {
    */
   router.get('/me', protect, generalLimiter, async (req, res) => {
     try {
-      const user = await User.findById(req.user.id).select('-password');
+      const user = await User.findById(req.user.id)
+        .select('-password')
+        .populate('banDetails.bannedBy', 'username');
+        
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
@@ -759,12 +762,24 @@ export default ({ sseConnections, io }) => {
       
       let expiresAt = null;
       if (duration !== 'permanent') {
-        const d = duration.slice(0, -1);
-        const unit = duration.slice(-1);
+        // --- FIX: Устойчивость к формату duration ---
+        // Преобразуем duration в строку на всякий случай, если с фронта пришло число
+        const durationStr = String(duration);
+        const unit = durationStr.slice(-1);
+        const isLetter = /[a-zA-Z]/.test(unit);
+
+        const d = isLetter ? parseInt(durationStr.slice(0, -1), 10) : parseInt(durationStr, 10);
+        const finalUnit = isLetter ? unit : 'd'; // По умолчанию считаем, что это дни
+
         const date = new Date();
-        if (unit === 'd') date.setDate(date.getDate() + parseInt(d));
-        if (unit === 'M') date.setMonth(date.getMonth() + parseInt(d));
-        if (unit === 'y') date.setFullYear(date.getFullYear() + parseInt(d));
+        if (finalUnit === 'h') date.setHours(date.getHours() + d);
+        else if (finalUnit === 'd') date.setDate(date.getDate() + d);
+        else if (finalUnit === 'M') date.setMonth(date.getMonth() + d);
+        else if (finalUnit === 'y') date.setFullYear(date.getFullYear() + d);
+        else {
+          // Если пришла какая-то дичь, ставим бан на 7 дней по умолчанию
+          date.setDate(date.getDate() + 7);
+        }
         expiresAt = date;
       }
       userToBan.banDetails.expiresAt = expiresAt;

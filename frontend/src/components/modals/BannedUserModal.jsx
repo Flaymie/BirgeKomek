@@ -25,6 +25,7 @@ const BannedUserModal = ({ isOpen, onClose, banDetails }) => {
   const banExpiry = banDetails.expiresAt 
     ? new Date(banDetails.expiresAt).toLocaleString('ru-RU')
     : 'навсегда';
+  const bannedBy = banDetails.bannedBy?.username || 'Администрация';
 
   return (
     <div
@@ -39,6 +40,7 @@ const BannedUserModal = ({ isOpen, onClose, banDetails }) => {
         <div className="banned-modal-reason">
           <p><strong>Причина:</strong> {banReason}</p>
           <p><strong>Срок блокировки:</strong> {banExpiry}</p>
+          <p><strong>Кем заблокирован:</strong> {bannedBy}</p>
         </div>
         <p className="banned-modal-contact">
           Если вы считаете, что это ошибка, свяжитесь с поддержкой.
