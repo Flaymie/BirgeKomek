@@ -762,28 +762,46 @@ export default ({ sseConnections, io }) => {
       
       let expiresAt = null;
       if (duration !== 'permanent') {
-        // --- FIX: Устойчивость к формату duration ---
-        // Преобразуем duration в строку на всякий случай, если с фронта пришло число
-        const durationStr = String(duration);
+        const durationStr = String(duration).trim();
         const unit = durationStr.slice(-1);
         const isLetter = /[a-zA-Z]/.test(unit);
-
-        const d = isLetter ? parseInt(durationStr.slice(0, -1), 10) : parseInt(durationStr, 10);
-        const finalUnit = isLetter ? unit : 'd'; // По умолчанию считаем, что это дни
-
+        
         const date = new Date();
-        if (finalUnit === 'h') date.setHours(date.getHours() + d);
-        else if (finalUnit === 'd') date.setDate(date.getDate() + d);
-        else if (finalUnit === 'M') date.setMonth(date.getMonth() + d);
-        else if (finalUnit === 'y') date.setFullYear(date.getFullYear() + d);
-        else {
-          // Если пришла какая-то дичь, ставим бан на 7 дней по умолчанию
-          date.setDate(date.getDate() + 7);
+        let value;
+        let finalUnit;
+
+        if (isLetter) {
+            value = parseInt(durationStr.slice(0, -1), 10);
+            finalUnit = unit;
+        } else {
+            value = parseInt(durationStr, 10);
+            finalUnit = 'd'; // По умолчанию дни, если пришло просто число
+        }
+
+        if (isNaN(value) || value <= 0) {
+          return res.status(400).json({ msg: 'Неверный формат или значение срока блокировки. Укажите положительное число.' });
+        }
+
+        switch (finalUnit) {
+          case 'h':
+            date.setHours(date.getHours() + value);
+            break;
+          case 'd':
+            date.setDate(date.getDate() + value);
+            break;
+          case 'M':
+            date.setMonth(date.getMonth() + value);
+            break;
+          case 'y':
+            date.setFullYear(date.getFullYear() + value);
+            break;
+          default:
+            return res.status(400).json({ msg: `Неизвестная единица измерения: '${finalUnit}'. Используйте h, d, M, y.` });
         }
         expiresAt = date;
       }
       userToBan.banDetails.expiresAt = expiresAt;
-      userToBan.banDetails.bannedAt = new Date(); // Добавим и дату бана
+      userToBan.banDetails.bannedAt = new Date();
 
       await userToBan.save();
 

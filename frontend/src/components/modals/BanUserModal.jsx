@@ -78,7 +78,16 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
       return;
     }
     
-    const finalDuration = isPermanent ? null : durationInHours;
+    let finalDuration;
+    if (isPermanent) {
+      finalDuration = 'permanent';
+    } else {
+      const unitChar = timeUnit.charAt(0); // 'h' for hours, 'd' for days, 'm' for months
+      // Для месяцев используем 'M', так как 'm' может быть для минут в будущем
+      const finalUnitChar = unitChar === 'm' ? 'M' : unitChar;
+      finalDuration = `${duration}${finalUnitChar}`;
+    }
+    
     onConfirm(reason.trim(), finalDuration);
     setError('');
   };

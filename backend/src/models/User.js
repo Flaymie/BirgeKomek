@@ -83,6 +83,11 @@ const userSchema = new mongoose.Schema({
       trim: true,
       default: null,
     },
+    bannedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     bannedAt: {
       type: Date,
       default: null,
