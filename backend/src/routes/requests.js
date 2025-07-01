@@ -273,7 +273,7 @@ router.post('/', createRequestLimiter, [
         // Оповещаем хелперов, только если это НЕ черновик
         if (request.status === 'open') {
             const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
-            if (helpersForSubject.length > 0) {
+        if (helpersForSubject.length > 0) {
                 // Убираем ID автора из списка получателей
                 const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== req.user.id);
 
@@ -281,13 +281,13 @@ router.post('/', createRequestLimiter, [
                     const notificationPromises = helperIds.map(helperId => {
                         return createAndSendNotification(req.app.locals.sseConnections, {
                             user: helperId,
-                            type: 'new_request_for_subject',
+                        type: 'new_request_for_subject',
                             title: `Новая заявка по вашему предмету: ${subject}`,
                             message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
                             link: `/requests/${request._id}`
                         });
-                    });
-                    await Promise.all(notificationPromises);
+            });
+            await Promise.all(notificationPromises);
 
                     // Отправка в Telegram
                     const tgUsers = await User.find({
@@ -840,7 +840,7 @@ router.post('/:id/cancel', protect, [
  *           schema:
  *             type: object
    *             required: [status]
-   *             properties:
+ *             properties:
    *               status:
    *                 type: string
    *                 enum: [open, assigned, in_progress, completed, cancelled, on_hold]
@@ -858,23 +858,23 @@ router.post('/:id/cancel', protect, [
   router.put('/:id/status', protect, [
     param('id').isMongoId().withMessage('Некорректный ID заявки'),
     body('status').isIn(['completed', 'cancelled', 'closed', 'in_progress', 'open'])
-  ], async (req, res) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
-      }
-  
-      try {
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
           const { id } = req.params;
           const { status: newStatus } = req.body;
           const userId = req.user.id;
   
           const request = await Request.findById(id);
   
-          if (!request) {
-              return res.status(404).json({ msg: 'Заявка не найдена' });
-          }
-  
+        if (!request) {
+            return res.status(404).json({ msg: 'Заявка не найдена' });
+        }
+
           const oldStatus = request.status;
           const isAuthor = request.author.toString() === userId;
   
@@ -908,8 +908,8 @@ router.post('/:id/cancel', protect, [
           if (newStatus === 'completed') {
               request.completedAt = new Date();
           }
-          await request.save();
-  
+        await request.save();
+
           const populatedRequest = await Request.findById(id)
               .populate('author', 'username _id rating avatar')
               .populate('helper', 'username _id rating avatar')
@@ -974,9 +974,9 @@ router.post('/:id/cancel', protect, [
   
       } catch (err) {
           console.error('Ошибка при обновлении статуса заявки:', err.message);
-          res.status(500).send('Ошибка сервера');
-      }
-  });
+        res.status(500).send('Ошибка сервера');
+    }
+});
 
 /**
  * @route   DELETE api/requests/:id

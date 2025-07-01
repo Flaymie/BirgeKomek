@@ -41,7 +41,7 @@ const useDebounce = (value, delay) => {
 };
 
 const RegisterPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, register } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -76,8 +76,6 @@ const RegisterPage = () => {
   const debouncedEmail = useDebounce(formData.email, 500);
 
   const { username, email, password, password2, role, grade } = formData;
-  
-  // const { register } = useAuth(); // УБИРАЕМ КОНТЕКСТ, ОН СЛОМАН
   
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -223,45 +221,19 @@ const RegisterPage = () => {
       // Выводим данные регистрации для отладки
       console.log('Отправляемые данные регистрации:', JSON.stringify(registrationData));
       
-      // ИСПОЛЬЗУЕМ СЕРВИС НАПРЯМУЮ
-      const response = await authService.register(registrationData);
-      console.log('Результат регистрации:', response);
+      // ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА
+      const result = await register(registrationData);
       
-      if (response && response.data) {
-      toast.success('Регистрация прошла успешно! Теперь можете войти.');
-      navigate('/login');
-      } else {
-        // Если регистрация не удалась, но ошибки не были выброшены
-        const errorMsg = response?.data?.msg || 'Произошла ошибка при регистрации. Попробуйте еще раз.';
-        toast.error(errorMsg);
-        console.error('Ошибка регистрации:', errorMsg);
+      // Контекст сам обработает состояние, а мы делаем редирект
+      if (result && result.success) {
+        navigate('/requests');
       }
+      
     } catch (err) {
-      console.error('Исключение при регистрации:', err);
-      
-      // Подробное логирование ошибки
-      if (err.response) {
-        console.error('Данные ответа:', err.response.data);
-        console.error('Статус ответа:', err.response.status);
-        console.error('Заголовки ответа:', err.response.headers);
-        
-        // Если сервер вернул массив ошибок, показываем их все
-        if (err.response.data && err.response.data.errors && Array.isArray(err.response.data.errors)) {
-          err.response.data.errors.forEach(error => {
-            console.error(`Ошибка поля ${error.path}: ${error.msg}`);
-            toast.error(`${error.msg}`);
-          });
-        } else {
-      const errorMsg = err.response?.data?.msg || err.response?.data?.errors?.[0]?.msg || 'Ошибка регистрации';
-      toast.error(errorMsg);
-        }
-      } else if (err.request) {
-        console.error('Запрос был отправлен, но ответ не получен', err.request);
-        toast.error('Не удалось получить ответ от сервера. Проверьте подключение к интернету.');
-      } else {
-        console.error('Ошибка при настройке запроса:', err.message);
-        toast.error(`Ошибка: ${err.message}`);
-      }
+      // Блок catch здесь остается на случай, если сама функция register выбросит исключение,
+      // хотя основная логика ошибок (ответы сервера) обрабатывается внутри.
+      console.error('Неожиданное исключение в компоненте RegisterPage:', err);
+      toast.error('Произошла непредвиденная ошибка.');
     }
   };
 

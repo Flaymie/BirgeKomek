@@ -22,7 +22,7 @@ export const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // ищем юзера и не возвращаем пароль
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user) {
       return res.status(401).json({ msg: 'Не найден юзер с этим токеном' });
@@ -77,7 +77,7 @@ export const protectSocket = async (socket, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user) {
       return next(new Error('Не найден юзер с этим токеном'));

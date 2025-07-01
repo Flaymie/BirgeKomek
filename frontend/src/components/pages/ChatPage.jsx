@@ -431,11 +431,6 @@ const ChatPage = () => {
     const handleScroll = () => {
       const chat = chatContainer;
 
-      // --- ДЕБАГ-ЛОГ ---
-      console.log(
-        `[SCROLL DEBUG] scrollT: ${chat.scrollTop}, scrollH: ${chat.scrollHeight}, clientH: ${chat.clientHeight}`
-      );
-
       // Кнопка появляется, если мы НЕ у самого низа (отступ < 100px)
       const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100;
       setShowScrollDown(!nearBottom);

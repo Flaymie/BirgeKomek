@@ -206,9 +206,6 @@ export const AuthProvider = ({ children }) => {
       processAndCheckBan(user);
       fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
-      // Прямой редирект на страницу запросов
-      // Этот код будет выполнен в браузере, поэтому window.location.href - это то, что нужно
-      window.location.href = '/requests';
     } catch (error) {
       console.error('Ошибка при обработке токена:', error);
       setError('Ошибка при обработке токена');
@@ -248,46 +245,42 @@ export const AuthProvider = ({ children }) => {
         console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
         
         // Проверяем, содержит ли ответ токен, который нужно сохранить
-        if (response.data.token) {
-          console.log('AuthContext: Токен получен, сохраняем в localStorage');
-          storeToken(response.data.token);
-          setToken(response.data.token);
+        if (response.data.token && response.data.user) {
+            console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
+            // Используем loginWithToken для установки состояния
+            loginWithToken(response.data.token, response.data.user);
+            // Возвращаем успех, чтобы компонент мог среагировать
+            return { success: true };
+        } else {
+            console.warn('AuthContext: Ответ не содержит токен или пользователя.');
+            // На всякий случай обрабатываем ситуацию, когда чего-то не хватает
+            setError('Не удалось завершить сессию после регистрации.');
+            toast.error('Не удалось завершить сессию после регистрации.');
+            return { success: false, error: 'Missing token or user data' };
         }
-        
-        // Устанавливаем пользователя в стейт, если в ответе есть данные пользователя
-        if (response.data.user) {
-          console.log('AuthContext: Устанавливаем данные пользователя в стейт');
-          processAndCheckBan(response.data.user);
-          await fetchUnreadCount();
-          setIsReadOnly(!response.data.user.telegramId);
-        }
-        
-      setLoading(false);
-        toast.success('Регистрация прошла успешно!');
-      return { success: true, data: response.data };
       } else {
         console.error('AuthContext: Неожиданный формат ответа:', response);
         setLoading(false);
         throw new Error('Неожиданный формат ответа от сервера');
       }
-    } catch (error) {
-      console.error('AuthContext: Ошибка при регистрации:', error);
+    } catch (err) {
+      console.error('AuthContext: Ошибка при регистрации:', err);
       
       // Расширенное логирование информации об ошибке
-      if (error.response) {
-        console.error('AuthContext: Данные ошибки:', error.response.data);
-        console.error('AuthContext: Статус ошибки:', error.response.status);
-        console.error('AuthContext: Заголовки ответа:', error.response.headers);
+      if (err.response) {
+        console.error('AuthContext: Данные ошибки:', err.response.data);
+        console.error('AuthContext: Статус ошибки:', err.response.status);
+        console.error('AuthContext: Заголовки ответа:', err.response.headers);
         
         // Полезно для отладки - сериализуем полностью ответ об ошибке
         try {
-          console.error('AuthContext: Полный объект ответа:', JSON.stringify(error.response));
+          console.error('AuthContext: Полный объект ответа:', JSON.stringify(err.response));
         } catch (e) {
           console.error('AuthContext: Не удалось сериализовать объект ответа');
         }
       }
       
-      const errorMessage = error.response?.data?.msg || error.message || 'Ошибка регистрации';
+      const errorMessage = err.response?.data?.msg || err.message || 'Ошибка регистрации';
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);

@@ -1,0 +1,22 @@
+export const kazakhstanCities = [
+  "Almaty",
+  "Nur-Sultan",
+  "Shymkent",
+  "Aktobe",
+  "Karaganda",
+  "Taraz",
+  "Pavlodar",
+  "Ust-Kamenogorsk",
+  "Semey",
+  "Atyrau",
+  "Kostanay",
+  "Kyzylorda",
+  "Oral",
+  "Petropavl",
+  "Aktau",
+  "Turkistan",
+  "Kokshetau",
+  "Taldykorgan",
+  "Ekibastuz",
+  "Rudny"
+]; 

@@ -6,14 +6,13 @@ import ReadOnlyBanner from './ReadOnlyBanner';
 
 const Layout = ({ children }) => {
   const location = useLocation();
-  const hideFooterOn = ['/chat', '/requests/']; // Добавим '/requests/' для страницы чата
+  const hideFooterOn = ['/chat', '/requests/'];
 
   // Проверяем, начинается ли путь с одного из шаблонов для скрытия
   const shouldHideFooter = hideFooterOn.some(path => location.pathname.includes(path));
 
   // Эффект для анимации при смене страницы
   useEffect(() => {
-    // Не скроллить наверх для страницы чата, так как у нее своя логика скролла
     if (!location.pathname.includes('/chat')) {
     window.scrollTo(0, 0);
     }

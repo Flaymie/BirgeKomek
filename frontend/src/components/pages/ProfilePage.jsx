@@ -19,6 +19,7 @@ import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
 import ImageViewerModal from '../modals/ImageViewerModal';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
+import CityAutocomplete from '../shared/CityAutocomplete';
 
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
@@ -479,7 +480,11 @@ const ProfileEditor = ({
                 </div>
                  <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
-                  <input type="text" name="location" id="location" value={profileData.location || ''} onChange={handleProfileChange} className="mt-1 form-input" placeholder="Например: Алматы"/>
+                  <CityAutocomplete
+                    value={profileData.location || ''}
+                    onChange={handleProfileChange}
+                    placeholder="Например: Алматы"
+                  />
                 </div>
               </div>
 

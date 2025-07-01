@@ -219,7 +219,7 @@ router.post('/register', generalLimiter,
 
     // Сохраняем пользователя
     await user.save();
-
+    
     // Генерируем токен
     const payload = {
         user: {
@@ -230,12 +230,12 @@ router.post('/register', generalLimiter,
 
     const token = jwt.sign(
         payload,
-        process.env.JWT_SECRET,
+      process.env.JWT_SECRET, 
         { expiresIn: '7d' }
     );
-
+    
     res.status(201).json({
-        token,
+      token,
         user: {
             _id: user.id,
             username: user.username,
