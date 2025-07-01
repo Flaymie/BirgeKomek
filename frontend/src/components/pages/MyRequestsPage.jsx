@@ -260,7 +260,11 @@ const MyRequestsPage = () => {
 
       {totalPages > 1 && (
         <div className="flex justify-center mt-8">
-          {/* TODO: Pagination component here */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
 
@@ -271,6 +275,42 @@ const MyRequestsPage = () => {
         requestToEdit={requestToEdit}
       />
     </div>
+  );
+};
+
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  return (
+    <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+      >
+        &laquo;
+      </button>
+      {pageNumbers.map(number => (
+        <button
+          key={number}
+          onClick={() => onPageChange(number)}
+          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors ${
+            currentPage === number
+              ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          {number}
+        </button>
+      ))}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+      >
+        &raquo;
+      </button>
+    </nav>
   );
 };
 
