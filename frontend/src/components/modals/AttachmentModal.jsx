@@ -5,15 +5,31 @@ import { downloadFile } from '../../services/downloadService';
 
 const AttachmentModal = ({ file, onClose }) => {
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  
+  // Эффект для плавного появления/исчезновения
+  useEffect(() => {
+    if (file) {
+      // Даем микро-задержку, чтобы React успел отрендерить компонент с opacity-0
+      const timer = setTimeout(() => setIsVisible(true), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [file]);
+  
+  // Обновленная функция закрытия с учетом анимации
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(onClose, 300); // Ждем завершения анимации (duration-300)
+  };
 
-  // Закрытие по клавише Escape, с учетом зума
+  // Закрытие по клавише Escape, с учетом зума и анимации
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
         if (isZoomed) {
           setIsZoomed(false); // Сначала убираем зум
         } else {
-          onClose(); // Потом закрываем
+          handleClose(); // Потом закрываем с анимацией
         }
       }
     };
@@ -21,7 +37,7 @@ const AttachmentModal = ({ file, onClose }) => {
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [onClose, isZoomed]);
+  }, [isZoomed]); // Зависимость только от isZoomed, т.к. handleClose уже инкапсулирована
 
   // Сбрасываем зум при смене файла
   useEffect(() => {
@@ -33,27 +49,27 @@ const AttachmentModal = ({ file, onClose }) => {
   const fileUrl = `${serverURL}${file.fileUrl}`;
 
   return (
-    // Backdrop. Он ловит клики для закрытия. Теперь всегда скроллится, если нужно.
     <div 
-      className="fixed inset-0 bg-black bg-opacity-80 z-50 overflow-auto" 
-      onClick={onClose}
+      className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out ${isVisible ? 'bg-opacity-80' : 'bg-opacity-0'}`}
+      onClick={handleClose} // Закрытие по клику на фон
     >
-      {/* Контейнер для центрирования и скролла */}
-      <div className="min-h-full w-full flex items-center justify-center p-4">
-        {/* Само изображение с логикой зума */}
+        {/* Изображение с новыми классами и анимацией */}
         <img 
           src={fileUrl} 
           alt={file.fileName}
-          className={`block rounded-lg shadow-2xl transition-all duration-200 ${isZoomed ? 'max-w-none max-h-none cursor-zoom-out' : 'max-w-[90vw] max-h-[95vh] md:max-w-[45vw] md:max-h-[50vh] object-contain cursor-zoom-in'}`}
+          className={`block rounded-lg shadow-2xl transition-all duration-300 ease-in-out ${
+            isZoomed 
+              ? 'max-w-none max-h-none cursor-zoom-out' 
+              : 'h-auto max-h-[95vh] w-auto max-w-[95vw] cursor-zoom-in'
+          } ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
           onClick={(e) => {
             e.stopPropagation();
             setIsZoomed(!isZoomed);
           }}
         />
-      </div>
       
-      {/* Кнопки управления. Позиционируются абсолютно относительно всего экрана. */}
-      <div className="fixed bottom-4 right-4 flex gap-3">
+      {/* Кнопки управления с анимацией */}
+      <div className={`fixed bottom-4 right-4 flex gap-3 transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -67,7 +83,7 @@ const AttachmentModal = ({ file, onClose }) => {
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              onClose();
+              handleClose();
             }} 
             className="p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors" 
             title="Закрыть (Esc)"

@@ -30,6 +30,20 @@ import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
 
+// --- НОВЫЙ ХУК ДЛЯ ДЕБАУНСА ---
+function useDebouncedCallback(callback, delay) {
+    const timeoutRef = useRef(null);
+
+    return (...args) => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+            callback(...args);
+        }, delay);
+    };
+}
+
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
   baseURL: baseURL,
@@ -180,7 +194,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-    </div>
+        </div>
       )}
     </motion.div>
   );
@@ -304,45 +318,31 @@ const ChatPage = () => {
 
     // Слушаем, кто печатает
     const handleTypingBroadcast = ({ userId, username, isTyping, chatId }) => {
-      if (chatId !== requestId) return;
-
+      if (chatId !== requestId || userId === currentUser._id) return;
+      
       setTypingUsers(prev => {
         const newTypingUsers = { ...prev };
         if (isTyping) {
-          // Добавляем или обновляем пользователя с таймером
-          if (newTypingUsers[userId]) {
-            clearTimeout(newTypingUsers[userId].timeoutId);
-          }
-          const timeoutId = setTimeout(() => {
-            setTypingUsers(current => {
-              const updated = { ...current };
-              delete updated[userId];
-              return updated;
-            });
-          }, 5000); // Удаляем, если нет активности 5 секунд
-          newTypingUsers[userId] = { username, timeoutId };
+          newTypingUsers[username] = true;
         } else {
-          // Удаляем пользователя, если он перестал печатать
-          if (newTypingUsers[userId]) {
-            clearTimeout(newTypingUsers[userId].timeoutId);
-          }
-          delete newTypingUsers[userId];
+          delete newTypingUsers[username];
         }
         return newTypingUsers;
       });
     };
     
-    socket.on('user:typing:broadcast', handleTypingBroadcast);
+    socket.on('typing_started', handleTypingBroadcast);
+    socket.on('typing_stopped', handleTypingBroadcast);
 
     return () => {
-      socket.off('user:typing:broadcast', handleTypingBroadcast);
-      // Очищаем все таймеры при размонтировании
-      setTypingUsers(prev => {
-        Object.values(prev).forEach(user => clearTimeout(user.timeoutId));
-        return {};
-      });
+      socket.off('new_message', handleNewMessage);
+      socket.off('message_updated', handleUpdateMessage);
+      socket.off('connect_error', handleConnectError);
+      socket.off('typing_started', handleTypingBroadcast);
+      socket.off('typing_stopped', handleTypingBroadcast);
+      socket.emit('leave_chat', requestId);
     };
-  }, [socket, requestId]);
+  }, [socket, requestId, currentUser]);
   
   // Отправляем событие, когда МЫ печатаем
   const handleTyping = () => {
@@ -633,8 +633,33 @@ const ChatPage = () => {
   const isChatActive = requestDetails?.helper && ['assigned', 'in_progress'].includes(requestDetails?.status);
 
   const handleMessageChange = (e) => {
-    setNewMessage(e.target.value);
-    handleTyping();
+    const value = e.target.value;
+    setNewMessage(value);
+
+    if (socket && value) {
+      // Отправляем 'typing_started' только если еще не отправляли
+      if (!typingTimeoutRef.current) {
+        socket.emit('typing_started', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
+      } else {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // Устанавливаем таймаут для 'typing_stopped'
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
+        typingTimeoutRef.current = null;
+      }, 2000); // 2 секунды
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Предотвращаем создание новой строки
+      if (editingMessage) {
+        handleSaveEdit();
+      } else {
+        handleSendMessage();
+      }
+    }
   };
 
   // --- КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ПЕЧАТАЮЩИХ ---
@@ -897,6 +922,7 @@ const ChatPage = () => {
                         type="text"
                         value={newMessage}
                         onChange={handleMessageChange}
+                        onKeyDown={handleKeyDown}
                         placeholder={requestDetails.status === 'open' ? "Хелпер еще не назначен..." : "Напишите сообщение..."}
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         autoComplete="off"
