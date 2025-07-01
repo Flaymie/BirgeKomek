@@ -14,13 +14,16 @@ const StarRating = ({ rating }) => (
   </div>
 );
 
-const ReviewItem = ({ review }) => {
-  const avatarUrl = formatAvatarUrl(review.author);
+const ReviewItem = ({ review, author: fullAuthor }) => {
+  const author = fullAuthor || review.author;
+  if (!author) return null;
+
+  const avatarUrl = formatAvatarUrl(author);
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-200 flex items-start gap-4">
-      <Link to={`/profile/${review.author._id}`}>
+      <Link to={`/profile/${author._id}`}>
         {avatarUrl ? (
-          <img src={avatarUrl} alt={review.author.username} className="w-10 h-10 rounded-full object-cover" />
+          <img src={avatarUrl} alt={author.username} className="w-10 h-10 rounded-full object-cover" />
         ) : (
           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
             <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
@@ -31,8 +34,8 @@ const ReviewItem = ({ review }) => {
         <div className="flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
-                <p className="font-semibold text-gray-800">{review.author.username}</p>
-                <RoleBadge user={review.author} />
+              <p className="font-semibold text-gray-800">{author.username}</p>
+              <RoleBadge role={author.role} />
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
               <span>по заявке</span>
@@ -60,6 +63,7 @@ const AllReviewsPage = () => {
   const { userId } = useParams();
   const [reviews, setReviews] = useState([]);
   const [user, setUser] = useState(null);
+  const [authorProfiles, setAuthorProfiles] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -72,8 +76,30 @@ const AllReviewsPage = () => {
           reviewsService.getReviewsForUser(userId),
           usersService.getUserById(userId)
         ]);
-        setReviews(reviewsRes.data);
+        
+        const reviewsData = reviewsRes.data;
+        setReviews(reviewsData);
         setUser(userRes.data);
+
+        if (reviewsData.length > 0) {
+          const authorIds = [...new Set(reviewsData.map(r => r.author._id).filter(Boolean))];
+          
+          if (authorIds.length > 0) {
+            const profilePromises = authorIds.map(id => usersService.getUserById(id).catch(e => {
+              console.error(`Failed to fetch profile for user ${id}`, e);
+              return null; // Don't let one failed profile crash the whole page
+            }));
+            const profileResponses = await Promise.all(profilePromises);
+
+            const profilesMap = profileResponses.reduce((acc, profileRes) => {
+              if (profileRes && profileRes.data) {
+                acc[profileRes.data._id] = profileRes.data;
+              }
+              return acc;
+            }, {});
+            setAuthorProfiles(profilesMap);
+          }
+        }
       } catch (err) {
         setError('Не удалось загрузить данные.');
         console.error(err);
@@ -107,7 +133,11 @@ const AllReviewsPage = () => {
       ) : (
         <div className="space-y-4">
           {reviews.map(review => (
-            <ReviewItem key={review._id} review={review} />
+            <ReviewItem
+              key={review._id}
+              review={review}
+              author={authorProfiles[review.author._id]}
+            />
           ))}
         </div>
       )}
