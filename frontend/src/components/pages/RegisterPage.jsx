@@ -352,6 +352,7 @@ const RegisterPage = () => {
                 </div>
               </div>
             )}
+            </div>
             
             <div>
               <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
