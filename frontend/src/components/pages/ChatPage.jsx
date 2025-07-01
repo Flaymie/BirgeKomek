@@ -19,6 +19,7 @@ import {
   CheckBadgeIcon,
   LockClosedIcon
 } from '@heroicons/react/24/solid';
+import { LuArrowDown } from 'react-icons/lu';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import AttachmentModal from '../modals/AttachmentModal';
@@ -224,7 +225,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-        </div>
+    </div>
       )}
     </motion.div>
   );
@@ -358,7 +359,7 @@ const ChatPage = () => {
       }
     };
     markMessagesAsRead();
-
+    
     // 3. Обработчики событий
     const handleNewMessage = (message) => {
       if (message.requestId === requestId) {
@@ -851,10 +852,10 @@ const ChatPage = () => {
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <div className="flex items-center gap-3 mt-1">
                 <StatusBadge status={requestDetails.status} />
-                <p className="text-sm text-gray-500">
-                  {requestDetails.subject} • {requestDetails.grade} класс
-                </p>
-              </div>
+              <p className="text-sm text-gray-500">
+                {requestDetails.subject} • {requestDetails.grade} класс
+              </p>
+            </div>
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
             <Link 
@@ -940,7 +941,7 @@ const ChatPage = () => {
                   className="bg-black/60 backdrop-blur-sm text-white rounded-full p-2 shadow-lg hover:bg-black/80 transition-all"
                   title="Прокрутить вниз"
                 >
-                  <ArrowDownCircleIcon className="h-7 w-7" />
+                  <LuArrowDown className="h-6 w-6" />
                 </button>
               </motion.div>
             )}
