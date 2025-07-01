@@ -362,8 +362,16 @@ const RequestDetailPage = () => {
         
         <div className="p-6">
           <div className="flex flex-col md:flex-row justify-between md:items-start mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0">
-              {request.title}
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0 flex items-baseline">
+              <span>{request.title}</span>
+              {request.editReason && (
+                <span 
+                  className="ml-3 text-sm font-normal text-gray-500 italic"
+                  title={`Причина редактирования: ${request.editReason}`}
+                >
+                  (ред. модератором)
+                </span>
+              )}
             </h1>
             <div className="flex-shrink-0">
               <StatusBadge status={request.status} />
@@ -564,10 +572,12 @@ const RequestDetailPage = () => {
         isOpen={isResponseModalOpen}
         onClose={() => setIsResponseModalOpen(false)}
         requestId={id}
-        onSuccess={(newResponse) => {
-          setResponses(prev => [...prev, newResponse]);
+        onSuccess={() => {
+          // Костыль для перезагрузки страницы, как ты и просил
           setIsResponseModalOpen(false);
-          toast.success('Ваш отклик успешно отправлен!');
+          toast.success('Ваш отклик успешно отправлен! Перезагружаем...');
+          // Небольшая задержка, чтобы ты успел прочитать сообщение
+          setTimeout(() => window.location.reload(), 1500);
         }}
       />
       
