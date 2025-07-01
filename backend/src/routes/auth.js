@@ -268,13 +268,12 @@ router.post('/register', generalLimiter,
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - emailOrUsername
  *               - password
  *             properties:
- *               email:
+ *               emailOrUsername:
  *                 type: string
- *                 format: email
- *                 description: Email пользователя
+ *                 description: Email или имя пользователя
  *               password:
  *                 type: string
  *                 format: password
@@ -306,69 +305,73 @@ router.post('/register', generalLimiter,
  */
 // логин
 router.post('/login', generalLimiter, [
-  // Валидация входных данных
-  body('email')
-    .trim()
-    .isEmail().withMessage('Введите корректный email')
-    .normalizeEmail(),
-  
-  body('password', 'Пароль обязателен').not().isEmpty(),
-  ], 
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+  body('emailOrUsername', 'Введите email или имя пользователя').not().isEmpty(),
+  body('password', 'Пароль обязателен').exists(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { emailOrUsername, password } = req.body;
+
+  try {
+    const identifier = emailOrUsername.toLowerCase();
     
-    const { email, password } = req.body;
-    const lowerCaseEmail = email.toLowerCase();
-    
-    try {
-      const user = await User.findOne({ email: lowerCaseEmail }).select('+password');
+    let user = await User.findOne({
+      $or: [{ email: identifier }, { username: identifier }],
+    }).select('+password +hasPassword');
+
     if (!user) {
-        return res.status(400).json({ msg: 'Неверный email или пароль' });
+      return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
-    
+
+    if (!user.hasPassword) {
+      return res.status(400).json({
+        msg: 'У вас не установлен пароль. Возможно, вы регистрировались через Telegram? Пожалуйста, войдите через Telegram или воспользуйтесь функцией "Забыли пароль", чтобы установить его.',
+        noPasswordSet: true,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
 
-    // Если пользователь забанен, мы все равно даем ему токен,
-    // но фронтенд должен будет показать модалку с причиной бана.
-    if (user.banDetails.isBanned) {
-      console.log(`[Login] Забаненный пользователь ${user.username} пытается войти.`);
-    }
-    
-    // --- ИСПРАВЛЕННАЯ ЛОГИКА ТОКЕНА ---
+    // Пользователь аутентифицирован, теперь генерируем токен
     const payload = {
       user: {
         id: user.id,
-        username: user.username,
         roles: user.roles,
-        telegramId: user.telegramId,
-      }
+      },
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
     
-    user.password = undefined;
+    // Обновляем lastSeen
+    user.lastSeen = Date.now();
+    await user.save();
     
     res.json({
       token,
-        user,
-        // Явно отправляем детали бана на фронтенд
-        banDetails: user.banDetails 
+      user: {
+        _id: user.id,
+        username: user.username,
+        email: user.email,
+        roles: user.roles,
+        avatar: user.avatar,
+        rating: user.rating,
+        grade: user.grade,
+        lastSeen: user.lastSeen,
+        telegramId: user.telegramId
+      },
     });
-
   } catch (err) {
-    console.error('Ошибка входа:', err);
-      res.status(500).json({ msg: 'Ошибка сервера при попытке входа' });
-    }
+    console.error(err.message);
+    res.status(500).send('Ошибка сервера');
   }
-);
+});
 
 // --- Новые роуты для валидации ---
 
