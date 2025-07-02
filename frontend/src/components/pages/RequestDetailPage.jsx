@@ -341,31 +341,31 @@ const RequestDetailPage = () => {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.5 }}
           >
-            <Link 
-              to={fromMyRequests ? "/my-requests" : "/requests"}
+        <Link 
+          to={fromMyRequests ? "/my-requests" : "/requests"}
               className="inline-flex items-center text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors mb-4"
             >
               <ArrowUturnLeftIcon className="h-4 w-4 mr-2" />
               {fromMyRequests ? "К моим запросам" : "Ко всем запросам"}
-            </Link>
+        </Link>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
                 {request.title}
               </h1>
               <StatusBadge status={request.status} large />
             </div>
-            {request.editReason && (
+              {request.editReason && (
               <p 
                 className="mt-2 text-sm text-gray-500 italic"
-                title={`Причина редактирования: ${request.editReason}`}
-              >
+                  title={`Причина редактирования: ${request.editReason}`}
+                >
                 (отредактировано модератором)
               </p>
-            )}
+              )}
           </motion.div>
-        </div>
-      </div>
-      
+            </div>
+          </div>
+          
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -383,49 +383,49 @@ const RequestDetailPage = () => {
                 {formatDescription(request.description)}
               </div>
             </div>
-            
+
             {/* Отклики или действия для хелпера */}
             {isHelper() && !isAuthor && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                  <h2 className="text-xl font-bold text-gray-800 mb-4">Ваш отклик</h2>
                 {canHelperRespond && (
-                  <button
-                    onClick={() => setIsResponseModalOpen(true)}
+                    <button
+                      onClick={() => setIsResponseModalOpen(true)}
                     className="btn btn-primary w-full inline-flex items-center justify-center gap-2"
-                  >
+                    >
                     <PaperAirplaneIcon className="h-5 w-5" />
-                    Предложить помощь
-                  </button>
+                      Предложить помощь
+                    </button>
                 )}
                 {myResponse && <ResponseCard response={myResponse} isMyResponse={true} fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser} />}
-              </div>
-            )}
-            
+                  </div>
+                )}
+
             {/* Отклики для автора */}
-             {isAuthor && request.status === 'open' && (
+      {isAuthor && request.status === 'open' && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">
-                  Отклики ({responses.length})
+            Отклики ({responses.length})
                 </h2>
-                {responsesLoading ? (
+          {responsesLoading ? (
                   <div className="text-center py-6 text-gray-500">Загрузка откликов...</div>
-                ) : responses.length > 0 ? (
-                  <div className="space-y-4">
-                    {responses.map(response => (
-                      <ResponseCard 
-                        key={response._id} 
-                        response={response}
+          ) : responses.length > 0 ? (
+            <div className="space-y-4">
+              {responses.map(response => (
+                <ResponseCard 
+                  key={response._id} 
+                  response={response}
                         fullHelperProfile={responderProfiles[response.helper?._id]}
-                        isAuthor={isAuthor} 
-                        onResponseAction={handleResponseAction} 
-                      />
-                    ))}
-                  </div>
-                ) : (
+                  isAuthor={isAuthor} 
+                  onResponseAction={handleResponseAction} 
+                />
+              ))}
+            </div>
+          ) : (
                   <div className="text-center py-6 text-gray-500">На ваш запрос пока нет откликов.</div>
-                )}
-              </div>
-            )}
+          )}
+        </div>
+      )}
           </motion.div>
 
           {/* Правая (сайдбар) колонка */}
@@ -527,22 +527,22 @@ const RequestDetailPage = () => {
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Cog6ToothIcon className="h-6 w-6"/>Панель модератора</h3>
                 <div className="space-y-3">
-                   <button
-                        onClick={() => setAdminEditModalOpen(true)}
+                  <button
+                      onClick={() => setAdminEditModalOpen(true)}
                         className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
-                    >
+                  >
                         <PencilSquareIcon className="h-5 w-5" />
-                        Редактировать
-                    </button>
-                    <button
-                        onClick={() => setAdminDeleteModalOpen(true)}
+                      Редактировать
+                  </button>
+                  <button
+                      onClick={() => setAdminDeleteModalOpen(true)}
                         className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
-                    >
+                  >
                         <TrashIcon className="h-5 w-5" />
-                        Удалить
-                    </button>
-                </div>
+                      Удалить
+                  </button>
               </div>
+          </div>
             )}
           </motion.div>
         </div>
