@@ -137,7 +137,7 @@ router.get('/', [
     }
 
     try {
-        const { page = 1, limit = 10, subjects, grade, status, authorId, helperId, search, sortBy = 'createdAt_desc' } = req.query;
+        const { page = 1, limit = 10, subjects, grade, status, authorId, helperId, search, sortBy = 'createdAt_desc', excludeAuthor } = req.query;
 
         const filters = {};
         
@@ -155,7 +155,12 @@ router.get('/', [
             filters.status = { $ne: 'draft' };
         }
 
-        if (authorId) filters.author = authorId;
+        if (authorId) {
+            filters.author = authorId;
+        } else if (excludeAuthor) {
+            filters.author = { $ne: excludeAuthor };
+        }
+
         if (helperId) filters.helper = helperId;
 
         if (search) {
