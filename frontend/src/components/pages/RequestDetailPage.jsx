@@ -11,9 +11,10 @@ import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
-import { CheckBadgeIcon } from '@heroicons/react/24/solid';
+import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, EyeIcon } from '@heroicons/react/24/solid';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
+import { motion } from 'framer-motion';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -304,10 +305,8 @@ const RequestDetailPage = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary-600"></div>
       </div>
     );
   }
@@ -333,264 +332,228 @@ const RequestDetailPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link 
-          to={fromMyRequests ? "/my-requests" : "/requests"}
-          className="text-blue-600 hover:text-blue-800 flex items-center"
-          state={{ from: location.pathname }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          {fromMyRequests ? "Назад к моим запросам" : "Назад к списку запросов"}
-        </Link>
+    <div className="bg-gray-50 min-h-screen">
+      {/* Hero Section */}
+      <div className="bg-white pt-12 pb-12">
+        <div className="container mx-auto px-4">
+          <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.5 }}
+          >
+            <Link 
+              to={fromMyRequests ? "/my-requests" : "/requests"}
+              className="inline-flex items-center text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors mb-4"
+            >
+              <ArrowUturnLeftIcon className="h-4 w-4 mr-2" />
+              {fromMyRequests ? "К моим запросам" : "Ко всем запросам"}
+            </Link>
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+               <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                {request.title}
+              </h1>
+              <StatusBadge status={request.status} large />
+            </div>
+            {request.editReason && (
+              <p 
+                className="mt-2 text-sm text-gray-500 italic"
+                title={`Причина редактирования: ${request.editReason}`}
+              >
+                (отредактировано модератором)
+              </p>
+            )}
+          </motion.div>
+        </div>
       </div>
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 mb-6">
-        {/* Баннер для создателя запроса */}
-        {isAuthor && (
-          <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span className="text-blue-700 font-medium">Вы автор этого запроса</span>
-            </div>
-          </div>
-        )}
-        
-        <div className="p-6">
-          <div className="flex flex-col md:flex-row justify-between md:items-start mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0 flex items-baseline">
-              <span>{request.title}</span>
-              {request.editReason && (
-                <span 
-                  className="ml-3 text-sm font-normal text-gray-500 italic"
-                  title={`Причина редактирования: ${request.editReason}`}
-                >
-                  (ред. модератором)
-                </span>
-              )}
-            </h1>
-            <div className="flex-shrink-0">
-              <StatusBadge status={request.status} />
-            </div>
-          </div>
-          
-          <div className="text-sm text-gray-500 mb-6 space-y-2 md:space-y-0 md:flex md:items-center md:space-x-6">
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-              </svg>
-              <span>Автор:</span>
-              <div className="ml-1.5 font-medium text-gray-700 flex items-center">
-                <Link to={`/profile/${request.author.username}`} className="hover:text-blue-600 hover:underline">
-                  {request.author.username}
-                </Link>
-                <RoleBadge user={authorProfile} />
+          {/* Левая (основная) колонка */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="lg:col-span-2 space-y-8"
+          >
+            {/* Описание */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Описание запроса</h2>
+              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
+                {formatDescription(request.description)}
               </div>
             </div>
-            <div className="hidden md:block">|</div>
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-              </svg>
-              <span>Создан: {formatDate(request.createdAt)}</span>
-            </div>
-            <div className="hidden md:block">|</div>
-            <div className="flex items-center">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {request.subject}
-              </span>
-            </div>
-          </div>
-          
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">Описание</h2>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <p className="text-gray-700 whitespace-pre-wrap">{formatDescription(request.description)}</p>
-            </div>
-          </div>
-          
-          {request.helper && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center">
-               <CheckBadgeIcon className="h-6 w-6 text-green-600 mr-3" />
-              <div>
-                <span className="font-semibold">Помощь оказывает:</span>
-                <div className="ml-2 font-bold text-green-800 flex items-center">
-                    <Link to={`/profile/${request.helper.username}`} className="hover:underline">
-                      {request.helper.username}
-                    </Link>
-                    <RoleBadge user={helperProfile} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* === БЛОК ДЕЙСТВИЙ === */}
-          <div className="border-t border-gray-200 mt-6 pt-6">
-            {/* --- Действия для АВТОРА --- */}
-            {isAuthor && request.status === 'open' && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => navigate(`/request/${request._id}/edit`)}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-                >
-                  Редактировать
-                </button>
-                <button
-                  onClick={() => setIsDeleteModalOpen(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                >
-                  Удалить
-                </button>
+            
+            {/* Отклики или действия для хелпера */}
+            {isHelper() && !isAuthor && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                 <h2 className="text-xl font-bold text-gray-800 mb-4">Ваш отклик</h2>
+                {canHelperRespond && (
+                  <button
+                    onClick={() => setIsResponseModalOpen(true)}
+                    className="btn btn-primary w-full inline-flex items-center justify-center gap-2"
+                  >
+                    <PaperAirplaneIcon className="h-5 w-5" />
+                    Предложить помощь
+                  </button>
+                )}
+                {myResponse && <ResponseCard response={myResponse} isMyResponse={true} fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser} />}
               </div>
             )}
+            
+            {/* Отклики для автора */}
+             {isAuthor && request.status === 'open' && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">
+                  Отклики ({responses.length})
+                </h2>
+                {responsesLoading ? (
+                  <div className="text-center py-6 text-gray-500">Загрузка откликов...</div>
+                ) : responses.length > 0 ? (
+                  <div className="space-y-4">
+                    {responses.map(response => (
+                      <ResponseCard 
+                        key={response._id} 
+                        response={response}
+                        fullHelperProfile={responderProfiles[response.helper?._id]}
+                        isAuthor={isAuthor} 
+                        onResponseAction={handleResponseAction} 
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">На ваш запрос пока нет откликов.</div>
+                )}
+              </div>
+            )}
+          </motion.div>
 
-            {/* --- Действия/Инфо для ХЕЛПЕРА --- */}
-            {isHelper() && !isAuthor && (
-              <>
-                {canHelperRespond && (
-                  <div className="text-center">
+          {/* Правая (сайдбар) колонка */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="lg:col-span-1 space-y-8"
+          >
+            {/* Карта действий */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+               <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>
+                {isAuthor && request.status === 'open' && (
+                  <div className="space-y-3">
                     <button
-                      onClick={() => setIsResponseModalOpen(true)}
-                      className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                      onClick={() => navigate(`/request/${request._id}/edit`)}
+                      className="btn btn-secondary-outline w-full inline-flex items-center justify-center gap-2"
                     >
-                      Предложить помощь
+                      <PencilSquareIcon className="h-5 w-5" />
+                      Редактировать
+                    </button>
+                    <button
+                      onClick={() => setIsDeleteModalOpen(true)}
+                      className="btn btn-danger-outline w-full inline-flex items-center justify-center gap-2"
+                    >
+                       <TrashIcon className="h-5 w-5" />
+                      Удалить
                     </button>
                   </div>
                 )}
-                {myResponse && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Ваш отклик:</h3>
-                    <ResponseCard 
-                      response={myResponse} 
-                      isMyResponse={true}
-                      fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser}
-                    />
-                  </div>
+                 {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
+                   <button 
+                      className="btn bg-green-600 hover:bg-green-700 text-white w-full inline-flex items-center justify-center gap-2"
+                      onClick={() => navigate(`/requests/${request._id}/chat`)}
+                   >
+                     <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                     Перейти в чат
+                   </button>
                 )}
-              </>
-            )}
+                 {request.status === 'open' && !isAuthor && !isHelper() && (
+                    <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
+                 )}
+                 {['closed', 'completed', 'cancelled'].includes(request.status) && (
+                    <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
+                 )}
+            </div>
+            
+            {/* Карта информации */}
+            <div className="bg-white rounded-xl shadow-lg">
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Информация</h3>
+                <ul className="space-y-4 text-sm">
+                  <li className="flex items-center gap-3">
+                    <UserCircleIcon className="h-6 w-6 text-gray-400" />
+                    <div>
+                      <span className="text-gray-500">Автор</span>
+                      <div className="font-semibold text-gray-800 flex items-center gap-1">
+                        <Link to={`/profile/${request.author.username}`} className="hover:text-primary-600 hover:underline">
+                          {request.author.username}
+                        </Link>
+                        <RoleBadge user={authorProfile} />
+                      </div>
+                    </div>
+                  </li>
+                   {request.helper && (
+                     <li className="flex items-center gap-3">
+                        <CheckBadgeIcon className="h-6 w-6 text-green-500" />
+                        <div>
+                          <span className="text-gray-500">Помогает</span>
+                          <div className="font-semibold text-gray-800 flex items-center gap-1">
+                            <Link to={`/profile/${request.helper.username}`} className="hover:text-primary-600 hover:underline">
+                              {request.helper.username}
+                            </Link>
+                            <RoleBadge user={helperProfile} />
+                          </div>
+                        </div>
+                     </li>
+                   )}
+                  <li className="flex items-center gap-3">
+                    <CalendarIcon className="h-6 w-6 text-gray-400" />
+                    <div>
+                      <span className="text-gray-500">Создана</span>
+                      <p className="font-semibold text-gray-800">{formatDate(request.createdAt)}</p>
+                    </div>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <TagIcon className="h-6 w-6 text-gray-400" />
+                    <div>
+                      <span className="text-gray-500">Предмет</span>
+                      <p className="font-semibold text-gray-800">{request.subject}</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
 
-            {/* --- Действие для чата, когда заявка В РАБОТЕ --- */}
-            {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
-               <button 
-                  className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                  onClick={() => navigate(`/requests/${request._id}/chat`)}
-               >
-                 Перейти в чат
-               </button>
+            {/* Панель модератора */}
+            {isPrivilegedUser && !isAuthor && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Cog6ToothIcon className="h-6 w-6"/>Панель модератора</h3>
+                <div className="space-y-3">
+                   <button
+                        onClick={() => setAdminEditModalOpen(true)}
+                        className="btn btn-secondary-outline w-full inline-flex items-center justify-center gap-2"
+                    >
+                        <PencilSquareIcon className="h-5 w-5" />
+                        Редактировать
+                    </button>
+                    <button
+                        onClick={() => setAdminDeleteModalOpen(true)}
+                        className="btn btn-danger-outline w-full inline-flex items-center justify-center gap-2"
+                    >
+                        <TrashIcon className="h-5 w-5" />
+                        Удалить
+                    </button>
+                </div>
+              </div>
             )}
-          </div>
+          </motion.div>
         </div>
       </div>
 
-      {/* === ОТДЕЛЬНЫЙ БЛОК ОТКЛИКОВ ДЛЯ АВТОРА === */}
-      {isAuthor && request.status === 'open' && (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-xl font-bold mb-4 text-gray-800">
-            Отклики ({responses.length})
-          </h3>
-          {responsesLoading ? (
-            <div className="flex justify-center py-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : responses.length > 0 ? (
-            <div className="space-y-4">
-              {responses.map(response => (
-                <ResponseCard 
-                  key={response._id} 
-                  response={response}
-                  // Передаем полный профиль, если он есть
-                  fullHelperProfile={responderProfiles[response.helper._id]}
-                  isAuthor={isAuthor} 
-                  onResponseAction={handleResponseAction} 
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              На ваш запрос пока нет откликов
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* ИСПРАВЛЕНО: Кнопки управления для админа/модератора */}
-      {isPrivilegedUser && !isAuthor && !['completed', 'cancelled', 'closed'].includes(request.status) && (
-        <div className="bg-white shadow-md rounded-lg p-4 my-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-800">Панель модератора</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                  <button
-                      onClick={() => setAdminEditModalOpen(true)}
-                      className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
-                  >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" />
-                      </svg>
-                      Редактировать
-                  </button>
-                  <button
-                      onClick={() => setAdminDeleteModalOpen(true)}
-                      className="flex items-center px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm"
-                  >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Удалить
-                  </button>
-              </div>
-          </div>
-        </div>
-      )}
-
       {/* Модальные окна */}
-      <AdminEditModal
-        isOpen={isAdminEditModalOpen}
-        onClose={() => setAdminEditModalOpen(false)}
-        onConfirm={handleAdminEdit}
-        requestTitle={request.title}
-      />
-      
-      <AdminDeleteModal
-        isOpen={isAdminDeleteModalOpen}
-        onClose={() => setAdminDeleteModalOpen(false)}
-        onConfirm={handleAdminDelete}
-        requestTitle={request.title}
-      />
-
-      <ResponseModal
-        isOpen={isResponseModalOpen}
-        onClose={() => setIsResponseModalOpen(false)}
-        requestId={id}
-      />
-      
-      {/* Модальное окно подтверждения удаления */}
-      <ConfirmDeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteRequest}
-        title="Подтверждение удаления"
-        body="Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить."
-      />
-
-      {/* НОВАЯ МОДАЛКА ПОДТВЕРЖДЕНИЯ ДЛЯ МОДЕРАТОРА */}
-      <ModeratorActionConfirmModal
-        isOpen={isConfirmingModAction}
-        onClose={() => setIsConfirmingModAction(false)}
-        onConfirm={confirmAdminDelete}
-        actionTitle={`Удаление заявки "${request?.title}"`}
-        isLoading={modActionLoading}
-      />
+      <AdminEditModal isOpen={isAdminEditModalOpen} onClose={() => setAdminEditModalOpen(false)} onConfirm={handleAdminEdit} requestTitle={request.title} />
+      <AdminDeleteModal isOpen={isAdminDeleteModalOpen} onClose={() => setAdminDeleteModalOpen(false)} onConfirm={handleAdminDelete} requestTitle={request.title} />
+      <ResponseModal isOpen={isResponseModalOpen} onClose={() => setIsResponseModalOpen(false)} requestId={id} />
+      <ConfirmDeleteModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteRequest} title="Подтверждение удаления" body="Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить." />
+      <ModeratorActionConfirmModal isOpen={isConfirmingModAction} onClose={() => setIsConfirmingModAction(false)} onConfirm={confirmAdminDelete} actionTitle={`Удаление заявки "${request?.title}"`} isLoading={modActionLoading} />
     </div>
   );
 };
