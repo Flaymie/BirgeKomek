@@ -174,139 +174,159 @@ const BanInfo = ({ banDetails }) => {
   );
 };
 
-// === НОВЫЙ, КРАСИВЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
+// === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
 const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyProfile, onAvatarClick }) => {
   if (!profile) return null;
   
   const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
   const targetIsAdmin = profile.roles?.admin;
   const targetIsModerator = profile.roles?.moderator;
+
+  // Определяем классы и контент для роли
+  const roleStyles = {
+    admin: {
+      borderClass: 'admin-border',
+      bannerText: 'Официальный аккаунт Администратора',
+      bannerClass: 'official-banner-admin',
+    },
+    moderator: {
+      borderClass: 'moderator-border',
+      bannerText: 'Официальный аккаунт Модератора',
+      bannerClass: 'official-banner-moderator',
+    }
+  };
+  
   const currentRole = targetIsAdmin ? 'admin' : targetIsModerator ? 'moderator' : null;
+  const styles = currentRole ? roleStyles[currentRole] : {};
 
   return (
-    <div className="bg-gray-100 font-sans">
-      <div className="container mx-auto px-4 py-8">
-        {/* Кнопка Назад */}
-        <div className="mb-4">
-          <button 
-            onClick={onBack} 
-            className="btn btn-secondary-outline"
-          >
-            Назад
-          </button>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-soft overflow-hidden">
-          {/* Обложка профиля */}
-          <div className="profile-cover">
-            {/* Можно добавить кастомную обложку юзера в будущем */}
+    <Container>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold text-gray-800">Профиль</h1>
+        {canModerate && !isMyProfile && !targetIsAdmin && (
+          <div className="flex gap-2">
+            {profile.banDetails?.isBanned ? (
+              <button onClick={onUnban} className="btn btn-success btn-sm">Разбанить</button>
+            ) : (
+              <button onClick={onBan} className="btn btn-error btn-sm">Забанить</button>
+            )}
           </div>
+        )}
+      </div>
+          
+      <div className={classNames(
+        "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden",
+        styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
+      )}>
+        <div className="p-6">
+          <BanInfo banDetails={profile.banDetails} />
 
-          {/* Основной блок */}
-          <div className="px-6 pb-8">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-20">
-              {/* Аватар */}
-              <div className="relative">
+          {currentRole && (
+            <div className={classNames('official-banner', styles.bannerClass)}>
+              <span>{styles.bannerText}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-8">
+            <div className="p-2">
+              <div className="flex flex-col md:flex-row items-center text-center md:text-left">
                 <div 
-                  className="profile-avatar-wrapper"
+                  className={`mb-4 md:mb-0 md:mr-6 flex-shrink-0 ${!isMyProfile ? 'cursor-pointer' : ''}`}
                   onClick={!isMyProfile ? onAvatarClick : undefined}
                 >
-                  {currentRole && (
-                    <div className={classNames('role-avatar-ring', {
-                      'admin-ring': targetIsAdmin,
-                      'moderator-ring': targetIsModerator
-                    })}></div>
-                  )}
                   <AvatarUpload 
                     currentAvatar={formatAvatarUrl(profile)} 
-                    size="fill"
+                    size="lg" 
                     editable={false} 
                   />
                 </div>
-              </div>
-
-              {/* Имя и статус */}
-              <div className="sm:ml-6 mt-4 sm:mt-0 text-center sm:text-left flex-grow">
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center justify-center sm:justify-start gap-2">
-                  {profile.username}
-                  <RoleBadge user={profile} />
-                </h1>
-                <div className="flex items-center justify-center sm:justify-start mt-1 text-gray-500">
-                  {profile.isOnline ? (
-                    <span className="flex items-center text-sm">
-                      <span className="h-2.5 w-2.5 mr-2 bg-green-500 rounded-full"></span>
-                      Онлайн
-                    </span>
-                  ) : (
-                    <span className="flex items-center text-sm">
-                      <span className="h-2.5 w-2.5 mr-2 bg-gray-400 rounded-full"></span>
-                      Был(а) в сети {formatLastSeen(profile.lastSeen)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Кнопки действий */}
-              <div className="mt-4 sm:mt-0">
-                {isMyProfile ? (
-                  <button onClick={() => {/* navigate to edit? */}} className="btn btn-primary w-full sm:w-auto">Редактировать</button>
-                ) : canModerate && !targetIsAdmin && (
-                  <div className="flex gap-2">
-                    {profile.banDetails?.isBanned ? (
-                      <button onClick={onUnban} className="btn bg-green-600 hover:bg-green-700 text-white">Разбанить</button>
+                <div className="w-full">
+                  <div className="flex items-center justify-center md:justify-start gap-2">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {profile.username}
+                    </h2>
+                    <RoleBadge user={profile} />
+                  </div>
+                  <div className="flex items-center justify-center md:justify-start mt-1 text-sm text-gray-500">
+                    {profile.isOnline ? (
+                      <span className="flex items-center">
+                        <span className="h-2 w-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Онлайн
+                      </span>
                     ) : (
-                      <button onClick={onBan} className="btn bg-red-600 hover:bg-red-700 text-white">Забанить</button>
+                      <span className="flex items-center">
+                        <span className="h-2 w-2 mr-1.5 bg-gray-400 rounded-full"></span>
+                        Был(а) в сети {formatLastSeen(profile.lastSeen)}
+                      </span>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Статистика */}
-            <div className="mt-6">
-              <ProfileStats profile={profile} />
-            </div>
-            
-            <BanInfo banDetails={profile.banDetails} />
-          </div>
-        </div>
-
-        {/* Контент под карточкой: О себе, Предметы, Отзывы */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Левая колонка: О себе и Предметы */}
-          <div className="lg:col-span-2 space-y-8">
-            {profile.bio && (
-              <div className="bg-white p-6 rounded-2xl shadow-soft">
-                <h3 className="text-xl font-bold text-gray-800 mb-3">О себе</h3>
-                <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-              </div>
-            )}
-
-            {profile.roles?.helper && profile.subjects?.length > 0 && (
-              <div className="bg-white p-6 rounded-2xl shadow-soft">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Помогает в предметах</h3>
-                <div className="flex flex-wrap gap-3">
-                  {profile.subjects.map((subject) => (
-                    <span key={subject} className="px-4 py-2 bg-primary-50 text-primary-700 text-sm font-semibold rounded-full">
-                      {subjectOptions.find(s => s.value === subject)?.label || subject}
-                    </span>
-                  ))}
+                  <p className="text-gray-500 mt-1 text-sm">На платформе с {new Date(profile.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Правая колонка: Отзывы */}
-          <div className="lg:col-span-1">
-            {profile?.roles?.helper && (
-               <div className="bg-white rounded-2xl shadow-soft">
-                 <ReviewsBlock userId={profile._id} />
-               </div>
+              {profile.bio && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">О себе</h3>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {profile.location && (
+                <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Город</h3>
+                  <p className="text-gray-800 font-semibold">{profile.location}</p>
+                </div>
+              )}
+              
+              {profile.telegramUsername && (
+                 <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Telegram</h3>
+                   <a 
+                      href={`https://t.me/${profile.telegramUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-800 font-semibold flex items-center"
+                    >
+                     <FaTelegramPlane className="mr-2" />
+                     @{profile.telegramUsername}
+                    </a>
+                 </div>
+              )}
+            </div>
+            
+            {profile.roles?.helper && (
+              <div className="p-2">
+                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Помощь в предметах</h3>
+                {profile.subjects?.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.subjects.map((subject, index) => (
+                      <span key={index} className="px-3 py-1 bg-primary-100 text-primary-800 text-sm font-medium rounded-full">
+                        {subjectOptions.find(s => s.value === subject)?.label || subject}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic">Предметы не указаны</p>
+                )}
+              </div>
             )}
+            
+            <ProfileStats profile={profile} />
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-4">
+             <button 
+              onClick={onBack} 
+              className="btn btn-secondary"
+            >
+              Назад
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </Container>
   );
 };
 
