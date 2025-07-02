@@ -8,43 +8,6 @@ import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/c
 import { FiPlus, FiSearch } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const HeroSection = ({ onOpenModal }) => (
-  <div className="relative bg-white pt-16 pb-20 text-center">
-    <div className="container mx-auto px-4">
-      <motion.h1 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900"
-      >
-        Все запросы
-      </motion.h1>
-      <motion.p 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="mt-4 max-w-2xl mx-auto text-lg text-gray-600"
-      >
-        Найдите задание, с которым вы можете помочь, или создайте своё.
-      </motion.p>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }} 
-        className="mt-8"
-      >
-        <button
-          onClick={onOpenModal}
-          className="btn btn-primary btn-lg inline-flex items-center gap-2"
-        >
-          <FiPlus />
-          Создать новый запрос
-        </button>
-      </motion.div>
-    </div>
-  </div>
-);
-
 const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,7 +24,6 @@ const RequestsPage = () => {
   const subjectFromUrl = urlParams.get('subject');
   
   const [filters, setFilters] = useState({
-    status: '', // По умолчанию все статусы
     subject: subjectFromUrl || '',
     search: ''
   });
@@ -90,10 +52,6 @@ const RequestsPage = () => {
     setError(null);
     try {
       const params = { page: currentPage, ...filters };
-      
-      if (!filters.status) delete params.status;
-      if (!filters.subject) delete params.subject;
-      if (!filters.search) delete params.search;
       
       const response = await requestsService.getRequests(params);
       
@@ -164,7 +122,7 @@ const RequestsPage = () => {
       }
     }, 500); // debounce
     return () => clearTimeout(handler);
-  }, [filters.search, filters.subject, filters.status]);
+  }, [filters.search, filters.subject]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -191,18 +149,23 @@ const RequestsPage = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <HeroSection onOpenModal={() => setIsModalOpen(true)} />
+      <div className="container mx-auto px-4 py-8">
+        {/* Заголовок и кнопка */}
+        <div className="flex justify-between items-center mb-6">
+           <h1 className="text-3xl font-bold text-gray-900">Лента заявок</h1>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="btn btn-primary inline-flex items-center gap-2"
+            >
+              <FiPlus />
+              Создать запрос
+            </button>
+        </div>
 
-      <div className="container mx-auto px-4 -mt-12">
         {/* Фильтры */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white rounded-xl shadow-lg p-4 md:p-6 mb-8"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-1 relative">
+        <div className="bg-white rounded-xl shadow-sm p-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
               <label htmlFor="search" className="sr-only">Поиск</label>
               <FiSearch className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" />
               <input
@@ -231,24 +194,8 @@ const RequestsPage = () => {
                 ))}
               </select>
             </div>
-            
-            <div className="w-full">
-              <label htmlFor="status" className="sr-only">Статус</label>
-               <select
-                id="status"
-                name="status"
-                value={filters.status}
-                onChange={handleFilterChange}
-                className="w-full py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              >
-                <option value="">Все статусы</option>
-                {Object.entries(REQUEST_STATUS_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
           </div>
-        </motion.div>
+        </div>
 
         {error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
