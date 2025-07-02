@@ -36,16 +36,17 @@ const RequestsPage = () => {
       const params = { 
         page: currentPage,
         limit: 6,
-        status: 'open', 
-        search: filters.search
+        status: 'open',
+        ...filters,
       };
       
-      if (filters.subject) {
-          params.subjects = filters.subject;
-      }
+      if (!filters.subject) delete params.subject;
+      if (!filters.search) delete params.search;
       
-      if (!params.subjects) delete params.subjects;
-      if (!params.search) delete params.search;
+      if (params.subject) {
+        params.subjects = params.subject;
+        delete params.subject;
+      }
       
       const response = await requestsService.getRequests(params);
       
@@ -65,34 +66,58 @@ const RequestsPage = () => {
   }, [currentPage, filters]);
   
   useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  useEffect(() => {
     const queryParams = new URLSearchParams();
     if (filters.subject) queryParams.set('subject', filters.subject);
     if (filters.search) queryParams.set('search', filters.search);
     navigate(`${location.pathname}?${queryParams.toString()}`, { replace: true });
   }, [filters, location.pathname, navigate]);
-  
+
+  // Сбрасываем страницу при смене фильтров
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
-  
+    setCurrentPage(1);
+  }, [filters]);
+
   useEffect(() => {
     if (!socket) return;
 
     const handleNewRequest = (newRequest) => {
-        setRequests(prevRequests => {
-            if (prevRequests.some(req => req._id === newRequest._id)) {
-              return prevRequests;
-            }
-            return [newRequest, ...prevRequests];
-          });
+        // Добавляем только если статус 'open'
+        if (newRequest.status === 'open') {
+            setRequests(prevRequests => {
+                if (prevRequests.some(req => req._id === newRequest._id)) {
+                  return prevRequests;
+                }
+                // Можно добавить логику для первой страницы
+                if(currentPage === 1) {
+                    return [newRequest, ...prevRequests].slice(0, 6); // Добавляем и обрезаем до лимита
+                }
+                return prevRequests;
+              });
+        }
     };
 
     const handleRequestUpdate = (updatedRequest) => {
-        setRequests(prevRequests => 
-        prevRequests.map(req => 
-            req._id === updatedRequest._id ? updatedRequest : req
-        )
-        );
+        // Если заявка перестала быть 'open', удаляем ее из списка
+        if (updatedRequest.status !== 'open') {
+            setRequests(prev => prev.filter(r => r._id !== updatedRequest._id));
+        } else {
+            // Иначе, обновляем ее или добавляем, если ее не было
+            setRequests(prev => {
+                const exists = prev.some(r => r._id === updatedRequest._id);
+                if (exists) {
+                    return prev.map(r => r._id === updatedRequest._id ? updatedRequest : r);
+                }
+                // Если ее не было и мы на 1 странице, можно добавить
+                 if(currentPage === 1) {
+                    return [updatedRequest, ...prev].slice(0, 6);
+                }
+                return prev;
+            });
+        }
     };
 
     socket.on('new_request', handleNewRequest);
@@ -102,12 +127,11 @@ const RequestsPage = () => {
       socket.off('new_request', handleNewRequest);
       socket.off('request_updated', handleRequestUpdate);
     };
-  }, [socket]);
+  }, [socket, currentPage]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
-    setCurrentPage(1);
   };
   
   const formatDate = (dateString) => {
@@ -260,16 +284,14 @@ const RequestsPage = () => {
                 <p className="text-gray-500 mt-2">Попробуйте изменить фильтры или создайте свой собственный запрос.</p>
               </div>
             )}
-
-            {currentPage < totalPages && (
-              <div className="flex justify-center mt-12">
-                <Pagination 
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={(page) => setCurrentPage(page)}
-                />
-              </div>
-            )}
+            
+            <div className="flex justify-center mt-12">
+              <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
           </>
         )}
       </div>
@@ -277,6 +299,7 @@ const RequestsPage = () => {
       <CreateRequestModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={() => fetchRequests()}
       />
     </div>
   );
