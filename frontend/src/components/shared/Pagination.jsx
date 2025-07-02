@@ -16,20 +16,34 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   const renderPageNumbers = () => {
     const pageNumbers = [];
     const maxPagesToShow = 5;
-    const halfPagesToShow = Math.floor(maxPagesToShow / 2);
 
-    let startPage = Math.max(1, currentPage - halfPagesToShow);
-    let endPage = Math.min(totalPages, currentPage + halfPagesToShow);
+    let startPage, endPage;
 
-    if (currentPage - halfPagesToShow < 1) {
-        endPage = Math.min(totalPages, maxPagesToShow);
-    }
+    if (totalPages <= maxPagesToShow) {
+      // Если страниц меньше или равно 5, показываем все
+      startPage = 1;
+      endPage = totalPages;
+    } else {
+      // Если страниц больше 5, используем сложную логику
+      const maxPagesBeforeCurrent = Math.floor(maxPagesToShow / 2);
+      const maxPagesAfterCurrent = Math.ceil(maxPagesToShow / 2) - 1;
 
-    if (currentPage + halfPagesToShow > totalPages) {
-        startPage = Math.max(1, totalPages - maxPagesToShow + 1);
+      if (currentPage <= maxPagesBeforeCurrent) {
+        // Если мы в начале
+        startPage = 1;
+        endPage = maxPagesToShow;
+      } else if (currentPage + maxPagesAfterCurrent >= totalPages) {
+        // Если мы в конце
+        startPage = totalPages - maxPagesToShow + 1;
+        endPage = totalPages;
+      } else {
+        // Если мы в середине
+        startPage = currentPage - maxPagesBeforeCurrent;
+        endPage = currentPage + maxPagesAfterCurrent;
+      }
     }
     
-    // Всегда показываем первую страницу
+    // Всегда показываем первую страницу и многоточие, если нужно
     if (startPage > 1) {
         pageNumbers.push(1);
         if (startPage > 2) {
@@ -37,11 +51,12 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         }
     }
 
+    // Рендерим сам диапазон страниц
     for (let i = startPage; i <= endPage; i++) {
         pageNumbers.push(i);
     }
     
-    // Всегда показываем последнюю страницу
+    // Всегда показываем последнюю страницу и многоточие, если нужно
     if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
             pageNumbers.push('...');
