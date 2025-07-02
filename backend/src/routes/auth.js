@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 import uploadAvatar from '../middleware/uploadMiddleware.js';
 import crypto from 'crypto';
 import { protect } from '../middleware/auth.js';
-import { generalLimiter } from '../middleware/rateLimiters.js';
+import { generalLimiter, registrationLimiter } from '../middleware/rateLimiters.js';
 import axios from 'axios';
 import { createAndSendNotification } from './notifications.js';
 import { generateAvatar } from '../utils/avatarGenerator.js';
@@ -88,7 +88,7 @@ const RESERVED_USERNAMES = [
  *         description: Внутренняя ошибка сервера
  */
 // регистрация
-router.post('/register', generalLimiter,
+router.post('/register', registrationLimiter,
   uploadAvatar,
   [
   body('username')

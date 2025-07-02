@@ -46,6 +46,16 @@ export const uploadLimiter = rateLimit({
   message: { msg: 'Вы достигли дневного лимита на загрузку файлов (20).' },
 });
 
+// 5. Лимитер на регистрацию (защита от мультиаккаунтов)
+export const registrationLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 часа
+  max: 1, // 1 регистрация с одного IP в сутки
+  message: { msg: 'С этого IP-адреса уже была произведена регистрация за последние 24 часа. Попробуйте позже.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req, res) => req.ip, // Строго по IP
+});
+
 
 // --- ОСНОВНОЙ ГИБКИЙ ЛИМИТЕР НА ОСНОВЕ РОЛИ ---
 
