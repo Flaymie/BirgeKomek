@@ -10,7 +10,7 @@ import DeleteAccountModal from '../modals/DeleteAccountModal';
 import DeleteConfirmModal from '../modals/DeleteConfirmModal';
 import BanUserModal from '../modals/BanUserModal';
 import ProfileNotFound from '../shared/ProfileNotFound';
-import { FaTelegramPlane } from 'react-icons/fa';
+import { FaTelegramPlane, FaGavel, FaCheckCircle } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
@@ -60,7 +60,7 @@ const Loader = () => (
 
 // Компонент контейнера
 const Container = ({ children }) => (
-  <div className="container mx-auto px-4 py-8">
+  <div className="container mx-auto px-4 pb-8">
     {children}
   </div>
 );
@@ -199,46 +199,6 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
   const currentRole = targetIsAdmin ? 'admin' : targetIsModerator ? 'moderator' : null;
   const styles = currentRole ? roleStyles[currentRole] : {};
 
-  // --- Генерация динамических стилей ---
-  const custom = profile?.profileCustomization;
-  
-  const getNicknameStyle = () => {
-    const from = custom?.colors?.nicknameGradient?.from;
-    const to = custom?.colors?.nicknameGradient?.to;
-    if (from && to) {
-      return {
-        backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        color: 'transparent'
-      };
-    }
-    return {};
-  };
-
-  const getBorderStyle = () => {
-    // В CSS уже есть классы text-gradient-admin/moderator, но для кастома нужен инлайн
-    if (currentRole) {
-      const defaultColors = {
-        admin: { from: '#a855f7', to: '#ec4899' },
-        moderator: { from: '#16a34a', to: '#22c55e' }
-      };
-      const from = custom?.colors?.profileRam?.from || defaultColors[currentRole].from;
-      const to = custom?.colors?.profileRam?.to || defaultColors[currentRole].to;
-      
-      return {
-        '--gradient-from': from,
-        '--gradient-to': to
-      };
-    }
-    return {};
-  };
-
-  const nicknameStyle = getNicknameStyle();
-  const borderStyle = getBorderStyle();
-  // --- Конец генерации стилей ---
-
   return (
     <Container>
       <div className="flex justify-between items-center mb-4">
@@ -246,21 +206,30 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
         {canModerate && !isMyProfile && !targetIsAdmin && (
           <div className="flex gap-2">
             {profile.banDetails?.isBanned ? (
-              <button onClick={onUnban} className="btn btn-success btn-sm">Разбанить</button>
+              <button 
+                onClick={onUnban} 
+                className="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
+              >
+                <FaCheckCircle />
+                <span>Разбанить</span>
+              </button>
             ) : (
-              <button onClick={onBan} className="btn btn-error btn-sm">Забанить</button>
+              <button 
+                onClick={onBan} 
+                className="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
+              >
+                <FaGavel />
+                <span>Забанить</span>
+              </button>
             )}
           </div>
         )}
       </div>
           
-      <div 
-        className={classNames(
-          "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden",
-          currentRole && `profile-card-wrapper ${currentRole}-border`
-        )}
-        style={borderStyle}
-      >
+      <div className={classNames(
+        "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden",
+        styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
+      )}>
         <div className="p-6">
           <BanInfo banDetails={profile.banDetails} />
 
@@ -279,14 +248,12 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                 </div>
                 <div className="w-full">
                   <div className="flex items-center justify-center md:justify-start gap-2">
-                    <h2 
-                      className={classNames(
-                        "text-2xl font-bold",
-                        (!custom?.colors?.nicknameGradient?.from) && currentRole && `text-gradient-${currentRole}`,
-                        !currentRole && 'text-gray-900'
-                      )}
-                      style={nicknameStyle}
-                    >
+                    <h2 className={classNames(
+                      "text-2xl font-bold",
+                      targetIsAdmin && 'text-gradient-admin',
+                      targetIsModerator && 'text-gradient-moderator',
+                      !currentRole && 'text-gray-900'
+                    )}>
                       {profile.username}
                     </h2>
                     <RoleBadge user={profile} />
