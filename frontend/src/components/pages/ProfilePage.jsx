@@ -19,7 +19,9 @@ import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
 import ImageViewerModal from '../modals/ImageViewerModal';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
-import CityAutocomplete from '../shared/CityAutocomplete';
+import PageTitle from '../shared/PageTitle';
+import Skeleton from 'react-loading-skeleton';
+import { sendConfirmationEmail } from '../../services/api';
 
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
@@ -462,15 +464,16 @@ const ProfileEditor = ({
 
               {/* Город и класс в одной строке */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
-                  <CityAutocomplete
-                    name="location"
-                    value={profileData.location}
-                    onCitySelect={handleProfileChange}
+                <div className="profile-card-field">
+                  <label htmlFor="city">Город</label>
+                  <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    value={profileData.city || ''}
+                    onChange={handleProfileChange}
                     placeholder="Например, Алматы"
                   />
-                  {profileErrors.location && <p className="text-red-500 text-xs mt-1">{profileErrors.location}</p>}
                 </div>
                 <div>
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
