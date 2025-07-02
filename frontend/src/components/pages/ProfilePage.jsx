@@ -174,153 +174,138 @@ const BanInfo = ({ banDetails }) => {
   );
 };
 
-// === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
+// === НОВЫЙ, КРАСИВЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
 const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyProfile, onAvatarClick }) => {
   if (!profile) return null;
   
   const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
   const targetIsAdmin = profile.roles?.admin;
   const targetIsModerator = profile.roles?.moderator;
-
   const currentRole = targetIsAdmin ? 'admin' : targetIsModerator ? 'moderator' : null;
 
-  const wrapperClasses = classNames(
-    'profile-card-wrapper',
-    'p-1', // Пространство для градиента
-    currentRole && 'animated-border',
-    currentRole === 'admin' && 'admin-border',
-    currentRole === 'moderator' && 'moderator-border'
-  );
-
   return (
-    <div className="bg-gray-50 -mt-8 pt-8">
-      <Container>
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-4">
-              <button 
-                onClick={onBack} 
-                className="btn btn-secondary"
-              >
-                Назад
-              </button>
-              {canModerate && !isMyProfile && !targetIsAdmin && (
-                <div className="flex gap-2">
-                  {profile.banDetails?.isBanned ? (
-                    <button onClick={onUnban} className="btn bg-green-600 hover:bg-green-700 text-white">Разбанить</button>
+    <div className="bg-gray-100 font-sans">
+      <div className="container mx-auto px-4 py-8">
+        {/* Кнопка Назад */}
+        <div className="mb-4">
+          <button 
+            onClick={onBack} 
+            className="btn btn-secondary-outline"
+          >
+            Назад
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-soft overflow-hidden">
+          {/* Обложка профиля */}
+          <div className="profile-cover">
+            {/* Можно добавить кастомную обложку юзера в будущем */}
+          </div>
+
+          {/* Основной блок */}
+          <div className="px-6 pb-8">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-20">
+              {/* Аватар */}
+              <div className="relative">
+                <div 
+                  className="profile-avatar-wrapper"
+                  onClick={!isMyProfile ? onAvatarClick : undefined}
+                >
+                  {currentRole && (
+                    <div className={classNames('role-avatar-ring', {
+                      'admin-ring': targetIsAdmin,
+                      'moderator-ring': targetIsModerator
+                    })}></div>
+                  )}
+                  <AvatarUpload 
+                    currentAvatar={formatAvatarUrl(profile)} 
+                    size="fill"
+                    editable={false} 
+                  />
+                </div>
+              </div>
+
+              {/* Имя и статус */}
+              <div className="sm:ml-6 mt-4 sm:mt-0 text-center sm:text-left flex-grow">
+                <h1 className="text-3xl font-bold text-gray-800 flex items-center justify-center sm:justify-start gap-2">
+                  {profile.username}
+                  <RoleBadge user={profile} />
+                </h1>
+                <div className="flex items-center justify-center sm:justify-start mt-1 text-gray-500">
+                  {profile.isOnline ? (
+                    <span className="flex items-center text-sm">
+                      <span className="h-2.5 w-2.5 mr-2 bg-green-500 rounded-full"></span>
+                      Онлайн
+                    </span>
                   ) : (
-                    <button onClick={onBan} className="btn bg-red-600 hover:bg-red-700 text-white">Забанить</button>
+                    <span className="flex items-center text-sm">
+                      <span className="h-2.5 w-2.5 mr-2 bg-gray-400 rounded-full"></span>
+                      Был(а) в сети {formatLastSeen(profile.lastSeen)}
+                    </span>
                   )}
                 </div>
-              )}
-          </div>
-          
-          <div className={wrapperClasses}>
-            <div className={classNames(
-              "profile-content-inside-border",
-              !currentRole && "bg-white rounded-xl shadow-lg" // Стили для обычного юзера
-            )}>
-              {/* HERO Секция */}
-              <div className="relative p-6 rounded-t-xl bg-gradient-to-br from-gray-800 to-gray-900 text-white">
-                  <div className="absolute inset-0 bg-pattern opacity-5"></div>
-                  <div className="relative flex flex-col sm:flex-row items-center gap-6">
-                      <div 
-                        className={`flex-shrink-0 ${!isMyProfile ? 'cursor-pointer' : ''}`}
-                        onClick={!isMyProfile ? onAvatarClick : undefined}
-                      >
-                         <AvatarUpload 
-                           currentAvatar={formatAvatarUrl(profile)} 
-                           size="xl"
-                           editable={false} 
-                         />
-                      </div>
-                      <div className="text-center sm:text-left">
-                          <h2 className="text-3xl font-bold flex items-center gap-2">
-                            {profile.username}
-                            <RoleBadge user={profile} />
-                          </h2>
-                          <div className="flex items-center justify-center sm:justify-start mt-2 text-gray-300">
-                              {profile.isOnline ? (
-                                <span className="flex items-center text-sm">
-                                  <span className="h-2.5 w-2.5 mr-2 bg-green-500 rounded-full animate-pulse"></span>
-                                  Онлайн
-                                </span>
-                              ) : (
-                                <span className="flex items-center text-sm">
-                                  <span className="h-2.5 w-2.5 mr-2 bg-gray-500 rounded-full"></span>
-                                  Был(а) в сети {formatLastSeen(profile.lastSeen)}
-                                </span>
-                              )}
-                          </div>
-                          <p className="text-gray-400 mt-1">На платформе с {new Date(profile.createdAt).toLocaleDateString()}</p>
-                      </div>
-                  </div>
               </div>
 
-              {/* Основной контент */}
-              <div className="p-6">
-                  <BanInfo banDetails={profile.banDetails} />
-
-                  {currentRole && (
-                    <div className={classNames('official-banner', 
-                      currentRole === 'admin' ? 'official-banner-admin' : 'official-banner-moderator'
-                    )}>
-                      <span>Официальный аккаунт {targetIsAdmin ? 'Администратора' : 'Модератора'}</span>
-                    </div>
-                  )}
-
-                  {/* Секция "О себе" */}
-                  {profile.bio && (
-                      <div className="mb-6">
-                          <h3 className="text-xl font-semibold text-gray-800 mb-2">О себе</h3>
-                          <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-                      </div>
-                  )}
-
-                  {/* Секция с инфо */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    {profile.location && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                          <h4 className="text-sm font-medium text-gray-500 mb-1">Город</h4>
-                          <p className="text-gray-900 text-lg">{profile.location}</p>
-                      </div>
-                    )}
-                    {profile.telegramUsername && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                          <h4 className="text-sm font-medium text-gray-500 mb-1">Telegram</h4>
-                          <a 
-                              href={`https://t.me/${profile.telegramUsername}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-600 hover:text-primary-700 hover:underline flex items-center text-lg"
-                          >
-                            <FaTelegramPlane className="mr-2" />
-                            @{profile.telegramUsername}
-                          </a>
-                      </div>
+              {/* Кнопки действий */}
+              <div className="mt-4 sm:mt-0">
+                {isMyProfile ? (
+                  <button onClick={() => {/* navigate to edit? */}} className="btn btn-primary w-full sm:w-auto">Редактировать</button>
+                ) : canModerate && !targetIsAdmin && (
+                  <div className="flex gap-2">
+                    {profile.banDetails?.isBanned ? (
+                      <button onClick={onUnban} className="btn bg-green-600 hover:bg-green-700 text-white">Разбанить</button>
+                    ) : (
+                      <button onClick={onBan} className="btn bg-red-600 hover:bg-red-700 text-white">Забанить</button>
                     )}
                   </div>
-
-                  {/* Секция предметов для хелпера */}
-                  {profile.roles?.helper && profile.subjects?.length > 0 && (
-                      <div className="mb-6">
-                          <h3 className="text-xl font-semibold text-gray-800 mb-3">Помощь в предметах</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {profile.subjects.map((subject, index) => (
-                              <span key={index} className="px-3 py-1 bg-primary-100 text-primary-800 text-sm font-medium rounded-full">
-                                {subjectOptions.find(s => s.value === subject)?.label || subject}
-                              </span>
-                            ))}
-                          </div>
-                      </div>
-                  )}
-
-                  {/* Статистика */}
-                  <ProfileStats profile={profile} />
+                )}
               </div>
             </div>
+
+            {/* Статистика */}
+            <div className="mt-6">
+              <ProfileStats profile={profile} />
+            </div>
+            
+            <BanInfo banDetails={profile.banDetails} />
           </div>
         </div>
-      </Container>
+
+        {/* Контент под карточкой: О себе, Предметы, Отзывы */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Левая колонка: О себе и Предметы */}
+          <div className="lg:col-span-2 space-y-8">
+            {profile.bio && (
+              <div className="bg-white p-6 rounded-2xl shadow-soft">
+                <h3 className="text-xl font-bold text-gray-800 mb-3">О себе</h3>
+                <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+              </div>
+            )}
+
+            {profile.roles?.helper && profile.subjects?.length > 0 && (
+              <div className="bg-white p-6 rounded-2xl shadow-soft">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Помогает в предметах</h3>
+                <div className="flex flex-wrap gap-3">
+                  {profile.subjects.map((subject) => (
+                    <span key={subject} className="px-4 py-2 bg-primary-50 text-primary-700 text-sm font-semibold rounded-full">
+                      {subjectOptions.find(s => s.value === subject)?.label || subject}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Правая колонка: Отзывы */}
+          <div className="lg:col-span-1">
+            {profile?.roles?.helper && (
+               <div className="bg-white rounded-2xl shadow-soft">
+                 <ReviewsBlock userId={profile._id} />
+               </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
