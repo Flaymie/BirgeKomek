@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiSettings } from 'react-icons/fi';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -55,6 +55,8 @@ const Header = () => {
 
   const AuthNav = ({ isMobile = false }) => {
     if (currentUser) {
+      const isPrivileged = currentUser.roles?.admin || currentUser.roles?.moderator;
+
       return (
         <div className={isMobile ? "pt-4 border-t border-gray-200" : "flex items-center gap-4"}>
             <NotificationBell />
@@ -75,6 +77,11 @@ const Header = () => {
                         <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiUser className="w-4 h-4" /> Профиль
                         </Link>
+                        {isPrivileged && (
+                          <Link to="/profile/customize" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                             <FiSettings className="w-4 h-4" /> Кастомизация профиля
+                          </Link>
+                        )}
                         <Link to="/chats" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiMessageSquare className="w-4 h-4" /> Чаты
                         </Link>
