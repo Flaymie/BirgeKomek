@@ -30,6 +30,7 @@ import Message from './models/Message.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
 import { protectSocket } from './middleware/auth.js';
+import multiAccountDetector from './middleware/multiAccountDetector.js';
 
 dotenv.config();
 
@@ -93,6 +94,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(multiAccountDetector);
 
 // НОВЫЙ, НАДЕЖНЫЙ РОУТ ДЛЯ РАЗДАЧИ ФАЙЛОВ
 // Он будет обрабатывать запросы вида /uploads/avatars/filename.png
