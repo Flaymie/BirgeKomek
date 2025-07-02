@@ -135,7 +135,9 @@ const ChatsPage = () => {
                       {chat.unreadCount}
                     </span>
                   )}
-                  <StatusBadge status={chat.status} />
+                  <div className="whitespace-nowrap">
+                    <StatusBadge status={chat.status} />
+                  </div>
                 </div>
               </div>
               

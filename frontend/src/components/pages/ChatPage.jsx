@@ -843,7 +843,7 @@ const ChatPage = () => {
         </AnimatePresence>
 
         <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
-          <div className="flex justify-between items-center gap-4">
+          <div className="flex flex-wrap justify-between items-center gap-4">
             <div>
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <div className="flex items-center gap-3 mt-1">
@@ -855,22 +855,22 @@ const ChatPage = () => {
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
             <Link 
-              to={`/request/${requestId}`}
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hidden md:block"
+              to={`/requests/${requestId}`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
             >
               К деталям запроса
             </Link>
               {isAuthor && isChatActive && (
                 <button
-                  onClick={handleOpenResolveModal}
-                  className="w-full sm:w-auto flex-grow sm:flex-grow-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                >
+                   onClick={handleOpenResolveModal}
+                   className="w-full sm:w-auto flex-grow sm:flex-grow-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                 >
                   <CheckBadgeIcon className="h-5 w-5" />
                   Завершить и оценить
-                </button>
-              )}
-            </div>
-          </div>
+                 </button>
+               )}
+             </div>
+           </div>
           <div className="mt-2 text-sm">
             <div className="flex items-center">
               <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
