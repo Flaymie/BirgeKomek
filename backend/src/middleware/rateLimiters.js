@@ -96,6 +96,9 @@ const getMaxRequestsByRole = (req) => {
   return 200;
 };
 
+// IP-адреса, для которых лимиты не применяются
+const whitelist = ['::1', '127.0.0.1', '192.168.1.87', '2.134.3.28'];
+
 // Сам основной лимитер
 export const generalLimiter = rateLimit({
   ...commonOptions,
@@ -103,6 +106,11 @@ export const generalLimiter = rateLimit({
   max: (req, res) => getMaxRequestsByRole(req),
   keyGenerator: (req, res) => { // Явно указываем здесь для надежности
     return req.ip || (req.user ? req.user.id : null);
+  },
+  skip: (req) => {
+    // Если IP в белом списке - пропускаем проверку
+    const clientIp = req.ip;
+    return whitelist.includes(clientIp);
   },
   message: { msg: 'Вы делаете слишком много запросов. Пожалуйста, подождите.' },
   store: new RedisStore({
