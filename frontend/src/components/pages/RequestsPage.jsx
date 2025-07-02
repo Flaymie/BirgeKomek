@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +29,41 @@ const RequestsPage = () => {
     search: ''
   });
   
+  const fetchRequests = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = { 
+        page: currentPage,
+        limit: 6,
+        status: 'open', 
+        search: filters.search
+      };
+      
+      if (filters.subject) {
+          params.subjects = filters.subject;
+      }
+      
+      if (!params.subjects) delete params.subjects;
+      if (!params.search) delete params.search;
+      
+      const response = await requestsService.getRequests(params);
+      
+      setRequests(response.data.requests);
+      setTotalPages(response.data.totalPages);
+
+    } catch (err) {
+      console.error('Ошибка при получении запросов:', err);
+      if (err.response && err.response.status === 401) {
+        setError('Для выполнения этого действия необходимо авторизоваться.');
+      } else {
+        setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, filters]);
+  
   useEffect(() => {
     const queryParams = new URLSearchParams();
     if (filters.subject) queryParams.set('subject', filters.subject);
@@ -37,48 +72,8 @@ const RequestsPage = () => {
   }, [filters, location.pathname, navigate]);
   
   useEffect(() => {
-    const fetchRequests = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const params = { 
-          page: currentPage,
-          limit: 6,
-          status: 'open', 
-          search: filters.search
-        };
-        
-        if (filters.subject) {
-            params.subjects = filters.subject;
-        }
-        
-        if (!params.subjects) delete params.subjects;
-        if (!params.search) delete params.search;
-        
-        const response = await requestsService.getRequests(params);
-        
-        setRequests(response.data.requests);
-        setTotalPages(response.data.totalPages);
-
-      } catch (err) {
-        console.error('Ошибка при получении запросов:', err);
-        if (err.response && err.response.status === 401) {
-          setError('Для выполнения этого действия необходимо авторизоваться.');
-        } else {
-          setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    const handler = setTimeout(() => {
-        fetchRequests();
-    }, filters.search ? 500 : 0);
-
-    return () => clearTimeout(handler);
-
-  }, [currentPage, filters]);
+    fetchRequests();
+  }, [fetchRequests]);
   
   useEffect(() => {
     if (!socket) return;
