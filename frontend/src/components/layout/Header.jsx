@@ -73,22 +73,8 @@ const Header = () => {
 
     if (currentUser) {
       return (
-        <div className="relative group">
-            {!isMobile && <NotificationBell />}
-
-            {isMobile && (
-              <Link to="/notifications" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
-                <div className="relative">
-                  <FiHelpCircle className="h-6 w-6" />
-                  {currentUser.unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                      <span>{currentUser.unreadCount > 9 ? '9+' : currentUser.unreadCount}</span>
-                    </span>
-                  )}
-                </div>
-                Уведомления
-              </Link>
-            )}
+        <div className="flex items-center gap-4">
+            <NotificationBell />
             
             <div className="relative group">
                 <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
