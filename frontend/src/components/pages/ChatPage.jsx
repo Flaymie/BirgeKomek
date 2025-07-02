@@ -856,14 +856,14 @@ const ChatPage = () => {
             <div className="flex items-center gap-4 flex-shrink-0">
             <Link 
               to={`/requests/${requestId}`}
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
             >
               К деталям запроса
             </Link>
               {isAuthor && isChatActive && (
                 <button
                    onClick={handleOpenResolveModal}
-                   className="w-full sm:w-auto flex-grow sm:flex-grow-0 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                  >
                   <CheckBadgeIcon className="h-5 w-5" />
                   Завершить и оценить

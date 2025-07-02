@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiSettings } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiSettings, FiInfo } from 'react-icons/fi';
 import { BellIcon } from '@heroicons/react/24/outline';
 
 const Username = ({ user }) => {
@@ -66,6 +66,11 @@ const Header = () => {
   const AuthNav = ({ isMobile = false }) => {
     if (currentUser) {
       const isPrivileged = currentUser.roles?.admin || currentUser.roles?.moderator;
+      
+      // --- КОСТЫЛЬ ДЛЯ ДИНАМИЧЕСКОЙ ССЫЛКИ ---
+      const location = useLocation();
+      const chatPageMatch = location.pathname.match(/^\/requests\/(.+)\/chat$/);
+      const requestId = chatPageMatch ? chatPageMatch[1] : null;
 
       return (
         <div className={isMobile ? "pt-4 border-t border-gray-200" : "flex items-center gap-4"}>
@@ -112,6 +117,12 @@ const Header = () => {
                         <Link to="/my-requests" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiGrid className="w-4 h-4" /> Мои заявки
                         </Link>
+                        {/* --- ВОТ И ОНА, НАША ССЫЛКА --- */}
+                        {requestId && (
+                           <Link to={`/requests/${requestId}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                              <FiInfo className="w-4 h-4" /> Детали этой заявки
+                           </Link>
+                        )}
                     </div>
                     <div className="pt-2 border-t border-gray-100">
                         <button 
@@ -151,20 +162,20 @@ const Header = () => {
           
           <div className="flex items-center gap-4">
              <AuthNav />
-             {/* <button 
+             <button 
                 className="md:hidden text-gray-600 hover:text-primary-600"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-              </button> */}
+              </button>
           </div>
         </div>
         
         {/* Мобильное меню */}
-        {/* <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-screen opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-screen opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
           <NavLinks isMobile />
           <AuthNav isMobile />
-        </div> */}
+        </div>
       </div>
     </header>
   );
