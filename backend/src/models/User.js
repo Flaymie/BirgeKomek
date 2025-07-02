@@ -124,6 +124,33 @@ const userSchema = new mongoose.Schema({
   lastUsernameChange: {
     type: Date,
     default: null
+  },
+  profileCustomization: {
+    type: {
+      colors: {
+        nicknameGradient: {
+          from: { type: String, default: null },
+          to: { type: String, default: null }
+        },
+        profileRam: {
+          from: { type: String, default: null },
+          to: { type: String, default: null }
+        },
+        icon: { type: String, default: null }
+      },
+      icon: {
+        type: {
+          type: String,
+          enum: ['preset', 'custom'],
+          default: 'preset'
+        },
+        value: {
+          type: String,
+          default: 'default' // e.g., 'crown' for admin, 'shield' for mod
+        }
+      },
+    },
+    default: {}
   }
 }, { timestamps: true });
 

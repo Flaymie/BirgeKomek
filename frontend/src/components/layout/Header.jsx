@@ -71,7 +71,6 @@ const Header = () => {
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right p-2 z-50">
                     <div className="px-3 py-2 border-b border-gray-100">
                       <p className="font-bold text-gray-800 truncate">{currentUser.username}</p>
-                      <p className="text-sm text-gray-500 truncate">{currentUser.email || 'Нет email'}</p>
                     </div>
                     <div className="py-2">
                         <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">

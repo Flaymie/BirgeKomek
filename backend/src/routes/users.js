@@ -227,6 +227,71 @@ export default ({ sseConnections, io }) => {
 
   /**
    * @swagger
+   * /api/users/me/customization:
+   *   put:
+   *     summary: Обновить настройки кастомизации профиля
+   *     tags: [Users]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               colors:
+   *                 type: object
+   *               icon:
+   *                 type: object
+   *     responses:
+   *       200:
+   *         description: Настройки успешно обновлены
+   *       400:
+   *         description: Некорректные данные
+   *       401:
+   *         description: Не авторизован
+   *       403:
+   *         description: Доступ запрещен (не админ/модератор)
+   */
+  router.put('/me/customization', protect, isModOrAdmin, async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+
+      const { colors, icon } = req.body;
+
+      // Обновляем только те поля, которые были переданы
+      if (colors) {
+        user.profileCustomization.colors = {
+          ...user.profileCustomization.colors,
+          ...colors
+        };
+      }
+      if (icon) {
+        user.profileCustomization.icon = {
+          ...user.profileCustomization.icon,
+          ...icon
+        };
+      }
+      
+      await user.save();
+      
+      const updatedUser = user.toObject();
+      delete updatedUser.password;
+
+      res.json(updatedUser);
+
+    } catch (err) {
+      console.error('Ошибка при обновлении кастомизации профиля:', err);
+      res.status(500).json({ msg: 'Ошибка сервера' });
+    }
+  });
+
+  /**
+   * @swagger
    * /api/users/{identifier}:
    *   get:
    *     summary: Получить публичный профиль пользователя по ID или username
