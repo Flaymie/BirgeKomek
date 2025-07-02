@@ -19,10 +19,6 @@ import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
 import ImageViewerModal from '../modals/ImageViewerModal';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
-import PageTitle from '../shared/PageTitle';
-import Skeleton from 'react-loading-skeleton';
-import { sendConfirmationEmail } from '../../services/api';
-
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
 // Функция для форматирования времени "last seen"
@@ -464,16 +460,21 @@ const ProfileEditor = ({
 
               {/* Город и класс в одной строке */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="profile-card-field">
-                  <label htmlFor="city">Город</label>
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Город</label>
                   <input
                     type="text"
-                    id="city"
-                    name="city"
-                    value={profileData.city || ''}
+                    id="location"
+                    name="location"
+                    value={profileData.location || ''}
                     onChange={handleProfileChange}
                     placeholder="Например, Алматы"
+                    className={classNames(
+                      "mt-1 block w-full shadow-sm sm:text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500",
+                      profileErrors.location ? "border-red-500" : "border-gray-300"
+                    )}
                   />
+                  {profileErrors.location && <p className="mt-2 text-sm text-red-600">{profileErrors.location}</p>}
                 </div>
                 <div>
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
