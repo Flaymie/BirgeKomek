@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const Username = ({ user }) => {
@@ -192,6 +192,17 @@ const Header = () => {
                   <div className="pt-4 mt-4 border-t border-gray-200" />
                   <Link to="/profile" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/profile')}`}>
                     <FiUser className="w-6 h-6" /> Профиль
+                  </Link>
+                  <Link to="/notifications" className={`flex items-center justify-between px-4 py-3 rounded-lg text-lg ${isActive('/notifications')}`}>
+                    <div className="flex items-center gap-4">
+                      <FiBell className="w-6 h-6" />
+                      <span>Уведомления</span>
+                    </div>
+                    {currentUser && currentUser.unreadCount > 0 && (
+                      <span className="flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-red-500 text-xs font-medium text-white">
+                        {currentUser.unreadCount > 99 ? '99+' : currentUser.unreadCount}
+                      </span>
+                    )}
                   </Link>
                   <Link to="/chats" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/chats')}`}>
                     <FiMessageSquare className="w-6 h-6" /> Чаты
