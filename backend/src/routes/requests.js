@@ -63,9 +63,9 @@ export default ({ io }) => {
  *         schema: { type: 'integer', default: 10 }
  *         description: Количество заявок на странице
  *       - in: query
- *         name: subject
+ *         name: subjects
  *         schema: { type: 'string' }
- *         description: Фильтр по предмету
+ *         description: Фильтр по предметам (через запятую, например, "Математика,Физика")
  *       - in: query
  *         name: grade
  *         schema: { type: 'integer' }
@@ -114,7 +114,7 @@ export default ({ io }) => {
 router.get('/', [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
-    query('subject').optional().trim().escape(),
+    query('subjects').optional().trim().escape(),
     query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
     query('status').optional().isIn(['draft', 'open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled']),
     query('authorId').optional().isMongoId(),
@@ -128,10 +128,17 @@ router.get('/', [
     }
 
     try {
-        const { page = 1, limit = 10, subject, grade, status, authorId, helperId, search, sortBy = 'createdAt_desc' } = req.query;
+        const { page = 1, limit = 10, subjects, grade, status, authorId, helperId, search, sortBy = 'createdAt_desc' } = req.query;
 
         const filters = {};
-        if (subject) filters.subject = { $regex: subject, $options: 'i' };
+        
+        // ИСПРАВЛЕННАЯ ЛОГИКА ФИЛЬТРАЦИИ ПО ПРЕДМЕТАМ
+        if (subjects) {
+            const subjectsArray = subjects.split(',').map(s => s.trim());
+            // Ищем точное совпадение с любым из предметов в массиве
+            filters.subject = { $in: subjectsArray };
+        }
+        
         if (grade) filters.grade = grade;
         
         // Логика фильтрации по статусу

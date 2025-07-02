@@ -325,8 +325,6 @@ export const AuthProvider = ({ children }) => {
       setIsReadOnly(!updatedUserData.telegramId);
       
       setLoading(false);
-      // НЕ показываем тост здесь, чтобы избежать дублирования
-      // toast.success('Профиль успешно обновлен!');
       return { success: true, user: response.data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);

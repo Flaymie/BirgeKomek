@@ -371,3 +371,11 @@ export {
   notificationsService,
   reviewsService,
 }; 
+
+// Сервис для работы со статистикой
+export const statsService = {
+  getGeneralStats: () => api.get('/stats/general'),
+  getUserStats: (userId) => api.get(`/stats/user/${userId}`),
+  getActivitySummary: (userId) => api.get(`/stats/activity/summary/${userId}`),
+  getPendingReviews: (userId) => api.get(`/stats/activity/pending-reviews/${userId}`),
+}; 

@@ -21,22 +21,18 @@ const LoginPage = () => {
   const [authMessage, setAuthMessage] = useState('');
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   
-  // Если пользователь уже авторизован, перенаправляем на страницу запросов
   useEffect(() => {
     if (currentUser) {
-      navigate('/requests');
+      navigate('/');
     }
   }, [currentUser, navigate]);
   
-  // Получаем сообщение из state при переходе на страницу
   useEffect(() => {
     if (location.state?.message) {
       setAuthMessage(location.state.message);
-      // Очищаем state, чтобы при обновлении страницы сообщение исчезло
       window.history.replaceState({}, document.title);
     }
     
-    // Проверяем сообщение из sessionStorage (от перехватчика API)
     const sessionMessage = sessionStorage.getItem('auth_message');
     if (sessionMessage) {
       setAuthMessage(sessionMessage);
@@ -64,7 +60,7 @@ const LoginPage = () => {
     const newErrors = {};
     
     if (!formData.username.trim()) {
-      newErrors.username = 'Введите имя пользователя';
+      newErrors.username = 'Введите никнейм';
     }
     
     if (!formData.password) {
@@ -84,14 +80,13 @@ const LoginPage = () => {
     
     setIsLoading(true);
     
-    // Удаляем try-catch, так как AuthContext больше не бросает исключения
     const result = await login({
       username: formData.username,
       password: formData.password
     });
     
     if (result.success) {
-      navigate('/requests');
+      navigate('/');
     } else {
       setGeneralError(result.error || 'Произошла неизвестная ошибка');
     }
@@ -114,7 +109,6 @@ const LoginPage = () => {
           </p>
         </div>
         
-        {/* Сообщение о необходимости авторизации */}
         {authMessage && (
           <div className="rounded-md bg-blue-50 p-4 animate-fadeIn">
             <div className="flex">
@@ -148,7 +142,7 @@ const LoginPage = () => {
           
           <div className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Никнейм</label>
               <input
                 id="username"
                 name="username"
@@ -158,7 +152,7 @@ const LoginPage = () => {
                 value={formData.username}
                 onChange={handleChange}
                 className={`form-input ${errors.username ? 'form-input-error' : ''}`}
-                placeholder="Например, my_nickname"
+                placeholder="Никнейм"
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600 animate-fadeIn">{errors.username}</p>

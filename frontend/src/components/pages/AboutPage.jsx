@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FiUsers, FiTarget, FiShield, FiHeart, FiBookOpen, FiArrowRight } from 'react-icons/fi';
+import { FiUsers, FiShield, FiHeart, FiArrowRight } from 'react-icons/fi';
 
 // Компонент для карточки с ценностями
 const ValueCard = ({ icon, title, children }) => (

@@ -148,4 +148,98 @@ router.get('/user/:userId', protect, generalLimiter, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/stats/activity/summary/{userId}:
+ *   get:
+ *     summary: Получить сводку недавней активности пользователя
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: 'string' }
+ *         description: ID пользователя
+ *     responses:
+ *       200:
+ *         description: Список последних 5 действий пользователя (созданные/выполненные заявки)
+ *       403:
+ *         description: Доступ запрещен
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+router.get('/activity/summary/:userId', protect, generalLimiter, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (req.user.id !== userId) {
+            return res.status(403).json({ msg: 'Доступ запрещен.' });
+        }
+
+        const activities = await Request.find({
+            $or: [{ author: userId }, { helper: userId }],
+            status: { $nin: ['draft'] } // Исключаем черновики
+        })
+        .sort({ updatedAt: -1 })
+        .limit(5)
+        .populate('author', 'username')
+        .populate('helper', 'username')
+        .lean();
+
+        res.json(activities);
+
+    } catch (err) {
+        console.error('Ошибка при получении сводки активности:', err.message);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
+/**
+ * @swagger
+ * /api/stats/activity/pending-reviews/{userId}:
+ *   get:
+ *     summary: Получить заявки, ожидающие отзыва от пользователя
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: 'string' }
+ *         description: ID пользователя (автора заявки)
+ *     responses:
+ *       200:
+ *         description: Список заявок, ожидающих отзыва
+ *       403:
+ *         description: Доступ запрещен
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
+router.get('/activity/pending-reviews/:userId', protect, generalLimiter, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (req.user.id !== userId) {
+            return res.status(403).json({ msg: 'Доступ запрещен.' });
+        }
+
+        const pendingReviewRequests = await Request.find({
+            author: userId,
+            status: 'completed',
+            reviewByAuthor: null // Проверяем, что поле отзыва пустое
+        })
+        .sort({ completedAt: -1 })
+        .limit(5)
+        .populate('helper', 'username')
+        .lean();
+
+        res.json(pendingReviewRequests);
+
+    } catch (err) {
+        console.error('Ошибка при получении заявок для отзыва:', err.message);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
 export default router; 

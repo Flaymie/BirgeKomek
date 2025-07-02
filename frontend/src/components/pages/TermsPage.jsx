@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FiFileText, FiAlertTriangle, FiCheckSquare } from 'react-icons/fi';
+import { FiFileText, FiAlertTriangle } from 'react-icons/fi';
 
 // Компонент для секции
 const Section = ({ children, className = '' }) => (
@@ -42,7 +42,7 @@ const TermsPage = () => {
       {/* Основной контент */}
       <Section>
         <div className="max-w-4xl mx-auto">
-          <P><strong>Последнее обновление:</strong> 4 июня 2024 года</P>
+          <P><strong>Последнее обновление:</strong> 2 июля 2025 года</P>
           
           <ContentHeader>1. Принятие условий</ContentHeader>
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-lg">

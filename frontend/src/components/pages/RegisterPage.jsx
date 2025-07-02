@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -43,11 +43,14 @@ const useDebounce = (value, delay) => {
 const RegisterPage = () => {
   const { currentUser, register } = useAuth();
   const navigate = useNavigate();
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Если пользователь уже авторизован, не пускаем его на эту страницу
     if (currentUser) {
-      navigate('/requests');
+      navigate('/');
     }
   }, [currentUser, navigate]);
 
@@ -162,44 +165,24 @@ const RegisterPage = () => {
       return;
     }
     
-    const registrationData = {
-      username,
-      password,
-      role: role,
-      avatar: formData.avatar,
-    };
-    
-    if (role === 'helper') {
-      registrationData.subjects = subjects;
-    }
-
-    if (grade) {
-      registrationData.grade = grade;
-    }
-
-    /*
-      ВАЖНО: Поле "телефон" было убрано из формы. 
-      Номер телефона теперь привязывается ИСКЛЮЧИТЕЛЬНО через Telegram 
-      для верификации пользователя.
-    */
-
     try {
-      // Выводим данные регистрации для отладки
-      console.log('Отправляемые данные регистрации:', JSON.stringify(registrationData));
+      setLoading(true);
+      setError('');
       
-      // ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА
-      const result = await register(registrationData);
+      const registrationData = { ...formData };
+      delete registrationData.confirmPassword;
       
-      // Контекст сам обработает состояние, а мы делаем редирект
-      if (result && result.success) {
-        navigate('/requests');
-      }
+      await register(registrationData);
+      
+      toast.success('Регистрация прошла успешно! Теперь вы можете войти.');
+      navigate('/login');
       
     } catch (err) {
-      // Блок catch здесь остается на случай, если сама функция register выбросит исключение,
-      // хотя основная логика ошибок (ответы сервера) обрабатывается внутри.
-      console.error('Неожиданное исключение в компоненте RegisterPage:', err);
-      toast.error('Произошла непредвиденная ошибка.');
+      const errorMessage = err.response?.data?.message || 'Ошибка регистрации. Попробуйте еще раз.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
