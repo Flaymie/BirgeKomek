@@ -202,32 +202,31 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
   return (
     <Container>
       <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Профиль</h1>
-      {canModerate && !isMyProfile && !targetIsAdmin && (
-        <div className="flex justify-center mb-6 gap-2">
-          {profile.banDetails?.isBanned ? (
-            <button 
-              onClick={onUnban} 
-              className="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
-            >
-              <FaCheckCircle />
-              <span>Разбанить</span>
-            </button>
-          ) : (
-            <button 
-              onClick={onBan} 
-              className="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
-            >
-              <FaGavel />
-              <span>Забанить</span>
-            </button>
-          )}
-        </div>
-      )}
-          
       <div className={classNames(
-        "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden",
+        "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden relative",
         styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
       )}>
+        {canModerate && !isMyProfile && !targetIsAdmin && (
+          <div className="absolute top-6 right-6 z-10">
+            {profile.banDetails?.isBanned ? (
+              <button 
+                onClick={onUnban} 
+                className="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
+              >
+                <FaCheckCircle />
+                <span>Разбанить</span>
+              </button>
+            ) : (
+              <button 
+                onClick={onBan} 
+                className="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
+              >
+                <FaGavel />
+                <span>Забанить</span>
+              </button>
+            )}
+          </div>
+        )}
         <div className="p-6">
           <BanInfo banDetails={profile.banDetails} />
 
