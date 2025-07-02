@@ -6,6 +6,36 @@ import { useSocket } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 
+// --- НОВЫЙ КОМПОНЕНТ ---
+const Username = ({ user }) => {
+  if (!user) return <span className="text-gray-500">Аноним</span>;
+
+  const custom = user.profileCustomization;
+  const from = custom?.colors?.nicknameGradient?.from;
+  const to = custom?.colors?.nicknameGradient?.to;
+
+  if (from && to) {
+    const style = {
+      backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      color: 'transparent',
+    };
+    return (
+      <Link to={`/profile/${user.username}`} className="font-medium" style={style}>
+        {user.username}
+      </Link>
+    );
+  }
+
+  return (
+    <Link to={`/profile/${user.username}`} className="font-medium text-gray-700 hover:text-indigo-600">
+      {user.username}
+    </Link>
+  );
+};
+
 const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -252,7 +282,11 @@ const RequestsPage = () => {
                       </span>
                     </div>
                     
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    <p className="text-sm text-gray-500 mb-3">
+                      Автор: <Username user={request.author} />
+                    </p>
+                    
+                    <p className="text-sm text-gray-600 line-clamp-3 mb-4">
                       {request.description}
                     </p>
                     
@@ -266,7 +300,6 @@ const RequestsPage = () => {
                     </div>
                     
                     <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
-                      <span>Автор: {request.author.username}</span>
                       <span>Создано: {formatDate(request.createdAt)}</span>
                     </div>
                     

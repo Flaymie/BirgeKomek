@@ -6,6 +6,36 @@ import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiSettings } from 'react-icons/fi';
 
+// --- НОВЫЙ КОМПОНЕНТ ---
+const Username = ({ user }) => {
+  if (!user) return null;
+
+  const custom = user.profileCustomization;
+  const from = custom?.colors?.nicknameGradient?.from;
+  const to = custom?.colors?.nicknameGradient?.to;
+
+  if (from && to) {
+    const style = {
+      backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      color: 'transparent',
+    };
+    return (
+      <span className="font-bold truncate" style={style}>
+        {user.username}
+      </span>
+    );
+  }
+
+  return (
+    <span className="font-bold text-gray-800 truncate">
+      {user.username}
+    </span>
+  );
+};
+
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -70,7 +100,7 @@ const Header = () => {
                 </Link>
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right p-2 z-50">
                     <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="font-bold text-gray-800 truncate">{currentUser.username}</p>
+                      <Username user={currentUser} />
                     </div>
                     <div className="py-2">
                         <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">

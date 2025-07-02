@@ -27,40 +27,47 @@ const ProfileCustomizationPage = () => {
   const { currentUser, _updateCurrentUserState } = useAuth();
   const [settings, setSettings] = useState({
     colors: {
-      nicknameGradient: { from: '#a855f7', to: '#ec4899' }
+      nicknameGradient: { from: '#a855f7', to: '#ec4899' },
+      profileRam: { from: '#a855f7', to: '#ec4899' },
     }
   });
   const [loading, setLoading] = useState(false);
   
   // Состояния для отображения колор-пикеров
-  const [showPicker1, setShowPicker1] = useState(false);
-  const [showPicker2, setShowPicker2] = useState(false);
+  const [showPickerNick1, setShowPickerNick1] = useState(false);
+  const [showPickerNick2, setShowPickerNick2] = useState(false);
+  const [showPickerRam1, setShowPickerRam1] = useState(false);
+  const [showPickerRam2, setShowPickerRam2] = useState(false);
 
   useEffect(() => {
     if (currentUser?.profileCustomization) {
       const customColors = currentUser.profileCustomization.colors;
-      const defaultColors = { from: '#a855f7', to: '#ec4899' };
+      const defaultNickColors = { from: '#a855f7', to: '#ec4899' };
+      const defaultRamColors = { from: '#a855f7', to: '#ec4899' };
       
       setSettings(prev => ({
         ...prev,
         colors: {
-          ...prev.colors,
           nicknameGradient: {
-            from: customColors?.nicknameGradient?.from || defaultColors.from,
-            to: customColors?.nicknameGradient?.to || defaultColors.to
+            from: customColors?.nicknameGradient?.from || defaultNickColors.from,
+            to: customColors?.nicknameGradient?.to || defaultNickColors.to
+          },
+          profileRam: {
+            from: customColors?.profileRam?.from || defaultRamColors.from,
+            to: customColors?.profileRam?.to || defaultRamColors.to
           }
         }
       }));
     }
   }, [currentUser]);
 
-  const handleColorChange = (colorName, color) => {
+  const handleColorChange = (type, colorName, color) => {
     setSettings(prev => ({
       ...prev,
       colors: {
         ...prev.colors,
-        nicknameGradient: {
-          ...prev.colors.nicknameGradient,
+        [type]: {
+          ...prev.colors[type],
           [colorName]: color.hex
         }
       }
@@ -71,15 +78,17 @@ const ProfileCustomizationPage = () => {
     setLoading(true);
     try {
       const res = await usersService.updateProfileCustomization({ colors: settings.colors });
-      _updateCurrentUserState(res.data); // Обновляем юзера в AuthContext
+      _updateCurrentUserState(res.data);
       toast.success('Настройки успешно сохранены!');
     } catch (error) {
       console.error('Ошибка сохранения настроек:', error);
       toast.error('Не удалось сохранить настройки.');
     } finally {
       setLoading(false);
-      setShowPicker1(false);
-      setShowPicker2(false);
+      setShowPickerNick1(false);
+      setShowPickerNick2(false);
+      setShowPickerRam1(false);
+      setShowPickerRam2(false);
     }
   };
   
@@ -90,13 +99,20 @@ const ProfileCustomizationPage = () => {
     color: 'transparent',
   };
 
+  const ramStyle = {
+    border: '2px solid transparent',
+    backgroundImage: `linear-gradient(white, white), linear-gradient(135deg, ${settings.colors.profileRam.from}, ${settings.colors.profileRam.to})`,
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'padding-box, border-box',
+  };
+
   return (
     <div className="container-custom py-12 animate-fadeIn">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Кастомизация профиля</h1>
         <p className="text-gray-600 mb-8">Настройте внешний вид своего профиля, чтобы он стал по-настоящему уникальным.</p>
         
-        <div className="bg-white p-8 rounded-lg shadow-md">
+        <div className="bg-white p-8 rounded-lg shadow-md mb-8">
           <h2 className="text-xl font-semibold text-gray-700 mb-6">Цвет никнейма</h2>
           
           <div className="mb-6 p-6 rounded-lg bg-gray-900">
@@ -109,20 +125,48 @@ const ProfileCustomizationPage = () => {
             <ColorPickerInput 
               label="Начальный цвет градиента"
               color={settings.colors.nicknameGradient.from}
-              onChange={(color) => handleColorChange('from', color)}
-              showPicker={showPicker1}
-              setShowPicker={setShowPicker1}
+              onChange={(color) => handleColorChange('nicknameGradient', 'from', color)}
+              showPicker={showPickerNick1}
+              setShowPicker={setShowPickerNick1}
             />
             <ColorPickerInput 
               label="Конечный цвет градиента"
               color={settings.colors.nicknameGradient.to}
-              onChange={(color) => handleColorChange('to', color)}
-              showPicker={showPicker2}
-              setShowPicker={setShowPicker2}
+              onChange={(color) => handleColorChange('nicknameGradient', 'to', color)}
+              showPicker={showPickerNick2}
+              setShowPicker={setShowPickerNick2}
             />
           </div>
+        </div>
 
-          <div className="flex justify-end">
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-700 mb-6">Цвет рамки профиля</h2>
+          
+          <div className="mb-6 p-6 rounded-lg" style={ramStyle}>
+            <p className="text-center text-lg font-bold text-gray-700">
+              Так будет выглядеть рамка вашего профиля
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <ColorPickerInput 
+              label="Начальный цвет градиента рамки"
+              color={settings.colors.profileRam.from}
+              onChange={(color) => handleColorChange('profileRam', 'from', color)}
+              showPicker={showPickerRam1}
+              setShowPicker={setShowPickerRam1}
+            />
+            <ColorPickerInput 
+              label="Конечный цвет градиента рамки"
+              color={settings.colors.profileRam.to}
+              onChange={(color) => handleColorChange('profileRam', 'to', color)}
+              showPicker={showPickerRam2}
+              setShowPicker={setShowPickerRam2}
+            />
+          </div>
+        </div>
+        
+        <div className="flex justify-end mt-8">
             <button
               onClick={handleSave}
               disabled={loading}
@@ -130,7 +174,6 @@ const ProfileCustomizationPage = () => {
             >
               {loading ? 'Сохранение...' : 'Сохранить'}
             </button>
-          </div>
         </div>
       </div>
     </div>

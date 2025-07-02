@@ -210,6 +210,12 @@ const usersService = {
     return api.put('/users/me', userData);
   },
   
+  // --- НОВАЯ ФУНКЦИЯ ---
+  updateProfileCustomization: async (customizationData) => {
+    return api.put('/users/me/customization', customizationData);
+  },
+  // --------------------
+  
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
     return api.put('/users/password', { currentPassword, newPassword });
