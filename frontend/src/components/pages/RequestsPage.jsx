@@ -43,11 +43,15 @@ const RequestsPage = () => {
         const params = { 
           page: currentPage, 
           status: 'open', 
-          ...filters 
+          search: filters.search
         };
         
-        if (!filters.subject) delete params.subject;
-        if (!filters.search) delete params.search;
+        if (filters.subject) {
+            params.subjects = filters.subject;
+        }
+        
+        if (!params.subjects) delete params.subjects;
+        if (!params.search) delete params.search;
         
         const response = await requestsService.getRequests(params);
         
