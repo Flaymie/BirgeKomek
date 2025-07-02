@@ -25,7 +25,6 @@ import notificationRoutes, { createAndSendNotification } from './routes/notifica
 import statsRoutes from './routes/stats.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
-import configRoutes from './routes/config.js';
 import Message from './models/Message.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
@@ -145,7 +144,6 @@ app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
-app.use('/api/config', configRoutes);
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
