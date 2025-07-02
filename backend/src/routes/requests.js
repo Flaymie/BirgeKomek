@@ -116,7 +116,11 @@ router.get('/', [
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('subjects').optional().trim().escape(),
     query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
-    query('status').optional().isIn(['draft', 'open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled']),
+    query('status').optional().custom(value => {
+        const allowedStatuses = ['draft', 'open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled'];
+        const receivedStatuses = value.split(',');
+        return receivedStatuses.every(s => allowedStatuses.includes(s.trim()));
+    }).withMessage('Указан недопустимый статус.'),
     query('authorId').optional().isMongoId(),
     query('helperId').optional().isMongoId(),
     query('search').optional().trim().escape(),
@@ -132,20 +136,17 @@ router.get('/', [
 
         const filters = {};
         
-        // ИСПРАВЛЕННАЯ ЛОГИКА ФИЛЬТРАЦИИ ПО ПРЕДМЕТАМ
         if (subjects) {
             const subjectsArray = subjects.split(',').map(s => s.trim());
-            // Ищем точное совпадение с любым из предметов в массиве
             filters.subject = { $in: subjectsArray };
         }
         
         if (grade) filters.grade = grade;
         
-        // Логика фильтрации по статусу
         if (status) {
-            filters.status = status;
+            const statusArray = status.split(',').map(s => s.trim());
+            filters.status = { $in: statusArray };
         } else if (!authorId && !helperId) {
-            // По умолчанию ПОКАЗЫВАЕМ ВСЕ, КРОМЕ ЧЕРНОВИКОВ, если не запрашиваются заявки конкретного пользователя
             filters.status = { $ne: 'draft' };
         }
 
