@@ -442,14 +442,14 @@ const RequestDetailPage = () => {
                   <div className="space-y-3">
                     <button
                       onClick={() => navigate(`/request/${request._id}/edit`)}
-                      className="btn btn-secondary-outline w-full inline-flex items-center justify-center gap-2"
+                      className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
                     >
                       <PencilSquareIcon className="h-5 w-5" />
                       Редактировать
                     </button>
                     <button
                       onClick={() => setIsDeleteModalOpen(true)}
-                      className="btn btn-danger-outline w-full inline-flex items-center justify-center gap-2"
+                      className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
                     >
                        <TrashIcon className="h-5 w-5" />
                       Удалить
@@ -529,14 +529,14 @@ const RequestDetailPage = () => {
                 <div className="space-y-3">
                    <button
                         onClick={() => setAdminEditModalOpen(true)}
-                        className="btn btn-secondary-outline w-full inline-flex items-center justify-center gap-2"
+                        className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
                     >
                         <PencilSquareIcon className="h-5 w-5" />
                         Редактировать
                     </button>
                     <button
                         onClick={() => setAdminDeleteModalOpen(true)}
-                        className="btn btn-danger-outline w-full inline-flex items-center justify-center gap-2"
+                        className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
                     >
                         <TrashIcon className="h-5 w-5" />
                         Удалить
