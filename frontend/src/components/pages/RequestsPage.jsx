@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -30,55 +30,52 @@ const RequestsPage = () => {
   
   useEffect(() => {
     const queryParams = new URLSearchParams();
-    
-    if (filters.subject) {
-      queryParams.set('subject', filters.subject);
-    }
-    
-    if (filters.search) {
-      queryParams.set('search', filters.search);
-    }
-    
-    const newUrl = 
-      queryParams.toString() 
-        ? `${location.pathname}?${queryParams.toString()}` 
-        : location.pathname;
-    
-    navigate(newUrl, { replace: true });
+    if (filters.subject) queryParams.set('subject', filters.subject);
+    if (filters.search) queryParams.set('search', filters.search);
+    navigate(`${location.pathname}?${queryParams.toString()}`, { replace: true });
   }, [filters, location.pathname, navigate]);
   
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = { 
-        page: currentPage, 
-        status: 'open',
-        ...filters 
-      };
-      
-      if (!filters.subject) delete params.subject;
-      if (!filters.search) delete params.search;
-      
-      const response = await requestsService.getRequests(params);
-      
-      if (currentPage === 1) {
-        setRequests(response.data.requests);
-      } else {
-        setRequests(prev => [...prev, ...response.data.requests]);
+  useEffect(() => {
+    const fetchRequests = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = { 
+          page: currentPage, 
+          status: 'open', 
+          ...filters 
+        };
+        
+        if (!filters.subject) delete params.subject;
+        if (!filters.search) delete params.search;
+        
+        const response = await requestsService.getRequests(params);
+        
+        if (currentPage === 1) {
+          setRequests(response.data.requests);
+        } else {
+          setRequests(prev => [...prev, ...response.data.requests]);
+        }
+        
+        setTotalPages(response.data.totalPages);
+      } catch (err) {
+        console.error('Ошибка при получении запросов:', err);
+        if (err.response && err.response.status === 401) {
+          setError('Для выполнения этого действия необходимо авторизоваться.');
+        } else {
+          setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
+        }
+      } finally {
+        setLoading(false);
       }
-      
-      setTotalPages(response.data.totalPages);
-    } catch (err) {
-      console.error('Ошибка при получении запросов:', err);
-      if (err.response && err.response.status === 401) {
-        setError('Для выполнения этого действия необходимо авторизоваться.');
-      } else {
-        setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
-      }
-    } finally {
-      setLoading(false);
-    }
+    };
+    
+    const handler = setTimeout(() => {
+        fetchRequests();
+    }, filters.search ? 500 : 0);
+
+    return () => clearTimeout(handler);
+
   }, [currentPage, filters]);
   
   useEffect(() => {
@@ -110,14 +107,10 @@ const RequestsPage = () => {
     };
   }, [socket]);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
-
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
-    setCurrentPage(1); 
+    setCurrentPage(1);
   };
   
   const formatDate = (dateString) => {
