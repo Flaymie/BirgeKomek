@@ -56,6 +56,7 @@ const UserDashboard = () => {
                             limit: 5,
                             status: 'open',
                             subjects: currentUser.subjects.join(','),
+                            excludeAuthor: currentUser._id
                         });
                         setRelevantRequests(requestsRes.data.requests);
                     }
