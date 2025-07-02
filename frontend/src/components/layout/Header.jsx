@@ -5,30 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiSettings } from 'react-icons/fi';
+import { BellIcon } from '@heroicons/react/24/outline';
 
-// --- НОВЫЙ КОМПОНЕНТ ---
 const Username = ({ user }) => {
   if (!user) return null;
-
-  const custom = user.profileCustomization;
-  const from = custom?.colors?.nicknameGradient?.from;
-  const to = custom?.colors?.nicknameGradient?.to;
-
-  if (from && to) {
-    const style = {
-      backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text',
-      color: 'transparent',
-    };
-    return (
-      <span className="font-bold truncate" style={style}>
-        {user.username}
-      </span>
-    );
-  }
-
   return (
     <span className="font-bold text-gray-800 truncate">
       {user.username}
@@ -89,7 +69,27 @@ const Header = () => {
 
       return (
         <div className={isMobile ? "pt-4 border-t border-gray-200" : "flex items-center gap-4"}>
-            <NotificationBell />
+            {/* Для десктопа - полноценный компонент с дропдауном. 
+                Показываем только если isMobile = false. 
+                В мобильном меню этот блок будет скрыт целиком.
+            */}
+            {!isMobile && <NotificationBell />}
+
+            {/* В мобильном меню (isMobile=true) показываем только ссылку */}
+            {isMobile && (
+              <Link to="/notifications" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                <div className="relative">
+                  <BellIcon className="h-6 w-6" />
+                  {currentUser.unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                      <span>{currentUser.unreadCount > 9 ? '9+' : currentUser.unreadCount}</span>
+                    </span>
+                  )}
+                </div>
+                Уведомления
+              </Link>
+            )}
+            
             <div className="relative group">
                 <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
                     <img 
@@ -106,11 +106,6 @@ const Header = () => {
                         <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiUser className="w-4 h-4" /> Профиль
                         </Link>
-                        {isPrivileged && (
-                          <Link to="/profile/customize" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
-                             <FiSettings className="w-4 h-4" /> Кастомизация профиля
-                          </Link>
-                        )}
                         <Link to="/chats" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiMessageSquare className="w-4 h-4" /> Чаты
                         </Link>
@@ -156,20 +151,20 @@ const Header = () => {
           
           <div className="flex items-center gap-4">
              <AuthNav />
-             <button 
+             {/* <button 
                 className="md:hidden text-gray-600 hover:text-primary-600"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-              </button>
+              </button> */}
           </div>
         </div>
         
         {/* Мобильное меню */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-screen opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
+        {/* <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-screen opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
           <NavLinks isMobile />
           <AuthNav isMobile />
-        </div>
+        </div> */}
       </div>
     </header>
   );
