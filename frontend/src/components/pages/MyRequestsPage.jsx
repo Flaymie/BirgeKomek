@@ -8,6 +8,7 @@ import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/c
 import { FiPlus, FiSearch } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PencilIcon } from '@heroicons/react/24/solid';
+import Pagination from '../shared/Pagination';
 
 const MyRequestsPage = () => {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const MyRequestsPage = () => {
       
       const params = {
         page: currentPage,
+        limit: 6,
         authorId: currentUser._id,
         status: activeTab === 'drafts' ? 'draft' : publishedStatuses.join(','),
         ...filters,
@@ -43,21 +45,16 @@ const MyRequestsPage = () => {
       if (!filters.subject) delete params.subject;
       if (!filters.search) delete params.search;
       
-      // Используем новый `subjects` параметр
       if (params.subject) {
         params.subjects = params.subject;
         delete params.subject;
       }
       
-      const response = await requestsService.getRequests(params); // Используем общий метод
+      const response = await requestsService.getRequests(params);
       
-      if (currentPage === 1) {
-        setRequests(response.data.requests);
-      } else {
-        setRequests(prev => [...prev, ...response.data.requests]);
-      }
-      
+      setRequests(response.data.requests);
       setTotalPages(response.data.totalPages);
+
     } catch (err) {
       console.error('Ошибка при получении запросов:', err);
       if (err.response && err.response.status === 401) {
@@ -303,17 +300,14 @@ const MyRequestsPage = () => {
               </div>
             )}
 
-            {currentPage < totalPages && (
-              <div className="flex justify-center mt-12">
-                <button
-                  onClick={() => setCurrentPage(p => p + 1)}
-                  disabled={loading}
-                  className="btn btn-secondary-outline"
-                >
-                  {loading ? 'Загрузка...' : 'Показать еще'}
-                </button>
-              </div>
-            )}
+            {/* ЗАМЕНЯЕМ КНОПКУ "ПОКАЗАТЬ ЕЩЕ" НА ПАГИНАЦИЮ */}
+            <div className="flex justify-center mt-12">
+              <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
           </>
         )}
       </div>

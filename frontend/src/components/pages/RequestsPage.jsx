@@ -7,6 +7,7 @@ import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 import { FiPlus, FiSearch } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import Pagination from '../shared/Pagination';
 
 const RequestsPage = () => {
   const navigate = useNavigate();
@@ -41,7 +42,8 @@ const RequestsPage = () => {
       setError(null);
       try {
         const params = { 
-          page: currentPage, 
+          page: currentPage,
+          limit: 6,
           status: 'open', 
           search: filters.search
         };
@@ -55,13 +57,9 @@ const RequestsPage = () => {
         
         const response = await requestsService.getRequests(params);
         
-        if (currentPage === 1) {
-          setRequests(response.data.requests);
-        } else {
-          setRequests(prev => [...prev, ...response.data.requests]);
-        }
-        
+        setRequests(response.data.requests);
         setTotalPages(response.data.totalPages);
+
       } catch (err) {
         console.error('Ошибка при получении запросов:', err);
         if (err.response && err.response.status === 401) {
@@ -270,13 +268,11 @@ const RequestsPage = () => {
 
             {currentPage < totalPages && (
               <div className="flex justify-center mt-12">
-                <button
-                  onClick={() => setCurrentPage(p => p + 1)}
-                  disabled={loading}
-                  className="btn btn-secondary-outline"
-                >
-                  {loading ? 'Загрузка...' : 'Показать еще'}
-                </button>
+                <Pagination 
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+                />
               </div>
             )}
           </>
