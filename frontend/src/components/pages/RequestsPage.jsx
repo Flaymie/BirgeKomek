@@ -120,17 +120,6 @@ const RequestsPage = () => {
     setCurrentPage(1); 
   };
   
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (currentPage === 1) {
-        fetchRequests();
-      } else {
-        setCurrentPage(1);
-      }
-    }, 500); // debounce
-    return () => clearTimeout(handler);
-  }, [filters.search, filters.subject]);
-
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
