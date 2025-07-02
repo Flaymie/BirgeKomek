@@ -201,7 +201,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
 
   return (
     <Container>
-      <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Профиль</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-4 ml-12">Профиль</h1>
       <div className={classNames(
         "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden relative",
         styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
