@@ -1,11 +1,11 @@
 "use client"
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiSettings, FiInfo } from 'react-icons/fi';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle } from 'react-icons/fi';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const Username = ({ user }) => {
   if (!user) return null;
@@ -21,6 +21,10 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const { currentUser, logout } = useAuth();
+  
+  // --- КОСТЫЛЬ ДЛЯ ДИНАМИЧЕСКОЙ ССЫЛКИ ---
+  const chatPageMatch = location.pathname.match(/^\/requests\/(.+)\/chat$/);
+  const requestId = chatPageMatch ? chatPageMatch[1] : null;
   
   useEffect(() => {
     const handleScroll = () => {
@@ -45,46 +49,37 @@ const Header = () => {
   
   const isActive = (path) => {
     return location.pathname === path 
-      ? 'text-primary-600 font-semibold' 
-      : 'text-gray-600 hover:text-primary-600';
+      ? 'text-indigo-600 font-semibold' 
+      : 'text-gray-700 hover:text-indigo-600';
   };
 
-  const NavLinks = ({ isMobile = false }) => (
-    <nav className={isMobile 
-        ? "flex flex-col space-y-4 pt-4" 
-        : "hidden md:flex items-center space-x-6"
-    }>
-        <Link to="/requests" className={`text-base transition-colors duration-300 ${isActive('/requests')}`}>
-          Заявки
-        </Link>
-        <Link to="/about" className={`text-base transition-colors duration-300 ${isActive('/about')}`}>
-          О нас
-        </Link>
-    </nav>
-  );
+  const NavLinks = ({ isMobile = false }) => {
+    if (isMobile) return <Fragment />;
+
+    return (
+        <nav className="hidden md:flex items-center space-x-8">
+            <Link to="/requests" className={`text-base font-medium transition-colors duration-300 ${isActive('/requests')}`}>
+              Заявки
+            </Link>
+            <Link to="/about" className={`text-base font-medium transition-colors duration-300 ${isActive('/about')}`}>
+              О нас
+            </Link>
+        </nav>
+    );
+  };
 
   const AuthNav = ({ isMobile = false }) => {
-    if (currentUser) {
-      const isPrivileged = currentUser.roles?.admin || currentUser.roles?.moderator;
-      
-      // --- КОСТЫЛЬ ДЛЯ ДИНАМИЧЕСКОЙ ССЫЛКИ ---
-      const location = useLocation();
-      const chatPageMatch = location.pathname.match(/^\/requests\/(.+)\/chat$/);
-      const requestId = chatPageMatch ? chatPageMatch[1] : null;
+    if (isMobile) return <Fragment />;
 
+    if (currentUser) {
       return (
-        <div className={isMobile ? "pt-4 border-t border-gray-200" : "flex items-center gap-4"}>
-            {/* Для десктопа - полноценный компонент с дропдауном. 
-                Показываем только если isMobile = false. 
-                В мобильном меню этот блок будет скрыт целиком.
-            */}
+        <div className="relative group">
             {!isMobile && <NotificationBell />}
 
-            {/* В мобильном меню (isMobile=true) показываем только ссылку */}
             {isMobile && (
               <Link to="/notifications" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                 <div className="relative">
-                  <BellIcon className="h-6 w-6" />
+                  <FiHelpCircle className="h-6 w-6" />
                   {currentUser.unreadCount > 0 && (
                     <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                       <span>{currentUser.unreadCount > 9 ? '9+' : currentUser.unreadCount}</span>
@@ -117,7 +112,6 @@ const Header = () => {
                         <Link to="/my-requests" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiGrid className="w-4 h-4" /> Мои заявки
                         </Link>
-                        {/* --- ВОТ И ОНА, НАША ССЫЛКА --- */}
                         {requestId && (
                            <Link to={`/requests/${requestId}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                               <FiInfo className="w-4 h-4" /> Детали этой заявки
@@ -138,7 +132,7 @@ const Header = () => {
       );
     }
     return (
-        <div className={isMobile ? "flex flex-col space-y-3 pt-4 border-t border-gray-200" : "hidden md:flex items-center space-x-2"}>
+        <div className="hidden md:flex items-center space-x-2">
              <Link to="/login" className="btn btn-secondary-outline">
                 Войти
              </Link>
@@ -150,6 +144,7 @@ const Header = () => {
   };
   
   return (
+    <>
     <header className={`sticky top-0 w-full z-30 transition-all duration-300 ${isScrolled ? 'bg-white/95 shadow-md backdrop-blur-sm' : 'bg-white'}`}>
       <div className="container-custom">
         <div className="flex justify-between items-center h-16">
@@ -163,21 +158,94 @@ const Header = () => {
           <div className="flex items-center gap-4">
              <AuthNav />
              <button 
-                className="md:hidden text-gray-600 hover:text-primary-600"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="md:hidden text-gray-600 hover:text-indigo-600"
+                onClick={() => setIsMenuOpen(true)}
               >
-                {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+                <FiMenu size={24} />
               </button>
           </div>
         </div>
-        
-        {/* Мобильное меню */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-screen opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
-          <NavLinks isMobile />
-          <AuthNav isMobile />
-        </div>
       </div>
     </header>
+
+    <AnimatePresence>
+      {isMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={() => setIsMenuOpen(false)}
+        >
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-xl p-6 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-4 border-b border-gray-200">
+              <span className="text-lg font-bold text-gray-800">Меню</span>
+              <button onClick={() => setIsMenuOpen(false)} className="p-1 text-gray-500 hover:text-gray-800">
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <nav className="flex-grow mt-8 flex flex-col space-y-2">
+              <Link to="/requests" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/requests')}`}>
+                <FiGrid className="w-6 h-6" /> Заявки
+              </Link>
+              <Link to="/about" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/about')}`}>
+                <FiHelpCircle className="w-6 h-6" /> О нас
+              </Link>
+
+              {currentUser && (
+                <>
+                  <div className="pt-4 mt-4 border-t border-gray-200" />
+                  <Link to="/profile" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/profile')}`}>
+                    <FiUser className="w-6 h-6" /> Профиль
+                  </Link>
+                  <Link to="/chats" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/chats')}`}>
+                    <FiMessageSquare className="w-6 h-6" /> Чаты
+                  </Link>
+                   <Link to="/my-requests" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/my-requests')}`}>
+                     <FiGrid className="w-6 h-6" /> Мои заявки
+                   </Link>
+                   {requestId && (
+                     <Link to={`/requests/${requestId}`} className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive(`/requests/${requestId}`)}`}>
+                        <FiInfo className="w-6 h-6" /> Детали заявки
+                     </Link>
+                  )}
+                </>
+              )}
+            </nav>
+
+            <div className="mt-auto">
+              {currentUser ? (
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 text-lg text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
+                >
+                  <FiLogOut className="w-6 h-6" /> Выйти
+                </button>
+              ) : (
+                <div className="flex flex-col space-y-3">
+                  <Link to="/login" className="btn btn-secondary-outline w-full py-3 text-lg">
+                      Войти
+                  </Link>
+                  <Link to="/register" className="btn btn-primary w-full py-3 text-lg">
+                      Регистрация
+                  </Link>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 };
 
