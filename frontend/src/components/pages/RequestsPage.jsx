@@ -51,7 +51,14 @@ const RequestsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const params = { page: currentPage, ...filters };
+      const params = { 
+        page: currentPage, 
+        status: 'open',
+        ...filters 
+      };
+      
+      if (!filters.subject) delete params.subject;
+      if (!filters.search) delete params.search;
       
       const response = await requestsService.getRequests(params);
       
