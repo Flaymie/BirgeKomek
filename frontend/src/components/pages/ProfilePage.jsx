@@ -221,12 +221,6 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
         <div className="p-6">
           <BanInfo banDetails={profile.banDetails} />
 
-          {currentRole && (
-            <div className={classNames('official-banner', styles.bannerClass)}>
-              <span>{styles.bannerText}</span>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 gap-8">
             <div className="p-2">
               <div className="flex flex-col md:flex-row items-center text-center md:text-left">
@@ -242,7 +236,12 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                 </div>
                 <div className="w-full">
                   <div className="flex items-center justify-center md:justify-start gap-2">
-                    <h2 className="text-2xl font-bold text-gray-900">
+                    <h2 className={classNames(
+                      "text-2xl font-bold",
+                      targetIsAdmin && 'text-gradient-admin',
+                      targetIsModerator && 'text-gradient-moderator',
+                      !currentRole && 'text-gray-900'
+                    )}>
                       {profile.username}
                     </h2>
                     <RoleBadge user={profile} />
@@ -314,15 +313,6 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
             )}
             
             <ProfileStats profile={profile} />
-          </div>
-          
-          <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-4">
-             <button 
-              onClick={onBack} 
-              className="btn btn-secondary"
-            >
-              Назад
-            </button>
           </div>
         </div>
       </div>

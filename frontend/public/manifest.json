@@ -3,12 +3,12 @@
   "name": "Бірге Көмек",
   "icons": [
     {
-      "src": "img/logo.png",
+      "src": "img/logo_site_192.png",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/png"
     },
     {
-      "src": "img/logo.png",
+      "src": "img/logo_site_192.png",
       "type": "image/png",
       "sizes": "192x192"
     },

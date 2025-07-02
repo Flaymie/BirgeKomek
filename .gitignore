@@ -21,3 +21,11 @@ build/
 npm-debug.log
 .idea/
 .vscode/ 
+
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.ico

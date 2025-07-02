@@ -28,12 +28,12 @@ const RoleBadge = ({ user }) => {
     admin: {
       Icon: CrownIcon,
       title: 'Администратор',
-      iconClassName: 'w-4 h-4 text-yellow-500',
+      iconClassName: 'w-4 h-4 text-purple-600',
     },
     moderator: {
       Icon: ShieldIcon,
       title: 'Модератор',
-      iconClassName: 'w-4 h-4 text-blue-500',
+      iconClassName: 'w-4 h-4 text-green-600',
     },
   };
 

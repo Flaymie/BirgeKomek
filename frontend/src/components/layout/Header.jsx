@@ -4,10 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
-
-// Флаг для проверки доступности API уведомлений
-const NOTIFICATIONS_ENABLED = true; // Включаем уведомления
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare } from 'react-icons/fi';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,27 +12,16 @@ const Header = () => {
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-  
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-  };
-  
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
-    
     window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
   useEffect(() => {
-    closeMenu();
+    setIsMenuOpen(false);
   }, [location]);
   
   const handleLogout = async (e) => {
@@ -48,166 +34,105 @@ const Header = () => {
   };
   
   const isActive = (path) => {
-    return location.pathname === path ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600';
+    return location.pathname === path 
+      ? 'text-primary-600 font-semibold' 
+      : 'text-gray-600 hover:text-primary-600';
+  };
+
+  const NavLinks = ({ isMobile = false }) => (
+    <nav className={isMobile 
+        ? "flex flex-col space-y-4 pt-4" 
+        : "hidden md:flex items-center space-x-6"
+    }>
+        <Link to="/requests" className={`text-base transition-colors duration-300 ${isActive('/requests')}`}>
+          Заявки
+        </Link>
+        <Link to="/about" className={`text-base transition-colors duration-300 ${isActive('/about')}`}>
+          О нас
+        </Link>
+    </nav>
+  );
+
+  const AuthNav = ({ isMobile = false }) => {
+    if (currentUser) {
+      return (
+        <div className={isMobile ? "pt-4 border-t border-gray-200" : "flex items-center gap-4"}>
+            <NotificationBell />
+            <div className="relative group">
+                <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <img 
+                      src={formatAvatarUrl(currentUser)}
+                      alt={currentUser.username}
+                      className="w-9 h-9 rounded-full object-cover border-2 border-transparent group-hover:border-primary-500 transition-colors"
+                    />
+                </Link>
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right p-2 z-50">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="font-bold text-gray-800 truncate">{currentUser.username}</p>
+                      <p className="text-sm text-gray-500 truncate">{currentUser.email || 'Нет email'}</p>
+                    </div>
+                    <div className="py-2">
+                        <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                           <FiUser className="w-4 h-4" /> Профиль
+                        </Link>
+                        <Link to="/chats" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                           <FiMessageSquare className="w-4 h-4" /> Чаты
+                        </Link>
+                        <Link to="/my-requests" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                           <FiGrid className="w-4 h-4" /> Мои заявки
+                        </Link>
+                    </div>
+                    <div className="pt-2 border-t border-gray-100">
+                        <button 
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
+                        >
+                          <FiLogOut className="w-4 h-4" /> Выйти
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      );
+    }
+    return (
+        <div className={isMobile ? "flex flex-col space-y-3 pt-4 border-t border-gray-200" : "hidden md:flex items-center space-x-2"}>
+             <Link to="/login" className="btn btn-secondary-outline">
+                Войти
+             </Link>
+             <Link to="/register" className="btn btn-primary">
+                Регистрация
+            </Link>
+        </div>
+    );
   };
   
   return (
-    <header className={`fixed w-full z-30 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md py-2' : 'bg-white/80 backdrop-blur-sm py-4'}`}>
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center">
-          {/* Логотип */}
-          <Link to="/" className="flex items-center space-x-2">
+    <header className={`sticky top-0 w-full z-30 transition-all duration-300 ${isScrolled ? 'bg-white/95 shadow-md backdrop-blur-sm' : 'bg-white'}`}>
+      <div className="container-custom">
+        <div className="flex justify-between items-center h-16">
+          <Link to="/" className="flex items-center gap-3">
             <img src="/img/logo.png" alt="Бірге Көмек" className="w-10 h-10" />
-            <span className="text-xl font-bold text-gray-900">Бірге Көмек</span>
+            <span className="text-xl font-bold text-gray-800 hidden sm:block">Бірге Көмек</span>
           </Link>
           
-          {/* Навигация для десктопа */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/requests" className={`text-sm font-medium transition-colors duration-300 ${isActive('/requests')}`}>
-              Запросы
-            </Link>
-            <Link to="/about" className={`text-sm font-medium transition-colors duration-300 ${isActive('/about')}`}>
-              О нас
-            </Link>
-            
-            {/* Иконка уведомлений для авторизованных пользователей */}
-            {currentUser && NOTIFICATIONS_ENABLED && (
-              <NotificationBell />
-            )}
-            
-            {currentUser ? (
-              <div className="relative group">
-                <button className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
-                  {formatAvatarUrl(currentUser) ? (
-                    <img 
-                      src={formatAvatarUrl(currentUser)}
-                      alt={currentUser.username}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center">
-                      <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
-                    </div>
-                  )}
-                  <span>{currentUser.username || 'Профиль'}</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                  </svg>
-                </button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right">
-                  <div className="py-1">
-                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
-                      Мой профиль
-                    </Link>
-                    <Link to="/my-requests" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
-                      Мои запросы
-                    </Link>
-                    <Link to="/chats" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
-                      Чаты
-                    </Link>
-                    <button 
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                      Выйти
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Link to="/login" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors duration-300">
-                  Войти
-                </Link>
-                <Link to="/register" className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md transition-all duration-300 transform hover:translate-y-[-2px]">
-                  Регистрация
-                </Link>
-              </div>
-            )}
-          </nav>
+          <NavLinks />
           
-          {/* Кнопка мобильного меню */}
-          <button 
-            className="md:hidden text-gray-500 hover:text-gray-700 focus:outline-none"
-            onClick={toggleMenu}
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              {isMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+          <div className="flex items-center gap-4">
+             <AuthNav />
+             <button 
+                className="md:hidden text-gray-600 hover:text-primary-600"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+              </button>
+          </div>
         </div>
         
         {/* Мобильное меню */}
-        <div className={`md:hidden transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-          <div className="flex flex-col space-y-4 pt-2 pb-4">
-            <Link to="/requests" className={`text-sm font-medium transition-colors duration-300 ${isActive('/requests')}`}>
-              Запросы
-            </Link>
-            <Link to="/about" className={`text-sm font-medium transition-colors duration-300 ${isActive('/about')}`}>
-              О нас
-            </Link>
-            
-            {/* Уведомления для мобильной версии */}
-            {currentUser && NOTIFICATIONS_ENABLED && (
-              <div className="flex items-center">
-                <Link to="/notifications" className={`text-sm font-medium transition-colors duration-300 flex items-center ${isActive('/notifications')}`}>
-                  <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  Уведомления
-                </Link>
-              </div>
-            )}
-            
-            <div className="border-t border-gray-200 my-2"></div>
-            
-            {currentUser ? (
-              <>
-                <div className="flex items-center space-x-2 mb-2">
-                  {formatAvatarUrl(currentUser) ? (
-                    <img 
-                      src={formatAvatarUrl(currentUser)}
-                      alt={currentUser.username}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                  ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center">
-                    <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
-                  </div>
-                  )}
-                  <span className="text-sm font-medium text-gray-900">{currentUser.username || 'Пользователь'}</span>
-                </div>
-                <Link to="/profile" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
-                  Мой профиль
-                </Link>
-                <Link to="/my-requests" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
-                  Мои запросы
-                </Link>
-                <Link to="/chats" className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-300">
-                  Чаты
-                </Link>
-                <button 
-                  onClick={handleLogout}
-                  className="text-left text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-300"
-                >
-                  Выйти
-                </button>
-              </>
-            ) : (
-              <div className="flex flex-col space-y-3">
-                <Link to="/login" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors duration-300">
-                  Войти
-                </Link>
-                <Link to="/register" className="text-sm font-medium text-center text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md transition-all duration-300">
-                  Регистрация
-                </Link>
-              </div>
-            )}
-          </div>
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-screen opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
+          <NavLinks isMobile />
+          <AuthNav isMobile />
         </div>
       </div>
     </header>
