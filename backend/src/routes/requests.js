@@ -83,6 +83,10 @@ export default ({ io }) => {
  *         schema: { type: 'string' }
  *         description: Фильтр по ID помощника
  *       - in: query
+ *         name: excludeAuthor
+ *         schema: { type: 'string' }
+ *         description: Фильтр для исключения автора
+ *       - in: query
  *         name: search
  *         schema: { type: 'string' }
  *         description: Поиск по названию и описанию заявки
@@ -123,6 +127,7 @@ router.get('/', [
     }).withMessage('Указан недопустимый статус.'),
     query('authorId').optional().isMongoId(),
     query('helperId').optional().isMongoId(),
+    query('excludeAuthor').optional().isMongoId(),
     query('search').optional().trim().escape(),
     query('sortBy').optional().isIn(['createdAt_desc', 'createdAt_asc', 'updatedAt_desc', 'updatedAt_asc'])
 ], async (req, res) => {
