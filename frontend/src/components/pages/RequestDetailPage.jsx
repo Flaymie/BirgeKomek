@@ -303,6 +303,13 @@ const RequestDetailPage = () => {
 
   }, [request, responses]); // <<< Добавляем responses в зависимость
 
+  // --- ИСПРАВЛЕНИЕ: Переменная для скрытия пустого блока "Действия" ---
+  const showActionsBlock = 
+    (isAuthor && request.status === 'open') ||
+    (request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id)) ||
+    (request.status === 'open' && !isAuthor && !isHelper()) ||
+    (['closed', 'completed', 'cancelled'].includes(request.status));
+
   if (authLoading || loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -384,8 +391,9 @@ const RequestDetailPage = () => {
               </div>
             </div>
 
-            {/* Отклики или действия для хелпера */}
-            {isHelper() && !isAuthor && (
+            {/* --- ИСПРАВЛЕНИЕ: ПРАВИЛЬНАЯ ЛОГИКА ОТОБРАЖЕНИЯ БЛОКА ОТКЛИКА --- */}
+            {/* Показываем блок, только если пользователь НЕ автор И (он может откликнуться ИЛИ он уже откликнулся) */}
+            {!isAuthor && (canHelperRespond || myResponse) && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                  <h2 className="text-xl font-bold text-gray-800 mb-4">Ваш отклик</h2>
                 {canHelperRespond && (
@@ -398,8 +406,8 @@ const RequestDetailPage = () => {
                     </button>
                 )}
                 {myResponse && <ResponseCard response={myResponse} isMyResponse={true} fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser} />}
-                  </div>
-                )}
+              </div>
+            )}
 
             {/* Отклики для автора */}
       {isAuthor && request.status === 'open' && (
@@ -435,43 +443,45 @@ const RequestDetailPage = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="lg:col-span-1 space-y-8"
           >
-            {/* Карта действий */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-               <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>
-                {isAuthor && request.status === 'open' && (
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => navigate(`/request/${request._id}/edit`)}
-                      className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
-                    >
-                      <PencilSquareIcon className="h-5 w-5" />
-                      Редактировать
-                    </button>
-                    <button
-                      onClick={() => setIsDeleteModalOpen(true)}
-                      className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
-                    >
-                       <TrashIcon className="h-5 w-5" />
-                      Удалить
-                    </button>
-                  </div>
-                )}
-                 {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
-                   <button 
-                      className="btn bg-green-600 hover:bg-green-700 text-white w-full inline-flex items-center justify-center gap-2"
-                      onClick={() => navigate(`/requests/${request._id}/chat`)}
-                   >
-                     <ChatBubbleLeftRightIcon className="h-5 w-5" />
-                     Перейти в чат
-                   </button>
-                )}
-                 {request.status === 'open' && !isAuthor && !isHelper() && (
-                    <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
-                 )}
-                 {['closed', 'completed', 'cancelled'].includes(request.status) && (
-                    <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
-                 )}
-            </div>
+            {/* --- ИСПРАВЛЕНИЕ: Скрываем блок, если он пустой --- */}
+            {showActionsBlock && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                 <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>
+                  {isAuthor && request.status === 'open' && (
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => navigate(`/request/${request._id}/edit`)}
+                        className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
+                      >
+                        <PencilSquareIcon className="h-5 w-5" />
+                        Редактировать
+                      </button>
+                      <button
+                        onClick={() => setIsDeleteModalOpen(true)}
+                        className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
+                      >
+                         <TrashIcon className="h-5 w-5" />
+                        Удалить
+                      </button>
+                    </div>
+                  )}
+                   {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
+                     <button 
+                        className="btn bg-green-600 hover:bg-green-700 text-white w-full inline-flex items-center justify-center gap-2"
+                        onClick={() => navigate(`/requests/${request._id}/chat`)}
+                     >
+                       <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                       Перейти в чат
+                     </button>
+                  )}
+                   {request.status === 'open' && !isAuthor && !isHelper() && (
+                      <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
+                   )}
+                   {['closed', 'completed', 'cancelled'].includes(request.status) && (
+                      <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
+                   )}
+              </div>
+            )}
             
             {/* Карта информации */}
             <div className="bg-white rounded-xl shadow-lg">
