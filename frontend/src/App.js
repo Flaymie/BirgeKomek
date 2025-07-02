@@ -19,6 +19,7 @@ import ChatsPage from './components/pages/ChatsPage';
 import TelegramCallbackPage from './components/pages/TelegramCallbackPage';
 import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
 import TermsPage from './components/pages/TermsPage';
+import NotFoundPage from './components/pages/NotFoundPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -131,6 +132,9 @@ const AppContent = () => {
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
             <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
+
+            {/* Маршрут для страницы не найдено */}
+            <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Layout>
       </div>
