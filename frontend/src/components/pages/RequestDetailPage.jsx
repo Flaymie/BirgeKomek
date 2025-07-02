@@ -304,11 +304,13 @@ const RequestDetailPage = () => {
   }, [request, responses]); // <<< Добавляем responses в зависимость
 
   // --- ИСПРАВЛЕНИЕ: Переменная для скрытия пустого блока "Действия" ---
-  const showActionsBlock = 
-    (isAuthor && request.status === 'open') ||
-    (request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id)) ||
-    (request.status === 'open' && !isAuthor && !isHelper()) ||
-    (['closed', 'completed', 'cancelled'].includes(request.status));
+  const showActionsBlock =
+    request && ( // <-- ВОТ ОН, СПАСИТЕЛЬНЫЙ КРЮК
+      (isAuthor && request.status === 'open') ||
+      (request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id)) ||
+      (request.status === 'open' && !isAuthor && !isHelper()) ||
+      (['closed', 'completed', 'cancelled'].includes(request.status))
+    );
 
   if (authLoading || loading) {
     return (
