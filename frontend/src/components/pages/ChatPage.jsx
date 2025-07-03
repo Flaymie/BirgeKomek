@@ -819,7 +819,7 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="flex flex-col flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6">
+    <div className="flex flex-col flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6">
       <div className="mb-4 flex-shrink-0">
         <Link to="/chats" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
           <ArrowLeftIcon className="h-5 w-5 mr-2" />
@@ -843,23 +843,23 @@ const ChatPage = () => {
         </AnimatePresence>
 
         <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg flex-shrink-0">
-          <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex flex-col items-start gap-y-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <div className="flex items-center gap-3 mt-1">
                 <StatusBadge status={requestDetails.status} />
-              <p className="text-sm text-gray-500">
-                {requestDetails.subject} • {requestDetails.grade} класс
-              </p>
+                <p className="text-sm text-gray-500">
+                  {requestDetails.subject} • {requestDetails.grade} класс
+                </p>
+              </div>
             </div>
-            </div>
-            <div className="flex items-center gap-4 flex-shrink-0">
-            <Link 
-              to={`/requests/${requestId}`}
+            <div className="flex w-full flex-col items-end gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+              <Link 
+                to={`/requests/${requestId}`}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
-            >
-              К деталям запроса
-            </Link>
+              >
+                К деталям запроса
+              </Link>
               {isAuthor && isChatActive && (
                 <button
                    onClick={handleOpenResolveModal}
@@ -869,8 +869,8 @@ const ChatPage = () => {
                   Завершить и оценить
                  </button>
                )}
-             </div>
-           </div>
+            </div>
+          </div>
           <div className="mt-2 text-sm">
             <div className="flex items-center">
               <span className="font-medium text-gray-500 w-16 flex-shrink-0">Ученик:</span>
