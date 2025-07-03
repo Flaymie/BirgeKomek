@@ -855,7 +855,7 @@ const ChatPage = () => {
             </div>
             <div className="flex w-full flex-col items-end gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
               <Link 
-                to={`/requests/${requestId}`}
+                to={`/request/${requestId}`}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
               >
                 К деталям запроса
