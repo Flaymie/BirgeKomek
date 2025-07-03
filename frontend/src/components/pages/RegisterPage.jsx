@@ -154,6 +154,12 @@ const RegisterPage = () => {
         setUsernameError(''); // Сбрасываем ошибку, если имя стало коротким
         return;
     }
+    
+    if (debouncedUsername.length > 20) {
+        setUsernameStatus('unavailable');
+        setUsernameError('Имя пользователя не должно превышать 20 символов');
+        return;
+    }
 
     const checkUsername = async () => {
         setUsernameStatus('loading');
@@ -203,6 +209,10 @@ const RegisterPage = () => {
     
     if (!username.trim()) {
       newErrors.username = 'Введите никнейм';
+    } else if (username.length < 3) {
+      newErrors.username = 'Никнейм должен быть не менее 3 символов';
+    } else if (username.length > 20) {
+      newErrors.username = 'Никнейм должен быть не более 20 символов';
     }
     
     if (!password) {
@@ -326,6 +336,7 @@ const RegisterPage = () => {
                   onChange={handleChange}
                   required
                   minLength="3"
+                  maxLength="20"
                   placeholder="Введите никнейм"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
