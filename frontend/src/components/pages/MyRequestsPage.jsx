@@ -26,14 +26,14 @@ const MyRequestsPage = () => {
     subject: '',
     search: ''
   });
-
+  
   const fetchRequests = useCallback(async () => {
     if (!currentUser) return;
     setLoading(true);
     setError(null);
     try {
       const publishedStatuses = ['open', 'in_progress', 'completed', 'cancelled', 'closed', 'pending'];
-      
+
       const params = {
         page: currentPage,
         limit: 6,
@@ -105,7 +105,7 @@ const MyRequestsPage = () => {
           setRequests(prev => prev.filter(r => r._id !== request._id));
       }
     };
-    
+
     socket.on('new_request', handleNewOrUpdatedRequest);
     socket.on('request_updated', handleNewOrUpdatedRequest);
 
@@ -114,7 +114,7 @@ const MyRequestsPage = () => {
       socket.off('request_updated', handleNewOrUpdatedRequest);
     };
   }, [socket, currentUser, activeTab]);
-  
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
@@ -156,19 +156,19 @@ const MyRequestsPage = () => {
     </button>
   );
 
-  return (
+      return (
     <div className="bg-gray-50 min-h-screen">
        <div className="container mx-auto px-4 py-8">
         {/* Заголовок и кнопка */}
         <div className="flex justify-between items-center mb-6">
            <h1 className="text-3xl font-bold text-gray-900">Мои заявки</h1>
-            <button
-              onClick={() => setIsModalOpen(true)}
+             <button
+                onClick={() => setIsModalOpen(true)}
               className="btn btn-primary inline-flex items-center gap-2"
-            >
+              >
               <FiPlus />
               Создать запрос
-            </button>
+              </button>
         </div>
 
         {/* Фильтры и табы */}
@@ -211,9 +211,9 @@ const MyRequestsPage = () => {
                     ))}
                   </select>
                 </div>
-             </div>
-          </div>
-        </div>
+                </div>
+              </div>
+            </div>
 
         {error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
@@ -224,7 +224,7 @@ const MyRequestsPage = () => {
         {loading && requests.length === 0 ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mx-auto"></div>
-          </div>
+      </div>
         ) : (
           <>
             {requests.length > 0 ? (
@@ -258,8 +258,8 @@ const MyRequestsPage = () => {
                                 {getStatusLabel(request.status)}
                               </span>
                               <span className="text-xs text-gray-500">{formatDate(request.updatedAt)}</span>
-                            </div>
-                            
+      </div>
+      
                             <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-primary-600 transition-colors">
                                {request.title || <span className="italic text-gray-400">Без заголовка</span>}
                             </h3>
@@ -267,8 +267,8 @@ const MyRequestsPage = () => {
                             <p className="text-sm text-gray-600 line-clamp-2 mb-4">
                               {request.description || <span className="italic text-gray-400">Нет описания</span>}
                             </p>
-                          </div>
-                          
+      </div>
+
                           <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-medium">
@@ -297,21 +297,21 @@ const MyRequestsPage = () => {
                 <p className="text-gray-500 mt-2">
                     {activeTab === 'drafts' ? 'Все ваши черновики будут здесь.' : 'Попробуйте изменить фильтры или создайте новый запрос.'}
                 </p>
-              </div>
-            )}
+        </div>
+      )}
 
             {/* ЗАМЕНЯЕМ КНОПКУ "ПОКАЗАТЬ ЕЩЕ" НА ПАГИНАЦИЮ */}
             <div className="flex justify-center mt-12">
-              <Pagination 
-                currentPage={currentPage}
-                totalPages={totalPages}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-              />
+          />
             </div>
           </>
-        )}
+          )}
       </div>
-      
+
       <CreateRequestModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

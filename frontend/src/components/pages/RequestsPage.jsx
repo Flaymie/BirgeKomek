@@ -87,24 +87,24 @@ const RequestsPage = () => {
     const handleNewRequest = (newRequest) => {
         // Добавляем только если статус 'open'
         if (newRequest.status === 'open') {
-            setRequests(prevRequests => {
-                if (prevRequests.some(req => req._id === newRequest._id)) {
-                  return prevRequests;
-                }
+          setRequests(prevRequests => {
+            if (prevRequests.some(req => req._id === newRequest._id)) {
+              return prevRequests;
+            }
                 // Можно добавить логику для первой страницы
                 if(currentPage === 1) {
                     return [newRequest, ...prevRequests].slice(0, 6); // Добавляем и обрезаем до лимита
                 }
                 return prevRequests;
-              });
-        }
+          });
+      }
     };
 
     const handleRequestUpdate = (updatedRequest) => {
         // Если заявка перестала быть 'open', удаляем ее из списка
         if (updatedRequest.status !== 'open') {
             setRequests(prev => prev.filter(r => r._id !== updatedRequest._id));
-        } else {
+      } else {
             // Иначе, обновляем ее или добавляем, если ее не было
             setRequests(prev => {
                 const exists = prev.some(r => r._id === updatedRequest._id);
@@ -117,7 +117,7 @@ const RequestsPage = () => {
                 }
                 return prev;
             });
-        }
+      }
     };
 
     socket.on('new_request', handleNewRequest);
@@ -161,65 +161,65 @@ const RequestsPage = () => {
     <div className="bg-gray-50 min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Заголовок и кнопка */}
-        <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
            <h1 className="text-3xl font-bold text-gray-900">Лента заявок</h1>
-            <button
-              onClick={() => setIsModalOpen(true)}
+        <button
+          onClick={() => setIsModalOpen(true)}
               className="btn btn-primary inline-flex items-center gap-2"
-            >
+        >
               <FiPlus />
-              Создать запрос
-            </button>
-        </div>
-
-        {/* Фильтры */}
+          Создать запрос
+        </button>
+      </div>
+      
+      {/* Фильтры */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <label htmlFor="search" className="sr-only">Поиск</label>
               <FiSearch className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                id="search"
-                name="search"
-                value={filters.search}
-                onChange={handleFilterChange}
+            <input
+              type="text"
+              id="search"
+              name="search"
+              value={filters.search}
+              onChange={handleFilterChange}
                 placeholder="Поиск по заголовку..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
-            
+            />
+          </div>
+          
             <div className="w-full">
               <label htmlFor="subject" className="sr-only">Предмет</label>
-              <select
-                id="subject"
-                name="subject"
-                value={filters.subject}
-                onChange={handleFilterChange}
+            <select
+              id="subject"
+              name="subject"
+              value={filters.subject}
+              onChange={handleFilterChange}
                 className="w-full py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              >
-                <option value="">Все предметы</option>
-                {SUBJECTS.map((subject) => (
-                  <option key={subject} value={subject}>{subject}</option>
-                ))}
-              </select>
-            </div>
+            >
+              <option value="">Все предметы</option>
+              {SUBJECTS.map((subject) => (
+                <option key={subject} value={subject}>{subject}</option>
+              ))}
+            </select>
           </div>
-        </div>
+          </div>
+      </div>
 
-        {error && (
+      {error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
             <p>{error}</p>
-          </div>
-        )}
+        </div>
+      )}
 
         {loading && requests.length === 0 ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mx-auto"></div>
-          </div>
-        ) : (
-          <>
-            {requests.length > 0 ? (
+        </div>
+      ) : (
+        <>
+          {requests.length > 0 ? (
               <AnimatePresence>
                 <motion.div 
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
@@ -233,7 +233,7 @@ const RequestsPage = () => {
                     },
                   }}
                 >
-                  {requests.map((request) => (
+              {requests.map((request) => (
                     <motion.div
                       key={request._id}
                       variants={{
@@ -247,44 +247,44 @@ const RequestsPage = () => {
                           <div className="p-6 flex-grow">
                             <div className="flex justify-between items-center mb-3">
                               <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text}`}>
-                                {getStatusLabel(request.status)}
-                              </span>
+                        {getStatusLabel(request.status)}
+                      </span>
                               <span className="text-xs text-gray-500">{formatDate(request.createdAt)}</span>
-                            </div>
-                            
+                    </div>
+                    
                             <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-primary-600 transition-colors">
                                {request.title}
                             </h3>
                             
                             <p className="text-sm text-gray-600 line-clamp-2 mb-4">
-                              {request.description}
-                            </p>
+                      {request.description}
+                    </p>
                           </div>
-                          
+                    
                           <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-medium">
-                                  {request.subject}
-                                </span>
+                        {request.subject}
+                      </span>
                                 <div className="text-gray-600">
                                   <span>by </span>
                                   <span className="font-semibold">{request.author.username}</span>
-                                </div>
-                            </div>
-                          </div>
-                        </div>
+                    </div>
+                    </div>
+                  </div>
+                </div>
                       </Link>
                     </motion.div>
-                  ))}
+              ))}
                 </motion.div>
               </AnimatePresence>
-            ) : (
+          ) : (
               <div className="text-center py-16">
                 <h3 className="text-xl font-semibold text-gray-700">Запросы не найдены</h3>
                 <p className="text-gray-500 mt-2">Попробуйте изменить фильтры или создайте свой собственный запрос.</p>
-              </div>
-            )}
-            
+            </div>
+          )}
+
             <div className="flex justify-center mt-12">
               <Pagination 
                 currentPage={currentPage}
@@ -292,8 +292,8 @@ const RequestsPage = () => {
                 onPageChange={(page) => setCurrentPage(page)}
               />
             </div>
-          </>
-        )}
+        </>
+      )}
       </div>
       
       <CreateRequestModal

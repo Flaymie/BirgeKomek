@@ -20,7 +20,6 @@ import TelegramCallbackPage from './components/pages/TelegramCallbackPage';
 import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
 import TermsPage from './components/pages/TermsPage';
 import NotFoundPage from './components/pages/NotFoundPage';
-import ProfileCustomizationPage from './components/pages/ProfileCustomizationPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -108,7 +107,7 @@ const AppContent = () => {
         isLoading={isTelegramLoading}
       />
 
-      <div className={`main-content ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen || isLinkTelegramModalOpen ? 'blurred' : ''}`}>
+      <div className={`main-content h-screen flex flex-col ${(banDetails && banDetails.isBanned) || isRateLimitModalOpen || isRequireTgModalOpen || isLinkTelegramModalOpen ? 'blurred' : ''}`}>
       <Layout>
         <Routes>
             {/* Публичные маршруты */}
@@ -126,7 +125,6 @@ const AppContent = () => {
             {/* Защищенные маршруты */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/profile/me" element={<ProtectedRoute><ProfileMeRedirector /></ProtectedRoute>} />
-            <Route path="/profile/customize" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ProfileCustomizationPage /></ProtectedRoute>} />
             <Route path="/profile/:identifier" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/request/:id/edit" element={<ProtectedRoute><EditRequestPage /></ProtectedRoute>} />
             <Route path="/requests/:id/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />

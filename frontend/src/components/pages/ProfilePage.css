@@ -1,9 +1,15 @@
 /* ProfilePage.css */
 
-@keyframes pulse-glow {
-  0% { box-shadow: 0 0 15px 0px var(--gradient-from); }
-  50% { box-shadow: 0 0 25px 5px var(--gradient-to), 0 0 5px 0px var(--gradient-to) inset; }
-  100% { box-shadow: 0 0 15px 0px var(--gradient-from); }
+@keyframes pulse-admin {
+  0% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(236, 72, 153, 0.7), 0 0 5px rgba(236, 72, 153, 0.5) inset; }
+  100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.4); }
+}
+
+@keyframes pulse-moderator {
+  0% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(34, 197, 94, 0.7), 0 0 5px rgba(34, 197, 94, 0.5) inset; }
+  100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
 }
 
 /* --- Стили для ролей --- */
@@ -14,33 +20,28 @@
   transition: all 0.3s ease-in-out;
   background-clip: padding-box, border-box;
   box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);
-  animation: pulse-glow 4s ease-in-out infinite;
+  animation: pulse-admin 4s ease-in-out infinite;
 }
 
 /* Рамка для админа */
 .admin-border {
-  --gradient-from: #ec4899; /* default pink */
-  --gradient-to: #a855f7;   /* default purple */
-
   border: 2px solid transparent;
   background-image: linear-gradient(white, white), 
-                    linear-gradient(135deg, var(--gradient-from), var(--gradient-to));
+                    linear-gradient(135deg, #ec4899, #f472b6, #a855f7); /* Розово-фиолетовый градиент */
   background-origin: border-box;
   background-clip: padding-box, border-box;
-  animation: pulse-glow 4s ease-in-out infinite;
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);
 }
 
 /* Рамка для модератора */
 .moderator-border {
-  --gradient-from: #22c55e; /* default green */
-  --gradient-to: #16a34a;   /* default dark green */
-
   border: 2px solid transparent;
   background-image: linear-gradient(white, white), 
-                    linear-gradient(135deg, var(--gradient-from), var(--gradient-to));
+                    linear-gradient(135deg, #22c55e, #16a34a, #15803d); /* Зеленый градиент */
   background-origin: border-box;
   background-clip: padding-box, border-box;
-  animation: pulse-glow 4s ease-in-out infinite;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+  animation: pulse-moderator 4s ease-in-out infinite;
 }
 
 /* Плашка "Официальный аккаунт" */

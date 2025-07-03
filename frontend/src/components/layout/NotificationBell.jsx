@@ -34,8 +34,26 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
+  // --- ХУК ДЛЯ ОПРЕДЕЛЕНИЯ ШИРИНЫ ЭКРАНА ---
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleBellClick = async () => {
+    // --- ИСПРАВЛЕННАЯ ЛОГИКА ---
+    if (isMobile) {
+      navigate('/notifications');
+      return;
+    }
+
     setIsOpen(!isOpen);
     
     // Если мы открываем дропдаун, то загружаем уведомления и помечаем как прочитанные
@@ -83,8 +101,9 @@ const NotificationBell = () => {
         )}
       </button>
 
+      {/* --- ИСПРАВЛЕНИЕ: Скрываем дропдаун на мобилках --- */}
       {isOpen && (
-        <div className="origin-top-right absolute right-0 mt-3 w-80 max-w-sm rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+        <div className="hidden md:block origin-top-right absolute right-0 mt-3 w-80 max-w-sm rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
           <div className="p-3 font-semibold text-gray-800 border-b border-gray-200">
             Уведомления
           </div>

@@ -225,7 +225,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-    </div>
+        </div>
       )}
     </motion.div>
   );
@@ -819,15 +819,15 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col flex-grow">
-      <div className="py-4 flex-shrink-0">
+    <div className="flex flex-col flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="mb-4 flex-shrink-0">
         <Link to="/chats" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
           <ArrowLeftIcon className="h-5 w-5 mr-2" />
           Вернуться к списку чатов
         </Link>
       </div>
 
-      <div {...getRootProps()} className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col flex-grow relative focus:outline-none min-h-0">
+      <div {...getRootProps()} className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-[85vh] relative focus:outline-none">
         <AnimatePresence>
           {isDragActive && (
             <motion.div
@@ -842,7 +842,7 @@ const ChatPage = () => {
           )}
         </AnimatePresence>
 
-        <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg">
+        <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg flex-shrink-0">
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div>
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
@@ -895,34 +895,32 @@ const ChatPage = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-0 relative min-h-0">
-          <div
-            ref={chatContainerRef}
-            className="absolute inset-0 overflow-y-auto p-4"
-          >
-            <AnimatePresence initial={false}>
-              {messages.map((msg) => (
-                <Message
-                  key={msg._id}
-                  msg={msg}
-                  isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                  onImageClick={setViewerFile}
-                  onEdit={handleStartEdit}
-                  onDelete={setMessageToDelete}
-                  isChatActive={isChatActive || requestDetails.status === 'open'}
-                />
-              ))}
-            </AnimatePresence>
+        <div
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-4"
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <Message
+                key={msg._id}
+                msg={msg}
+                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                onImageClick={setViewerFile}
+                onEdit={handleStartEdit}
+                onDelete={setMessageToDelete}
+                isChatActive={isChatActive || requestDetails.status === 'open'}
+              />
+            ))}
+          </AnimatePresence>
 
-            <TypingIndicator />
-            
-            {/* ПУСТОТА */}
-          </div>
-        </main>
+          <TypingIndicator />
+          
+          {/* ПУСТОТА */}
+        </div>
         
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
-        <footer className="relative bg-white border-t border-gray-200 rounded-b-lg">
+        <footer className="bg-white border-t border-gray-200 rounded-b-lg flex-shrink-0">
           <AnimatePresence>
             {showScrollDown && (
               <motion.div
@@ -1106,4 +1104,4 @@ const AttachmentPreview = ({ file, onRemove }) => {
   );
 };
 
-export default ChatPage; 
+export default ChatPage;

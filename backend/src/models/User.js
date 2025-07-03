@@ -12,6 +12,14 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     match: [/^[a-zA-Z0-9_]+$/, 'Имя пользователя может содержать только латинские буквы, цифры и подчеркивания'],
   },
+  // email: {
+  //   type: String,
+  //   required: [true, 'Email обязателен'],
+  //   unique: true,
+  //   lowercase: true,
+  //   trim: true,
+  //   match: [/\S+@\S+\.\S+/, 'Неверный формат email']
+  // },
   password: {
     type: String,
     minlength: [6, 'Пароль должен быть не менее 6 символов'],
@@ -124,33 +132,6 @@ const userSchema = new mongoose.Schema({
   lastUsernameChange: {
     type: Date,
     default: null
-  },
-  profileCustomization: {
-    type: {
-      colors: {
-        nicknameGradient: {
-          from: { type: String, default: null },
-          to: { type: String, default: null }
-        },
-        profileRam: {
-          from: { type: String, default: null },
-          to: { type: String, default: null }
-        },
-        icon: { type: String, default: null }
-      },
-      icon: {
-        type: {
-          type: String,
-          enum: ['preset', 'custom'],
-          default: 'preset'
-        },
-        value: {
-          type: String,
-          default: 'default' // e.g., 'crown' for admin, 'shield' for mod
-        }
-      },
-    },
-    default: {}
   }
 }, { timestamps: true });
 
