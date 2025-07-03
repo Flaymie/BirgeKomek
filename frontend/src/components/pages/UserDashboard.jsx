@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { statsService, requestsService } from '../../services/api';
@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import StatusBadge from '../shared/StatusBadge';
+import CreateRequestModal from '../modals/CreateRequestModal';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-6 rounded-xl shadow-md animate-pulse">
@@ -34,43 +35,50 @@ const UserDashboard = () => {
     const [relevantRequests, setRelevantRequests] = useState([]);
     const [activitySummary, setActivitySummary] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        try {
+            const [generalRes, userRes, activityRes, pendingReviewsRes, requestsRes] = await Promise.allSettled([
+                statsService.getGeneralStats(),
+                currentUser?._id ? statsService.getUserStats(currentUser._id) : Promise.resolve(null),
+                currentUser?._id ? statsService.getActivitySummary(currentUser._id) : Promise.resolve(null),
+                currentUser?._id ? statsService.getPendingReviews(currentUser._id) : Promise.resolve(null),
+                (currentUser?.roles?.helper && currentUser?.subjects?.length > 0)
+                    ? requestsService.getRequests({
+                        limit: 5,
+                        status: 'open',
+                        subjects: currentUser.subjects.join(','),
+                        excludeAuthor: currentUser._id
+                      })
+                    : Promise.resolve(null)
+            ]);
+
+            if (generalRes.status === 'fulfilled') setGeneralStats(generalRes.value.data);
+            if (userRes.status === 'fulfilled' && userRes.value) setUserStats(userRes.value.data);
+            if (activityRes.status === 'fulfilled' && activityRes.value) setActivitySummary(activityRes.value.data);
+            if (requestsRes.status === 'fulfilled' && requestsRes.value) setRelevantRequests(requestsRes.value.data.requests);
+
+        } catch (error) {
+            console.error("Ошибка при загрузке данных для дашборда:", error);
+            toast.error("Не удалось загрузить данные. Попробуйте обновить страницу.");
+        }
+    }, [currentUser]);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const generalRes = await statsService.getGeneralStats();
-                setGeneralStats(generalRes.data);
-
-                if (currentUser && currentUser._id) {
-                    const userRes = await statsService.getUserStats(currentUser._id);
-                    setUserStats(userRes.data);
-                    
-                    const activityRes = await statsService.getActivitySummary(currentUser._id);
-                    setActivitySummary(activityRes.data);
-
-                    await statsService.getPendingReviews(currentUser._id);
-
-                    if (currentUser.roles?.helper && currentUser.subjects?.length > 0) {
-                        const requestsRes = await requestsService.getRequests({
-                            limit: 5,
-                            status: 'open',
-                            subjects: currentUser.subjects.join(','),
-                            excludeAuthor: currentUser._id
-                        });
-                        setRelevantRequests(requestsRes.data.requests);
-                    }
-                }
-            } catch (error) {
-                console.error("Ошибка при загрузке данных для дашборда:", error);
-                toast.error("Не удалось загрузить статистику. Попробуйте обновить страницу.");
-            } finally {
-                setLoading(false);
-            }
+        const initialLoad = async () => {
+            setLoading(true);
+            await fetchData();
+            setLoading(false);
         };
+        initialLoad();
+    }, [fetchData]);
 
+    const handleRequestCreated = () => {
+        // The modal shows its own success toast.
+        // We just refetch the data to update the dashboard silently.
         fetchData();
-    }, [currentUser]);
+    };
 
     const StatCard = ({ icon, label, value, colorClass }) => (
         <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -120,9 +128,9 @@ const UserDashboard = () => {
                 <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-md">
                     <h3 className="text-xl font-bold mb-4">Быстрые действия</h3>
                     <div className="flex flex-col gap-3">
-                        <Link to="/requests/" className="btn btn-secondary w-full flex items-center justify-center gap-2">
+                        <button onClick={() => setCreateModalOpen(true)} className="btn btn-primary w-full flex items-center justify-center gap-2">
                             <FiPlusCircle /> Создать запрос
-                        </Link>
+                        </button>
                         <Link to="/my-requests" className="btn btn-secondary w-full flex items-center justify-center gap-2">
                             <FiList /> Мои запросы
                         </Link>
@@ -201,6 +209,11 @@ const UserDashboard = () => {
                     
                 </div>
             </div>
+            <CreateRequestModal 
+                isOpen={isCreateModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                onSuccess={handleRequestCreated}
+            />
         </div>
     );
 };
