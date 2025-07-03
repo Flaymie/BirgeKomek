@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsService } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { toast } from 'react-toastify';
 
@@ -99,7 +98,6 @@ const NotificationItem = ({ notification }) => {
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { markNotificationsAsRead } = useAuth();
   const { socket } = useSocket();
 
   useEffect(() => {
@@ -113,9 +111,6 @@ const NotificationsPage = () => {
         // Затем помечаем их как прочитанные (на бэкенде)
         await notificationsService.markAllAsRead();
         
-        // И обновляем счетчик в UI (в AuthContext)
-        markNotificationsAsRead();
-        
       } catch (err) {
         toast.error('Ошибка при загрузке уведомлений.');
       } finally {
@@ -124,7 +119,7 @@ const NotificationsPage = () => {
     };
     
     fetchAndMarkNotifications();
-  }, [markNotificationsAsRead]);
+  }, []);
 
   // --- СЛУШАЕМ СОКЕТ ---
   useEffect(() => {

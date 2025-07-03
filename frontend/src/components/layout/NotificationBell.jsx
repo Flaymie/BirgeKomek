@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BellIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '../../context/AuthContext';
 import { notificationsService } from '../../services/api';
 import { toast } from 'react-toastify';
 
@@ -10,24 +9,22 @@ const NotificationItem = ({ notification, closeDropdown }) => {
   
   const handleClick = (e) => {
     e.preventDefault();
-    // Просто переходим по ссылке. Пометка о прочтении происходит глобально при открытии.
     if (notification.link) {
       navigate(notification.link);
       closeDropdown();
     }
   };
 
-  // ИСПРАВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ
   const title = notification.type === 'moderator_warning' 
     ? `Сообщение от модерации: ${notification.title}` 
-    : notification.title; // Теперь всегда берем title
+    : notification.title;
 
-  const message = notification.message; // И всегда берем message
+  const message = notification.message;
 
   return (
     <a href={notification.link} onClick={handleClick} className="block p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
-      <p className={`text-sm font-medium ${notification.isRead ? 'text-gray-500' : 'text-gray-800'}`}>{title}</p>
-      {message && <p className={`text-sm ${notification.isRead ? 'text-gray-400' : 'text-gray-600'}`}>{message}</p>}
+      <p className={`text-sm font-medium text-gray-800`}>{title}</p>
+      {message && <p className={`text-sm text-gray-600`}>{message}</p>}
       <p className="text-xs text-gray-400 mt-1">
         {new Date(notification.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
       </p>
@@ -36,14 +33,11 @@ const NotificationItem = ({ notification, closeDropdown }) => {
 };
 
 const NotificationBell = () => {
-  const { unreadCount, setUnreadCount } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
-
-  // --- ХУК ДЛЯ ОПРЕДЕЛЕНИЯ ШИРИНЫ ЭКРАНА ---
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -55,7 +49,6 @@ const NotificationBell = () => {
   }, []);
 
   const handleBellClick = async () => {
-    // --- ИСПРАВЛЕННАЯ ЛОГИКА ---
     if (isMobile) {
       navigate('/notifications');
       return;
@@ -63,19 +56,13 @@ const NotificationBell = () => {
 
     setIsOpen(!isOpen);
     
-    // Если мы открываем дропдаун, то загружаем уведомления и помечаем как прочитанные
     if (!isOpen) {
       setLoading(true);
       try {
-        // Загружаем 5 последних
         const response = await notificationsService.getNotifications({ limit: 5, page: 1 });
         setNotifications(response.data.notifications || []);
-        
-        // Если были непрочитанные, помечаем их как прочитанные и обновляем счетчик
-        if (unreadCount > 0) {
-          await notificationsService.markAllAsRead();
-          setUnreadCount(0); // Обновляем состояние в контексте
-        }
+        // Помечаем все как прочитанное при открытии дропдауна, без счетчика
+        await notificationsService.markAllAsRead();
       } catch (err) {
         toast.error('Не удалось загрузить уведомления');
       } finally {
@@ -101,16 +88,10 @@ const NotificationBell = () => {
         className="relative p-2 rounded-full text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
         <BellIcon className="h-6 w-6" aria-hidden="true" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-            <span>{unreadCount > 9 ? '9+' : unreadCount}</span>
-          </span>
-        )}
       </button>
 
-      {/* --- ИСПРАВЛЕНИЕ: Скрываем дропдаун на мобилках --- */}
-      {isOpen && (
-        <div className="hidden md:block origin-top-right absolute right-0 mt-3 w-80 max-w-sm rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+      {isOpen && !isMobile && (
+        <div className="origin-top-right absolute right-0 mt-3 w-80 max-w-sm rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
           <div className="p-3 font-semibold text-gray-800 border-b border-gray-200">
             Уведомления
           </div>

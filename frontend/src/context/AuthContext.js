@@ -13,7 +13,6 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(getAuthToken());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [banDetails, setBanDetails] = useState(null);
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(true);
@@ -80,19 +79,6 @@ export const AuthProvider = ({ children }) => {
     return `hsl(${hue}, 70%, 80%)`;
   };
 
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const response = await notificationsService.getNotifications({ limit: 1 });
-      setUnreadCount(response.data.unreadCount || 0);
-    } catch (err) {
-      console.error('Не удалось загрузить количество уведомлений', err);
-    }
-  }, []);
-
-  const markNotificationsAsRead = () => {
-    setUnreadCount(0);
-  };
-
   const _updateCurrentUserState = useCallback((newUserData) => {
     if (!newUserData) return;
     setCurrentUser(processUserData(newUserData));
@@ -112,7 +98,6 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await usersService.getCurrentUser();
         processAndCheckBan(response.data);
-        await fetchUnreadCount();
         setIsReadOnly(!response.data.telegramId);
       } catch (err) {
         console.error('Ошибка при загрузке пользователя:', err);
@@ -129,7 +114,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-  }, [fetchUnreadCount, processAndCheckBan]);
+  }, [processAndCheckBan]);
   
   // Управление SSE-соединением УДАЛЕНО
 
@@ -143,7 +128,6 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token);
       
       processAndCheckBan(data.user);
-      await fetchUnreadCount();
       setIsReadOnly(!data.user.telegramId);
       
       setLoading(false);
@@ -177,7 +161,6 @@ export const AuthProvider = ({ children }) => {
       storeToken(token);
       setToken(token);
       processAndCheckBan(user);
-      fetchUnreadCount();
       toast.success(`Добро пожаловать, ${user.username}!`);
     } catch (error) {
       console.error('Ошибка при обработке токена:', error);
@@ -355,7 +338,6 @@ export const AuthProvider = ({ children }) => {
         // Закрываем все модальные окна и сбрасываем состояния
         setIsBannedModalOpen(false);
         setBanDetails(null);
-        setUnreadCount(0);
         setIsReadOnly(true);
     }
   };
@@ -432,12 +414,10 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     token,
-    unreadCount,
     banDetails,
     isBannedModalOpen,
     showBanModal,
     closeBanModal: () => setIsBannedModalOpen(false),
-    setUnreadCount,
     setBanDetails,
     login,
     logout,
@@ -447,9 +427,7 @@ export const AuthProvider = ({ children }) => {
     updatePassword,
     updateAvatar,
     generateAvatarColor,
-    markNotificationsAsRead,
     loginWithToken,
-    fetchUnreadCount,
     isReadOnly,
     updateUser: _updateCurrentUserState,
     isRequireTgModalOpen,

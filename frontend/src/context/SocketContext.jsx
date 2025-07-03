@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { serverURL } from '../services/api';
 import { toast } from 'react-toastify';
@@ -21,7 +22,8 @@ const SOCKET_URL = serverURL;
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { token, setUnreadCount, setIsBanned, setBanReason } = useAuth();
+  const { token, setIsBanned, setBanReason } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     console.log('[SocketContext] useEffect triggered by token change:', token ? 'token exists' : 'token is null');
@@ -66,9 +68,16 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (socket) {
-      const handleNewNotification = (notification) => {
-        setUnreadCount(prev => prev + 1);
+      // --- ЛОГИКА ОНЛАЙН СТАТУСА ---
+      // 1. Пингуем каждые 30 секунд, чтобы показать, что мы онлайн
+      const pingInterval = setInterval(() => {
+        socket.emit('user_ping');
+      }, 30000); // 30 секунд
 
+      // 2. Отправляем событие при каждой смене страницы
+      socket.emit('user_navigate');
+
+      const handleNewNotification = (notification) => {
         toast.info(
           <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
           {
@@ -89,11 +98,12 @@ export const SocketProvider = ({ children }) => {
       socket.on('user_banned', handleUserBanned);
 
       return () => {
+        clearInterval(pingInterval); // Очищаем интервал при размонтировании
         socket.off('new_notification', handleNewNotification);
         socket.off('user_banned', handleUserBanned);
       };
     }
-  }, [socket, setUnreadCount, setBanReason, setIsBanned]);
+  }, [socket, location, setBanReason, setIsBanned]);
 
   const value = {
     socket,
