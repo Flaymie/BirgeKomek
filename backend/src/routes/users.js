@@ -13,8 +13,46 @@ import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОР�
 import { generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
 import tgRequired from '../middleware/tgRequired.js'; // ИМПОРТ
 import crypto from 'crypto'; // <-- ИМПОРТ ДЛЯ ГЕНЕРАЦИИ КОДА
+import multer from 'multer'; // <-- ИМПОРТ ДЛЯ ЗАГРУЗКИ ФАЙЛОВ
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+// --- НАСТРОЙКА MULTER ДЛЯ ЗАГРУЗКИ АВАТАРОВ ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/avatars';
+    // Создаем директорию, если она не существует
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Генерируем уникальное имя файла
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar-${uniqueSuffix}${ext}`);
+  }
+});
+
+// Фильтр файлов - только изображения
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Только изображения могут быть загружены!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB максимальный размер
+  }
+});
 
 // --- НОВЫЙ ХЕЛПЕР ДЛЯ ОТПРАВКИ СООБЩЕНИЙ В TELEGRAM ---
 export const sendTelegramMessage = async (telegramId, message) => {
@@ -978,6 +1016,70 @@ export default ({ sseConnections, io }) => {
     } catch (error) {
       console.error('Ошибка при переключении настроек для бота:', error);
       res.status(500).json({ msg: 'Ошибка сервера' });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/users/me/avatar:
+   *   post:
+   *     summary: Загрузить аватар пользователя
+   *     tags: [Users]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               avatar:
+   *                 type: string
+   *                 format: binary
+   *     responses:
+   *       200:
+   *         description: Аватар успешно загружен
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 avatarUrl:
+   *                   type: string
+   *       400:
+   *         description: Ошибка при загрузке файла
+   *       401:
+   *         description: Не авторизован
+   */
+  router.post('/me/avatar', protect, upload.single('avatar'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ msg: 'Файл не загружен' });
+      }
+
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+
+      // Удаляем старый аватар, если он существует
+      if (user.avatar && user.avatar !== 'default.png') {
+        const oldAvatarPath = path.join('uploads/avatars', path.basename(user.avatar));
+        if (fs.existsSync(oldAvatarPath)) {
+          fs.unlinkSync(oldAvatarPath);
+        }
+      }
+
+      // Сохраняем путь к новому аватару
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      user.avatar = avatarUrl;
+      await user.save();
+
+      res.json({ avatarUrl });
+    } catch (err) {
+      console.error('Ошибка при загрузке аватара:', err);
+      res.status(500).json({ msg: 'Ошибка сервера при загрузке аватара' });
     }
   });
 
