@@ -30,11 +30,11 @@ import Request from './models/Request.js';
 import User from './models/User.js';
 import { protectSocket } from './middleware/auth.js';
 import multiAccountDetector from './middleware/multiAccountDetector.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
 // --- ОБЪЕКТЫ ДЛЯ ХРАНЕНИЯ СОСТОЯНИЯ ONLINE ---
-// Для SSE (уведомления о бане и т.д.)
 const sseConnections = {};
 // Для Socket.IO (статус "онлайн", чаты)
 // const onlineUsers = new Map(); // БОЛЬШЕ НЕ ИСПОЛЬЗУЕТСЯ, ЗАМЕНЕНО НА REDIS
@@ -52,6 +52,7 @@ app.locals.sseConnections = sseConnections;
 // app.locals.onlineUsers = onlineUsers; // БОЛЬШE НЕ ИСПОЛЬЗУЕТСЯ
 
 const server = http.createServer(app);
+// ЭКСПОРТИРУЕМ io, чтобы он был доступен в других файлах
 export const io = new Server(server, {
   cors: {
     origin: [
@@ -71,21 +72,10 @@ app.use(express.json());
 app.use(mongoSanitize());
 app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
 
-const whitelist = [
-  'http://localhost:3000',
-  'http://localhost:5050',
-  'http://192.168.1.87:3000',
-  'http://192.168.1.87:5050',
-];
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (whitelist.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+  origin: (origin, callback) => {
+    // Для разработки разрешаем все. В проде нужно будет настроить строже.
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -144,6 +134,7 @@ app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/admin', adminRoutes({ sseConnections }));
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
@@ -178,7 +169,12 @@ io.on('connection', (socket) => {
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
-    console.log(`User ${socket.user.id} joined chat for request ${requestId}`);
+    console.log(`User ${socket.user.username} (${socket.user.id}) joined chat for request ${requestId}`);
+  });
+
+  socket.on('leave_chat', (requestId) => {
+    socket.leave(requestId);
+    console.log(`User ${socket.user.username} (${socket.user.id}) left chat for request ${requestId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -221,11 +217,11 @@ io.on('connection', (socket) => {
         
         if (senderId !== recipientId.toString() && !isRecipientInChat) {
             const senderUser = await User.findById(senderId).lean();
-            await createAndSendNotification(sseConnections, {
+            await createAndSendNotification({
               user: recipientId,
               type: 'new_message_in_request',
-              title: `Новое сообщение в чате: "${request.title}"`,
-              message: `${senderUser.username}: ${content.substring(0, 50)}...`,
+              title: `Новое сообщение в заявке "${request.title}"`,
+              message: `Пользователь ${senderUser.username} написал: ${content}`,
               link: `/requests/${requestId}/chat`,
               relatedEntity: { requestId: requestId, userId: senderId }
             });
@@ -312,6 +308,12 @@ app.get('/', (req, res) => {
 
 // обработка 404
 app.use((req, res) => {
+  console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ msg: 'Не найдено ничего' });
+});
+
+// Catch-all для неопределенных API роутов
+app.all('/api/*', (req, res) => {
   console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Не найдено ничего' });
 });

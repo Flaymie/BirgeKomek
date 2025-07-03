@@ -347,6 +347,15 @@ const notificationsService = {
   markAllAsRead: async () => {
     return api.put('/notifications/read-all');
   },
+
+  // Получить уведомление по ID
+  getNotificationById: (id) => api.get(`/notifications/${id}`),
+
+  // Пометить все уведомления как прочитанные
+  markAllRead: () => api.post('/notifications/mark-all-read'),
+
+  // Пометить одно уведомление как прочитанное
+  markOneRead: (id) => api.post(`/notifications/mark-read/${id}`),
 };
 
 // Сервис для работы с отзывами

@@ -293,7 +293,7 @@ const ChatPage = () => {
     }
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+  const { getRootProps, isDragActive, open } = useDropzone({
     onDrop,
     noClick: true, 
     noKeyboard: true,
@@ -343,12 +343,46 @@ const ChatPage = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
+  // --- ОБРАБОТЧИКИ ДЛЯ SOCKET.IO, вынесены для стабильности ---
+  const handleNewMessage = useCallback((message) => {
+    if (message.requestId === requestId) {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    }
+  }, [requestId]);
+
+  const handleUpdateMessage = useCallback((updatedMessage) => {
+    if (updatedMessage.requestId === requestId) {
+      setMessages((prevMessages) =>
+        prevMessages.map(msg => msg._id === updatedMessage._id ? updatedMessage : msg)
+      );
+    }
+  }, [requestId]);
+  
+  const handleTypingBroadcast = useCallback(({ userId, username, isTyping, chatId }) => {
+    if (chatId !== requestId || userId === currentUser?._id) return;
+    setTypingUsers(prev => {
+      const newTypingUsers = { ...prev };
+      if (isTyping) {
+        newTypingUsers[username] = true;
+      } else {
+        delete newTypingUsers[username];
+      }
+      return newTypingUsers;
+    });
+  }, [requestId, currentUser]);
+
+  const handleConnectError = useCallback((err) => {
+    console.error('Socket connection error:', err.message);
+    toast.error('Не удалось подключиться к чату.');
+  }, []);
+
   // --- ЕДИНЫЙ useEffect ДЛЯ ВСЕЙ ЛОГИКИ SOCKET.IO ---
   useEffect(() => {
     if (!socket || !requestId) return;
 
     // 1. Присоединяемся к комнате чата
     socket.emit('join_chat', requestId);
+    console.log(`[Socket] Emitted 'join_chat' for room: ${requestId}`);
 
     // 2. ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
     const markMessagesAsRead = async () => {
@@ -360,56 +394,26 @@ const ChatPage = () => {
     };
     markMessagesAsRead();
     
-    // 3. Обработчики событий
-    const handleNewMessage = (message) => {
-      if (message.requestId === requestId) {
-        setMessages((prevMessages) => [...prevMessages, message]);
-      }
-    };
-
-    const handleUpdateMessage = (updatedMessage) => {
-      if (updatedMessage.requestId === requestId) {
-        setMessages((prevMessages) =>
-          prevMessages.map(msg => msg._id === updatedMessage._id ? updatedMessage : msg)
-        );
-      }
-    };
-    
-    const handleTypingBroadcast = ({ userId, username, isTyping, chatId }) => {
-      if (chatId !== requestId || userId === currentUser._id) return;
-      setTypingUsers(prev => {
-        const newTypingUsers = { ...prev };
-        if (isTyping) {
-          newTypingUsers[username] = true;
-        } else {
-          delete newTypingUsers[username];
-        }
-        return newTypingUsers;
-      });
-    };
-
-    const handleConnectError = (err) => {
-      console.error('Socket connection error:', err.message);
-      toast.error('Не удалось подключиться к чату.');
-    };
-
-    // 4. Подписываемся на события
+    // 3. Подписываемся на события
     socket.on('new_message', handleNewMessage);
     socket.on('message_updated', handleUpdateMessage);
     socket.on('typing_started', handleTypingBroadcast);
     socket.on('typing_stopped', handleTypingBroadcast);
     socket.on('connect_error', handleConnectError);
 
-    // 5. Отписка при выходе
+    // 4. Отписка при выходе
     return () => {
+      socket.emit('leave_chat', requestId);
+      console.log(`[Socket] Emitted 'leave_chat' for room: ${requestId}`);
+
+      // Отписываемся от всех событий, чтобы избежать утечек памяти
       socket.off('new_message', handleNewMessage);
       socket.off('message_updated', handleUpdateMessage);
       socket.off('typing_started', handleTypingBroadcast);
       socket.off('typing_stopped', handleTypingBroadcast);
       socket.off('connect_error', handleConnectError);
-      socket.emit('leave_chat', requestId);
     };
-  }, [socket, requestId, currentUser]); // Добавил currentUser, так как он используется в handleTypingBroadcast
+  }, [socket, requestId, currentUser, handleNewMessage, handleUpdateMessage, handleTypingBroadcast, handleConnectError]);
 
   // Скролл чата и страницы вниз после загрузки
   useEffect(() => {
@@ -569,18 +573,6 @@ const ChatPage = () => {
     );
   };
   
-  // ЭТА ФУНКЦИЯ ТЕПЕРЬ ПРОСТО УТИЛИТА
-  const handleUpdateRequestStatus = async (status) => {
-    try {
-      const res = await requestsService.updateRequestStatus(requestId, status);
-      setRequestDetails(res.data); // Обновляем детали заявки свежими данными с бэка
-      toast.success(`Статус заявки обновлен!`);
-    } catch (err) {
-      toast.error(err.response?.data?.msg || 'Не удалось обновить статус заявки');
-      console.error(err);
-    }
-  };
-
   const handleOpenResolveModal = () => {
     setIsResolveModalOpen(true);
   };

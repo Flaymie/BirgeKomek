@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { serverURL } from '../services/api';
+import { toast } from 'react-toastify';
 
 const SocketContext = createContext(null);
 
@@ -9,12 +10,18 @@ export const useSocket = () => {
   return useContext(SocketContext);
 };
 
+const ToastBody = ({ title, message, link }) => (
+  <a href={link} className="block w-full" onClick={() => toast.dismiss()}>
+    <p className="font-bold text-gray-800">{title}</p>
+    {message && <p className="text-sm text-gray-600">{message}</p>}
+  </a>
+);
+
 const SOCKET_URL = serverURL;
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { token, setIsBanned, setBanReason } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { token, setUnreadCount, setIsBanned, setBanReason } = useAuth();
 
   useEffect(() => {
     console.log('[SocketContext] useEffect triggered by token change:', token ? 'token exists' : 'token is null');
@@ -61,6 +68,14 @@ export const SocketProvider = ({ children }) => {
     if (socket) {
       const handleNewNotification = (notification) => {
         setUnreadCount(prev => prev + 1);
+
+        toast.info(
+          <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
+          {
+            closeButton: true,
+            autoClose: 8000,
+          }
+        );
       };
       
       // Обработчик бана пользователя
@@ -78,12 +93,10 @@ export const SocketProvider = ({ children }) => {
         socket.off('user_banned', handleUserBanned);
       };
     }
-  }, [socket, setBanReason, setIsBanned, setUnreadCount]);
+  }, [socket, setUnreadCount, setBanReason, setIsBanned]);
 
   const value = {
     socket,
-    unreadCount,
-    setUnreadCount
   };
 
   return (

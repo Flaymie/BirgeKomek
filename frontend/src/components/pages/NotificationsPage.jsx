@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { toast } from 'react-toastify';
 
 // Компонент для отображения сообщения о загрузке
@@ -73,16 +74,21 @@ const NotificationItem = ({ notification }) => {
       minute: 'numeric'
     });
   };
-  
+
   return (
     <div 
       onClick={handleClick}
-      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150 border-l-4 ${notification.read ? 'border-transparent' : 'border-indigo-500'}`}
+      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150 border-l-4 ${!notification.isRead ? 'border-indigo-500' : 'border-transparent'}`}
     >
       <div className="flex items-start">
         {getIcon()}
         <div className="ml-4 flex-1">
-          <p className="text-sm text-gray-800">{notification.message}</p>
+          <p className="text-sm text-gray-800 font-semibold">
+            {notification.type === 'moderator_warning' ? `Сообщение от модерации: ${notification.title}` : notification.title}
+          </p>
+          {notification.message && (
+              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+          )}
           <p className="text-xs text-gray-500 mt-1">{formatDate(notification.createdAt)}</p>
         </div>
       </div>
@@ -94,6 +100,7 @@ const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const { markNotificationsAsRead } = useAuth();
+  const { socket } = useSocket();
 
   useEffect(() => {
     const fetchAndMarkNotifications = async () => {
@@ -118,6 +125,21 @@ const NotificationsPage = () => {
     
     fetchAndMarkNotifications();
   }, [markNotificationsAsRead]);
+
+  // --- СЛУШАЕМ СОКЕТ ---
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewNotification = (newNotification) => {
+      setNotifications(prev => [newNotification, ...prev]);
+    };
+
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [socket]);
 
   return (
     <div className="container mx-auto px-4 py-12 mt-16 max-w-3xl">

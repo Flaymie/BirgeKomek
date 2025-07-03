@@ -30,6 +30,7 @@ import RateLimitModal from './components/modals/RateLimitModal';
 import RequireTelegramModal from './components/modals/RequireTelegramModal';
 import LinkTelegramModal from './components/modals/LinkTelegramModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
+import NotificationDetailPage from './components/pages/NotificationDetailPage';
 
 // Этот компонент отвечает за инициализацию перехватчика API
 // и рендер основного контента. Он должен быть внутри AuthProvider.
@@ -130,6 +131,7 @@ const AppContent = () => {
             <Route path="/requests/:id/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
             <Route path="/chats" element={<ProtectedRoute><ChatsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/notification/:id" element={<NotificationDetailPage />} />
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
             <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
 

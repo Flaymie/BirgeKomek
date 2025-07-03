@@ -111,9 +111,9 @@ export default ({ io }) => {
       }
 
       // Создаем уведомление для автора запроса
-      await createAndSendNotification(req.app.locals.sseConnections, {
-        user: request.author,
-        type: 'request_taken_by_helper',
+      await createAndSendNotification({
+        user: request.author._id,
+        type: 'new_response_to_request',
         title: 'Новый отклик на вашу заявку!',
         message: `Пользователь ${req.user.username} откликнулся на вашу заявку "${request.title}".`,
         link: `/request/${request._id}`,
@@ -260,7 +260,7 @@ export default ({ io }) => {
           console.log(`Запрос ${request._id} обновлен: статус изменен на in_progress, назначен хелпер ${response.helper._id}`);
           
           // Уведомление хелперу, что его отклик приняли
-          await createAndSendNotification(req.app.locals.sseConnections, {
+          await createAndSendNotification({
               user: response.helper._id,
               type: 'response_accepted',
               title: 'Ваш отклик приняли!',
@@ -277,7 +277,7 @@ export default ({ io }) => {
         }
       } else if (status === 'rejected') {
           // Уведомление хелперу, что его отклик отклонили
-          await createAndSendNotification(req.app.locals.sseConnections, {
+          await createAndSendNotification({
               user: response.helper._id,
               type: 'response_rejected',
               title: 'Ваш отклик отклонен',

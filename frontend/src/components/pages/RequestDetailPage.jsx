@@ -408,8 +408,8 @@ const RequestDetailPage = () => {
                     </button>
                 )}
                 {myResponse && <ResponseCard response={myResponse} isMyResponse={true} fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser} />}
-              </div>
-            )}
+                  </div>
+                )}
 
             {/* Отклики для автора */}
       {isAuthor && request.status === 'open' && (
@@ -434,7 +434,7 @@ const RequestDetailPage = () => {
           ) : (
                   <div className="text-center py-6 text-gray-500">На ваш запрос пока нет откликов.</div>
           )}
-        </div>
+            </div>
       )}
           </motion.div>
 
@@ -481,10 +481,10 @@ const RequestDetailPage = () => {
                    )}
                    {['closed', 'completed', 'cancelled'].includes(request.status) && (
                       <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
-                   )}
-              </div>
-            )}
-            
+          )}
+        </div>
+      )}
+      
             {/* Карта информации */}
             <div className="bg-white rounded-xl shadow-lg">
               <div className="p-6">

@@ -136,7 +136,7 @@ const ChatsPage = () => {
                     </span>
                   )}
                   <div className="whitespace-nowrap">
-                    <StatusBadge status={chat.status} />
+                  <StatusBadge status={chat.status} />
                   </div>
                 </div>
               </div>

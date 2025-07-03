@@ -17,10 +17,17 @@ const NotificationItem = ({ notification, closeDropdown }) => {
     }
   };
 
+  // ИСПРАВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ
+  const title = notification.type === 'moderator_warning' 
+    ? `Сообщение от модерации: ${notification.title}` 
+    : notification.title; // Теперь всегда берем title
+
+  const message = notification.message; // И всегда берем message
+
   return (
     <a href={notification.link} onClick={handleClick} className="block p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
-      <p className={`text-sm font-medium ${notification.isRead ? 'text-gray-500' : 'text-gray-800'}`}>{notification.title}</p>
-      <p className={`text-sm ${notification.isRead ? 'text-gray-400' : 'text-gray-600'}`}>{notification.message}</p>
+      <p className={`text-sm font-medium ${notification.isRead ? 'text-gray-500' : 'text-gray-800'}`}>{title}</p>
+      {message && <p className={`text-sm ${notification.isRead ? 'text-gray-400' : 'text-gray-600'}`}>{message}</p>}
       <p className="text-xs text-gray-400 mt-1">
         {new Date(notification.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
       </p>

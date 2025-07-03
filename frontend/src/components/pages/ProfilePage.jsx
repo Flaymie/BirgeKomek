@@ -3,14 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
-import { usersService, authService } from '../../services/api';
+import { usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
 import DeleteConfirmModal from '../modals/DeleteConfirmModal';
 import BanUserModal from '../modals/BanUserModal';
 import ProfileNotFound from '../shared/ProfileNotFound';
-import { FaTelegramPlane, FaGavel, FaCheckCircle } from 'react-icons/fa';
+import { FaTelegramPlane, FaGavel } from 'react-icons/fa';
 import ReviewsBlock from '../shared/ReviewsBlock';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import ConfirmUsernameChangeModal from '../modals/ConfirmUsernameChangeModal';
@@ -19,6 +19,8 @@ import './ProfilePage.css';
 import RoleBadge from '../shared/RoleBadge';
 import ImageViewerModal from '../modals/ImageViewerModal';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
+import ModeratorActionsDropdown from '../shared/ModeratorActionsDropdown';
+import SendNotificationModal from '../modals/SendNotificationModal';
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
 // Функция для форматирования времени "last seen"
@@ -152,20 +154,19 @@ const BanInfo = ({ banDetails }) => {
     : 'навсегда';
 
   return (
-    <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6" role="alert">
-      <div className="flex">
-        <div className="py-1">
-          <svg className="h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
-        </div>
-        <div>
+    <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-6" role="alert">
+      <div className="flex items-start justify-between gap-4">
+        {/* Левая часть с иконкой и текстом */}
+        <div className="flex items-start">
+          <FaGavel className="h-6 w-6 text-red-600 mr-3 flex-shrink-0 mt-1" />
+          <div className="flex-grow">
           <p className="font-bold text-red-800">ПОЛЬЗОВАТЕЛЬ ЗАБЛОКИРОВАН ({expiration})</p>
           {banDetails.reason && (
-            <p className="text-sm text-red-700 mt-1">
+              <p className="text-sm text-red-700 mt-1 break-words">
               <strong>Причина:</strong> {banDetails.reason}
             </p>
           )}
+          </div>
         </div>
       </div>
     </div>
@@ -173,7 +174,7 @@ const BanInfo = ({ banDetails }) => {
 };
 
 // === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
-const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyProfile, onAvatarClick }) => {
+const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotify, isMyProfile, onAvatarClick }) => {
   if (!profile) return null;
   
   const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
@@ -204,27 +205,16 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
         "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden relative",
         styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
       )}>
-        {canModerate && !isMyProfile && !targetIsAdmin && (
-          <div className="absolute top-6 right-6 z-10">
-            {profile.banDetails?.isBanned ? (
-              <button 
-                onClick={onUnban} 
-                className="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
-              >
-                <FaCheckCircle />
-                <span>Разбанить</span>
-              </button>
-            ) : (
-              <button 
-                onClick={onBan} 
-                className="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
-              >
-                <FaGavel />
-                <span>Забанить</span>
-              </button>
+            {canModerate && !isMyProfile && !targetIsAdmin && (
+          <div className="absolute top-4 right-4 z-10">
+            <ModeratorActionsDropdown 
+              isBanned={profile.banDetails?.isBanned}
+              onBan={onBan}
+              onUnban={onUnban}
+              onNotify={onNotify}
+            />
+              </div>
             )}
-          </div>
-        )}
         <div className="p-6">
           <BanInfo banDetails={profile.banDetails} />
 
@@ -249,8 +239,8 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                       targetIsModerator && 'text-gradient-moderator',
                       !currentRole && 'text-gray-900'
                     )}>
-                      {profile.username}
-                    </h2>
+                    {profile.username}
+                  </h2>
                     <RoleBadge user={profile} />
                   </div>
                   <div className="flex items-center justify-center md:justify-start mt-1 text-sm text-gray-500">
@@ -269,57 +259,57 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, isMyPro
                   <p className="text-gray-500 mt-1 text-sm">На платформе с {new Date(profile.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
-
-              {profile.bio && (
+              
+                {profile.bio && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">О себе</h3>
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-                </div>
-              )}
+                  </div>
+                )}
             </div>
-            
+                
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {profile.location && (
+                {profile.location && (
                 <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Город</h3>
                   <p className="text-gray-800 font-semibold">{profile.location}</p>
-                </div>
-              )}
-              
-              {profile.telegramUsername && (
+                  </div>
+                )}
+                
+                {profile.telegramUsername && (
                  <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Telegram</h3>
-                   <a 
-                      href={`https://t.me/${profile.telegramUsername}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                     <a 
+                        href={`https://t.me/${profile.telegramUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       className="text-primary-600 hover:text-primary-800 font-semibold flex items-center"
-                    >
-                     <FaTelegramPlane className="mr-2" />
-                     @{profile.telegramUsername}
-                    </a>
-                 </div>
-              )}
+                      >
+                       <FaTelegramPlane className="mr-2" />
+                       @{profile.telegramUsername}
+                      </a>
+                   </div>
+                )}
             </div>
-            
+                
             {profile.roles?.helper && (
               <div className="p-2">
                 <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Помощь в предметах</h3>
                 {profile.subjects?.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {profile.subjects.map((subject, index) => (
+                      <div className="flex flex-wrap gap-2">
+                        {profile.subjects.map((subject, index) => (
                       <span key={index} className="px-3 py-1 bg-primary-100 text-primary-800 text-sm font-medium rounded-full">
-                        {subjectOptions.find(s => s.value === subject)?.label || subject}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
+                            {subjectOptions.find(s => s.value === subject)?.label || subject}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
                   <p className="text-gray-500 italic">Предметы не указаны</p>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
-            
-            <ProfileStats profile={profile} />
+              
+              <ProfileStats profile={profile} />
           </div>
         </div>
       </div>
@@ -574,18 +564,18 @@ const ProfileEditor = ({
                         <p className="text-sm text-red-700">
                             Удаление аккаунта - необратимое действие. Все ваши данные будут стерты.
                         </p>
-                    </div>
+                        </div>
                     <div className="sm:ml-4">
-                        <button
-                            type="button"
-                            onClick={onDeleteAccount}
+                      <button 
+                        type="button" 
+                        onClick={onDeleteAccount} 
                             className="btn bg-red-600 hover:bg-red-700 text-white font-bold w-full sm:w-auto"
                             disabled={isProfileLoading}
-                        >
-                            Удалить аккаунт
-                        </button>
-                    </div>
+                      >
+                        Удалить аккаунт
+                      </button>
                 </div>
+              </div>
             </div>
           </div>
         </div>
@@ -600,7 +590,6 @@ const ProfilePage = () => {
     loading: authLoading, 
     updateProfile, 
     logout, 
-    _updateCurrentUserState,
     handleLinkTelegram,
     handleUnlinkTelegram,
     isTelegramLoading,
@@ -615,6 +604,7 @@ const ProfilePage = () => {
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
   const [isDeletingLoading, setIsDeletingLoading] = useState(false);
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+  const [isNotificationModalOpen, setNotificationModalOpen] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
@@ -632,7 +622,6 @@ const ProfilePage = () => {
   
   // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
   const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
-  const [modActionArgs, setModActionArgs] = useState(null);
   const [modActionCallback, setModActionCallback] = useState(null);
   const [modActionLoading, setModActionLoading] = useState(false);
   
@@ -846,7 +835,6 @@ const ProfilePage = () => {
 
   const handleBanUser = async (reason, duration) => {
     if (!profile) return;
-    setModActionArgs({ reason, duration }); // Сохраняем аргументы
     setModActionCallback(() => async (confirmationCode) => { // Сохраняем коллбэк
       setModActionLoading(true);
       try {
@@ -902,6 +890,15 @@ const ProfilePage = () => {
     }
   };
 
+  const handleSendNotificationClick = () => {
+    setNotificationModalOpen(true);
+  };
+
+  const handleNotificationSent = (notification) => {
+    toast.success(`Уведомление для ${profile.username} успешно отправлено!`);
+    // Тут можно будет добавить что-то еще, если понадобится
+  };
+
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
 
@@ -915,6 +912,7 @@ const ProfilePage = () => {
             onBack={() => navigate(-1)}
             onBan={() => setIsBanModalOpen(true)}
             onUnban={handleUnbanUser}
+            onNotify={handleSendNotificationClick}
             isMyProfile={isMyProfile}
             onAvatarClick={handleAvatarClick}
           />
@@ -982,6 +980,12 @@ const ProfilePage = () => {
         src={viewerImageSrc} 
         alt={`Аватар ${profile?.username}`} 
         onClose={() => setViewerImageSrc(null)} 
+      />
+      <SendNotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setNotificationModalOpen(false)}
+        recipient={profile}
+        onNotificationSent={handleNotificationSent}
       />
     </>
   );

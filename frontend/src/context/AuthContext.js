@@ -26,6 +26,14 @@ export const AuthProvider = ({ children }) => {
   const [isTelegramLoading, setIsTelegramLoading] = useState(false);
   const [pollingIntervalId, setPollingIntervalId] = useState(null);
 
+  // Компонент для кастомного тоста, вынесен для стабильности
+  const ToastBody = ({ title, message, link }) => (
+    <a href={link} className="block w-full" onClick={() => toast.dismiss()}>
+      <p className="font-bold text-gray-800">{title}</p>
+      {message && <p className="text-sm text-gray-600">{message}</p>}
+    </a>
+  );
+
   const processUserData = useCallback((userData) => {
     if (!userData) return null;
     return {
@@ -123,42 +131,7 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, [fetchUnreadCount, processAndCheckBan]);
   
-  // Управление SSE-соединением для real-time уведомлений
-  useEffect(() => {
-    let eventSource;
-    if (currentUser) {
-      const token = getAuthToken();
-      // Прямое использование EventSource, так как axios не подходит для SSE
-      eventSource = new EventSource(`${baseURL}/notifications/subscribe?token=${token}`);
-
-      eventSource.onopen = () => {
-        console.log('SSE-соединение установлено.');
-      };
-
-      eventSource.addEventListener('new_notification', (event) => {
-        // const notification = JSON.parse(event.data);
-        // Просто инкрементируем счетчик, когда приходит новое уведомление
-        setUnreadCount(prev => prev + 1);
-        
-        // Можно добавить всплывашку тут
-        const notification = JSON.parse(event.data);
-        if (notification.title) {
-          toast.info(notification.title);
-        }
-      });
-
-      eventSource.onerror = (err) => {
-        console.error('Ошибка SSE-соединения:', err);
-        eventSource.close();
-      };
-    }
-
-    return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-    };
-  }, [currentUser]);
+  // Управление SSE-соединением УДАЛЕНО
 
   // Функция для входа пользователя
   const login = async (credentials) => {
