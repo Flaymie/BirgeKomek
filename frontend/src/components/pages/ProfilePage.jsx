@@ -567,61 +567,25 @@ const ProfileEditor = ({
             </div>
 
             {/* --- УЛУЧШЕННАЯ DANGER ZONE --- */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <div className="relative overflow-hidden rounded-xl border border-red-200 bg-gradient-to-br from-red-50 via-red-50 to-red-100">
-                {/* Декоративные элементы */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-red-200 rounded-full opacity-20 -translate-y-16 translate-x-16"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-red-300 rounded-full opacity-10 translate-y-12 -translate-x-12"></div>
-                
-                <div className="relative p-6">
-                  {/* Заголовок с иконкой */}
-                  <div className="flex items-center mb-4">
-                    <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full mr-3">
-                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-red-800">Опасная зона</h3>
-                  </div>
-                  
-                  <p className="text-sm text-red-700 mb-6 font-medium">
-                    Действия в этой зоне являются необратимыми. Пожалуйста, будьте осторожны.
-                  </p>
-                  
-                  {/* Карточка с действием */}
-                  <div className="bg-white rounded-lg border border-red-200 shadow-sm p-5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          <h4 className="text-lg font-semibold text-gray-900">
-                            Удаление аккаунта
-                          </h4>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-1">
-                          Полное удаление вашего аккаунта и всех связанных с ним данных
+            <div className="bg-red-50 border-t-4 border-red-500 rounded-b px-4 py-3 shadow-md mt-8">
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                    <div className="flex-grow mb-3 sm:mb-0">
+                        <h3 className="font-bold text-red-800">Опасная зона</h3>
+                        <p className="text-sm text-red-700">
+                            Удаление аккаунта - необратимое действие. Все ваши данные будут стерты.
                         </p>
-                        <p className="text-xs text-red-600 font-medium">
-                          ⚠️ Это действие нельзя будет отменить
-                        </p>
-                      </div>
-                      
-                      <button 
-                        type="button" 
-                        onClick={onDeleteAccount} 
-                        className="ml-4 inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium rounded-lg hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                      >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Удалить аккаунт
-                      </button>
                     </div>
-                  </div>
+                    <div className="sm:ml-4">
+                        <button
+                            type="button"
+                            onClick={onDeleteAccount}
+                            className="btn bg-red-600 hover:bg-red-700 text-white font-bold w-full sm:w-auto"
+                            disabled={isProfileLoading}
+                        >
+                            Удалить аккаунт
+                        </button>
+                    </div>
                 </div>
-              </div>
             </div>
           </div>
         </div>
