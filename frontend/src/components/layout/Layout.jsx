@@ -19,9 +19,9 @@ const Layout = ({ children }) => {
   }, [location.pathname]);
   
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
-      <main key={location.pathname} className="flex-grow animate-fadeIn pt-16">
+      <main key={location.pathname} className="flex-grow flex flex-col pt-16">
         <ReadOnlyBanner />
         {children}
       </main>

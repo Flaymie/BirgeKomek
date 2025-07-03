@@ -819,15 +819,15 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-12 md:mt-16">
-      <div className="mb-4">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col flex-grow">
+      <div className="py-4 flex-shrink-0">
         <Link to="/chats" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
           <ArrowLeftIcon className="h-5 w-5 mr-2" />
           Вернуться к списку чатов
         </Link>
       </div>
 
-      <div {...getRootProps()} className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-[85vh] relative focus:outline-none">
+      <div {...getRootProps()} className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col flex-grow relative focus:outline-none min-h-0">
         <AnimatePresence>
           {isDragActive && (
             <motion.div
