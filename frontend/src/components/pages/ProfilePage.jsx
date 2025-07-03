@@ -233,14 +233,9 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
                 </div>
                 <div className="w-full">
                   <div className="flex items-center justify-center md:justify-start gap-2">
-                    <h2 className={classNames(
-                      "text-2xl font-bold",
-                      targetIsAdmin && 'text-gradient-admin',
-                      targetIsModerator && 'text-gradient-moderator',
-                      !currentRole && 'text-gray-900'
-                    )}>
-                    {profile.username}
-                  </h2>
+                    <h2 className="text-2xl font-bold">
+                      {profile.username}
+                    </h2>
                     <RoleBadge user={profile} />
                   </div>
                   <div className="flex items-center justify-center md:justify-start mt-1 text-sm text-gray-500">

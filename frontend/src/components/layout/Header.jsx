@@ -99,7 +99,7 @@ const Header = () => {
                            <FiGrid className="w-4 h-4" /> Мои заявки
                         </Link>
                         {requestId && (
-                           <Link to={`/requests/${requestId}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                           <Link to={`/request/${requestId}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                               <FiInfo className="w-4 h-4" /> Детали этой заявки
                            </Link>
                         )}
@@ -211,7 +211,7 @@ const Header = () => {
                      <FiGrid className="w-6 h-6" /> Мои заявки
                    </Link>
                    {requestId && (
-                     <Link to={`/requests/${requestId}`} className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive(`/requests/${requestId}`)}`}>
+                     <Link to={`/request/${requestId}`} className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive(`/request/${requestId}`)}`}>
                         <FiInfo className="w-6 h-6" /> Детали заявки
                      </Link>
                   )}
