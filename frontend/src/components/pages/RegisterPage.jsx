@@ -6,24 +6,39 @@ import AvatarUpload from '../layout/AvatarUpload';
 import { authService } from '../../services/api';
 import zxcvbn from 'zxcvbn';
 import PasswordStrengthMeter from '../shared/PasswordStrengthMeter';
-import { EyeIcon, EyeSlashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import TelegramAuthModal from '../modals/TelegramAuthModal';
 import { FaTelegramPlane } from 'react-icons/fa';
+import { BiLoader } from 'react-icons/bi';
+import { 
+  HiOutlineUser, 
+  HiOutlineLockClosed, 
+  HiOutlineEye, 
+  HiOutlineEyeOff,
+  HiOutlineExclamationCircle,
+  HiOutlineUserGroup,
+  HiOutlineAcademicCap,
+  HiOutlineCheck,
+  HiOutlineX,
+  HiOutlineRefresh,
+  HiOutlineBookOpen,
+  HiOutlineUserCircle,
+  HiOutlineSupport
+} from 'react-icons/hi';
 
 // ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
 const subjectOptions = [
-  { value: 'Математика', label: 'Математика' },
-  { value: 'Физика', label: 'Физика' },
-  { value: 'Химия', label: 'Химия' },
-  { value: 'Биология', label: 'Биология' },
-  { value: 'История', label: 'История' },
-  { value: 'География', label: 'География' },
-  { value: 'Литература', label: 'Литература' },
-  { value: 'Русский язык', label: 'Русский язык' },
-  { value: 'Казахский язык', label: 'Казахский язык' },
-  { value: 'Английский язык', label: 'Английский язык' },
-  { value: 'Информатика', label: 'Информатика' },
-  { value: 'Другое', label: 'Другое' },
+  { value: 'Математика', label: 'Математика', icon: '➗' },
+  { value: 'Физика', label: 'Физика', icon: '⚛️' },
+  { value: 'Химия', label: 'Химия', icon: '🧪' },
+  { value: 'Биология', label: 'Биология', icon: '🧬' },
+  { value: 'История', label: 'История', icon: '📜' },
+  { value: 'География', label: 'География', icon: '🌍' },
+  { value: 'Литература', label: 'Литература', icon: '📚' },
+  { value: 'Русский язык', label: 'Русский язык', icon: '🇷🇺' },
+  { value: 'Казахский язык', label: 'Казахский язык', icon: '🇰🇿' },
+  { value: 'Английский язык', label: 'Английский язык', icon: '🇬🇧' },
+  { value: 'Информатика', label: 'Информатика', icon: '💻' },
+  { value: 'Другое', label: 'Другое', icon: '🔍' },
 ];
 
 // Хук для "дебаунса" - чтобы не слать запрос на каждую букву
@@ -71,12 +86,27 @@ const RegisterPage = () => {
   // Состояния для асинхронной валидации
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle, loading, available, unavailable, error
   const [usernameError, setUsernameError] = useState('');
+  const [errors, setErrors] = useState({});
 
   const debouncedUsername = useDebounce(formData.username, 500);
 
   const { username, password, password2, role, grade } = formData;
   
-  const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const onChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({ 
+      ...formData, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
+    
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
 
   // Обработчик изменения аватара
   const handleAvatarChange = (avatarUrl) => {
@@ -90,6 +120,23 @@ const RegisterPage = () => {
     } else {
       setSubjects(subjects.filter(subj => subj !== name));
     }
+  };
+
+  // Обработчик для выбора предмета через карточку
+  const handleSubjectCardClick = (subject) => {
+    if (subjects.includes(subject)) {
+      setSubjects(subjects.filter(subj => subj !== subject));
+    } else {
+      setSubjects([...subjects, subject]);
+    }
+  };
+
+  // Обработчик для выбора роли через карточку
+  const handleRoleCardClick = (selectedRole) => {
+    setFormData({
+      ...formData,
+      role: selectedRole
+    });
   };
 
   // Валидация username
@@ -128,8 +175,11 @@ const RegisterPage = () => {
   }, [debouncedUsername]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
 
     if (name === 'password') {
       setPasswordScore(zxcvbn(value).score);
@@ -138,39 +188,56 @@ const RegisterPage = () => {
       setUsernameStatus('idle');
       setUsernameError('');
     }
+    
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    
+    if (!username.trim()) {
+      newErrors.username = 'Введите никнейм';
+    }
+    
+    if (!password) {
+      newErrors.password = 'Введите пароль';
+    }
+    
+    if (password !== password2) {
+      newErrors.password2 = 'Пароли не совпадают';
+    }
+    
+    if (role === 'student' && !grade) {
+      newErrors.grade = 'Укажите ваш класс';
+    }
+    
+    if (role === 'helper' && subjects.length === 0) {
+      newErrors.subjects = 'Выберите хотя бы один предмет';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     
-    // Валидация формы перед отправкой
-    if (!username || !password) {
-      toast.error('Все обязательные поля должны быть заполнены');
-      console.error('Пустые обязательные поля:', { username, password });
-      return;
-    }
-    
-    if (password !== password2) {
-      toast.error('Пароли не совпадают');
-      return;
-    }
-    
-    if (role === 'student' && !grade) {
-      toast.error('Укажите ваш класс');
-      return;
-    }
-    
-    if (role === 'helper' && subjects.length === 0) {
-      toast.error('Выберите хотя бы один предмет');
-      return;
-    }
+    if (!validate()) return;
     
     try {
       setLoading(true);
       setError('');
       
       const registrationData = { ...formData };
-      delete registrationData.confirmPassword;
+      if (role === 'helper') {
+        registrationData.subjects = subjects;
+      }
       
       await register(registrationData);
       
@@ -189,72 +256,101 @@ const RegisterPage = () => {
   const ValidationIcon = ({ status }) => {
     switch (status) {
         case 'loading':
-            return <ArrowPathIcon className="h-5 w-5 text-gray-400 animate-spin" />;
+            return <HiOutlineRefresh className="h-5 w-5 text-gray-400 animate-spin" />;
         case 'available':
-            return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+            return <HiOutlineCheck className="h-5 w-5 text-green-500" />;
         case 'unavailable':
         case 'error':
-            return <XCircleIcon className="h-5 w-5 text-red-500" />;
+            return <HiOutlineX className="h-5 w-5 text-red-500" />;
         default:
             return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Создание аккаунта
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Уже есть аккаунт?{' '}
-          <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Войти
-          </Link>
-        </p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 animate-gradient-x">
+      <div className="w-full max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-3xl mb-6 shadow-md">
+            <HiOutlineUserGroup className="w-8 h-8 text-indigo-600" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Создание аккаунта
+          </h1>
+          <p className="text-gray-500">
+            Заполните форму, чтобы начать пользоваться сервисом
+          </p>
+        </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl">
-        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={onSubmit}>
+        {/* Main Form Card */}
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+          <form className="space-y-8" onSubmit={onSubmit}>
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-in">
+                <div className="flex items-start">
+                  <HiOutlineExclamationCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              </div>
+            )}
             
-            <AvatarUpload onAvatarChange={handleAvatarChange} />
+            {/* Аватар по центру */}
+            <div className="flex justify-center">
+              <AvatarUpload 
+                onAvatarChange={handleAvatarChange} 
+                size="lg"
+                className="shadow-lg hover:shadow-xl transition-shadow duration-300"
+              />
+            </div>
 
             {/* Имя пользователя */}
-            <div>
+            <div className="space-y-2">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                 Имя пользователя
               </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <HiOutlineUser className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   type="text"
                   name="username"
                   id="username"
-                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm ${
-                    usernameStatus === 'available' ? 'border-green-500 focus:ring-green-500 focus:border-green-500' : 
-                    (usernameStatus === 'unavailable' || usernameStatus === 'error') ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                  }`}
+                  className={`block w-full pl-10 pr-10 py-3 border ${
+                    usernameStatus === 'available' ? 'border-green-500' : 
+                    (usernameStatus === 'unavailable' || usernameStatus === 'error' || errors.username) ? 'border-red-300' : 'border-gray-300'
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300`}
                   value={username}
                   onChange={handleChange}
                   required
                   minLength="3"
+                  placeholder="Введите никнейм"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                    <ValidationIcon status={usernameStatus} />
                 </div>
               </div>
-              {usernameError && <p className="mt-2 text-sm text-red-600">{usernameError}</p>}
+              {(usernameError || errors.username) && (
+                <p className="text-sm text-red-600 flex items-center animate-fade-in">
+                  <HiOutlineExclamationCircle className="w-4 h-4 mr-1" />
+                  {usernameError || errors.username}
+                </p>
+              )}
             </div>
 
             {/* Пароль */}
-            <div>
+            <div className="space-y-2">
               <label
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700"
               >
                 Пароль
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <HiOutlineLockClosed className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   id="password"
                   name="password"
@@ -263,121 +359,239 @@ const RegisterPage = () => {
                   required
                   value={password}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className={`block w-full pl-10 pr-10 py-3 border ${
+                    errors.password ? 'border-red-300' : 'border-gray-300'
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300`}
+                  placeholder="Введите пароль"
                 />
-                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
-                    {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                 </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)} 
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <HiOutlineEyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <HiOutlineEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
               </div>
-               <PasswordStrengthMeter score={passwordScore} />
+              {errors.password && (
+                <p className="text-sm text-red-600 flex items-center animate-fade-in">
+                  <HiOutlineExclamationCircle className="w-4 h-4 mr-1" />
+                  {errors.password}
+                </p>
+              )}
+              <PasswordStrengthMeter score={passwordScore} />
             </div>
 
             {/* Подтверждение пароля */}
-            <div>
+            <div className="space-y-2">
               <label
                 htmlFor="password2"
                 className="block text-sm font-medium text-gray-700"
               >
                 Подтвердите пароль
               </label>
-                <div className="mt-1 relative">
-                    <input
-                      id="password2"
-                      name="password2"
-                      type={showPassword2 ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      required
-                      value={password2}
-                      onChange={onChange}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                    <button type="button" onClick={() => setShowPassword2(!showPassword2)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
-                        {showPassword2 ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                    </button>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <HiOutlineLockClosed className="h-5 w-5 text-gray-400" />
                 </div>
+                <input
+                  id="password2"
+                  name="password2"
+                  type={showPassword2 ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={password2}
+                  onChange={onChange}
+                  className={`block w-full pl-10 pr-10 py-3 border ${
+                    errors.password2 ? 'border-red-300' : 'border-gray-300'
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300`}
+                  placeholder="Повторите пароль"
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword2(!showPassword2)} 
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword2 ? (
+                    <HiOutlineEyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <HiOutlineEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+              {errors.password2 && (
+                <p className="text-sm text-red-600 flex items-center animate-fade-in">
+                  <HiOutlineExclamationCircle className="w-4 h-4 mr-1" />
+                  {errors.password2}
+                </p>
+              )}
             </div>
 
-            {/* Выбор роли */}
+            {/* Выбор роли через карточки */}
             <div className="space-y-4">
-              <span className="block text-sm font-medium text-gray-700">Кто вы?</span>
-              <div className="rounded-md shadow-sm -space-y-px">
-                <div>
-                  <label htmlFor="role" className="sr-only">Роль</label>
-                  <select
-                    id="role"
-                    name="role"
-                    value={role}
-                      onChange={handleChange}
-                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  >
-                    <option value="student">Я Ученик</option>
-                    <option value="helper">Я Хелпер</option>
-                  </select>
+              <label className="block text-sm font-medium text-gray-700">Кто вы?</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div 
+                  onClick={() => handleRoleCardClick('student')}
+                  className={`relative cursor-pointer rounded-xl border-2 p-4 flex flex-col items-center transition-all duration-300 ${
+                    role === 'student' 
+                      ? 'border-indigo-500 bg-indigo-50 shadow-md' 
+                      : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="rounded-full bg-indigo-100 p-3 mb-2">
+                    <HiOutlineUserCircle className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <h3 className="font-medium">Ученик</h3>
+                  <p className="text-xs text-gray-500 text-center mt-1">Получайте помощь с учебой</p>
+                  {role === 'student' && (
+                    <div className="absolute top-2 right-2">
+                      <HiOutlineCheck className="h-5 w-5 text-indigo-600" />
+                    </div>
+                  )}
+                </div>
+                
+                <div 
+                  onClick={() => handleRoleCardClick('helper')}
+                  className={`relative cursor-pointer rounded-xl border-2 p-4 flex flex-col items-center transition-all duration-300 ${
+                    role === 'helper' 
+                      ? 'border-indigo-500 bg-indigo-50 shadow-md' 
+                      : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="rounded-full bg-indigo-100 p-3 mb-2">
+                    <HiOutlineSupport className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <h3 className="font-medium">Хелпер</h3>
+                  <p className="text-xs text-gray-500 text-center mt-1">Помогайте другим с учебой</p>
+                  {role === 'helper' && (
+                    <div className="absolute top-2 right-2">
+                      <HiOutlineCheck className="h-5 w-5 text-indigo-600" />
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Выбор класса */}
               {(role === 'student' || role === 'helper') && (
-                <div className="mt-4">
+                <div className="space-y-2 mt-4">
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
-                  <select id="grade" name="grade" value={grade} onChange={handleChange} className="mt-1 form-select w-full">
-                    <option value="">Выберите ваш класс</option>
-                    {[...Array(5)].map((_, i) => (
-                      <option key={i + 7} value={i + 7}>{i + 7} класс</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <HiOutlineAcademicCap className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <select 
+                      id="grade" 
+                      name="grade" 
+                      value={grade} 
+                      onChange={handleChange} 
+                      className={`block w-full pl-10 pr-3 py-3 border ${
+                        errors.grade ? 'border-red-300' : 'border-gray-300'
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 appearance-none`}
+                    >
+                      <option value="">Выберите ваш класс</option>
+                      {[...Array(5)].map((_, i) => (
+                        <option key={i + 7} value={i + 7}>{i + 7} класс</option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.grade && (
+                    <p className="text-sm text-red-600 flex items-center animate-fade-in">
+                      <HiOutlineExclamationCircle className="w-4 h-4 mr-1" />
+                      {errors.grade}
+                    </p>
+                  )}
                 </div>
               )}
 
+              {/* Выбор предметов через карточки */}
               {role === 'helper' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
                     Предметы, в которых вы можете помочь
                   </label>
-                  <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-md">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {subjectOptions.map((option) => (
-                      <div key={option.value} className="flex items-center">
-                        <input
-                          id={`subject-reg-${option.value}`}
-                          name={option.value}
-                          type="checkbox"
-                          checked={subjects.includes(option.value)}
-                          onChange={handleSubjectChange}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor={`subject-reg-${option.value}`} className="ml-3 block text-sm font-medium text-gray-700">
-                          {option.label}
-                        </label>
+                      <div 
+                        key={option.value} 
+                        onClick={() => handleSubjectCardClick(option.value)}
+                        className={`cursor-pointer rounded-xl p-3 flex items-center transition-all duration-300 ${
+                          subjects.includes(option.value) 
+                            ? 'bg-indigo-100 border border-indigo-300' 
+                            : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="mr-2 text-xl">{option.icon}</div>
+                        <span className="text-sm">{option.label}</span>
+                        {subjects.includes(option.value) && (
+                          <HiOutlineCheck className="ml-auto h-4 w-4 text-indigo-600" />
+                        )}
                       </div>
                     ))}
                   </div>
+                  {errors.subjects && (
+                    <p className="text-sm text-red-600 flex items-center animate-fade-in">
+                      <HiOutlineExclamationCircle className="w-4 h-4 mr-1" />
+                      {errors.subjects}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
             
-            <div>
-                <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300">
-              Зарегистрироваться
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg"
+            >
+              {loading ? (
+                <>
+                  <BiLoader className="animate-spin -ml-1 mr-2 h-5 w-5" />
+                  Регистрация...
+                </>
+              ) : (
+                'Зарегистрироваться'
+              )}
             </button>
-            </div>
 
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-gray-300"></div>
-              <span className="flex-shrink mx-4 text-sm text-gray-500">или</span>
-              <div className="flex-grow border-t border-gray-300"></div>
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">или</span>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={() => setIsTelegramModalOpen(true)}
-              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors mt-3"
+              className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
             >
-              <FaTelegramPlane className="mr-2" />
+              <FaTelegramPlane className="w-5 h-5 mr-2 text-blue-500" />
               Регистрация через Telegram
             </button>
-
           </form>
         </div>
+        
+        {/* Login Link */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-600">
+            Уже есть аккаунт?{' '}
+            <Link 
+              to="/login" 
+              className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors duration-300"
+            >
+              Войти
+            </Link>
+          </p>
+        </div>
       </div>
+      
       <TelegramAuthModal
         isOpen={isTelegramModalOpen}
         onClose={() => setIsTelegramModalOpen(false)}
