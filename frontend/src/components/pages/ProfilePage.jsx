@@ -198,6 +198,12 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
   const currentRole = targetIsAdmin ? 'admin' : targetIsModerator ? 'moderator' : null;
   const styles = currentRole ? roleStyles[currentRole] : {};
 
+  // Проверяем наличие данных для отображения
+  const hasBio = profile.bio && profile.bio.trim().length > 0;
+  const hasLocation = profile.location && profile.location.trim().length > 0;
+  const hasTelegramUsername = profile.telegramUsername && profile.telegramUsername.trim().length > 0;
+  const hasAnyContactInfo = hasLocation || hasTelegramUsername;
+
   return (
     <Container>
       <h1 className="text-2xl font-bold text-gray-800 mb-4 ml-12">Профиль</h1>
@@ -255,7 +261,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
                 </div>
               </div>
               
-                {profile.bio && (
+                {hasBio && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">О себе</h3>
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
@@ -263,15 +269,16 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
                 )}
             </div>
                 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {profile.location && (
+            {hasAnyContactInfo && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {hasLocation && (
                 <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Город</h3>
                   <p className="text-gray-800 font-semibold">{profile.location}</p>
                   </div>
                 )}
                 
-                {profile.telegramUsername && (
+                {hasTelegramUsername && (
                  <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Telegram</h3>
                      <a 
@@ -286,6 +293,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
                    </div>
                 )}
             </div>
+            )}
                 
             {profile.roles?.helper && (
               <div className="p-2">
@@ -497,6 +505,30 @@ const ProfileEditor = ({
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                Телефон
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </div>
+                <input
+                  type="tel"
+                  name="phone"
+                  id="phone"
+                  value={formatPhoneNumber(profileData.phone) || ''}
+                  className="block w-full pl-10 py-3 border border-gray-200 rounded-xl bg-gray-100 cursor-not-allowed text-gray-500"
+                  placeholder="Привязывается через Telegram"
+                  readOnly
+                  disabled
+                />
+              </div>
+              <p className="text-xs text-gray-500">Телефон привязывается и обновляется через Telegram.</p>
             </div>
 
             <div className="space-y-2">
