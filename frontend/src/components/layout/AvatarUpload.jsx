@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Camera } from 'lucide-react';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
-import { usersService } from '../../services/api';
+import { api } from '../../services/api';
 
 const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'md', editable = true }) => {
   const [loading, setLoading] = useState(false);
@@ -14,7 +14,13 @@ const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'md', editable = t
 
     setLoading(true);
     try {
-      const response = await usersService.uploadAvatar(file);
+      // Создаем FormData для отправки файла
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      // Отправляем запрос напрямую через api
+      const response = await api.post('/users/me/avatar', formData);
+      
       onAvatarChange(response.data.avatarUrl);
       toast.success('Аватар успешно обновлен!');
     } catch (error) {
