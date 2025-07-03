@@ -180,21 +180,37 @@ export const AuthProvider = ({ children }) => {
       console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
       
       // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
-      let processedUserData = { ...userData };
+      let formData = new FormData();
+      let hasAvatar = false;
       
-      if (userData.avatar) {
-        if (userData.avatar.startsWith('data:image')) {
-          console.log('AuthContext: В данных присутствует аватар в формате base64');
-          // Если аватар в base64, не нужно его загружать отдельно - просто отправляем
-          // Бэкенд должен распознать, что это base64, и обработать соответственно
+      // Копируем все поля из userData в formData, кроме аватара
+      Object.keys(userData).forEach(key => {
+        if (key === 'avatar') {
+          if (userData.avatar instanceof File) {
+            console.log('AuthContext: В данных присутствует аватар в виде файла');
+            formData.append('avatar', userData.avatar);
+            hasAvatar = true;
+          } else if (userData.avatar && typeof userData.avatar === 'string' && userData.avatar.length > 0) {
+            console.log('AuthContext: В данных присутствует аватар в виде URL:', userData.avatar.substring(0, 100) + '...');
+            // Если аватар - строка (URL или base64), добавляем как есть
+            formData.append('avatar', userData.avatar);
+            hasAvatar = true;
+          }
+        } else if (key === 'subjects' && Array.isArray(userData[key])) {
+          // Для массивов (например, предметы) добавляем каждый элемент отдельно
+          userData[key].forEach(subject => {
+            formData.append('subjects', subject);
+          });
         } else {
-          console.log('AuthContext: В данных присутствует аватар в формате URL:', userData.avatar.substring(0, 100) + '...');
+          formData.append(key, userData[key]);
         }
-      } else {
+      });
+      
+      if (!hasAvatar) {
         console.log('AuthContext: Аватар не предоставлен в данных регистрации');
       }
       
-      const response = await authService.register(processedUserData);
+      const response = await authService.register(formData);
       console.log('AuthContext: Ответ сервера о регистрации:', response);
       
       if (response && response.data) {

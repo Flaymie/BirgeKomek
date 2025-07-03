@@ -20,25 +20,25 @@ import {
   HiOutlineCheck,
   HiOutlineX,
   HiOutlineRefresh,
-  HiOutlineBookOpen,
   HiOutlineUserCircle,
-  HiOutlineSupport
+  HiOutlineSupport,
 } from 'react-icons/hi';
+import { LiaSchoolSolid } from 'react-icons/lia';
 
 // ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
 const subjectOptions = [
-  { value: 'Математика', label: 'Математика', icon: '➗' },
-  { value: 'Физика', label: 'Физика', icon: '⚛️' },
-  { value: 'Химия', label: 'Химия', icon: '🧪' },
-  { value: 'Биология', label: 'Биология', icon: '🧬' },
-  { value: 'История', label: 'История', icon: '📜' },
-  { value: 'География', label: 'География', icon: '🌍' },
-  { value: 'Литература', label: 'Литература', icon: '📚' },
-  { value: 'Русский язык', label: 'Русский язык', icon: '🇷🇺' },
-  { value: 'Казахский язык', label: 'Казахский язык', icon: '🇰🇿' },
-  { value: 'Английский язык', label: 'Английский язык', icon: '🇬🇧' },
-  { value: 'Информатика', label: 'Информатика', icon: '💻' },
-  { value: 'Другое', label: 'Другое', icon: '🔍' },
+  { value: 'Математика', label: 'Математика'},
+  { value: 'Физика', label: 'Физика'},
+  { value: 'Химия', label: 'Химия'},
+  { value: 'Биология', label: 'Биология'},
+  { value: 'История', label: 'История'},
+  { value: 'География', label: 'География'},
+  { value: 'Литература', label: 'Литература'},
+  { value: 'Русский язык', label: 'Русский язык'},
+  { value: 'Казахский язык', label: 'Казахский язык'},
+  { value: 'Английский язык', label: 'Английский язык'},
+  { value: 'Информатика', label: 'Информатика'},
+  { value: 'Другое', label: 'Другое'},
 ];
 
 // Хук для "дебаунса" - чтобы не слать запрос на каждую букву
@@ -109,8 +109,8 @@ const RegisterPage = () => {
   };
 
   // Обработчик изменения аватара
-  const handleAvatarChange = (avatarUrl) => {
-    setFormData({ ...formData, avatar: avatarUrl });
+  const handleAvatarChange = (avatarData) => {
+    setFormData({ ...formData, avatar: avatarData });
   };
 
   const handleSubjectChange = (e) => {
@@ -279,7 +279,7 @@ const RegisterPage = () => {
             Создание аккаунта
           </h1>
           <p className="text-gray-500">
-            Заполните форму, чтобы начать пользоваться сервисом
+            Заполните форму, чтобы начать пользоваться платформой
           </p>
         </div>
 
@@ -301,6 +301,7 @@ const RegisterPage = () => {
                 onAvatarChange={handleAvatarChange} 
                 size="lg"
                 className="shadow-lg hover:shadow-xl transition-shadow duration-300"
+                isRegistration={true}
               />
             </div>
 
@@ -463,7 +464,7 @@ const RegisterPage = () => {
                   }`}
                 >
                   <div className="rounded-full bg-indigo-100 p-3 mb-2">
-                    <HiOutlineSupport className="h-6 w-6 text-indigo-600" />
+                    <LiaSchoolSolid className="h-6 w-6 text-indigo-600" />
                   </div>
                   <h3 className="font-medium">Хелпер</h3>
                   <p className="text-xs text-gray-500 text-center mt-1">Помогайте другим с учебой</p>

@@ -248,7 +248,15 @@ const usersService = {
 // Сервис для работы с аутентификацией
 const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
+  register: (userData) => {
+    // Проверяем, является ли userData экземпляром FormData
+    if (userData instanceof FormData) {
+      return api.post('/auth/register', userData);
+    } else {
+      // Если обычный объект, отправляем как JSON
+      return api.post('/auth/register', userData);
+    }
+  },
   checkAuth: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   forgotPassword: (username) => api.post('/auth/forgot-password', { username }),
