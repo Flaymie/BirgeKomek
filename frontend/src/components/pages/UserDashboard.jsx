@@ -128,7 +128,7 @@ const UserDashboard = () => {
                 <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-md">
                     <h3 className="text-xl font-bold mb-4">Быстрые действия</h3>
                     <div className="flex flex-col gap-3">
-                        <button onClick={() => setCreateModalOpen(true)} className="btn btn-primary w-full flex items-center justify-center gap-2">
+                        <button onClick={() => setCreateModalOpen(true)} className="btn btn-secondary w-full flex items-center justify-center gap-2">
                             <FiPlusCircle /> Создать запрос
                         </button>
                         <Link to="/my-requests" className="btn btn-secondary w-full flex items-center justify-center gap-2">

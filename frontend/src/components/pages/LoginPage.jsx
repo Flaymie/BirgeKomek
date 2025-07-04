@@ -109,25 +109,18 @@ const LoginPage = () => {
   };
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8 animate-gradient-x">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-soft">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-3xl mb-6 shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 py-12 px-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-2xl mb-6">
+            <HiOutlineUser className="w-8 h-8 text-indigo-600" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Добро пожаловать
-          </h2>
+          </h1>
           <p className="text-gray-500">
             Войдите в свой аккаунт, чтобы продолжить
-          </p>
-          <p className="mt-3 text-center text-sm text-gray-600 animate-slideUp">
-            Нет аккаунта?{' '}
-            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors duration-300 hover:underline">
-              Зарегистрируйтесь
-            </Link>
           </p>
         </div>
 
@@ -283,6 +276,19 @@ const LoginPage = () => {
               Войти через Telegram
             </button>
           </form>
+        </div>
+
+        {/* Register Link */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-600">
+            Нет аккаунта?{' '}
+            <Link 
+              to="/register" 
+              className="font-medium text-indigo-600 hover:text-indigo-500"
+            >
+              Зарегистрируйтесь
+            </Link>
+          </p>
         </div>
       </div>
 
