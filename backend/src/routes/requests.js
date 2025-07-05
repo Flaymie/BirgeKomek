@@ -822,9 +822,30 @@ router.post('/:id/cancel', protect, [
         const { title, description, subject, grade, urgency, editReason } = req.body;
         let request = req.request; // Получаем из middleware
 
-        // Обновляем поля
-        if (title) request.title = title;
-        if (description) request.description = description;
+        // --->>> ИНТЕГРАЦИЯ GEMINI ПРИ РЕДАКТИРОВАНИИ <<<---
+        // Определяем, какой текст будет после редактирования
+        const newTitle = title || request.title;
+        const newDescription = description || request.description;
+        
+        // Запускаем модерацию, только если менялся заголовок или описание
+        if (title || description) {
+            const moderatedContent = await geminiService.moderateRequest(newTitle, newDescription);
+
+            if (!moderatedContent.is_safe) {
+                return res.status(400).json({
+                    errors: [{
+                        msg: `Ваш текст не прошел модерацию: ${moderatedContent.rejection_reason}`,
+                        param: description ? "description" : "title",
+                    }],
+                });
+            }
+            // Если все ок, используем предложенные версии
+            request.title = moderatedContent.suggested_title;
+            request.description = moderatedContent.suggested_description;
+        }
+        // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
+
+        // Обновляем остальные поля, если они были переданы
         if (subject) request.subject = subject;
         if (grade) request.grade = grade;
         if (urgency) request.urgency = urgency;
