@@ -150,9 +150,12 @@ const EditRequestPage = () => {
       toast.success('Запрос успешно обновлен!');
       // Перенаправляем на страницу с деталями запроса
       navigate(`/request/${id}`, { state: { from: '/my-requests' } });
-    } catch (error) {
-      console.error('Ошибка при обновлении запроса:', error);
-      const errorMessage = error.response?.data?.message || 'Произошла ошибка при обновлении запроса';
+    } catch (err) {
+      console.error('Ошибка при обновлении запроса:', err);
+      let errorMessage = 'Произошла ошибка при обновлении запроса.';
+      if (err.response && err.response.data && err.response.data.errors && err.response.data.errors.length > 0) {
+        errorMessage = err.response.data.errors[0].msg;
+      }
       toast.error(errorMessage);
       setIsSubmitting(false);
     }
