@@ -822,26 +822,30 @@ router.post('/:id/cancel', protect, [
         const { title, description, subject, grade, urgency, editReason } = req.body;
         let request = req.request; // Получаем из middleware
 
-        // --->>> ИНТЕГРАЦИЯ GEMINI ПРИ РЕДАКТИРОВАНИИ <<<---
-        // Определяем, какой текст будет после редактирования
-        const newTitle = title || request.title;
-        const newDescription = description || request.description;
-        
-        // Запускаем модерацию, только если менялся заголовок или описание
+        // --->>> ИНТЕГРАЦИЯ GEMINI ПРИ РЕДАКТИРОВАНИИ (С УЧЕТОМ РОЛИ) <<<---
         if (title || description) {
-            const moderatedContent = await geminiService.moderateRequest(newTitle, newDescription);
+            // Если это НЕ модератор/админ, то отправляем на проверку
+            if (!req.isModeratorAction) {
+                const newTitle = title || request.title;
+                const newDescription = description || request.description;
+                const moderatedContent = await geminiService.moderateRequest(newTitle, newDescription);
 
-            if (!moderatedContent.is_safe) {
-                return res.status(400).json({
-                    errors: [{
-                        msg: `Ваш текст не прошел модерацию: ${moderatedContent.rejection_reason}`,
-                        param: description ? "description" : "title",
-                    }],
-                });
+                if (!moderatedContent.is_safe) {
+                    return res.status(400).json({
+                        errors: [{
+                            msg: `Ваш текст не прошел модерацию: ${moderatedContent.rejection_reason}`,
+                            param: description ? "description" : "title",
+                        }],
+                    });
+                }
+                // Если все ок, используем предложенные версии
+                request.title = moderatedContent.suggested_title;
+                request.description = moderatedContent.suggested_description;
+            } else {
+                // А если это модератор, то просто применяем его правки напрямую
+                if (title) request.title = title;
+                if (description) request.description = description;
             }
-            // Если все ок, используем предложенные версии
-            request.title = moderatedContent.suggested_title;
-            request.description = moderatedContent.suggested_description;
         }
         // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
 
