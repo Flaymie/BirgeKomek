@@ -11,6 +11,7 @@ import tgRequired from '../middleware/tgRequired.js';
 import redis from '../config/redis.js'; 
 import crypto from 'crypto';
 import { sendTelegramMessage } from './users.js';
+import geminiService from "../services/geminiService.js"; // Импортируем наш сервис
 
 // ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
@@ -244,8 +245,12 @@ router.post('/', createRequestLimiter, [
         const { title, description, subject, grade, topic, isDraft } = req.body;
         const author = req.user.id;
         
-        // --- РУЧНАЯ ВАЛИДАЦИЯ ДЛЯ ПУБЛИКАЦИИ ---
+        // --->>> ИНТЕГРАЦИЯ GEMINI (ТОЛЬКО ДЛЯ ПУБЛИКАЦИИ) <<<---
+        let finalTitle = title;
+        let finalDescription = description;
+
         if (!isDraft) {
+            // Сначала все стандартные проверки
             if (!description || description.trim().length < 10) {
                 return res.status(400).json({ errors: [{ msg: 'Описание должно быть минимум 10 символов' }] });
             }
@@ -263,67 +268,83 @@ router.post('/', createRequestLimiter, [
                     code: 'TELEGRAM_REQUIRED'
                 });
             }
-        }
 
+            // А теперь модерация
+            const moderatedContent = await geminiService.moderateRequest(title, description);
+
+            if (!moderatedContent.is_safe) {
+                return res.status(400).json({
+                    errors: [{
+                        msg: `Ваша заявка отклонена модерацией: ${moderatedContent.rejection_reason}`,
+                        param: "description",
+                    }],
+                });
+            }
+            finalTitle = moderatedContent.suggested_title;
+            finalDescription = moderatedContent.suggested_description;
+        }
+        // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
+      
         const request = new Request({
-            title,
-            description,
+            title: finalTitle,
+            description: finalDescription,
             subject,
             grade,
             topic,
             author,
-            status: isDraft ? 'draft' : 'open' // <-- УСТАНАВЛИВАЕМ СТАТУС
+            status: isDraft ? 'draft' : 'open'
         });
-        await request.save();
-        
-        // 1. Получаем полный объект заявки с данными автора, чтобы сразу показать на фронте
-        const populatedRequest = await Request.findById(request._id)
-            .populate('author', 'username rating avatar') // Добавляем нужные поля автора
-            .lean(); // .lean() для производительности
 
-        // 2. Отправляем сокет, только если это НЕ черновик
+        await request.save();
+
+        const populatedRequest = await Request.findById(request._id)
+            .populate('author', 'username rating avatar')
+            .lean();
+
         if (populatedRequest.status !== 'draft') {
             io.emit('new_request', populatedRequest);
         }
 
-        // Старый код с уведомлениями хелперам можно пока оставить или убрать,
-        // но он не решает проблему обновления списка заявок.
-        // Оповещаем хелперов, только если это НЕ черновик
         if (request.status === 'open') {
-            const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
-        if (helpersForSubject.length > 0) {
-                // Убираем ID автора из списка получателей
-                const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== req.user.id);
+            // Старый код с уведомлениями хелперам можно пока оставить или убрать,
+            // но он не решает проблему обновления списка заявок.
+            // Оповещаем хелперов, только если это НЕ черновик
+            if (request.status === 'open') {
+                const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
+            if (helpersForSubject.length > 0) {
+                    // Убираем ID автора из списка получателей
+                    const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== req.user.id);
 
-                if (helperIds.length > 0) {
-                    const notificationPromises = helperIds.map(helperId => {
-                        return createAndSendNotification({
-                            user: helperId,
-                            type: 'new_request_for_subject',
-                            title: `Новая заявка по вашему предмету: ${subject}`,
-                            message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                            link: `/requests/${request._id}`
+                    if (helperIds.length > 0) {
+                        const notificationPromises = helperIds.map(helperId => {
+                            return createAndSendNotification({
+                                user: helperId,
+                                type: 'new_request_for_subject',
+                                title: `Новая заявка по вашему предмету: ${subject}`,
+                                message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
+                                link: `/requests/${request._id}`
+                            });
+                });
+                await Promise.all(notificationPromises);
+
+                        // Отправка в Telegram
+                        const tgUsers = await User.find({
+                            _id: { $in: helperIds }, 
+                            'telegramIntegration.notificationsEnabled': true,
+                            telegramId: { $exists: true }
                         });
-            });
-            await Promise.all(notificationPromises);
 
-                    // Отправка в Telegram
-                    const tgUsers = await User.find({
-                        _id: { $in: helperIds }, 
-                        'telegramIntegration.notificationsEnabled': true,
-                        telegramId: { $exists: true }
-                    });
-
-                    for (const tgUser of tgUsers) {
-                        const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
-                        await sendTelegramMessage(tgUser.telegramId, messageText, {
-                            parse_mode: 'Markdown',
-                            reply_markup: {
-                                inline_keyboard: [
-                                    [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${request._id}` }]
-                                ]
-                            }
-                        });
+                        for (const tgUser of tgUsers) {
+                            const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
+                            await sendTelegramMessage(tgUser.telegramId, messageText, {
+                                parse_mode: 'Markdown',
+                                reply_markup: {
+                                    inline_keyboard: [
+                                        [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${request._id}` }]
+                                    ]
+                                }
+                            });
+                        }
                     }
                 }
             }

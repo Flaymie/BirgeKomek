@@ -80,13 +80,13 @@ const getMaxRequestsByRole = (req) => {
   if (req.user) {
     const { role } = req.user; // telegramId тут не нужен
     if (role === 'admin') {
-      return 7000; // Админам даем очень много
+      return 700000; // Админам даем очень много
     }
     if (role === 'moderator') {
-      return 3000; // Модераторам даем много
+      return 300000; // Модераторам даем много
     }
     if (role === 'helper') {
-      return 2000; // Хелперы - активные юзеры
+      return 200000; // Хелперы - активные юзеры
     }
     if (role === 'user') {
       return req.user.telegramId ? 1000 : 500; // Обычный юзер с TG и без
