@@ -20,6 +20,7 @@ const MyRequestsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRequest, setEditingRequest] = useState(null);
   const [activeTab, setActiveTab] = useState('published'); // 'published' или 'drafts'
   
   const [filters, setFilters] = useState({
@@ -75,6 +76,34 @@ const MyRequestsPage = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, activeTab]);
+
+
+  const handleEditDraft = (request) => {
+    setEditingRequest(request);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingRequest(null);
+  };
+
+  const handleDeleteDraft = async (requestId) => {
+    if (!window.confirm('Вы уверены, что хотите удалить этот черновик? Это действие необратимо.')) {
+      return;
+    }
+    try {
+      // Предполагаем, что у сервиса есть метод для удаления
+      await requestsService.deleteRequest(requestId);
+      setRequests(prevRequests => prevRequests.filter(r => r._id !== requestId));
+      // Если используете toast-уведомления:
+      // import { toast } from 'react-toastify';
+      // toast.success('Черновик успешно удален');
+    } catch (err) {
+      console.error('Ошибка при удалении черновика:', err);
+      // toast.error('Не удалось удалить черновик');
+    }
+  };
 
 
   useEffect(() => {
@@ -244,12 +273,43 @@ const MyRequestsPage = () => {
                   {requests.map((request) => (
                     <motion.div
                       key={request._id}
+                      layout
                       variants={{
                         hidden: { y: 20, opacity: 0 },
                         visible: { y: 0, opacity: 1 },
                       }}
                       className="h-full"
                     >
+                      {activeTab === 'drafts' ? (
+                        <div className="bg-white rounded-xl shadow-lg h-full flex flex-col overflow-hidden border-b-4 border-yellow-400">
+                          <div className="p-6 flex-grow">
+                            <div className="flex justify-between items-start mb-3">
+                                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                  Черновик
+                                </span>
+                              <span className="text-xs text-gray-500 whitespace-nowrap pl-2">{formatDate(request.updatedAt)}</span>
+                            </div>
+                            
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">
+                               {request.title || <span className="italic text-gray-400">Без заголовка</span>}
+                            </h3>
+                            
+                            <p className="text-sm text-gray-600 line-clamp-3">
+                              {request.description || <span className="italic text-gray-400">Нет описания</span>}
+                            </p>
+                          </div>
+
+                          <div className="border-t border-gray-100 bg-gray-50 px-6 py-3">
+                            <button
+                              onClick={() => handleEditDraft(request)}
+                              className="w-full btn btn-sm btn-secondary inline-flex items-center justify-center gap-2"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                              Редактировать
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
                        <Link to={`/request/${request._id}`} state={{ from: '/my-requests' }} className="block h-full">
                         <div className="bg-white rounded-xl shadow-lg h-full flex flex-col overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 ease-in-out group border-b-4 border-transparent hover:border-primary-500">
                           <div className="p-6 flex-grow">
@@ -274,17 +334,14 @@ const MyRequestsPage = () => {
                                 <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-medium">
                                   {request.subject || "Без предмета"}
                                 </span>
-                                {request.status === 'draft' ? (
-                                    <span className="text-yellow-600 font-semibold">Черновик</span>
-                                ) : (
-                                    <div className="text-gray-600">
+                                  <div className="text-gray-600">
                                       {/* Тут можно что-то еще добавить, если нужно */}
-                                    </div>
-                                )}
+                                  </div>
                             </div>
                           </div>
                         </div>
                       </Link>
+                      )}
                     </motion.div>
                   ))}
                 </motion.div>
@@ -314,8 +371,12 @@ const MyRequestsPage = () => {
 
       <CreateRequestModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => fetchRequests()}
+        onClose={handleCloseModal}
+        onSuccess={() => {
+          fetchRequests();
+          handleCloseModal();
+        }}
+        requestToEdit={editingRequest}
       />
     </div>
   );

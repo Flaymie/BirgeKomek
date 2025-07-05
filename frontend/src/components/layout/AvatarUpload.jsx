@@ -103,28 +103,28 @@ const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'md', editable = t
 
   return (
     <div className="flex flex-col items-center">
-      <div
+    <div
         className={`relative rounded-full cursor-pointer group ${sizeClasses[size]} border-2 border-gray-300 flex items-center justify-center overflow-hidden ${className} ${loading ? 'animate-pulse' : ''}`}
-        onClick={handleAvatarClick}
-        title={editable ? 'Нажмите, чтобы изменить аватар' : ''}
-      >
+      onClick={handleAvatarClick}
+      title={editable ? 'Нажмите, чтобы изменить аватар' : ''}
+    >
         {previewUrl ? (
-          <img
+        <img
             src={previewUrl}
-            alt="Avatar"
-            className="rounded-full w-full h-full object-cover"
-          />
-        ) : (
+          alt="Avatar"
+          className="rounded-full w-full h-full object-cover"
+        />
+      ) : (
           <div className="rounded-full w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-            <DefaultAvatarIcon className={`text-gray-400 ${iconSizeClasses[size]}`} />
-          </div>
-        )}
+          <DefaultAvatarIcon className={`text-gray-400 ${iconSizeClasses[size]}`} />
+        </div>
+      )}
 
         {editable && !loading && (
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full flex items-center justify-center transition-all duration-300">
             <Upload className={`text-white opacity-0 group-hover:opacity-100 transition-all duration-300 ${iconSizeClasses[size]}`} />
-          </div>
-        )}
+        </div>
+      )}
         
         {editable && previewUrl && (
           <button
@@ -135,24 +135,24 @@ const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'md', editable = t
             <X className="h-3 w-3 text-white" />
           </button>
         )}
-        
-        {loading && (
-          <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
-            <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        )}
+      
+      {loading && (
+        <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
+          <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      )}
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept="image/png, image/jpeg, image/gif"
-          disabled={loading}
-        />
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept="image/png, image/jpeg, image/gif"
+        disabled={loading}
+      />
       </div>
       {editable && (
         <p className="text-xs text-gray-500 mt-2">

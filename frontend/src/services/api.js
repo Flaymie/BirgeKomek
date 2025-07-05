@@ -295,14 +295,16 @@ const messagesService = {
   },
   
   // Отправить сообщение с вложением
-  sendMessageWithAttachment: async (requestId, content, file) => {
+  sendMessageWithAttachment: async (requestId, content, attachment) => {
     const formData = new FormData();
     formData.append('requestId', requestId);
     formData.append('content', content);
-    formData.append('attachment', file);
-    
-    // Axios сам установит правильный Content-Type с boundary
-    return api.post('/messages/upload', formData);
+    formData.append('attachment', attachment, attachment.name);
+    return api.post(`/messages/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   },
   
   // Отметить сообщения как прочитанные

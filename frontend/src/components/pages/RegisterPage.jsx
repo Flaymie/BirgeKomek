@@ -286,12 +286,12 @@ const RegisterPage = () => {
             <HiOutlineUserGroup className="w-8 h-8 text-indigo-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Создание аккаунта
+          Создание аккаунта
           </h1>
           <p className="text-gray-500">
             Заполните форму, чтобы начать пользоваться платформой
-          </p>
-        </div>
+        </p>
+      </div>
 
         {/* Main Form Card */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
@@ -386,7 +386,7 @@ const RegisterPage = () => {
                   ) : (
                     <HiOutlineEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
-                </button>
+                 </button>
               </div>
               {errors.password && (
                 <p className="text-sm text-red-600 flex items-center animate-fade-in">
@@ -394,7 +394,7 @@ const RegisterPage = () => {
                   {errors.password}
                 </p>
               )}
-              <PasswordStrengthMeter score={passwordScore} />
+               <PasswordStrengthMeter score={passwordScore} />
             </div>
 
             {/* Подтверждение пароля */}
@@ -409,19 +409,19 @@ const RegisterPage = () => {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <HiOutlineLockClosed className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
-                  id="password2"
-                  name="password2"
-                  type={showPassword2 ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  value={password2}
-                  onChange={onChange}
+                    <input
+                      id="password2"
+                      name="password2"
+                      type={showPassword2 ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      required
+                      value={password2}
+                      onChange={onChange}
                   className={`block w-full pl-10 pr-10 py-3 border ${
                     errors.password2 ? 'border-red-300' : 'border-gray-300'
                   } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300`}
                   placeholder="Повторите пароль"
-                />
+                    />
                 <button 
                   type="button" 
                   onClick={() => setShowPassword2(!showPassword2)} 
@@ -432,8 +432,8 @@ const RegisterPage = () => {
                   ) : (
                     <HiOutlineEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
-                </button>
-              </div>
+                    </button>
+                </div>
               {errors.password2 && (
                 <p className="text-sm text-red-600 flex items-center animate-fade-in">
                   <HiOutlineExclamationCircle className="w-4 h-4 mr-1" />
@@ -504,11 +504,11 @@ const RegisterPage = () => {
                         errors.grade ? 'border-red-300' : 'border-gray-300'
                       } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 appearance-none`}
                     >
-                      <option value="">Выберите ваш класс</option>
-                      {[...Array(5)].map((_, i) => (
-                        <option key={i + 7} value={i + 7}>{i + 7} класс</option>
-                      ))}
-                    </select>
+                    <option value="">Выберите ваш класс</option>
+                    {[...Array(5)].map((_, i) => (
+                      <option key={i + 7} value={i + 7}>{i + 7} класс</option>
+                    ))}
+                  </select>
                   </div>
                   {errors.grade && (
                     <p className="text-sm text-red-600 flex items-center animate-fade-in">
@@ -576,7 +576,7 @@ const RegisterPage = () => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-500">или</span>
-              </div>
+            </div>
             </div>
 
             <button

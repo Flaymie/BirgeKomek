@@ -25,17 +25,18 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Генерируем уникальное имя файла
+    // ГЛУБОКИЙ ФИКС: Node.js по умолчанию читает multipart-строки как latin1.
+    // Принудительно перекодируем имя файла в UTF-8, чтобы спасти кириллицу.
+    const decodedFileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, uniqueSuffix + ext);
+    cb(null, uniqueSuffix + '-' + decodedFileName);
   }
 });
 
 // Фильтр для проверки типов файлов по РАСШИРЕНИЮ (более надежно)
 const fileFilter = (req, file, cb) => {
   // Белый список разрешенных РАСШИРЕНИЙ
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rar', '.zip', '.7z', '.iso'];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rar', '.zip', '.7z'];
   
   // Получаем расширение файла
   const fileExt = path.extname(file.originalname).toLowerCase();
@@ -412,8 +413,9 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
         }
 
         const attachmentData = {
-          fileName: file.originalname,
-          fileUrl: `/uploads/attachments/${file.filename}`,
+          // Снова применяем фикс с Buffer, чтобы в БД попало правильное имя для отображения
+          fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+          fileUrl: `/uploads/attachments/${file.filename}`, // А для ссылки используем имя файла на диске
           fileType: file.mimetype,
           fileSize: file.size,
           dimensions: dimensions, // Добавляем размеры

@@ -1,50 +1,30 @@
+import { api, serverURL } from './api'; // Импортируем наш настроенный axios
 import { toast } from 'react-toastify';
-import { serverURL } from './api';
 
 export const downloadFile = async (file) => {
-  if (!file || !file.fileUrl) {
-    toast.error('Файл для скачивания не найден.');
-    console.error('Download error: file or file.fileUrl is missing.', file);
-    return;
-  }
-
-  // Строим полный URL к файлу
   const fileUrl = `${serverURL}${file.fileUrl}`;
-
+  
   try {
-    // Уведомляем пользователя о начале скачивания
-    toast.info(`Начинается скачивание: ${file.fileName}`);
-    
-    // 1. Запрашиваем файл с сервера
-    const response = await fetch(fileUrl);
-    
-    // Проверяем, что сервер ответил успешно
-    if (!response.ok) {
-      throw new Error(`Ошибка сети: ${response.statusText}`);
-    }
-    
-    // 2. Получаем содержимое файла как Blob (Binary Large Object)
-    const blob = await response.blob();
-    
-    // 3. Создаем временную ссылку на этот Blob
+    // Используем axios для получения файла как бинарного blob'а
+    const response = await api.get(fileUrl, {
+      responseType: 'blob',
+    });
+
+    // Создаем временный URL из полученного blob'а
+    const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', file.fileName);
     
-    // 4. Устанавливаем имя файла для скачивания
-    link.download = file.fileName || 'downloaded-file';
-    
-    // 5. Симулируем клик по ссылке, чтобы вызвать диалог скачивания
-    document.body.appendChild(link); // Firefox требует, чтобы ссылка была в DOM
+    document.body.appendChild(link);
     link.click();
     
-    // 6. Убираем временную ссылку из DOM
-    document.body.removeChild(link);
-    
-    // 7. Освобождаем память, занятую временной ссылкой
-    URL.revokeObjectURL(link.href);
+    // Очищаем после скачивания
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
 
   } catch (error) {
     console.error('Ошибка при скачивании файла:', error);
-    toast.error('Не удалось скачать файл. Попробуйте позже.');
+    toast.error('Не удалось скачать файл. Попробуйте снова.');
   }
 }; 

@@ -255,6 +255,8 @@ const ChatPage = () => {
   const [typingUsers, setTypingUsers] = useState({});
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
 
+  const fileInputRef = useRef(null); // Наш костыль
+
   // --- Стейты для полных профилей ---
   const [authorProfile, setAuthorProfile] = useState(null);
   const [helperProfile, setHelperProfile] = useState(null);
@@ -280,10 +282,8 @@ const ChatPage = () => {
     }
   }, [requestDetails]);
 
-  // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
-  const onDrop = useCallback((acceptedFiles) => {
-    // Берем только первый файл
-    const file = acceptedFiles[0];
+  // --- Общий обработчик добавления файла (и для дропзоны и для инпута) ---
+  const handleFileAdded = useCallback((file) => {
     if (file) {
       if (file.size > 10 * 1024 * 1024) { // 10 MB лимит
         toast.error('Размер файла не должен превышать 10 МБ');
@@ -293,11 +293,20 @@ const ChatPage = () => {
     }
   }, []);
 
-  const { getRootProps, isDragActive, open } = useDropzone({
+  // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
+  const onDrop = useCallback((acceptedFiles) => {
+    // Берем только первый файл
+    const file = acceptedFiles[0];
+    handleFileAdded(file);
+  }, [handleFileAdded]);
+
+  const dropzoneDisabled = !!editingMessage || (requestDetails && requestDetails.status === 'open');
+
+  const { getRootProps, isDragActive } = useDropzone({
     onDrop,
-    noClick: true, 
+    noClick: true, // ВАЖНО: Клик по чату НЕ должен открывать диалог
     noKeyboard: true,
-    disabled: !!editingMessage, // Отключаем, когда редактируем сообщение
+    disabled: dropzoneDisabled,
   });
 
   const chatContainerRef = useRef(null);
@@ -912,7 +921,7 @@ const ChatPage = () => {
         
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
-        <footer className="bg-white border-t border-gray-200 rounded-b-lg flex-shrink-0">
+        <footer className="relative bg-white border-t border-gray-200 rounded-b-lg">
           <AnimatePresence>
             {showScrollDown && (
               <motion.div
@@ -942,6 +951,24 @@ const ChatPage = () => {
                 );
             }
             
+            const handleAttachmentButtonClick = () => {
+              if (!dropzoneDisabled) {
+                console.log('[ChatPage] Triggering hidden file input click.');
+                fileInputRef.current?.click();
+              } else {
+                console.log('[ChatPage] Attachment button click ignored, disabled.');
+              }
+            };
+            
+            const handleFileSelect = (e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFileAdded(file);
+              }
+              // Сбрасываем значение, чтобы можно было выбрать тот же файл снова
+              if(e.target) e.target.value = null;
+            };
+
             if (isChatActive || requestDetails.status === 'open') {
               return (
                 <div className="p-4">
@@ -960,12 +987,19 @@ const ChatPage = () => {
             </div>
           )}
 
-                    <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-center gap-3">
+                    <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-end gap-3">
+                       <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                        accept="image/*,application/pdf,.zip,.rar,.7z,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      />
                       <button
                         type="button"
-                        onClick={open}
-                        disabled={!!editingMessage || requestDetails.status === 'open'}
-                        className={`cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300 self-end mb-2`}
+                        onClick={handleAttachmentButtonClick}
+                        disabled={dropzoneDisabled}
+                        className={`p-2 cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300 self-end mb-1`}
                       >
                         <PaperClipIcon className="h-6 w-6" />
                       </button>
@@ -982,7 +1016,7 @@ const ChatPage = () => {
                       />
                       <button
                         type="submit"
-                        disabled={(!newMessage.trim() && !attachment) || requestDetails.status === 'open'}
+                        disabled={(!newMessage.trim() && !attachment) || dropzoneDisabled}
                         className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors self-end"
                       >
                         <ArrowUpCircleIcon className="h-6 w-6" />

@@ -270,7 +270,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
             </div>
                 
             {hasAnyContactInfo && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {hasLocation && (
                 <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Город</h3>
@@ -354,40 +354,40 @@ const ProfileEditor = ({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-          </div>
+                </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Мой профиль
           </h1>
           <p className="text-gray-500">
             Управляйте своими личными данными и настройками
           </p>
-        </div>
-
+            </div>
+            
         {/* Main Form Card */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-          <form onSubmit={handleProfileSubmit} className="space-y-8">
-            {profileSuccess && (
+            <form onSubmit={handleProfileSubmit} className="space-y-8">
+              {profileSuccess && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-xl animate-fade-in">
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
+                      </svg>
                   <p className="text-sm text-green-800">{profileSuccess}</p>
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            {profileError && (
+              )}
+              
+              {profileError && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-in">
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
                   <p className="text-sm text-red-800">{profileError}</p>
+                  </div>
                 </div>
-              </div>
-            )}
-            
+              )}
+              
             {/* Аватар по центру */}
             <div className="flex justify-center">
               <AvatarUpload 
@@ -408,28 +408,28 @@ const ProfileEditor = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <input
-                  type="text"
-                  name="username"
-                  id="username"
-                  value={profileData.username || ''}
-                  onChange={handleProfileChange}
-                  disabled={isUsernameChangeBlocked || isProfileLoading}
+                  <input
+                    type="text"
+                    name="username"
+                    id="username"
+                    value={profileData.username || ''}
+                    onChange={handleProfileChange}
+                    disabled={isUsernameChangeBlocked || isProfileLoading}
                   className={`block w-full pl-10 py-3 border ${
                     profileErrors.username ? 'border-red-300' : 'border-gray-300'
                   } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 ${
                     isUsernameChangeBlocked || isProfileLoading ? 'bg-gray-100 cursor-not-allowed' : ''
                   }`}
-                />
+                  />
               </div>
-              {isUsernameChangeBlocked && (
+                  {isUsernameChangeBlocked && (
                 <p className="text-sm text-red-600 flex items-center animate-fade-in">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Вы сможете изменить никнейм только после {nextUsernameChangeDate}.
-                </p>
-              )}
+                      Вы сможете изменить никнейм только после {nextUsernameChangeDate}.
+                    </p>
+                  )}
               {profileErrors.username && (
                 <p className="text-sm text-red-600 flex items-center animate-fade-in">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -438,9 +438,9 @@ const ProfileEditor = ({
                   {profileErrors.username}
                 </p>
               )}
-            </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label htmlFor="location" className="block text-sm font-medium text-gray-700">
                   Город
@@ -504,8 +504,8 @@ const ProfileEditor = ({
                     </svg>
                   </div>
                 </div>
+                </div>
               </div>
-            </div>
 
             <div className="space-y-2">
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
@@ -529,8 +529,8 @@ const ProfileEditor = ({
                 />
               </div>
               <p className="text-xs text-gray-500">Телефон привязывается и обновляется через Telegram.</p>
-            </div>
-
+              </div>
+              
             <div className="space-y-2">
               <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
                 О себе
@@ -554,13 +554,13 @@ const ProfileEditor = ({
             </div>
             
             {/* Предметы для хелперов */}
-            {currentUser.roles && currentUser.roles.helper && (
+              {currentUser.roles && currentUser.roles.helper && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">
                   Предметы, в которых вы можете помочь
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {subjectOptions.map((option) => (
+                    {subjectOptions.map((option) => (
                     <div 
                       key={option.value} 
                       className={`cursor-pointer rounded-xl p-3 flex items-center transition-all duration-300 ${
@@ -576,12 +576,12 @@ const ProfileEditor = ({
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
+              )}
+              
             <button
               type="submit"
               disabled={isProfileLoading}
@@ -598,8 +598,8 @@ const ProfileEditor = ({
               ) : (
                 'Сохранить изменения'
               )}
-            </button>
-          </form>
+                </button>
+            </form>
 
           {/* Divider */}
           <div className="relative my-8">
@@ -612,23 +612,23 @@ const ProfileEditor = ({
           </div>
 
           {/* Telegram Block */}
-          {currentUser.telegramId ? (
+                {currentUser.telegramId ? (
             <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-              <div className="flex items-center">
-                <FaTelegramPlane className="w-6 h-6 mr-3 text-green-600" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">
-                    Аккаунт привязан к @{currentUser.telegramUsername || currentUser.telegramId}
-                  </p>
-                  <p className="text-xs text-gray-600">Вы получаете уведомления в Telegram.</p>
-                </div>
-              </div>
+                        <div className="flex items-center">
+                            <FaTelegramPlane className="w-6 h-6 mr-3 text-green-600" />
+                            <div>
+                                <p className="text-sm font-semibold text-gray-800">
+                                    Аккаунт привязан к @{currentUser.telegramUsername || currentUser.telegramId}
+                                </p>
+                                <p className="text-xs text-gray-600">Вы получаете уведомления в Telegram.</p>
+                            </div>
+                        </div>
               <div className="mt-4">
-                <button 
-                  onClick={onUnlinkTelegram} 
+                            <button 
+                                onClick={onUnlinkTelegram} 
                   className="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-gray-600 transition-all duration-300 flex items-center justify-center text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isTelegramLoading || !canUnlinkTelegram}
-                >
+                                disabled={isTelegramLoading || !canUnlinkTelegram}
+                            >
                   {isTelegramLoading ? (
                     <>
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -638,30 +638,30 @@ const ProfileEditor = ({
                       Отвязка...
                     </>
                   ) : (
-                    <>
-                      <FaTelegramPlane className="w-5 h-5 mr-2" />
-                      Отвязать Telegram
-                    </>
-                  )}
-                </button>
-              </div>
-              {!canUnlinkTelegram && (
-                <p className="text-xs text-red-600 mt-2">
-                  Вы не можете отвязать Telegram, так как у вас не установлен пароль для входа.
-                </p>
-              )}
-            </div>
-          ) : (
+                                  <>
+                                    <FaTelegramPlane className="w-5 h-5 mr-2" />
+                                    Отвязать Telegram
+                                  </>
+                                )}
+                            </button>
+                        </div>
+                        {!canUnlinkTelegram && (
+                            <p className="text-xs text-red-600 mt-2">
+                                Вы не можете отвязать Telegram, так как у вас не установлен пароль для входа.
+                            </p>
+                        )}
+                    </div>
+                ) : (
             <div>
-              <p className="text-sm text-gray-600 mb-3">
-                Привяжите свой Telegram, чтобы получать уведомления о новых ответах и статусах ваших запросов.
-              </p>
-              <button
-                type="button"
-                onClick={onLinkTelegram}
+                        <p className="text-sm text-gray-600 mb-3">
+                            Привяжите свой Telegram, чтобы получать уведомления о новых ответах и статусах ваших запросов.
+                        </p>
+                         <button
+                            type="button"
+                            onClick={onLinkTelegram}
                 className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-600 transition-all duration-300 flex items-center justify-center text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isTelegramLoading}
-              >
+                            disabled={isTelegramLoading}
+                        >
                 {isTelegramLoading ? (
                   <>
                     <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -672,13 +672,13 @@ const ProfileEditor = ({
                   </>
                 ) : (
                   <>
-                    <FaTelegramPlane className="w-5 h-5 mr-2" />
-                    Привязать Telegram
+                             <FaTelegramPlane className="w-5 h-5 mr-2" />
+                            Привязать Telegram
                   </>
                 )}
-              </button>
-            </div>
-          )}
+                        </button>
+                    </div>
+                )}
 
           {/* Divider */}
           <div className="relative my-8">
@@ -688,32 +688,32 @@ const ProfileEditor = ({
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-white text-gray-500">Опасная зона</span>
             </div>
-          </div>
+            </div>
 
           {/* Danger Zone */}
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center">
-              <div className="flex-grow mb-3 sm:mb-0">
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                    <div className="flex-grow mb-3 sm:mb-0">
                 <h3 className="font-bold text-red-800">Удаление аккаунта</h3>
-                <p className="text-sm text-red-700">
-                  Удаление аккаунта - необратимое действие. Все ваши данные будут стерты.
-                </p>
-              </div>
-              <div className="sm:ml-4">
-                <button 
-                  type="button" 
-                  onClick={onDeleteAccount} 
+                        <p className="text-sm text-red-700">
+                            Удаление аккаунта - необратимое действие. Все ваши данные будут стерты.
+                        </p>
+                        </div>
+                    <div className="sm:ml-4">
+                      <button 
+                        type="button" 
+                        onClick={onDeleteAccount} 
                   className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300"
-                  disabled={isProfileLoading}
-                >
-                  Удалить аккаунт
-                </button>
+                            disabled={isProfileLoading}
+                      >
+                        Удалить аккаунт
+                      </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
   );
 };
 
