@@ -862,7 +862,7 @@ router.post('/:id/cancel', protect, [
     body('subject').optional().trim().notEmpty().escape(),
     body('grade').optional().isInt({ min: 1, max: 11 }),
     body('editReason').optional().trim().escape(),
-    body('deletedAttachments').optional().isArray() // Добавляем поле для списка удаленных вложений
+    body('deletedAttachments').optional().isString() // Было isArray(), меняем на isString()
   ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -870,27 +870,33 @@ router.post('/:id/cancel', protect, [
     }
 
     try {
-        const { title, description, subject, grade, urgency, editReason, deletedAttachments } = req.body;
+        let { title, description, subject, grade, urgency, editReason, deletedAttachments } = req.body;
         let request = req.request; // Получаем из middleware
 
         // 1. Удаляем старые вложения, если есть
         if (deletedAttachments) {
-            const attachmentsToDelete = Array.isArray(deletedAttachments) ? deletedAttachments : [deletedAttachments];
-            
-            // Удаляем файлы с диска
-            request.attachments.forEach(att => {
-                if (attachmentsToDelete.includes(att.filename)) {
-                    const filePath = path.join(process.cwd(), 'uploads/attachments', att.filename);
-                    if (fs.existsSync(filePath)) {
-                        fs.unlinkSync(filePath);
-                    }
-                }
-            });
+            try {
+                const attachmentsToDelete = JSON.parse(deletedAttachments);
+                if (Array.isArray(attachmentsToDelete)) {
+                     // Удаляем файлы с диска
+                    request.attachments.forEach(att => {
+                        if (attachmentsToDelete.includes(att.filename)) {
+                            const filePath = path.join(process.cwd(), 'uploads/attachments', att.filename);
+                            if (fs.existsSync(filePath)) {
+                                fs.unlinkSync(filePath);
+                            }
+                        }
+                    });
 
-            // Удаляем из массива в базе
-            request.attachments = request.attachments.filter(
-                att => !attachmentsToDelete.includes(att.filename)
-            );
+                    // Удаляем из массива в базе
+                    request.attachments = request.attachments.filter(
+                        att => !attachmentsToDelete.includes(att.filename)
+                    );
+                }
+            } catch(e) {
+                console.error("Ошибка парсинга списка удаляемых файлов:", e);
+                // Не прерываем выполнение, просто логируем ошибку
+            }
         }
 
         // 2. Добавляем новые вложения

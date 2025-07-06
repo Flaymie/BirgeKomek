@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS } from '../../services/constants';
 import { motion } from 'framer-motion';
-import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon, PaperClipIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon, PaperClipIcon, ArrowUpTrayIcon, ServerIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 
@@ -19,7 +19,12 @@ const MAX_FILES = 10;
 const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [files, setFiles] = useState([]);
+  
+  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ФАЙЛОВ ---
+  const [newFiles, setNewFiles] = useState([]); // Новые, только что добавленные файлы
+  const [existingAttachments, setExistingAttachments] = useState([]); // Файлы, которые уже были в черновике
+  const [attachmentsToDelete, setAttachmentsToDelete] = useState([]); // Имена файлов на удаление
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -41,6 +46,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
           subject: requestToEdit.subject || '',
           grade: requestToEdit.grade || '',
         });
+        setExistingAttachments(requestToEdit.attachments || []);
       } else {
         setFormData({
           title: '',
@@ -48,8 +54,11 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
           subject: '',
           grade: currentUser?.grade || '',
         });
+        setExistingAttachments([]);
       }
       setErrors({});
+      setNewFiles([]);
+      setAttachmentsToDelete([]);
     }
   }, [isOpen, currentUser, requestToEdit, isEditing]);
   
@@ -80,49 +89,45 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const handleAction = async (actionType) => {
     if (checkAndShowModal()) return;
 
-    if (isEditing) return; // Не даем отправлять файлы при редактировании пока что
-
     const isDraft = actionType === 'saveDraft';
     if (!validateForm(isDraft)) return;
     
     setIsSubmitting(true);
     setErrors({});
     
-    let requestData;
-    const hasFiles = files.length > 0;
-
-    if (hasFiles) {
-      requestData = new FormData();
-      Object.keys(formData).forEach(key => {
+    const requestData = new FormData();
+    Object.keys(formData).forEach(key => {
         requestData.append(key, formData[key]);
-      });
-      files.forEach(file => {
-        requestData.append('attachments', file);
-      });
-    } else {
-      requestData = { ...formData };
-    }
-
+    });
 
     try {
-      let response;
       if (isEditing) {
-        // Обновляем данные в любом случае
+        if (attachmentsToDelete.length > 0) {
+          requestData.append('deletedAttachments', JSON.stringify(attachmentsToDelete));
+        }
+        newFiles.forEach(file => {
+          requestData.append('attachments', file);
+        });
+
         await requestsService.updateRequest(requestToEdit._id, requestData);
 
         if (actionType === 'publish') {
-            response = await requestsService.publishDraft(requestToEdit._id);
+            const response = await requestsService.publishDraft(requestToEdit._id);
             toast.success('Черновик успешно опубликован!');
+            if (onSuccess) onSuccess(response?.data);
         } else {
             toast.success('Черновик успешно сохранен!');
+            if (onSuccess) onSuccess(); // Обновляем данные на предыдущей странице
         }
       } else {
-        // Создаем новый
-        response = await requestsService.createRequest(requestData, isDraft);
+        newFiles.forEach(file => {
+          requestData.append('attachments', file);
+        });
+        const response = await requestsService.createRequest(requestData, isDraft);
         toast.success(isDraft ? 'Черновик успешно сохранен!' : 'Запрос успешно создан!');
+        if (onSuccess) onSuccess(response?.data);
       }
 
-      if (onSuccess) onSuccess(response?.data);
       onClose();
     } catch (error) {
       console.error('Ошибка при операции с запросом:', error);
@@ -150,6 +155,12 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
     }
   };
   
+  const handleRemoveExistingAttachment = (filename) => {
+    setAttachmentsToDelete(prev => [...prev, filename]);
+    setExistingAttachments(prev => prev.filter(att => att.filename !== filename));
+  };
+
+  const totalAttachments = existingAttachments.length + newFiles.length;
   const titleRemainingChars = MAX_TITLE_LENGTH - formData.title.length;
   const descriptionRemainingChars = MAX_DESCRIPTION_LENGTH - formData.description.length;
   const titleCharCounterClass = titleRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
@@ -224,14 +235,35 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
               </div>
 
               {/* --- DROPZONE ДЛЯ ФАЙЛОВ --- */}
-              {!isEditing && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Вложения (до {MAX_FILES} файлов, макс. {MAX_FILE_SIZE_MB}МБ каждый)
-                  </label>
-                  <FileUploader files={files} setFiles={setFiles} />
-                </div>
-              )}
+              <div>
+                {isEditing && existingAttachments.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-800 mb-2">Текущие вложения:</h4>
+                    <ul className="space-y-2">
+                      {existingAttachments.map((file) => (
+                        <li key={file.filename} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                           <div className="flex items-center gap-3 min-w-0">
+                            <ServerIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                            <span className="text-sm text-gray-700 truncate" title={file.originalName}>
+                              {file.originalName}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveExistingAttachment(file.filename)}
+                            className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {isEditing ? 'Добавить новые вложения' : 'Вложения'} (до {MAX_FILES} файлов, макс. {MAX_FILE_SIZE_MB}МБ каждый)
+                </label>
+                <FileUploader files={newFiles} setFiles={setNewFiles} maxFiles={MAX_FILES - existingAttachments.length} />
+              </div>
           </div>
 
           {/* Footer */}
@@ -303,9 +335,10 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
 export default CreateRequestModal;
 
 // Компонент для загрузки файлов вынесен для чистоты
-const FileUploader = ({ files, setFiles }) => {
+const FileUploader = ({ files, setFiles, maxFiles }) => {
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
-    const newFiles = acceptedFiles.slice(0, MAX_FILES - files.length);
+    const availableSlots = maxFiles - files.length;
+    const newFiles = acceptedFiles.slice(0, availableSlots);
 
     setFiles(prevFiles => [...prevFiles, ...newFiles]);
 
@@ -317,10 +350,10 @@ const FileUploader = ({ files, setFiles }) => {
         toast.error(`Не удалось загрузить файл "${rejected.file.name}".`);
       }
     }
-     if (files.length + newFiles.length > MAX_FILES) {
-        toast.warn(`Можно прикрепить не более ${MAX_FILES} файлов.`);
+     if (files.length + newFiles.length > maxFiles) {
+        toast.warn(`Можно прикрепить не более ${MAX_FILES} файлов всего.`);
     }
-  }, [files]);
+  }, [files, maxFiles]);
 
   const removeFile = (fileToRemove) => {
     setFiles(prevFiles => prevFiles.filter(file => file !== fileToRemove));
@@ -329,13 +362,15 @@ const FileUploader = ({ files, setFiles }) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     maxSize: MAX_FILE_SIZE_MB * 1024 * 1024,
-    maxFiles: MAX_FILES,
-    disabled: files.length >= MAX_FILES
+    maxFiles: maxFiles,
+    disabled: files.length >= maxFiles
   });
+
+  const currentTotalFiles = files.length;
 
   return (
     <div className="space-y-3">
-      <div {...getRootProps()} className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ease-in-out ${isDragActive ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'} ${files.length >= MAX_FILES ? 'cursor-not-allowed opacity-60' : ''}`}>
+      <div {...getRootProps()} className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ease-in-out ${isDragActive ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'} ${files.length >= maxFiles ? 'cursor-not-allowed opacity-60' : ''}`}>
         <input {...getInputProps()} />
         <div className="flex flex-col items-center justify-center text-gray-500">
            <ArrowUpTrayIcon className="w-8 h-8 mx-auto text-gray-400" />
@@ -344,7 +379,7 @@ const FileUploader = ({ files, setFiles }) => {
             <p className="mt-2"><b>Нажмите чтобы выбрать</b> или перетащите файлы сюда</p>
           }
           <p className="text-xs mt-1">
-            Прикреплено {files.length} из {MAX_FILES}
+            Прикреплено {currentTotalFiles} из {maxFiles} (доступно для добавления)
           </p>
         </div>
       </div>
