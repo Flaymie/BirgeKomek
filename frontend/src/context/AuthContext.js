@@ -425,25 +425,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [_updateCurrentUserState]);
 
-  const fetchUnreadCount = async () => {
-    try {
-      // Запрашиваем всего 1 элемент, нам нужен только unreadCount из ответа
-      const { data } = await notificationsService.getUnreadCount();
-      setUnreadCount(data.unreadCount || 0);
-    } catch (error) {
-      console.error("Не удалось получить количество уведомлений", error);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      await notificationsService.markAllAsRead();
-      setUnreadCount(0); // Сразу обнуляем на фронте для мгновенной реакции
-    } catch (error) {
-      console.error("Не удалось отметить уведомления как прочитанные", error);
-    }
-  };
-
   const value = {
     currentUser,
     loading,
@@ -472,9 +453,6 @@ export const AuthProvider = ({ children }) => {
     telegramLinkUrl,
     isTelegramLoading,
     closeLinkTelegramModal,
-    unreadCount,      // <-- Прокидываем в контекст
-    setUnreadCount,   // <--
-    markAllAsRead,    // <--
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

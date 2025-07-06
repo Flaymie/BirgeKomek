@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { notificationsService } from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
 import { toast } from 'react-toastify';
-import { useAuth } from '../../context/AuthContext';
 
 // Компонент для отображения сообщения о загрузке
 const Loader = () => (
@@ -100,7 +99,6 @@ const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const { socket } = useSocket();
-  const { markAllAsRead } = useAuth();
 
   useEffect(() => {
     const fetchAndMarkNotifications = async () => {
@@ -122,11 +120,6 @@ const NotificationsPage = () => {
     
     fetchAndMarkNotifications();
   }, []);
-
-  // При монтировании компонента отмечаем все уведомления как прочитанные
-  useEffect(() => {
-    markAllAsRead();
-  }, [markAllAsRead]);
 
   // --- СЛУШАЕМ СОКЕТ ---
   useEffect(() => {

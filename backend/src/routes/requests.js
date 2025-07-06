@@ -284,7 +284,7 @@ router.post('/', createRequestLimiter, [
             finalDescription = moderatedContent.suggested_description;
         }
         // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
-      
+
         const request = new Request({
             title: finalTitle,
             description: finalDescription,
@@ -296,7 +296,7 @@ router.post('/', createRequestLimiter, [
         });
 
         await request.save();
-
+        
         const populatedRequest = await Request.findById(request._id)
             .populate('author', 'username rating avatar')
             .lean();
@@ -311,21 +311,21 @@ router.post('/', createRequestLimiter, [
             // Оповещаем хелперов, только если это НЕ черновик
             if (request.status === 'open') {
                 const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
-            if (helpersForSubject.length > 0) {
+        if (helpersForSubject.length > 0) {
                     // Убираем ID автора из списка получателей
                     const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== req.user.id);
 
                     if (helperIds.length > 0) {
                         const notificationPromises = helperIds.map(helperId => {
-                            return createAndSendNotification({
+                    return createAndSendNotification({
                                 user: helperId,
-                                type: 'new_request_for_subject',
+                        type: 'new_request_for_subject',
                                 title: `Новая заявка по вашему предмету: ${subject}`,
                                 message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
                                 link: `/requests/${request._id}`
                             });
-                });
-                await Promise.all(notificationPromises);
+            });
+            await Promise.all(notificationPromises);
 
                         // Отправка в Telegram
                         const tgUsers = await User.find({
@@ -1176,7 +1176,7 @@ router.post('/:id/reopen', protect, [
 
         // Уведомление бывшему хелперу
         if (formerHelper) {
-            await createAndSendNotification({
+           await createAndSendNotification({
                 user: formerHelper._id,
                 type: 'request_reopened_by_author',
                 title: 'Заявка была возвращена в работу',
