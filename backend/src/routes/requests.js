@@ -44,14 +44,15 @@ export default ({ io }) => {
 
         const user = req.user; 
         const isAuthor = request.author._id.toString() === user.id;
-        const isAdminOrModerator = user.roles.admin || user.roles.moderator;
+        const isPrivileged = user.roles.admin || user.roles.moderator;
         
-        if (!isAuthor && !isAdminOrModerator) {
+        if (!isAuthor && !isPrivileged) {
             return res.status(403).json({ msg: 'У вас нет прав для выполнения этого действия' });
         }
         
         req.request = request; // Передаем найденный запрос дальше
-        req.isModeratorAction = isAdminOrModerator && !isAuthor; // Флаг, что действует модер/админ
+        req.isPrivilegedUser = isPrivileged; // Флаг, что у пользователя есть особые права
+        req.isModeratorAction = isPrivileged && !isAuthor; // Флаг, что модер/админ действует над чужой заявкой
         next();
     } catch (err) {
         console.error(err);
@@ -912,11 +913,32 @@ router.post('/:id/cancel', protect, [
             request.attachments.push(...newAttachments);
         }
 
-        // --->>> ИСПРАВЛЕНИЕ: Убираем отсюда модерацию, она теперь при публикации <<<---
-        // Обновляем поля, если они были переданы. 
-        if (title) request.title = title;
-        if (description) request.description = description;
-        // --->>> КОНЕЦ ИСПРАВЛЕНИЯ <<<---
+        // --->>> ВОЗВРАЩАЕМ МОДЕРАЦИЮ ПРИ РЕДАКТИРОВАНИИ <<<---
+        if (title || description) {
+            // Если это обычный юзер, то отправляем на проверку
+            if (!req.isPrivilegedUser) {
+                const newTitle = title || request.title;
+                const newDescription = description || request.description;
+                const moderatedContent = await geminiService.moderateRequest(newTitle, newDescription);
+
+                if (!moderatedContent.is_safe) {
+                    return res.status(400).json({
+                        errors: [{
+                            msg: `Ваш текст не прошел модерацию: ${moderatedContent.rejection_reason}`,
+                            param: description ? "description" : "title",
+                        }],
+                    });
+                }
+                // Если все ок, используем предложенные версии
+                request.title = moderatedContent.suggested_title;
+                request.description = moderatedContent.suggested_description;
+            } else {
+                // А если это модер/админ, то просто применяем его правки напрямую
+                if (title) request.title = title;
+                if (description) request.description = description;
+            }
+        }
+        // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
 
         // Обновляем остальные поля, если они были переданы
         if (subject) request.subject = subject;
