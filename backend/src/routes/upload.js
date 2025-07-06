@@ -115,4 +115,40 @@ router.post('/avatar', [protect, tgRequired, generalLimiter, upload.single('avat
   }
 });
 
+// --- НОВЫЙ КОД ДЛЯ ВЛОЖЕНИЙ ---
+
+// Настройка хранилища для вложений
+const attachmentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/attachments';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const userId = req.user.id;
+    const uniqueSuffix = `${userId}-${Date.now()}`;
+    const ext = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${ext}`);
+  }
+});
+
+// Фильтр для файлов вложений
+const attachmentFileFilter = (req, file, cb) => {
+  // Просто принимаем любой файл, но можно добавить логику для блокировки опасных типов
+  cb(null, true); 
+};
+
+// Настройка загрузчика для вложений
+export const uploadAttachments = multer({
+  storage: attachmentStorage,
+  fileFilter: attachmentFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 МБ
+    files: 10 // до 10 файлов
+  }
+}).array('attachments', 10);
+
+
 export default router; 

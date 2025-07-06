@@ -64,6 +64,8 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
       
+      /*
+      // --- ВРЕМЕННО ОТКЛЮЧИМ УМНОЕ СКРЫТИЕ ОШИБОК ---
       // --- НОВОЕ УСЛОВИЕ ---
       // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
       const isUserNotFound = status === 404 && error.config.url.startsWith('/users/');
@@ -72,6 +74,7 @@ api.interceptors.response.use(
       if (isUserNotFound || isRequestNotFound) {
         return Promise.reject(error); // Просто пробрасываем ошибку дальше без логирования
       }
+      */
 
       console.error('Перехват ошибки в api interceptor:', error.message);
       if (error.response) {
@@ -117,11 +120,19 @@ const requestsService = {
   
   // Создать новый запрос (или черновик)
   createRequest: async (requestData, isDraft = false) => {
+    // Если передали FormData, значит это запрос с файлами
+    if (requestData instanceof FormData) {
+      requestData.append('isDraft', String(isDraft));
+      // Axios сам выставит 'multipart/form-data'
+      return api.post('/requests', requestData);
+    }
+    // Старая логика для запросов без файлов
     return api.post('/requests', { ...requestData, isDraft });
   },
   
   // Обновить запрос
   updateRequest: async (id, requestData) => {
+    // Если requestData это FormData, axios сам поставит нужный Content-Type
     return api.put(`/requests/${id}`, requestData);
   },
   

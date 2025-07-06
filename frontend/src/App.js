@@ -10,7 +10,7 @@ import LoginPage from './components/pages/LoginPage';
 import ForgotPasswordPage from './components/pages/ForgotPasswordPage';
 import RequestsPage from './components/pages/RequestsPage';
 import ProfilePage from './components/pages/ProfilePage';
-import RequestDetailPage from './components/pages/RequestDetailPage';
+import RequestDetailsPage from './components/pages/RequestDetailsPage';
 import EditRequestPage from './components/pages/EditRequestPage';
 import NotificationsPage from './components/pages/NotificationsPage';
 import MyRequestsPage from './components/pages/MyRequestsPage';
@@ -123,7 +123,7 @@ const AppContent = () => {
             <Route path="/auth/telegram/callback" element={<TelegramCallbackPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
-          <Route path="/request/:id" element={<RequestDetailPage />} />
+          <Route path="/request/:id" element={<RequestDetailsPage />} />
             
             {/* Защищенные маршруты */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

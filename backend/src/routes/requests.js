@@ -7,9 +7,12 @@ import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js'
 import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
 import mongoose from 'mongoose';
 import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
+import { uploadAttachments } from './upload.js';
 import tgRequired from '../middleware/tgRequired.js';
 import redis from '../config/redis.js'; 
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { sendTelegramMessage } from './users.js';
 import geminiService from "../services/geminiService.js"; // Импортируем наш сервис
 
@@ -228,7 +231,7 @@ router.get('/', [
  *       401:
  *         description: Не авторизован
  */
-router.post('/', createRequestLimiter, [
+router.post('/', uploadAttachments, createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').optional().trim(),
     body('subject').optional().trim().escape(),
@@ -242,7 +245,8 @@ router.post('/', createRequestLimiter, [
     }
 
     try {
-        const { title, description, subject, grade, topic, isDraft } = req.body;
+        const { title, description, subject, grade, topic } = req.body;
+        const isDraft = req.body.isDraft === 'true';
         const author = req.user.id;
         
         // --->>> ИНТЕГРАЦИЯ GEMINI (ТОЛЬКО ДЛЯ ПУБЛИКАЦИИ) <<<---
@@ -296,10 +300,22 @@ router.post('/', createRequestLimiter, [
         });
 
         await request.save();
+
+        // Обработка вложений после сохранения основной заявки
+        if (req.files && req.files.length > 0) {
+            const attachments = req.files.map(file => ({
+                filename: file.filename,
+                path: `/uploads/attachments/${file.filename}`,
+                mimetype: file.mimetype,
+                size: file.size,
+                originalName: file.originalname
+            }));
+            request.attachments = attachments;
+            await request.save();
+        }
         
         const populatedRequest = await Request.findById(request._id)
-            .populate('author', 'username rating avatar')
-            .lean();
+            .populate('author', 'username rating avatar');
 
         if (populatedRequest.status !== 'draft') {
             io.emit('new_request', populatedRequest);
@@ -420,22 +436,29 @@ router.get('/:id', [
     }
     
     try {
+        console.log(`[DEBUG] GET /requests/${req.params.id} - 1. Handler started.`);
         const request = await Request.findById(req.params.id)
             .populate('author', 'username _id rating avatar roles.moderator roles.admin')
-            .populate('helper', 'username _id rating avatar roles.moderator roles.admin')
-            .lean();
+            .populate('helper', 'username _id rating avatar roles.moderator roles.admin');
+        
+        console.log('[DEBUG] GET /requests/:id - 2. Database query finished.');
 
         if (!request) {
+            console.log('[DEBUG] GET /requests/:id - 3. Request not found, sending 404.');
             return res.status(404).json({ msg: 'Запрос не найден' });
         }
         
         // Явное добавление editReason, если оно есть
-        const responseData = { ...request };
+        const responseData = { ...request.toObject() };
         if (request.editedByAdminInfo && request.editedByAdminInfo.reason) {
             responseData.editReason = request.editedByAdminInfo.reason;
         }
 
-        res.json(responseData);
+        const jsonResponse = JSON.stringify(responseData);
+        console.log(`[DEBUG] GET /requests/:id - 4. Sending response. Size: ${(jsonResponse.length / 1024).toFixed(2)} KB`);
+        res.setHeader('Content-Type', 'application/json');
+        res.send(jsonResponse);
+
     } catch (err) {
         console.error(err);
         res.status(500).send('Ошибка сервера');
@@ -500,8 +523,10 @@ router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
         await request.save();
 
         const populatedRequest = await Request.findById(request._id)
-            .populate('author', 'username _id')
-            .populate('helper', 'username _id');
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar');
+
+        io.emit('request_updated', populatedRequest);
 
         await createAndSendNotification({
             user: helper._id,
@@ -582,6 +607,8 @@ router.post('/:id/take', protect, isHelper, [ // isHelper middleware прове�
             .populate('author', 'username _id')
             .populate('helper', 'username _id');
 
+        io.emit('request_updated', populatedRequest);
+
         if (request.author) {
              await createAndSendNotification({
                 user: request.author._id,
@@ -652,6 +679,12 @@ router.post('/:id/complete', protect, [
         request.status = 'completed';
         // request.completedAt = Date.now(); // Можно добавить, если нужно
         await request.save();
+
+        const populatedRequest = await Request.findById(request._id)
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar');
+
+        io.emit('request_updated', populatedRequest);
 
         const notificationTitle = `Заявка \"${request.title}\" выполнена`;
         const notificationLink = `/request/${request._id}`;
@@ -752,6 +785,12 @@ router.post('/:id/cancel', protect, [
         // request.cancelledBy = currentUserId; // Можно добавить
         await request.save();
 
+        const populatedRequest = await Request.findById(request._id)
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar');
+            
+        io.emit('request_updated', populatedRequest);
+
         // Уведомление хелперу, если он был назначен и отменил автор
         if (oldStatus === 'assigned' && request.helper && isAuthor) {
              await createAndSendNotification({
@@ -805,13 +844,14 @@ router.post('/:id/cancel', protect, [
    *       403:
    *         description: Нет прав на редактирование
    */
-  router.put('/:id', protect, checkEditDeletePermission, [
+  router.put('/:id', protect, checkEditDeletePermission, uploadAttachments, [
     // Валидация остается прежней, но добавляем необязательное поле
     body('title').optional().trim().isLength({ min: 5, max: 100 }),
     body('description').optional().trim().isLength({ min: 10 }),
     body('subject').optional().trim().notEmpty().escape(),
     body('grade').optional().isInt({ min: 1, max: 11 }),
-    body('editReason').optional().trim().escape()
+    body('editReason').optional().trim().escape(),
+    body('deletedAttachments').optional().isArray() // Добавляем поле для списка удаленных вложений
   ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -819,8 +859,40 @@ router.post('/:id/cancel', protect, [
     }
 
     try {
-        const { title, description, subject, grade, urgency, editReason } = req.body;
+        const { title, description, subject, grade, urgency, editReason, deletedAttachments } = req.body;
         let request = req.request; // Получаем из middleware
+
+        // 1. Удаляем старые вложения, если есть
+        if (deletedAttachments) {
+            const attachmentsToDelete = Array.isArray(deletedAttachments) ? deletedAttachments : [deletedAttachments];
+            
+            // Удаляем файлы с диска
+            request.attachments.forEach(att => {
+                if (attachmentsToDelete.includes(att.filename)) {
+                    const filePath = path.join(process.cwd(), 'uploads/attachments', att.filename);
+                    if (fs.existsSync(filePath)) {
+                        fs.unlinkSync(filePath);
+                    }
+                }
+            });
+
+            // Удаляем из массива в базе
+            request.attachments = request.attachments.filter(
+                att => !attachmentsToDelete.includes(att.filename)
+            );
+        }
+
+        // 2. Добавляем новые вложения
+        if (req.files && req.files.length > 0) {
+            const newAttachments = req.files.map(file => ({
+                filename: file.filename,
+                path: `/uploads/attachments/${file.filename}`,
+                mimetype: file.mimetype,
+                size: file.size,
+                originalName: file.originalname
+            }));
+            request.attachments.push(...newAttachments);
+        }
 
         // --->>> ИНТЕГРАЦИЯ GEMINI ПРИ РЕДАКТИРОВАНИИ (С УЧЕТОМ РОЛИ) <<<---
         if (title || description) {
@@ -976,8 +1048,7 @@ router.post('/:id/cancel', protect, [
 
           const populatedRequest = await Request.findById(id)
               .populate('author', 'username _id rating avatar')
-              .populate('helper', 'username _id rating avatar')
-              .lean();
+              .populate('helper', 'username _id rating avatar');
   
           // --- УВЕДОМЛЕНИЯ И СОКЕТЫ ---
           if (oldStatus === 'draft' && newStatus === 'open') {
@@ -1173,6 +1244,12 @@ router.post('/:id/reopen', protect, [
         request.status = 'open';
         request.updatedAt = Date.now();
         await request.save();
+
+        const populatedRequest = await Request.findById(request._id)
+            .populate('author', 'username _id rating avatar')
+            .populate('helper', 'username _id rating avatar');
+
+        io.emit('request_updated', populatedRequest);
 
         // Уведомление бывшему хелперу
         if (formerHelper) {

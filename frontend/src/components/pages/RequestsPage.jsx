@@ -299,7 +299,14 @@ const RequestsPage = () => {
       <CreateRequestModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => fetchRequests()}
+        onSuccess={(newRequest) => {
+          // Добавляем новую заявку в начало списка, если мы на первой странице
+          if (currentPage === 1) {
+            setRequests(prev => [newRequest, ...prev]);
+          }
+          // В любом случае, можно сделать refetch, чтобы обновить общее количество
+          fetchRequests(); 
+        }}
       />
     </div>
   );

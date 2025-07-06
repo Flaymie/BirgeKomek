@@ -61,7 +61,14 @@ const requestSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  attachments: [{
+    filename: String,
+    path: String,
+    mimetype: String,
+    size: Number,
+    originalName: String
+  }]
 }, { timestamps: true });
 
 const Request = mongoose.model('Request', requestSchema);

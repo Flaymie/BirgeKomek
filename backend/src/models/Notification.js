@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema({
       'new_request_for_subject', // Новая заявка по твоему предмету (для хелперов)
       'request_assigned_to_you', // Заявка назначена на тебя (для хелпера)
       'request_taken_by_helper', // Твою заявку взял хелпер (для автора заявки)
+      'new_response_to_request', // Новый отклик на вашу заявку (для автора заявки)
       'response_accepted',       // Ваш отклик приняли (для хелпера)
       'response_rejected',       // Ваш отклик отклонили (для хелпера)
       'new_message_in_request',  // Новое сообщение в чате заявки

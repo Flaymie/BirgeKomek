@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { requestsService, usersService } from '../../services/api';
+import { requestsService, usersService, serverURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { toast } from 'react-toastify';
 
 import StatusBadge from '../shared/StatusBadge';
-import UserCard from '../features/UserCard';
-import ChatWindow from '../features/ChatWindow';
-import ModeratorActions from '../admin/ModeratorActions';
-import Spinner from '../shared/Spinner';
+import Loader from '../shared/Loader'; // ИСПРАВЛЕННЫЙ ПРАВИЛЬНЫЙ ПУТЬ и ИМЯ
 
-import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ShieldCheckIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 const RequestDetailsPage = () => {
+    console.log('--- RequestDetailsPage РЕНДЕРИТСЯ ---');
     const { id } = useParams();
     const navigate = useNavigate();
     const { currentUser, isModerator, isAdmin } = useAuth();
@@ -46,7 +44,11 @@ const RequestDetailsPage = () => {
         
         const handleRequestUpdate = (updatedRequest) => {
             if (updatedRequest._id === id) {
-                setRequest(prev => ({ ...prev, ...updatedRequest }));
+                setRequest(prevRequest => ({
+                    ...prevRequest,
+                    ...updatedRequest,
+                    attachments: updatedRequest.attachments || prevRequest.attachments,
+                }));
             }
         };
 
@@ -68,7 +70,7 @@ const RequestDetailsPage = () => {
     
     const handleTakeRequest = async () => {
         try {
-            await requestsService.updateRequestStatus(id, 'assigned'); // Предполагается, что бекенд назначит текущего юзера
+            await requestsService.updateRequestStatus(id, 'assigned');
             toast.success('Вы взяли заявку в работу!');
             fetchRequest();
         } catch (err) {
@@ -80,7 +82,7 @@ const RequestDetailsPage = () => {
         // ... Логика завершения
     };
     
-    if (loading) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+    if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error) return <div className="text-center text-red-500 font-bold mt-10">{error}</div>;
     if (!request) return null;
 
@@ -141,16 +143,49 @@ const RequestDetailsPage = () => {
                                 </button>
                             )}
                         </div>
+
+                        {/* Вложения */}
+                        {request.attachments && request.attachments.length > 0 && (
+                            <div className="mt-6 pt-4 border-t border-gray-200">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                                    <PaperClipIcon className="h-6 w-6 mr-2 text-gray-500" />
+                                    Вложения ({request.attachments.length})
+                                </h3>
+                                <ul className="space-y-2">
+                                    {request.attachments.map((file, index) => (
+                                        <li key={index}>
+                                            <a
+                                                href={`${serverURL}${file.path}`}
+                                                download={file.originalName}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-3 rounded-lg transition-colors duration-150 group"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="text-sm text-gray-800 font-medium truncate" title={file.originalName}>
+                                                        {file.originalName}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 flex-shrink-0">
+                                                        ({(file.size / 1024 / 1024).toFixed(2)} МБ)
+                                                    </span>
+                                                </div>
+                                                <ArrowDownTrayIcon className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                     
                     {/* Чат */}
-                    {(isAuthor || isHelper || isModerator) && <ChatWindow request={request} />}
+                    {/* {(isAuthor || isHelper || isModerator) && <ChatWindow request={request} />} */}
                 </div>
 
                 {/* Боковая колонка */}
                 <div className="space-y-6">
-                    <UserCard user={request.author} title="Автор запроса" />
-                    {request.helper && <UserCard user={request.helper} title="Помощник" />}
+                    {/* <UserCard user={request.author} title="Автор запроса" /> */}
+                    {/* {request.helper && <UserCard user={request.helper} title="Помощник" />} */}
                     
                     {/* Кнопки действий */}
                     <div className="bg-white p-4 rounded-lg shadow-md">
@@ -166,9 +201,9 @@ const RequestDetailsPage = () => {
                     </div>
 
                     {/* Панель модератора */}
-                    {(isModerator || isAdmin) && (
+                    {/* {(isModerator || isAdmin) && (
                         <ModeratorActions request={request} onUpdateRequest={fetchRequest} />
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>

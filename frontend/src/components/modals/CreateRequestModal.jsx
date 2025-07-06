@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS } from '../../services/constants';
 import { motion } from 'framer-motion';
-import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon, PaperClipIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 
@@ -12,10 +13,13 @@ const MAX_TITLE_LENGTH = 100;
 const MIN_TITLE_LENGTH = 5;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 20;
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILES = 10;
 
 const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [files, setFiles] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -76,13 +80,29 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const handleAction = async (actionType) => {
     if (checkAndShowModal()) return;
 
+    if (isEditing) return; // Не даем отправлять файлы при редактировании пока что
+
     const isDraft = actionType === 'saveDraft';
     if (!validateForm(isDraft)) return;
     
     setIsSubmitting(true);
     setErrors({});
     
-    const requestData = { ...formData };
+    let requestData;
+    const hasFiles = files.length > 0;
+
+    if (hasFiles) {
+      requestData = new FormData();
+      Object.keys(formData).forEach(key => {
+        requestData.append(key, formData[key]);
+      });
+      files.forEach(file => {
+        requestData.append('attachments', file);
+      });
+    } else {
+      requestData = { ...formData };
+    }
+
 
     try {
       let response;
@@ -202,6 +222,16 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
                   {errors.grade && <p className="mt-1 text-sm text-red-600">{errors.grade}</p>}
                 </div>
               </div>
+
+              {/* --- DROPZONE ДЛЯ ФАЙЛОВ --- */}
+              {!isEditing && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Вложения (до {MAX_FILES} файлов, макс. {MAX_FILE_SIZE_MB}МБ каждый)
+                  </label>
+                  <FileUploader files={files} setFiles={setFiles} />
+                </div>
+              )}
           </div>
 
           {/* Footer */}
@@ -271,3 +301,79 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
 };
 
 export default CreateRequestModal;
+
+// Компонент для загрузки файлов вынесен для чистоты
+const FileUploader = ({ files, setFiles }) => {
+  const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
+    const newFiles = acceptedFiles.slice(0, MAX_FILES - files.length);
+
+    setFiles(prevFiles => [...prevFiles, ...newFiles]);
+
+    if (rejectedFiles.length > 0) {
+      const rejected = rejectedFiles[0];
+      if (rejected.file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        toast.error(`Файл "${rejected.file.name}" слишком большой. Максимальный размер: ${MAX_FILE_SIZE_MB}МБ.`);
+      } else {
+        toast.error(`Не удалось загрузить файл "${rejected.file.name}".`);
+      }
+    }
+     if (files.length + newFiles.length > MAX_FILES) {
+        toast.warn(`Можно прикрепить не более ${MAX_FILES} файлов.`);
+    }
+  }, [files]);
+
+  const removeFile = (fileToRemove) => {
+    setFiles(prevFiles => prevFiles.filter(file => file !== fileToRemove));
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    maxSize: MAX_FILE_SIZE_MB * 1024 * 1024,
+    maxFiles: MAX_FILES,
+    disabled: files.length >= MAX_FILES
+  });
+
+  return (
+    <div className="space-y-3">
+      <div {...getRootProps()} className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ease-in-out ${isDragActive ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'} ${files.length >= MAX_FILES ? 'cursor-not-allowed opacity-60' : ''}`}>
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center justify-center text-gray-500">
+           <ArrowUpTrayIcon className="w-8 h-8 mx-auto text-gray-400" />
+          {isDragActive ?
+            <p className="mt-2 text-indigo-600 font-semibold">Отпустите файлы здесь...</p> :
+            <p className="mt-2"><b>Нажмите чтобы выбрать</b> или перетащите файлы сюда</p>
+          }
+          <p className="text-xs mt-1">
+            Прикреплено {files.length} из {MAX_FILES}
+          </p>
+        </div>
+      </div>
+       {files.length > 0 && (
+        <div className="pt-2">
+          <h4 className="text-sm font-medium text-gray-800 mb-2">Прикрепленные файлы:</h4>
+          <ul className="space-y-2">
+            {files.map((file, index) => (
+              <li key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                <div className="flex items-center gap-3 min-w-0">
+                  <PaperClipIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 truncate" title={file.name}>
+                    {file.name}
+                  </span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">
+                    ({(file.size / 1024 / 1024).toFixed(2)} МБ)
+                  </span>
+                </div>
+                <button
+                  onClick={() => removeFile(file)}
+                  className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};

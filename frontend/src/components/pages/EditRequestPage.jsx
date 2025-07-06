@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { requestsService } from '../../services/api';
+import { useDropzone } from 'react-dropzone';
+import { requestsService, serverURL } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { SUBJECTS, URGENCY_LEVELS } from '../../services/constants';
+import { SUBJECTS } from '../../services/constants';
+import { XMarkIcon, PaperClipIcon, ArrowUpTrayIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
-// Максимальное количество символов
+// Константы
 const MAX_TITLE_LENGTH = 100;
 const MIN_TITLE_LENGTH = 5;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 20;
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILES = 10;
+
 
 const EditRequestPage = () => {
   const { id } = useParams();
@@ -17,20 +22,23 @@ const EditRequestPage = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
 
-  // Получаем данные из state навигации
   const { editReason, fromAdmin } = location.state || {};
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Состояния для формы и файлов
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     subject: '',
     grade: '',
-    urgency: URGENCY_LEVELS.NORMAL
+    attachments: [], // Добавляем вложения в стейт
   });
-  
+  const [newFiles, setNewFiles] = useState([]); // Новые файлы для загрузки
+  const [deletedAttachments, setDeletedAttachments] = useState([]); // Имена старых файлов для удаления
+
   const [errors, setErrors] = useState({});
   
   const fetchRequestData = useCallback(async () => {
@@ -49,7 +57,7 @@ const EditRequestPage = () => {
         description: formattedDescription || '',
         subject: requestData.subject || '',
         grade: requestData.grade || '',
-        urgency: requestData.urgency || URGENCY_LEVELS.NORMAL
+        attachments: requestData.attachments || [],
       });
       
       setError(null);
@@ -79,11 +87,7 @@ const EditRequestPage = () => {
   }, [id, navigate]);
   
   useEffect(() => {
-    // Если пользователь еще не загружен, не делаем запрос
-    if (!currentUser) {
-      return;
-    }
-    
+    if (!currentUser) return;
     fetchRequestData();
   }, [currentUser, fetchRequestData]);
   
@@ -137,28 +141,48 @@ const EditRequestPage = () => {
     setIsSubmitting(true);
     
     try {
-      // Создаем копию данных формы для отправки
-      const requestData = { ...formData };
+      const dataToSend = new FormData();
+      
+      // Добавляем текстовые поля
+      dataToSend.append('title', formData.title);
+      dataToSend.append('description', formData.description);
+      dataToSend.append('subject', formData.subject);
+      dataToSend.append('grade', formData.grade);
+      
+      // Добавляем новые файлы
+      newFiles.forEach(file => {
+        dataToSend.append('attachments', file);
+      });
+      
+      // Добавляем список удаленных файлов
+      deletedAttachments.forEach(filename => {
+        dataToSend.append('deletedAttachments[]', filename);
+      });
 
       // Если редактирует админ, добавляем причину
       if (fromAdmin && editReason) {
-        requestData.editReason = editReason;
+        dataToSend.append('editReason', editReason);
       }
       
-      await requestsService.updateRequest(id, requestData);
+      await requestsService.updateRequest(id, dataToSend);
       
       toast.success('Запрос успешно обновлен!');
       // Перенаправляем на страницу с деталями запроса
       navigate(`/request/${id}`, { state: { from: '/my-requests' } });
     } catch (err) {
       console.error('Ошибка при обновлении запроса:', err);
-      let errorMessage = 'Произошла ошибка при обновлении запроса.';
-      if (err.response && err.response.data && err.response.data.errors && err.response.data.errors.length > 0) {
-        errorMessage = err.response.data.errors[0].msg;
-      }
+      let errorMessage = err.response?.data?.errors?.[0]?.msg || 'Произошла ошибка при обновлении запроса.';
       toast.error(errorMessage);
       setIsSubmitting(false);
     }
+  };
+
+  const handleRemoveExisting = (filename) => {
+    setFormData(prev => ({
+        ...prev,
+        attachments: prev.attachments.filter(att => att.filename !== filename)
+    }));
+    setDeletedAttachments(prev => [...prev, filename]);
   };
   
   // Вычисляем количество оставшихся символов
@@ -169,6 +193,9 @@ const EditRequestPage = () => {
   const titleCharCounterClass = titleRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
   const descriptionCharCounterClass = descriptionRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
   
+  // Вычисляем общее количество файлов
+  const totalFiles = (formData.attachments?.length || 0) + newFiles.length;
+
   if (loading || !currentUser) {
     return (
       <div className="container mx-auto px-4 py-12">
@@ -309,6 +336,28 @@ const EditRequestPage = () => {
               </div>
             </div>
             
+            {/* Блок управления вложениями */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Вложения</label>
+              
+              {/* Существующие вложения */}
+              {formData.attachments && formData.attachments.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {formData.attachments.map(file => (
+                    <ExistingFileItem key={file.filename} file={file} onRemove={handleRemoveExisting} />
+                  ))}
+                </div>
+              )}
+
+              {/* Загрузчик новых файлов */}
+              <FileUploader 
+                files={newFiles} 
+                setFiles={setNewFiles} 
+                disabled={totalFiles >= MAX_FILES} 
+                totalFiles={totalFiles}
+              />
+            </div>
+
             {/* Кнопки действий */}
             <div className="flex justify-end space-x-3">
               <Link
@@ -337,6 +386,105 @@ const EditRequestPage = () => {
           </form>
         </div>
       </div>
+    </div>
+  );
+};
+
+// Компонент для отображения существующего файла
+const ExistingFileItem = ({ file, onRemove }) => (
+  <div className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+    <div className="flex items-center gap-3 min-w-0">
+      <PaperClipIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+      <a 
+        href={`${serverURL}${file.path}`} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-sm text-indigo-600 hover:text-indigo-800 truncate"
+        title={file.originalName}
+      >
+        {file.originalName}
+      </a>
+      <span className="text-xs text-gray-500 flex-shrink-0">
+        ({(file.size / 1024 / 1024).toFixed(2)} МБ)
+      </span>
+    </div>
+    <button
+      type="button"
+      onClick={() => onRemove(file.filename)}
+      className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+    >
+      <XMarkIcon className="h-4 w-4" />
+    </button>
+  </div>
+);
+
+// Компонент для загрузки файлов (адаптирован из CreateRequestModal)
+const FileUploader = ({ files, setFiles, disabled, totalFiles }) => {
+  const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
+    const spaceLeft = MAX_FILES - totalFiles;
+    if (spaceLeft <= 0) return;
+
+    const newFiles = acceptedFiles.slice(0, spaceLeft);
+    setFiles(prev => [...prev, ...newFiles]);
+
+    if (rejectedFiles.length > 0) {
+      const rejected = rejectedFiles[0];
+      if (rejected.file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        toast.error(`Файл "${rejected.file.name}" слишком большой (макс. ${MAX_FILE_SIZE_MB}МБ).`);
+      } else {
+        toast.error(`Не удалось загрузить файл "${rejected.file.name}".`);
+      }
+    }
+     if (totalFiles + acceptedFiles.length > MAX_FILES) {
+        toast.warn(`Можно прикрепить не более ${MAX_FILES} файлов.`);
+    }
+  }, [totalFiles, setFiles]);
+
+  const removeFile = (fileToRemove) => {
+    setFiles(prev => prev.filter(file => file !== fileToRemove));
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    maxSize: MAX_FILE_SIZE_MB * 1024 * 1024,
+    disabled
+  });
+
+  return (
+    <div className="space-y-3">
+      {!disabled && (
+        <div {...getRootProps()} className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ease-in-out ${isDragActive ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'}`}>
+          <input {...getInputProps()} />
+          <div className="flex flex-col items-center justify-center text-gray-500">
+            <ArrowUpTrayIcon className="w-8 h-8 mx-auto text-gray-400" />
+            <p className="mt-2"><b>Нажмите</b> или перетащите файлы</p>
+            <p className="text-xs mt-1">Осталось: {MAX_FILES - totalFiles}</p>
+          </div>
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="pt-2">
+          <h4 className="text-sm font-medium text-gray-800 mb-2">Новые файлы:</h4>
+          <ul className="space-y-2">
+            {files.map((file, index) => (
+              <li key={index} className="flex items-center justify-between bg-blue-50 p-2 rounded-lg">
+                 <div className="flex items-center gap-3 min-w-0">
+                  <PaperClipIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                  <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} МБ)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(file)}
+                  className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

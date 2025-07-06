@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import io from 'socket.io-client';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -23,81 +23,82 @@ const SOCKET_URL = serverURL;
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { token, setIsBanned, setBanReason } = useAuth();
+  const socketRef = useRef(null); // Используем ref для хранения экземпляра сокета
+  const { token, showBanModal } = useAuth();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    console.log('[SocketContext] useEffect triggered by token change:', token ? 'token exists' : 'token is null');
-
-    if (token) {
-      const fetchUnreadCount = async () => {
-        try {
-          const response = await notificationService.getUnreadCount();
-          setUnreadCount(response.data.count);
-        } catch (error) {
-          console.error('Failed to fetch unread notifications count', error);
-        }
-      };
-      fetchUnreadCount();
-      
-      console.log('[SocketContext] Token found. Attempting to create socket with URL:', SOCKET_URL);
-
+    // Если есть токен и сокета еще нет, создаем его
+    if (token && !socketRef.current) {
       const newSocket = io(SOCKET_URL, {
         auth: { token },
-        transports: ['websocket']
+        transports: ['websocket'],
       });
 
+      socketRef.current = newSocket;
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
-        console.log('Global Socket Connected:', newSocket.id);
-      });
-
-      newSocket.on('connect_error', (err) => {
-        console.error('Global Socket Connection Error:', err.message);
+        console.log('✅ Global Socket Connected:', newSocket.id);
+        // Запрашиваем счетчик после успешного подключения
+        newSocket.emit('get_unread_notifications_count', (count) => {
+           setUnreadCount(count);
+        });
       });
 
       newSocket.on('disconnect', (reason) => {
         console.log('Global Socket Disconnected:', reason);
       });
       
-      return () => {
-        console.log('Cleaning up socket connection.');
-        newSocket.disconnect();
-      };
-    } else {
-      console.log('[SocketContext] Token is missing. Disconnecting if socket exists.');
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-      }
+      newSocket.on('connect_error', (err) => {
+        console.error('Global Socket Connection Error:', err.message);
+      });
+      
+      // Обработчик для принудительного обновления счетчика
+      newSocket.on('update_unread_count', (count) => {
+        setUnreadCount(count);
+      });
+
+    } else if (!token && socketRef.current) {
+      // Если токена нет, а сокет есть - отключаемся
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setSocket(null);
     }
+
+    // Эта функция очистки будет вызвана только при размонтировании всего приложения
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
   }, [token]);
+
 
   useEffect(() => {
     if (socket) {
       const pingInterval = setInterval(() => {
-        socket.emit('user_ping');
+        if(socket.connected) {
+          socket.emit('user_ping');
+        }
       }, 30000);
 
-      socket.emit('user_navigate');
+      // Отправляем событие при каждой смене страницы
+      socket.emit('user_navigate', { path: location.pathname });
 
       const handleNewNotification = (notification) => {
         setUnreadCount(prevCount => prevCount + 1);
         toast.info(
           <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
-          {
-            closeButton: true,
-            autoClose: 8000,
-          }
+          { closeButton: true, autoClose: 8000 }
         );
       };
       
       const handleUserBanned = (data) => {
         console.log('Получено событие о бане через сокет!', data);
-        setBanReason(data.reason || 'Причина не указана');
-        setIsBanned(true);
+        showBanModal(data);
       };
       
       socket.on('new_notification', handleNewNotification);
@@ -109,15 +110,18 @@ export const SocketProvider = ({ children }) => {
         socket.off('user_banned', handleUserBanned);
       };
     }
-  }, [socket, location, setBanReason, setIsBanned]);
+  }, [socket, location.pathname, showBanModal]);
 
   const markAllAsRead = async () => {
-    try {
-      await notificationService.markAllAsRead();
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Failed to mark notifications as read', error);
-    }
+    if (!socket) return;
+    socket.emit('mark_notifications_read', (response) => {
+       if (response.success) {
+           setUnreadCount(0);
+       } else {
+           console.error('Failed to mark notifications as read', response.error);
+           toast.error("Не удалось отметить уведомления как прочитанные");
+       }
+    });
   };
 
   const value = {
