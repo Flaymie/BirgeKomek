@@ -41,11 +41,11 @@ const Lightbox = ({ imageUrl, onClose }) => {
 
 
 const RequestDetailPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+    const { id } = useParams();
+    const navigate = useNavigate();
   const location = useLocation();
-  const [request, setRequest] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [request, setRequest] = useState(null);
+    const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
@@ -120,10 +120,10 @@ const RequestDetailPage = () => {
     const fetchRequestDetails = async () => {
       try {
         setLoading(true);
-        const response = await requestsService.getRequestById(id);
-        setRequest(response.data);
+            const response = await requestsService.getRequestById(id);
+            setRequest(response.data);
         setError(null);
-      } catch (err) {
+        } catch (err) {
         if (err.response?.status !== 404 && err.response?.status !== 400) {
           console.error('Ошибка при получении данных запроса:', err);
           toast.error(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
@@ -133,8 +133,8 @@ const RequestDetailPage = () => {
           return;
         }
         setError(true);
-      } finally {
-        setLoading(false);
+        } finally {
+            setLoading(false);
       }
     };
     
@@ -154,10 +154,10 @@ const RequestDetailPage = () => {
       console.error('Ошибка при получении откликов:', err);
     } finally {
       setResponsesLoading(false);
-    }
-  }, [id]);
+        }
+    }, [id]);
 
-  useEffect(() => {
+    useEffect(() => {
     fetchResponses();
   }, [fetchResponses]);
 
@@ -168,9 +168,9 @@ const RequestDetailPage = () => {
     setMyResponse(ownResponse || null);
   }, [responses, currentUser]);
 
-  useEffect(() => {
-    if (!socket) return;
-
+    useEffect(() => {
+        if (!socket) return;
+        
     const handleNewResponse = (newResponse) => {
       if (newResponse.request === id) {
         setResponses(prev => [...prev, newResponse]);
@@ -187,7 +187,7 @@ const RequestDetailPage = () => {
     socket.on('new_response', handleNewResponse);
     socket.on('response_updated', handleResponseUpdate);
 
-    return () => {
+        return () => {
       socket.off('new_response', handleNewResponse);
       socket.off('response_updated', handleResponseUpdate);
     };
@@ -245,7 +245,7 @@ const RequestDetailPage = () => {
       await requestsService.deleteRequest(id, { deleteReason: reason });
       toast.success('Заявка успешно удалена модератором');
       navigate('/requests');
-    } catch (err) {
+        } catch (err) {
       if (err.response && err.response.data.confirmationRequired) {
         // Если требуется код
         setModActionArgs({ reason }); // Сохраняем причину для второго шага
@@ -397,8 +397,8 @@ const RequestDetailPage = () => {
         </Link>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-                {request.title}
-              </h1>
+                                {request.title}
+                            </h1>
               <StatusBadge status={request.status} large />
             </div>
               {request.editReason && (
@@ -411,8 +411,8 @@ const RequestDetailPage = () => {
               )}
           </motion.div>
             </div>
-          </div>
-          
+                        </div>
+
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -463,8 +463,8 @@ const RequestDetailPage = () => {
                                       <p className="text-xs text-gray-500">
                                           ({(file.size / 1024 / 1024).toFixed(2)} МБ)
                                       </p>
-                                  </div>
-                              </div>
+                                    </div>
+                                </div>
                               {/* Кнопка скачать */}
                               <button
                                   onClick={() => downloadFile({ 
@@ -497,8 +497,8 @@ const RequestDetailPage = () => {
                     </button>
                 )}
                 {myResponse && <ResponseCard response={myResponse} isMyResponse={true} fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser} />}
-                  </div>
-                )}
+                            </div>
+                        )}
 
             {/* Отклики для автора */}
       {isAuthor && request.status === 'open' && (
@@ -523,7 +523,7 @@ const RequestDetailPage = () => {
           ) : (
                   <div className="text-center py-6 text-gray-500">На ваш запрос пока нет откликов.</div>
           )}
-            </div>
+                        </div>
       )}
           </motion.div>
 
@@ -557,14 +557,14 @@ const RequestDetailPage = () => {
                     </div>
                   )}
                    {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
-                     <button 
+                                <button 
                         className="btn bg-green-600 hover:bg-green-700 text-white w-full inline-flex items-center justify-center gap-2"
                         onClick={() => navigate(`/requests/${request._id}/chat`)}
-                     >
+                                >
                        <ChatBubbleLeftRightIcon className="h-5 w-5" />
                        Перейти в чат
-                     </button>
-                  )}
+                                </button>
+                            )}
                    {request.status === 'open' && !isAuthor && !isHelper() && (
                       <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
                    )}
@@ -588,7 +588,7 @@ const RequestDetailPage = () => {
                           {request.author.username}
                         </Link>
                         <RoleBadge user={authorProfile} />
-                      </div>
+                        </div>
                     </div>
                   </li>
                    {request.helper && (
@@ -601,7 +601,7 @@ const RequestDetailPage = () => {
                               {request.helper.username}
                             </Link>
                             <RoleBadge user={helperProfile} />
-                          </div>
+                </div>
                         </div>
                      </li>
                    )}
@@ -620,7 +620,7 @@ const RequestDetailPage = () => {
                     </div>
                   </li>
                 </ul>
-              </div>
+                </div>
             </div>
 
             {/* Панель модератора */}
@@ -656,8 +656,8 @@ const RequestDetailPage = () => {
       <ResponseModal isOpen={isResponseModalOpen} onClose={() => setIsResponseModalOpen(false)} requestId={id} />
       <ConfirmDeleteModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteRequest} title="Подтверждение удаления" body="Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить." />
       <ModeratorActionConfirmModal isOpen={isConfirmingModAction} onClose={() => setIsConfirmingModAction(false)} onConfirm={confirmAdminDelete} actionTitle={`Удаление заявки "${request?.title}"`} isLoading={modActionLoading} />
-    </div>
-  );
+        </div>
+    );
 };
 
 export default RequestDetailPage; 

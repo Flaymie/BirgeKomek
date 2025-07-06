@@ -151,5 +151,18 @@ export const uploadAttachments = multer({
   }
 }).array('attachments', 10);
 
+// Перехватываем ошибки от multer
+router.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ msg: 'Файл слишком большой. Максимальный размер 10МБ.' });
+        }
+        return res.status(400).json({ msg: `Ошибка Multer: ${error.message}` });
+    } else if (error) {
+        // Наша кастомная ошибка из fileFilter
+        return res.status(400).json({ msg: error.message });
+    }
+    next();
+});
 
 export default router; 

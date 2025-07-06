@@ -347,7 +347,8 @@ const FileUploader = ({ files, setFiles, maxFiles }) => {
       if (rejected.file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         toast.error(`Файл "${rejected.file.name}" слишком большой. Максимальный размер: ${MAX_FILE_SIZE_MB}МБ.`);
       } else {
-        toast.error(`Не удалось загрузить файл "${rejected.file.name}".`);
+        // Обновляем сообщение об ошибке
+        toast.error(`Файл "${rejected.file.name}" имеет недопустимый тип. Проверьте список разрешенных форматов.`);
       }
     }
      if (files.length + newFiles.length > maxFiles) {
@@ -363,9 +364,24 @@ const FileUploader = ({ files, setFiles, maxFiles }) => {
     onDrop,
     maxSize: MAX_FILE_SIZE_MB * 1024 * 1024,
     maxFiles: maxFiles,
-    disabled: files.length >= maxFiles
+    disabled: files.length >= maxFiles,
+    // --->>> НОВАЯ ЛОГИКА: ОГРАНИЧЕНИЕ ТИПОВ ФАЙЛОВ НА ФРОНТЕ <<<---
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'image/jpeg': ['.jpeg', '.jpg'],
+      'image/png': ['.png'],
+      'image/gif': ['.gif'],
+      'image/webp': ['.webp'],
+    }
   });
-
+  
   const currentTotalFiles = files.length;
 
   return (
@@ -380,6 +396,9 @@ const FileUploader = ({ files, setFiles, maxFiles }) => {
           }
           <p className="text-xs mt-1">
             Прикреплено {currentTotalFiles} из {maxFiles} (доступно для добавления)
+          </p>
+          <p className="text-xs text-gray-400 mt-2 px-4">
+            Разрешены: .pdf, .doc, .docx, .txt, .xls, .xlsx, .ppt, .pptx, .jpg, .png, .gif, .webp
           </p>
         </div>
       </div>
