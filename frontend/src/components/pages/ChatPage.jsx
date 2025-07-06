@@ -31,6 +31,7 @@ import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
 import StatusBadge from '../shared/StatusBadge';
+import { isSameDay, formatDateSeparator } from '../../utils/dateHelpers'; // <-- ИМПОРТ
 
 // Создаем инстанс api прямо здесь для костыльного решения
 const api = axios.create({
@@ -900,27 +901,44 @@ const ChatPage = () => {
           </div>
         </header>
 
-        <div
+        <div 
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto p-4"
+          onScroll={handleScroll}
         >
           <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <Message
-                key={msg._id}
-                msg={msg}
-                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                onImageClick={setViewerFile}
-                onEdit={handleStartEdit}
-                onDelete={setMessageToDelete}
-                isChatActive={isChatActive || requestDetails.status === 'open'}
-              />
-            ))}
+            {messages.map((msg, index) => {
+              const prevMsg = messages[index - 1];
+              const showDateSeparator = index === 0 || !isSameDay(msg.createdAt, prevMsg.createdAt);
+
+              return (
+                <React.Fragment key={msg._id}>
+                  {showDateSeparator && (
+                    <div className="relative my-5">
+                      <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div className="w-full border-t border-gray-200" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-gray-50 px-3 text-sm font-medium text-gray-500">
+                          {formatDateSeparator(msg.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <Message
+                    msg={msg}
+                    isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                    onImageClick={setViewerFile}
+                    onEdit={handleStartEdit}
+                    onDelete={setMessageToDelete}
+                    isChatActive={isChatActive || requestDetails.status === 'open'}
+                  />
+                </React.Fragment>
+              );
+            })}
           </AnimatePresence>
 
           <TypingIndicator />
-          
-          {/* ПУСТОТА */}
         </div>
         
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}

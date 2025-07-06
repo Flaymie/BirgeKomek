@@ -448,15 +448,12 @@ router.get('/:id', [
     }
     
     try {
-        console.log(`[DEBUG] GET /requests/${req.params.id} - 1. Handler started.`);
         const request = await Request.findById(req.params.id)
             .populate('author', 'username _id rating avatar roles.moderator roles.admin')
             .populate('helper', 'username _id rating avatar roles.moderator roles.admin');
         
-        console.log('[DEBUG] GET /requests/:id - 2. Database query finished.');
 
         if (!request) {
-            console.log('[DEBUG] GET /requests/:id - 3. Request not found, sending 404.');
             return res.status(404).json({ msg: 'Запрос не найден' });
         }
         
@@ -467,7 +464,6 @@ router.get('/:id', [
         }
 
         const jsonResponse = JSON.stringify(responseData);
-        console.log(`[DEBUG] GET /requests/:id - 4. Sending response. Size: ${(jsonResponse.length / 1024).toFixed(2)} KB`);
         res.setHeader('Content-Type', 'application/json');
         res.send(jsonResponse);
 

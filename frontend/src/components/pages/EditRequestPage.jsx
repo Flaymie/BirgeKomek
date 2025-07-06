@@ -46,7 +46,7 @@ const EditRequestPage = () => {
         setExistingAttachments(res.data.attachments || []);
       } catch (err) {
         toast.error('Не удалось загрузить данные заявки');
-        navigate(`/requests/${id}`);
+        navigate(`/request/${id}`);
       } finally {
         setLoading(false);
       }
@@ -107,7 +107,7 @@ const EditRequestPage = () => {
     try {
       await requestsService.updateRequest(id, requestData);
       toast.success('Заявка успешно обновлена!');
-      navigate(`/requests/${id}`);
+      navigate(`/request/${id}`);
     } catch (err) {
       toast.error(err.response?.data?.msg || 'Не удалось обновить заявку');
     } finally {
@@ -274,7 +274,7 @@ const EditRequestPage = () => {
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => navigate(`/requests/${id}`)}
+                onClick={() => navigate(`/request/${id}`)}
                 className="px-6 py-2 text-sm font-medium text-gray-700 rounded-xl hover:bg-gray-100 transition"
               >
                 Отмена
