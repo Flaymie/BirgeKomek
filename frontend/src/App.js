@@ -31,6 +31,8 @@ import RequireTelegramModal from './components/modals/RequireTelegramModal';
 import LinkTelegramModal from './components/modals/LinkTelegramModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 import NotificationDetailPage from './components/pages/NotificationDetailPage';
+import CookieConsent from './components/shared/CookieConsent';
+import './App.css';
 
 // Этот компонент отвечает за инициализацию перехватчика API
 // и рендер основного контента. Он должен быть внутри AuthProvider.
@@ -138,6 +140,7 @@ const AppContent = () => {
             {/* Маршрут для страницы не найдено */}
             <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        <CookieConsent />
       </Layout>
       </div>
     </>
@@ -147,9 +150,7 @@ const AppContent = () => {
 // Главный компонент приложения с правильной структурой
 function App() {
   return (
-    <AuthProvider>
       <AppInitializer />
-    </AuthProvider>
   );
 }
 

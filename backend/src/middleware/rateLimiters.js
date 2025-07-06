@@ -28,7 +28,7 @@ export const loginLimiter = rateLimit({
 export const createRequestLimiter = rateLimit({
   ...commonOptions,
   windowMs: 24 * 60 * 60 * 1000, // 24 часа
-  max: 5,
+  max: 500,
   message: { msg: 'Вы достигли лимита на создание заявок (5 в день).' },
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),

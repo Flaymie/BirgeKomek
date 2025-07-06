@@ -225,7 +225,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-        </div>
+    </div>
       )}
     </motion.div>
   );
@@ -315,7 +315,9 @@ const ChatPage = () => {
 
   // Получаем первоначальные данные (инфо о запросе и старые сообщения)
   const fetchInitialData = useCallback(async () => {
-    if (!requestId) return;
+    if (!requestId) {
+      return;
+    };
     setLoading(true);
     setError('');
     try {
@@ -849,18 +851,18 @@ const ChatPage = () => {
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <div className="flex items-center gap-3 mt-1">
                 <StatusBadge status={requestDetails.status} />
-                <p className="text-sm text-gray-500">
-                  {requestDetails.subject} • {requestDetails.grade} класс
-                </p>
-              </div>
+              <p className="text-sm text-gray-500">
+                {requestDetails.subject} • {requestDetails.grade} класс
+              </p>
+            </div>
             </div>
             <div className="flex w-full flex-col items-end gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-              <Link 
-                to={`/request/${requestId}`}
+            <Link 
+              to={`/request/${requestId}`}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
-              >
-                К деталям запроса
-              </Link>
+            >
+              К деталям запроса
+            </Link>
               {isAuthor && isChatActive && (
                 <button
                    onClick={handleOpenResolveModal}
@@ -1130,4 +1132,4 @@ const AttachmentPreview = ({ file, onRemove }) => {
   );
 };
 
-export default ChatPage;
+export default ChatPage; 

@@ -203,7 +203,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
   const hasLocation = profile.location && profile.location.trim().length > 0;
   const hasTelegramUsername = profile.telegramUsername && profile.telegramUsername.trim().length > 0;
   const hasAnyContactInfo = hasLocation || hasTelegramUsername;
-
+  
   return (
     <Container>
       <h1 className="text-2xl font-bold text-gray-800 mb-4 ml-12">Профиль</h1>
@@ -421,7 +421,7 @@ const ProfileEditor = ({
                     isUsernameChangeBlocked || isProfileLoading ? 'bg-gray-100 cursor-not-allowed' : ''
                   }`}
                   />
-              </div>
+                </div>
                   {isUsernameChangeBlocked && (
                 <p className="text-sm text-red-600 flex items-center animate-fade-in">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -837,7 +837,7 @@ const ProfilePage = () => {
       }
     }
   }, [profile, currentUser]);
-
+  
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
@@ -1034,7 +1034,7 @@ const ProfilePage = () => {
 
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
-
+  
   return (
     <>
       {identifier ? (
@@ -1058,16 +1058,16 @@ const ProfilePage = () => {
           )}
         </>
       ) : (
-        <ProfileEditor
-          profileData={profileData}
-          profileErrors={profileErrors}
-          profileSuccess={profileSuccess}
-          profileError={profileError}
-          isProfileLoading={isProfileLoading}
-          handleProfileChange={handleProfileChange}
-          handleProfileSubmit={handleProfileSubmit}
+    <ProfileEditor
+      profileData={profileData}
+      profileErrors={profileErrors}
+      profileSuccess={profileSuccess}
+      profileError={profileError}
+      isProfileLoading={isProfileLoading}
+      handleProfileChange={handleProfileChange}
+      handleProfileSubmit={handleProfileSubmit}
           currentUser={currentUser}
-          handleSubjectsChange={handleSubjectsChange}
+      handleSubjectsChange={handleSubjectsChange}
           onDeleteAccount={() => setIsDeleteModalOpen(true)}
           onLinkTelegram={handleLinkTelegram}
           onUnlinkTelegram={handleUnlinkTelegram}

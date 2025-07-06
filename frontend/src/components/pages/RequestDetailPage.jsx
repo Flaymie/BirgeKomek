@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 
 const RequestDetailPage = () => {
   const { id } = useParams();
+
   const navigate = useNavigate();
   const location = useLocation();
   const [request, setRequest] = useState(null);

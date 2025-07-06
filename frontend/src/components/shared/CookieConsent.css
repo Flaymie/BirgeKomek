@@ -1,0 +1,105 @@
+.cookie-consent-banner {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 800px;
+    background: rgba(25, 25, 28, 0.85);
+    color: #e0e0e0;
+    padding: 15px 25px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); /* Для Safari */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: slide-up 0.5s ease-out;
+}
+
+.cookie-consent-text p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.cookie-consent-text a {
+    color: #4dabf7;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.cookie-consent-text a:hover {
+    color: #74c0fc;
+    text-decoration: underline;
+}
+
+.cookie-consent-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: 20px;
+}
+
+.cookie-consent-actions button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-customize {
+    background-color: transparent;
+    border: 1px solid #555;
+    color: #ccc;
+}
+
+.btn-customize:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #777;
+}
+
+.btn-accept {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-accept:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
+}
+
+@keyframes slide-up {
+    from {
+        transform: translate(-50%, 100px);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+/* Адаптивка для мобилок */
+@media (max-width: 768px) {
+    .cookie-consent-banner {
+        flex-direction: column;
+        text-align: center;
+        bottom: 10px;
+        width: 95%;
+    }
+
+    .cookie-consent-actions {
+        margin-top: 15px;
+        margin-left: 0;
+        width: 100%;
+        justify-content: center;
+    }
+} 
