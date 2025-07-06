@@ -32,13 +32,20 @@ export const createAndSendNotification = async (notificationData) => {
     await notification.save();
     console.log(`Уведомление создано для пользователя ${user}: ${title}`);
     
+    // Получаем актуальное количество непрочитанных уведомлений
+    const unreadCount = await Notification.countDocuments({ user: user, isRead: false });
+
     // 1. Отправка через Socket.IO на фронтенд
     const sockets = await io.fetchSockets();
     const userSocket = sockets.find(s => s.user && s.user.id === user.toString());
     
     if (userSocket) {
-        userSocket.emit('new_notification', notification);
-        console.log(`Уведомление отправлено через сокет пользователю ${user}`);
+        // Отправляем само уведомление и актуальный счетчик
+        userSocket.emit('new_notification', {
+            notification: notification,
+            unreadCount: unreadCount
+        });
+        console.log(`Уведомление и счетчик (${unreadCount}) отправлены через сокет пользователю ${user}`);
     }
     
     // 2. Отправка в Telegram (остается без изменений)

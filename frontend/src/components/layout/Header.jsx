@@ -20,7 +20,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, unreadCount } = useAuth(); // <--- Получаем unreadCount
   
   // --- КОСТЫЛЬ ДЛЯ ДИНАМИЧЕСКОЙ ССЫЛКИ ---
   const chatPageMatch = location.pathname.match(/^\/requests\/(.+)\/chat$/);
@@ -74,7 +74,7 @@ const Header = () => {
     if (currentUser) {
       return (
         <div className="hidden md:flex items-center gap-4">
-            <NotificationBell />
+            <NotificationBell count={unreadCount} /> {/* <--- Передаем в компонент */}
             
             <div className="relative group">
                 <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
@@ -198,9 +198,9 @@ const Header = () => {
                       <FiBell className="w-6 h-6" />
                       <span>Уведомления</span>
                     </div>
-                    {currentUser && currentUser.unreadCount > 0 && (
+                    {unreadCount > 0 && ( // <--- Используем unreadCount из контекста
                       <span className="flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-red-500 text-xs font-medium text-white">
-                        {currentUser.unreadCount > 99 ? '99+' : currentUser.unreadCount}
+                        {unreadCount > 99 ? '99+' : unreadCount}
                       </span>
                     )}
                   </Link>

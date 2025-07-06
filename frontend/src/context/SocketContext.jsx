@@ -22,7 +22,7 @@ const SOCKET_URL = serverURL;
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { token, setIsBanned, setBanReason } = useAuth();
+  const { token, setUnreadCount, setIsBanned, setBanReason } = useAuth(); // Достаем setUnreadCount
   const location = useLocation();
 
   useEffect(() => {
@@ -77,7 +77,10 @@ export const SocketProvider = ({ children }) => {
       // 2. Отправляем событие при каждой смене страницы
       socket.emit('user_navigate');
 
-      const handleNewNotification = (notification) => {
+      const handleNewNotification = (data) => {
+        // data теперь объект { notification: {...}, unreadCount: N }
+        const { notification, unreadCount } = data;
+        
         toast.info(
           <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
           {
@@ -85,6 +88,8 @@ export const SocketProvider = ({ children }) => {
             autoClose: 8000,
           }
         );
+        // Обновляем глобальный счетчик
+        setUnreadCount(unreadCount);
       };
       
       // Обработчик бана пользователя
@@ -103,7 +108,7 @@ export const SocketProvider = ({ children }) => {
         socket.off('user_banned', handleUserBanned);
       };
     }
-  }, [socket, location, setBanReason, setIsBanned]);
+  }, [socket, location, setUnreadCount, setBanReason, setIsBanned]); // Добавляем зависимость
 
   const value = {
     socket,
