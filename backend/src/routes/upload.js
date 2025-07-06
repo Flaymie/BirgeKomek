@@ -129,8 +129,9 @@ const attachmentStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const userId = req.user.id;
     const uniqueSuffix = `${userId}-${Date.now()}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
+    // FIX: Декодируем имя файла из latin1 в utf8 для поддержки кириллицы
+    const decodedFileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    cb(null, uniqueSuffix + '-' + decodedFileName);
   }
 });
 
