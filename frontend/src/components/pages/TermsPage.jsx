@@ -41,7 +41,7 @@ const TermsPage = () => {
 
       {/* Основной контент */}
       <Section>
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto page-fade-in">
           <P><strong>Последнее обновление:</strong> 2 июля 2025 года</P>
           
           <ContentHeader>1. Принятие условий</ContentHeader>

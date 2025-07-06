@@ -22,7 +22,7 @@ const Section = ({ children, className = '' }) => (
 
 const AboutPage = () => {
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-50 page-fade-in">
       {/* HERO */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-600 to-primary-800"></div>
