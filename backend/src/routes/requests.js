@@ -912,32 +912,11 @@ router.post('/:id/cancel', protect, [
             request.attachments.push(...newAttachments);
         }
 
-        // --->>> ИНТЕГРАЦИЯ GEMINI ПРИ РЕДАКТИРОВАНИИ (С УЧЕТОМ РОЛИ) <<<---
-        if (title || description) {
-            // Если это НЕ модератор/админ, то отправляем на проверку
-            if (!req.isModeratorAction) {
-                const newTitle = title || request.title;
-                const newDescription = description || request.description;
-                const moderatedContent = await geminiService.moderateRequest(newTitle, newDescription);
-
-                if (!moderatedContent.is_safe) {
-                    return res.status(400).json({
-                        errors: [{
-                            msg: `Ваш текст не прошел модерацию: ${moderatedContent.rejection_reason}`,
-                            param: description ? "description" : "title",
-                        }],
-                    });
-                }
-                // Если все ок, используем предложенные версии
-                request.title = moderatedContent.suggested_title;
-                request.description = moderatedContent.suggested_description;
-            } else {
-                // А если это модератор, то просто применяем его правки напрямую
-                if (title) request.title = title;
-                if (description) request.description = description;
-            }
-        }
-        // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
+        // --->>> ИСПРАВЛЕНИЕ: Убираем отсюда модерацию, она теперь при публикации <<<---
+        // Обновляем поля, если они были переданы. 
+        if (title) request.title = title;
+        if (description) request.description = description;
+        // --->>> КОНЕЦ ИСПРАВЛЕНИЯ <<<---
 
         // Обновляем остальные поля, если они были переданы
         if (subject) request.subject = subject;
@@ -1037,6 +1016,25 @@ router.post('/:id/cancel', protect, [
               if (!isAuthor) {
                   return res.status(403).json({ msg: 'Только автор может опубликовать черновик.' });
               }
+
+              // --->>> НОВАЯ ЛОГИКА: МОДЕРАЦИЯ ПЕРЕД ПУБЛИКАЦИЕЙ ЧЕРНОВИКА <<<---
+              const moderatedContent = await geminiService.moderateRequest(request.title, request.description);
+
+              if (!moderatedContent.is_safe) {
+                  // Если модерация не пройдена, НЕ меняем статус, а возвращаем ошибку
+                  return res.status(400).json({
+                      errors: [{
+                          msg: `Ваша заявка отклонена модерацией: ${moderatedContent.rejection_reason}`,
+                          param: "description", // Условно
+                      }],
+                      code: 'MODERATION_FAILED'
+                  });
+              }
+              // Если все ок, обновляем заявку отредактированными данными
+              request.title = moderatedContent.suggested_title;
+              request.description = moderatedContent.suggested_description;
+              // --->>> КОНЕЦ НОВОЙ ЛОГИКИ <<<---
+
               // Проверка на заполненность полей перед публикацией
               if (!request.description || !request.subject || !request.grade) {
                   return res.status(400).json({ msg: 'Перед публикацией необходимо заполнить описание, предмет и класс.' });
