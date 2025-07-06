@@ -915,8 +915,9 @@ router.post('/:id/cancel', protect, [
 
         // --->>> ВОЗВРАЩАЕМ МОДЕРАЦИЮ ПРИ РЕДАКТИРОВАНИИ <<<---
         if (title || description) {
-            // Если это обычный юзер, то отправляем на проверку
-            if (!req.isPrivilegedUser) {
+            // Если это НЕ действие модератора над чужой заявкой, то отправляем на проверку.
+            // Это покрывает и обычных юзеров, и модеров, редактирующих СВОИ заявки.
+            if (!req.isModeratorAction) {
                 const newTitle = title || request.title;
                 const newDescription = description || request.description;
                 const moderatedContent = await geminiService.moderateRequest(newTitle, newDescription);
