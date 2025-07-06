@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { notificationsService } from '../../services/api';
 import { toast } from 'react-toastify';
-import { useNotification } from '../../context/NotificationContext';
+import { useSocket } from '../../context/SocketContext';
 
 const NotificationItem = ({ notification, closeDropdown }) => {
   const navigate = useNavigate();
@@ -38,14 +38,24 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { unreadCount, markAllAsRead } = useSocket();
 
-  const { unreadCount, markAllAsRead, isLoading } = useNotification();
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleBellClick = async () => {
-    if (unreadCount > 0) {
-      markAllAsRead();
+    if (isMobile) {
+      navigate('/notifications');
+      return;
     }
-    
+
     setIsOpen(!isOpen);
     
     if (!isOpen) {
@@ -53,6 +63,7 @@ const NotificationBell = () => {
       try {
         const response = await notificationsService.getNotifications({ limit: 5, page: 1 });
         setNotifications(response.data.notifications || []);
+        markAllAsRead();
       } catch (err) {
         toast.error('Не удалось загрузить уведомления');
       } finally {
@@ -73,19 +84,19 @@ const NotificationBell = () => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <button
         onClick={handleBellClick}
         className="relative p-2 rounded-full text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
         <BellIcon className="h-6 w-6" aria-hidden="true" />
-        {!isLoading && unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs rounded-full border-2 border-white">
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 border-2 border-white rounded-full">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {isOpen && (
+      {isOpen && !isMobile && (
         <div className="origin-top-right absolute right-0 mt-3 w-80 max-w-sm rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
           <div className="p-3 font-semibold text-gray-800 border-b border-gray-200">
             Уведомления

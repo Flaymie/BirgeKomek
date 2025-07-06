@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { serverURL } from '../services/api';
 import { toast } from 'react-toastify';
+import notificationService from '../services/notificationService';
 
 const SocketContext = createContext(null);
 
@@ -24,11 +25,22 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const { token, setIsBanned, setBanReason } = useAuth();
   const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     console.log('[SocketContext] useEffect triggered by token change:', token ? 'token exists' : 'token is null');
 
     if (token) {
+      const fetchUnreadCount = async () => {
+        try {
+          const response = await notificationService.getUnreadCount();
+          setUnreadCount(response.data.count);
+        } catch (error) {
+          console.error('Failed to fetch unread notifications count', error);
+        }
+      };
+      fetchUnreadCount();
+      
       console.log('[SocketContext] Token found. Attempting to create socket with URL:', SOCKET_URL);
 
       const newSocket = io(SOCKET_URL, {
@@ -44,14 +56,12 @@ export const SocketProvider = ({ children }) => {
 
       newSocket.on('connect_error', (err) => {
         console.error('Global Socket Connection Error:', err.message);
-        // Можно добавить доп. логику, например, попытку переподключения или выход
       });
 
       newSocket.on('disconnect', (reason) => {
         console.log('Global Socket Disconnected:', reason);
       });
       
-      // Очистка при разлогине или смене ID пользователя
       return () => {
         console.log('Cleaning up socket connection.');
         newSocket.disconnect();
@@ -63,21 +73,18 @@ export const SocketProvider = ({ children }) => {
         setSocket(null);
       }
     }
-    // Зависимость ТОЛЬКО от токена
   }, [token]);
 
   useEffect(() => {
     if (socket) {
-      // --- ЛОГИКА ОНЛАЙН СТАТУСА ---
-      // 1. Пингуем каждые 30 секунд, чтобы показать, что мы онлайн
       const pingInterval = setInterval(() => {
         socket.emit('user_ping');
-      }, 30000); // 30 секунд
+      }, 30000);
 
-      // 2. Отправляем событие при каждой смене страницы
       socket.emit('user_navigate');
 
       const handleNewNotification = (notification) => {
+        setUnreadCount(prevCount => prevCount + 1);
         toast.info(
           <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
           {
@@ -87,7 +94,6 @@ export const SocketProvider = ({ children }) => {
         );
       };
       
-      // Обработчик бана пользователя
       const handleUserBanned = (data) => {
         console.log('Получено событие о бане через сокет!', data);
         setBanReason(data.reason || 'Причина не указана');
@@ -98,15 +104,26 @@ export const SocketProvider = ({ children }) => {
       socket.on('user_banned', handleUserBanned);
 
       return () => {
-        clearInterval(pingInterval); // Очищаем интервал при размонтировании
+        clearInterval(pingInterval);
         socket.off('new_notification', handleNewNotification);
         socket.off('user_banned', handleUserBanned);
       };
     }
   }, [socket, location, setBanReason, setIsBanned]);
 
+  const markAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark notifications as read', error);
+    }
+  };
+
   const value = {
     socket,
+    unreadCount,
+    markAllAsRead,
   };
 
   return (
@@ -114,4 +131,4 @@ export const SocketProvider = ({ children }) => {
       {children}
     </SocketContext.Provider>
   );
-}; 
+};

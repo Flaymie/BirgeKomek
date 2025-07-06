@@ -130,6 +130,16 @@ export default () => {
       }
     });
 
+    router.get('/unread/count', protect, generalLimiter, async (req, res) => {
+      try {
+        const count = await Notification.countDocuments({ user: req.user._id, isRead: false });
+        res.json({ count });
+      } catch (error) {
+        console.error('Ошибка при получении количества непрочитанных уведомлений:', error);
+        res.status(500).json({ msg: 'Ошибка сервера' });
+      }
+    });
+
     router.put('/read-all', protect, generalLimiter, async (req, res) => {
       try {
         await Notification.updateMany(
