@@ -16,6 +16,16 @@ import path from 'path';
 import { sendTelegramMessage } from './users.js';
 import geminiService from "../services/geminiService.js"; // Импортируем наш сервис
 
+// Middleware для декодирования имен файлов
+const decodeFileNames = (req, res, next) => {
+  if (req.files && req.files.length > 0) {
+    req.files.forEach(file => {
+      file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    });
+  }
+  next();
+};
+
 // ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
   const router = express.Router(); // СОЗДАЕМ РОУТЕР ВНУТРИ
@@ -231,7 +241,7 @@ router.get('/', [
  *       401:
  *         description: Не авторизован
  */
-router.post('/', uploadAttachments, createRequestLimiter, [
+router.post('/', uploadAttachments, decodeFileNames, createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').optional().trim(),
     body('subject').optional().trim().escape(),
@@ -844,7 +854,7 @@ router.post('/:id/cancel', protect, [
    *       403:
    *         description: Нет прав на редактирование
    */
-  router.put('/:id', protect, checkEditDeletePermission, uploadAttachments, [
+  router.put('/:id', protect, checkEditDeletePermission, uploadAttachments, decodeFileNames, [
     // Валидация остается прежней, но добавляем необязательное поле
     body('title').optional().trim().isLength({ min: 5, max: 100 }),
     body('description').optional().trim().isLength({ min: 10 }),
@@ -969,8 +979,8 @@ router.post('/:id/cancel', protect, [
    *         name: id
    *         required: true
    *         schema: { type: 'string', description: 'ID заявки' }
-   *     requestBody:
-   *       required: true
+ *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
