@@ -11,7 +11,7 @@ import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
-import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, EyeIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
+import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, EyeIcon, PaperClipIcon, ArrowDownTrayIcon, DocumentIcon } from '@heroicons/react/24/solid';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import { motion } from 'framer-motion';
@@ -56,12 +56,26 @@ const RequestDetailPage = () => {
   
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
   const [isAdminDeleteModalOpen, setAdminDeleteModalOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
   const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
   const [modActionArgs, setModActionArgs] = useState(null);
   const [modActionLoading, setModActionLoading] = useState(false);
 
+  // --- НОВАЯ ЛОГИКА ДЛЯ ВЛОЖЕНИЙ ---
+  const isImageFile = (fileName = '') => {
+    const imageExtensions = ['.png', '.jpg', '.jpeg', ' .gif', '.webp'];
+    const fileExtension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+    return imageExtensions.includes(fileExtension);
+  };
+
+  const handlePreviewClick = (file) => {
+    if (isImageFile(file.originalName)) {
+      setLightboxImage(`${serverURL}${file.path}`);
+    }
+  };
+  
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
 
@@ -335,20 +349,6 @@ const RequestDetailPage = () => {
       (['closed', 'completed', 'cancelled'].includes(request.status))
     );
 
-  const [lightboxImage, setLightboxImage] = useState(null);
-
-  // --- НОВАЯ ФУНКЦИЯ ДЛЯ ОБРАБОТКИ КЛИКА ПО ВЛОЖЕНИЮ ---
-  const handleAttachmentClick = (e, file) => {
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
-    const fileExtension = file.originalName.slice(file.originalName.lastIndexOf('.')).toLowerCase();
-
-    if (imageExtensions.includes(fileExtension)) {
-      e.preventDefault(); // Предотвращаем стандартный переход по ссылке
-      setLightboxImage(`${serverURL}${file.path}`);
-    }
-    // Для других файлов ничего не делаем, и браузер просто их скачает по href
-  };
-
   if (authLoading || loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -439,24 +439,41 @@ const RequestDetailPage = () => {
                   </h3>
                   <ul className="space-y-3">
                       {request.attachments.map((file, index) => (
-                          <li key={index}>
+                          <li key={index} className="flex items-center justify-between bg-gray-50 p-2.5 rounded-lg">
+                              <div className="flex items-center gap-4 min-w-0 flex-1">
+                                  {/* Иконка или миниатюра */}
+                                  <div
+                                      className={`flex-shrink-0 ${isImageFile(file.originalName) ? 'cursor-pointer' : ''}`}
+                                      onClick={() => handlePreviewClick(file)}
+                                  >
+                                      {isImageFile(file.originalName) ? (
+                                          <img src={`${serverURL}${file.path}`} alt={file.originalName} className="h-14 w-14 object-cover rounded-md bg-gray-200 hover:ring-2 hover:ring-primary-500 transition-all" />
+                                      ) : (
+                                          <div className="h-14 w-14 flex items-center justify-center bg-gray-200 rounded-md">
+                                              <DocumentIcon className="h-8 w-8 text-gray-500" />
+                                          </div>
+                                      )}
+                                  </div>
+                                  {/* Имя и размер файла */}
+                                  <div className="min-w-0">
+                                      <p className="text-sm text-gray-800 font-medium truncate" title={file.originalName}>
+                                          {file.originalName}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                          ({(file.size / 1024 / 1024).toFixed(2)} МБ)
+                                      </p>
+                                  </div>
+                              </div>
+                              {/* Кнопка скачать */}
                               <a
                                   href={`${serverURL}${file.path}`}
                                   download={file.originalName}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-3 rounded-lg transition-colors duration-150 group cursor-pointer"
-                                  onClick={(e) => handleAttachmentClick(e, file)}
+                                  className="ml-4 flex-shrink-0 p-2 rounded-full hover:bg-gray-200 transition-colors group"
+                                  title="Скачать"
                               >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                      <span className="text-sm text-gray-800 font-medium truncate" title={file.originalName}>
-                                          {file.originalName}
-                                      </span>
-                                      <span className="text-xs text-gray-500 flex-shrink-0">
-                                          ({(file.size / 1024 / 1024).toFixed(2)} МБ)
-                                      </span>
-                                  </div>
-                                  <ArrowDownTrayIcon className="h-5 w-5 text-gray-400 group-hover:text-primary-600 transition-colors" />
+                                  <ArrowDownTrayIcon className="h-6 w-6 text-gray-500 group-hover:text-primary-600" />
                               </a>
                           </li>
                       ))}
