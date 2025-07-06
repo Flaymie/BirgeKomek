@@ -466,10 +466,8 @@ const RequestDetailPage = () => {
                               </div>
                               {/* Кнопка скачать */}
                               <a
-                                  href={`${serverURL}${file.path}`}
+                                  href={`/api/download/attachments/${file.filename}`}
                                   download={file.originalName}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
                                   className="ml-4 flex-shrink-0 p-2 rounded-full hover:bg-gray-200 transition-colors group"
                                   title="Скачать"
                               >
