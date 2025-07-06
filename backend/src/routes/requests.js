@@ -241,7 +241,7 @@ router.get('/', [
  *       401:
  *         description: Не авторизован
  */
-router.post('/', uploadAttachments, decodeFileNames, createRequestLimiter, [
+router.post('/', uploadAttachments, createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').optional().trim(),
     body('subject').optional().trim().escape(),
@@ -318,7 +318,8 @@ router.post('/', uploadAttachments, decodeFileNames, createRequestLimiter, [
                 path: `/uploads/attachments/${file.filename}`,
                 mimetype: file.mimetype,
                 size: file.size,
-                originalName: file.originalname
+                // FIX: Декодируем имя файла прямо здесь
+                originalName: Buffer.from(file.originalname, 'latin1').toString('utf8')
             }));
             request.attachments = attachments;
             await request.save();
@@ -854,7 +855,7 @@ router.post('/:id/cancel', protect, [
    *       403:
    *         description: Нет прав на редактирование
    */
-  router.put('/:id', protect, checkEditDeletePermission, uploadAttachments, decodeFileNames, [
+  router.put('/:id', protect, checkEditDeletePermission, uploadAttachments, [
     // Валидация остается прежней, но добавляем необязательное поле
     body('title').optional().trim().isLength({ min: 5, max: 100 }),
     body('description').optional().trim().isLength({ min: 10 }),
@@ -899,7 +900,8 @@ router.post('/:id/cancel', protect, [
                 path: `/uploads/attachments/${file.filename}`,
                 mimetype: file.mimetype,
                 size: file.size,
-                originalName: file.originalname
+                // FIX: Декодируем имя файла прямо здесь
+                originalName: Buffer.from(file.originalname, 'latin1').toString('utf8')
             }));
             request.attachments.push(...newAttachments);
         }
