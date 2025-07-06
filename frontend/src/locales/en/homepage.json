@@ -1,0 +1,28 @@
+{
+  "hero": {
+    "title": "Birge Kómek",
+    "subtitle": "The #1 platform for peer-to-peer help among schoolchildren in Kazakhstan. Learn, help, and earn ratings!",
+    "joinButton": "Join Now",
+    "viewRequestsButton": "View Requests"
+  },
+  "howItWorks": {
+    "title": "How It Works?",
+    "step1": {
+      "title": "Create a Request",
+      "description": "Describe your task and wait for responses from helpers ready to assist."
+    },
+    "step2": {
+      "title": "Help Others",
+      "description": "Find requests that interest you and offer your help to earn a rating."
+    },
+    "step3": {
+      "title": "Get Reviews",
+      "description": "Receive ratings for quality help and become a top helper."
+    }
+  },
+  "cta": {
+    "title": "Ready to Start?",
+    "subtitle": "Join our community today and begin your journey to new knowledge and achievements!",
+    "button": "Start Learning"
+  }
+} 

@@ -118,7 +118,7 @@ const RequestDetailPage = () => {
     }
 
     const fetchRequestDetails = async () => {
-      try {
+        try {
         setLoading(true);
             const response = await requestsService.getRequestById(id);
             setRequest(response.data);
@@ -174,15 +174,15 @@ const RequestDetailPage = () => {
     const handleNewResponse = (newResponse) => {
       if (newResponse.request === id) {
         setResponses(prev => [...prev, newResponse]);
-      }
-    };
+            }
+        };
 
     const handleResponseUpdate = (updatedResponse) => {
       setResponses(prev => prev.map(r => r._id === updatedResponse._id ? updatedResponse : r));
       if (updatedResponse.helper._id === currentUser?._id) {
         setMyResponse(updatedResponse);
-      }
-    };
+            }
+        };
 
     socket.on('new_response', handleNewResponse);
     socket.on('response_updated', handleResponseUpdate);
@@ -190,16 +190,16 @@ const RequestDetailPage = () => {
         return () => {
       socket.off('new_response', handleNewResponse);
       socket.off('response_updated', handleResponseUpdate);
-    };
+        };
   }, [socket, id, currentUser]);
 
   const isPrivilegedUser = useMemo(() => {
     return currentUser?.roles?.admin || currentUser?.roles?.moderator;
   }, [currentUser]);
-
+    
   // Обработчик удаления запроса
   const handleDeleteRequest = async () => {
-    try {
+        try {
       await requestsService.deleteRequest(id);
       toast.success('Запрос успешно удален');
       // После удаления перенаправляем на страницу "Мои запросы"
@@ -256,9 +256,9 @@ const RequestDetailPage = () => {
         console.error('Ошибка при удалении:', err);
         toast.error(err.response?.data?.msg || 'Не удалось удалить заявку');
       }
-    }
-  };
-
+        }
+    };
+    
   // Обработка действий с откликами (принятие/отклонение)
   const handleResponseAction = (action, responseId) => {
     if (action === 'accepted') {
