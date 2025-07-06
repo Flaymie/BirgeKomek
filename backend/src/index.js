@@ -25,7 +25,6 @@ import notificationRoutes, { createAndSendNotification } from './routes/notifica
 import statsRoutes from './routes/stats.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
-import downloadRoutes from './routes/download.js';
 import Message from './models/Message.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
@@ -135,7 +134,6 @@ app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
-app.use('/api/download', downloadRoutes);
 app.use('/api/admin', adminRoutes({ sseConnections }));
 
 // ПРАВИЛЬНАЯ Socket.IO логика

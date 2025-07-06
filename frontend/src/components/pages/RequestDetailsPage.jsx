@@ -15,6 +15,7 @@ import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleL
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import { motion } from 'framer-motion';
+import { downloadFile } from '../../services/downloadService';
 
 // Простое модальное окно для предпросмотра
 const Lightbox = ({ imageUrl, onClose }) => {
@@ -465,14 +466,16 @@ const RequestDetailPage = () => {
                                   </div>
                               </div>
                               {/* Кнопка скачать */}
-                              <a
-                                  href={`/api/download/attachments/${file.filename}`}
-                                  download={file.originalName}
+                              <button
+                                  onClick={() => downloadFile({ 
+                                    fileUrl: file.path, 
+                                    fileName: file.originalName 
+                                  })}
                                   className="ml-4 flex-shrink-0 p-2 rounded-full hover:bg-gray-200 transition-colors group"
                                   title="Скачать"
                               >
                                   <ArrowDownTrayIcon className="h-6 w-6 text-gray-500 group-hover:text-primary-600" />
-                              </a>
+                              </button>
                           </li>
                       ))}
                   </ul>
