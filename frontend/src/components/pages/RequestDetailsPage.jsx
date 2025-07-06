@@ -16,6 +16,29 @@ import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import { motion } from 'framer-motion';
 
+// Простое модальное окно для предпросмотра
+const Lightbox = ({ imageUrl, onClose }) => {
+  if (!imageUrl) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50"
+      onClick={onClose}
+    >
+      <motion.img 
+        src={imageUrl} 
+        alt="Предпросмотр вложения" 
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()} // Остановка всплытия, чтобы клик по картинке не закрывал ее
+      />
+    </div>
+  );
+};
+
+
 const RequestDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -312,6 +335,20 @@ const RequestDetailPage = () => {
       (['closed', 'completed', 'cancelled'].includes(request.status))
     );
 
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  // --- НОВАЯ ФУНКЦИЯ ДЛЯ ОБРАБОТКИ КЛИКА ПО ВЛОЖЕНИЮ ---
+  const handleAttachmentClick = (e, file) => {
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+    const fileExtension = file.originalName.slice(file.originalName.lastIndexOf('.')).toLowerCase();
+
+    if (imageExtensions.includes(fileExtension)) {
+      e.preventDefault(); // Предотвращаем стандартный переход по ссылке
+      setLightboxImage(`${serverURL}${file.path}`);
+    }
+    // Для других файлов ничего не делаем, и браузер просто их скачает по href
+  };
+
   if (authLoading || loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -408,7 +445,8 @@ const RequestDetailPage = () => {
                                   download={file.originalName}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-3 rounded-lg transition-colors duration-150 group"
+                                  className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-3 rounded-lg transition-colors duration-150 group cursor-pointer"
+                                  onClick={(e) => handleAttachmentClick(e, file)}
                               >
                                   <div className="flex items-center gap-3 min-w-0">
                                       <span className="text-sm text-gray-800 font-medium truncate" title={file.originalName}>
@@ -594,6 +632,7 @@ const RequestDetailPage = () => {
       </div>
 
       {/* Модальные окна */}
+      <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />
       <AdminEditModal isOpen={isAdminEditModalOpen} onClose={() => setAdminEditModalOpen(false)} onConfirm={handleAdminEdit} requestTitle={request.title} />
       <AdminDeleteModal isOpen={isAdminDeleteModalOpen} onClose={() => setAdminDeleteModalOpen(false)} onConfirm={handleAdminDelete} requestTitle={request.title} />
       <ResponseModal isOpen={isResponseModalOpen} onClose={() => setIsResponseModalOpen(false)} requestId={id} />
