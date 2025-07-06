@@ -255,7 +255,8 @@ const ChatPage = () => {
   const [typingUsers, setTypingUsers] = useState({});
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
 
-  const fileInputRef = useRef(null); // Наш костыль
+  const fileInputRef = useRef(null);
+  const footerRef = useRef(null);
 
   // --- Стейты для полных профилей ---
   const [authorProfile, setAuthorProfile] = useState(null);
@@ -428,16 +429,15 @@ const ChatPage = () => {
 
   // Скролл чата и страницы вниз после загрузки
   useEffect(() => {
-    if (!loading && chatContainerRef.current) {
+    if (!loading) {
+      // Самый надежный способ - скролл к конкретному элементу.
+      // Таймаут с 0 задержкой выполнит код после того, как React закончит все свои дела с рендерингом.
       setTimeout(() => {
-        // Скроллим сам контейнер чата
-        scrollToBottom('auto'); 
-        // А также скроллим всю страницу, чтобы чат был в фокусе
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' });
-      }, 150); // Небольшая, но надежная задержка
+        scrollToBottom('auto');
+        footerRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 0);
     }
-    // Зависимость от `loading` гарантирует, что это выполнится один раз после загрузки
-  }, [loading]);
+  }, [loading, messages]);
 
   // НОВАЯ, НАДЕЖНАЯ ЛОГИКА СКРОЛЛА
   useEffect(() => {
@@ -925,7 +925,7 @@ const ChatPage = () => {
         
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
-        <footer className="relative bg-white border-t border-gray-200 rounded-b-lg">
+        <footer ref={footerRef} className="relative bg-white border-t border-gray-200 rounded-b-lg">
           <AnimatePresence>
             {showScrollDown && (
               <motion.div
