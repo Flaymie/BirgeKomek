@@ -259,6 +259,18 @@ const ChatPage = () => {
   const fileInputRef = useRef(null);
   const footerRef = useRef(null);
 
+  const chatContainerRef = useRef(null);
+  const previousScrollHeight = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  const handleScroll = useCallback(() => {
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer) return;
+    // Кнопка появляется, если мы НЕ у самого низа (отступ < 100px)
+    const nearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+    setShowScrollDown(!nearBottom);
+  }, []);
+
   // --- Стейты для полных профилей ---
   const [authorProfile, setAuthorProfile] = useState(null);
   const [helperProfile, setHelperProfile] = useState(null);
@@ -310,10 +322,6 @@ const ChatPage = () => {
     noKeyboard: true,
     disabled: dropzoneDisabled,
   });
-
-  const chatContainerRef = useRef(null);
-  const previousScrollHeight = useRef(null);
-  const typingTimeoutRef = useRef(null);
 
   // Получаем первоначальные данные (инфо о запросе и старые сообщения)
   const fetchInitialData = useCallback(async () => {
@@ -439,29 +447,6 @@ const ChatPage = () => {
       }, 0);
     }
   }, [loading, messages]);
-
-  // НОВАЯ, НАДЕЖНАЯ ЛОГИКА СКРОЛЛА
-  useEffect(() => {
-    const chatContainer = chatContainerRef.current;
-    // Добавлена проверка на loading. Эффект перезапустится, когда loading станет false
-    if (!chatContainer || loading) return;
-
-    const handleScroll = () => {
-      const chat = chatContainer;
-
-      // Кнопка появляется, если мы НЕ у самого низа (отступ < 100px)
-      const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100;
-      setShowScrollDown(!nearBottom);
-    };
-
-    chatContainer.addEventListener('scroll', handleScroll);
-    return () => {
-      // Убедимся, что chatContainer все еще существует при размонтировании
-      if (chatContainer) {
-        chatContainer.removeEventListener('scroll', handleScroll);
-      }
-    };
-  }, [loading]); // <--- ВОТ ОН, КЛЮЧ К ПОБЕДЕ
 
   // Эффект, который сохраняет позицию скролла при получении новых сообщений
   useEffect(() => {
