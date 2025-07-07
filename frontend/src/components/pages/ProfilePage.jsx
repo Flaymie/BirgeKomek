@@ -718,21 +718,24 @@ const ProfileEditor = ({
 };
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
+  const { userId } = useParams();
   const { 
     currentUser, 
-    loading: authLoading, 
     updateProfile, 
     logout, 
-    handleLinkTelegram,
-    handleUnlinkTelegram,
+    updateAvatar: updateAuthAvatar,
+    linkTelegram,
+    unlinkTelegram,
     isTelegramLoading,
+    refreshCurrentUser
   } = useAuth();
-  const { identifier } = useParams();
-  const navigate = useNavigate();
+  
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isMyProfile, setIsMyProfile] = useState(false);
+  
+  // Состояния для редактирования
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
   const [isDeletingLoading, setIsDeletingLoading] = useState(false);
@@ -758,86 +761,50 @@ const ProfilePage = () => {
   const [modActionCallback, setModActionCallback] = useState(null);
   const [modActionLoading, setModActionLoading] = useState(false);
   
-  const fetchUserData = useCallback(async (userIdentifier) => {
-    if (!userIdentifier) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await usersService.getUserById(userIdentifier);
-      const userData = response.data;
-      setProfile(userData);
-      setProfileData(userData);
-      
-      // Сброс состояния перед проверкой
-      setIsUsernameChangeBlocked(false);
-      setNextUsernameChangeDate(null);
+  const isMyProfile = currentUser?._id === userId;
 
-      // --- Логика блокировки смены ника ---
-      if (userData && userData.lastUsernameChange) {
-          const lastChange = new Date(userData.lastUsernameChange);
-          const now = new Date();
-          const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-          const timeSinceChange = now.getTime() - lastChange.getTime();
-    
-          if (timeSinceChange < thirtyDaysInMs) {
-              setIsUsernameChangeBlocked(true);
-              const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
-              setNextUsernameChangeDate(nextDate.toLocaleDateString('ru-RU'));
+  // Эффект для загрузки данных профиля
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      try {
+        // Если это мой профиль, мы можем сначала показать данные из currentUser,
+        // а потом обновить их до самых актуальных.
+        if (isMyProfile) {
+          setProfile(currentUser); // Показываем то, что есть сразу
+          const freshData = await refreshCurrentUser(); // Запрашиваем свежие данные
+          if(freshData) {
+            setProfile(processUserData(freshData));
           }
-      }
-    } catch (err) {
-      console.error('Ошибка при загрузке профиля:', err);
-      setError('Не удалось загрузить профиль. Возможно, он не существует.');
-      setProfile(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (identifier) {
-      fetchUserData(identifier);
-    } 
-    else if (!authLoading) {
-      if (currentUser) {
-        // --- ИСПРАВЛЕНИЕ: Устанавливаем и profile, и profileData ---
-        setProfile({ ...currentUser });
-        setProfileData({ ...currentUser });
-        setIsMyProfile(true);
-        setLoading(false);
-
-        // --- ИСПРАВЛЕНИЕ: Добавляем логику кулдауна для своего профиля ---
-        setIsUsernameChangeBlocked(false);
-        setNextUsernameChangeDate(null);
-
-        if (currentUser.lastUsernameChange) {
-            const lastChange = new Date(currentUser.lastUsernameChange);
-            const now = new Date();
-            const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-            const timeSinceChange = now.getTime() - lastChange.getTime();
-      
-            if (timeSinceChange < thirtyDaysInMs) {
-                setIsUsernameChangeBlocked(true);
-                const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
-                setNextUsernameChangeDate(nextDate.toLocaleDateString('ru-RU'));
-            }
+        } else {
+          const response = await usersService.getProfile(userId);
+          setProfile(processUserData(response.data));
         }
-      } else {
-        navigate('/login');
+      } catch (error) {
+        console.error("Ошибка при загрузке профиля:", error);
+        setError(error.response?.data?.msg || "Не удалось загрузить профиль.");
+        if (error.response?.status === 404) {
+          setProfile(null); // Явно указываем, что профиль не найден
+        }
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [identifier, currentUser, authLoading, navigate, fetchUserData]);
+    };
 
-  useEffect(() => {
-    if (profile && currentUser) {
-      const isMine = currentUser._id === profile._id;
-      setIsMyProfile(isMine);
-      if (isMine) {
-         setProfileData({ ...profile });
-      }
+    if (userId) {
+        fetchProfile();
     }
-  }, [profile, currentUser]);
-  
+  }, [userId, isMyProfile, refreshCurrentUser]); // Добавляем isMyProfile и refreshCurrentUser
+
+  // Эффект для синхронизации локального стейта с глобальным, если это мой профиль
+  useEffect(() => {
+    if (isMyProfile && currentUser) {
+      // Это предотвратит показ устаревших данных, если они обновились в контексте
+      // (например, после привязки телеграма или другого действия)
+      setProfile(currentUser);
+    }
+  }, [currentUser, isMyProfile]);
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
@@ -1032,12 +999,12 @@ const ProfilePage = () => {
     // Тут можно будет добавить что-то еще, если понадобится
   };
 
-  if (loading || authLoading) return <Loader />;
+  if (loading || isTelegramLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
   
   return (
     <>
-      {identifier ? (
+      {userId ? (
         <>
           <UserProfileView
             profile={profile}
@@ -1069,8 +1036,8 @@ const ProfilePage = () => {
           currentUser={currentUser}
       handleSubjectsChange={handleSubjectsChange}
           onDeleteAccount={() => setIsDeleteModalOpen(true)}
-          onLinkTelegram={handleLinkTelegram}
-          onUnlinkTelegram={handleUnlinkTelegram}
+          onLinkTelegram={linkTelegram}
+          onUnlinkTelegram={unlinkTelegram}
           isTelegramLoading={isTelegramLoading}
           isUsernameChangeBlocked={isUsernameChangeBlocked}
           nextUsernameChangeDate={nextUsernameChangeDate}

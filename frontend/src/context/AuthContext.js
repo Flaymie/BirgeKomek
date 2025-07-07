@@ -69,6 +69,31 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(processUserData(userData));
   }, [checkAdminTelegramRequirement, processUserData, showBanModal]);
 
+  // --->>> НОВАЯ ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОГО ОБНОВЛЕНИЯ ДАННЫХ <<<---
+  const refreshCurrentUser = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      // Нечего обновлять, если пользователь не залогинен
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await usersService.getCurrentUser();
+      // Используем уже существующую логику для обработки и установки пользователя
+      processAndCheckBan(response.data);
+      setIsReadOnly(!response.data.telegramId);
+      return response.data; // Возвращаем свежие данные на всякий случай
+    } catch (err) {
+      console.error('Ошибка при обновлении данных пользователя:', err);
+      // Если токен невалидный, выходим из системы
+      if (err.response && err.response.status === 401) {
+        logout(false); // Выходим без тоста об успехе
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [processAndCheckBan, logout]); // Добавляем logout в зависимости
+
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
     let hash = 0;
@@ -453,6 +478,7 @@ export const AuthProvider = ({ children }) => {
     telegramLinkUrl,
     isTelegramLoading,
     closeLinkTelegramModal,
+    refreshCurrentUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
