@@ -69,51 +69,6 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(processUserData(userData));
   }, [checkAdminTelegramRequirement, processUserData, showBanModal]);
 
-  const logout = useCallback(async (showToast = true) => {
-    console.log('Выполняется выход...');
-    try {
-        const token = getAuthToken();
-        if (token) {
-            await authService.logout();
-        }
-    } catch (err) {
-        console.error("Ошибка при выходе на сервере, но выходим локально", err);
-    } finally {
-        setCurrentUser(null);
-        removeToken();
-        setToken(null);
-        // Закрываем все модальные окна и сбрасываем состояния
-        setIsBannedModalOpen(false);
-        setBanDetails(null);
-        setIsReadOnly(true);
-    }
-  }, []);
-
-  // --->>> НОВАЯ ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОГО ОБНОВЛЕНИЯ ДАННЫХ <<<---
-  const refreshCurrentUser = useCallback(async () => {
-    const token = getAuthToken();
-    if (!token) {
-      // Нечего обновлять, если пользователь не залогинен
-      return;
-    }
-    try {
-      setLoading(true);
-      const response = await usersService.getCurrentUser();
-      // Используем уже существующую логику для обработки и установки пользователя
-      processAndCheckBan(response.data);
-      setIsReadOnly(!response.data.telegramId);
-      return response.data; // Возвращаем свежие данные на всякий случай
-    } catch (err) {
-      console.error('Ошибка при обновлении данных пользователя:', err);
-      // Если токен невалидный, выходим из системы
-      if (err.response && err.response.status === 401) {
-        logout(false); // Выходим без тоста об успехе
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [processAndCheckBan, logout]); // Добавляем logout в зависимости
-
   // Генерация цвета аватара на основе имени пользователя
   const generateAvatarColor = (username) => {
     let hash = 0;
@@ -171,9 +126,11 @@ export const AuthProvider = ({ children }) => {
       const { data } = await authService.login(credentials);
       storeToken(data.token);
       setToken(data.token);
-      
-      processAndCheckBan(data.user);
-      setIsReadOnly(!data.user.telegramId);
+
+      // --->>> ЯВНО ЗАПРАШИВАЕМ ПОЛНЫЙ ПРОФИЛЬ ПОСЛЕ ЛОГИНА <<<---
+      const response = await usersService.getCurrentUser();
+      processAndCheckBan(response.data);
+      setIsReadOnly(!response.data.telegramId);
       
       setLoading(false);
       toast.success('Вход выполнен успешно!');
@@ -382,6 +339,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Функция для выхода пользователя
+  const logout = async (showToast = true) => {
+    console.log('Выполняется выход...');
+    try {
+        const token = getAuthToken();
+        if (token) {
+            await authService.logout();
+        }
+    } catch (err) {
+        console.error("Ошибка при выходе на сервере, но выходим локально", err);
+    } finally {
+        setCurrentUser(null);
+        removeToken();
+        setToken(null);
+        // Закрываем все модальные окна и сбрасываем состояния
+        setIsBannedModalOpen(false);
+        setBanDetails(null);
+        setIsReadOnly(true);
+    }
+  };
+
   const closeLinkTelegramModal = useCallback(() => {
     if (pollingIntervalId) {
       clearInterval(pollingIntervalId);
@@ -471,17 +449,12 @@ export const AuthProvider = ({ children }) => {
     isReadOnly,
     updateUser: _updateCurrentUserState,
     isRequireTgModalOpen,
-    requireTgConfirmation: () => {
-        setIsRequireTgModalOpen(false);
-        logout();
-    },
     handleLinkTelegram,
     handleUnlinkTelegram,
     isLinkTelegramModalOpen,
     telegramLinkUrl,
     isTelegramLoading,
     closeLinkTelegramModal,
-    refreshCurrentUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

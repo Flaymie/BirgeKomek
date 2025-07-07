@@ -36,12 +36,6 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    if (currentUser) {
-      navigate('/');
-    }
-  }, [currentUser, navigate]);
-  
-  useEffect(() => {
     if (location.state?.message) {
       setAuthMessage(location.state.message);
       window.history.replaceState({}, document.title);
@@ -88,24 +82,26 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError('');
-    setAuthMessage('');
     
-    if (!validate()) return;
+    const newErrors = {};
+    if (!formData.username) newErrors.username = 'Имя пользователя обязательно';
+    if (!formData.password) newErrors.password = 'Пароль обязателен';
     
-    setIsLoading(true);
-    
-    const result = await login({
-      username: formData.username,
-      password: formData.password
-    });
-    
-    if (result.success) {
-      navigate('/');
-    } else {
-      setGeneralError(result.error || 'Произошла неизвестная ошибка');
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
     }
     
+    setIsLoading(true);
+    const result = await login(formData);
     setIsLoading(false);
+    
+    if (result.success) {
+      const from = location.state?.from || '/';
+      navigate(from, { replace: true });
+    } else {
+      setGeneralError(result.error || 'Произошла ошибка входа');
+    }
   };
   
   return (
