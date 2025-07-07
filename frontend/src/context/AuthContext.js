@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authService, usersService, notificationsService, baseURL } from '../services/api';
 import { formatAvatarUrl } from '../services/avatarUtils';
@@ -18,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
   const [linkTelegramHandler, setLinkTelegramHandler] = useState(null);
+  const navigate = useNavigate();
   
   // --- НОВЫЕ ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ ПРИВЯЗКИ TELEGRAM ---
   const [isLinkTelegramModalOpen, setLinkTelegramModalOpen] = useState(false);
@@ -357,6 +359,10 @@ export const AuthProvider = ({ children }) => {
         setIsBannedModalOpen(false);
         setBanDetails(null);
         setIsReadOnly(true);
+        if (showToast) {
+            toast.info('Вы успешно вышли из системы.');
+        }
+        navigate('/login', { state: { message: 'Вы вышли из системы. Войдите снова, чтобы продолжить.' } });
     }
   };
 
