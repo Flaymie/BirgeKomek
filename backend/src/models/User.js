@@ -159,29 +159,22 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Статический метод для обновления среднего рейтинга хелпера
-userSchema.statics.updateAverageRating = async function(userId) {
-  console.log(`[updateAverageRating] Запущено для пользователя: ${userId}`);
+userSchema.statics.updateAverageRating = async function (userId) {
+  // console.log(`[updateAverageRating] Запущено для пользователя: ${userId}`);
+  const Review = mongoose.model('Review');
   try {
-    const Review = mongoose.model('Review');
     const reviews = await Review.find({ helperId: userId });
-    console.log(`[updateAverageRating] Найдено отзывов: ${reviews.length}`);
-    
-    let newRating = 5;
-
+    // console.log(`[updateAverageRating] Найдено отзывов: ${reviews.length}`);
     if (reviews.length > 0) {
       const totalRating = reviews.reduce((acc, item) => acc + item.rating, 0);
-      const calculatedAverage = totalRating / reviews.length;
-      newRating = Math.round(calculatedAverage * 10) / 10;
+      const newRating = (totalRating / reviews.length).toFixed(1);
+      // console.log(`[updateAverageRating] Рассчитан новый средний рейтинг: ${newRating}`);
+      await this.findByIdAndUpdate(userId, { averageRating: newRating });
+      // console.log(`[updateAverageRating] Рейтинг для пользователя ${userId} успешно обновлен в базе данных.`);
     } else {
-        // Если отзывов нет, ставим 0. Но при первом отзыве сюда не попадем.
-        newRating = 0;
+      // Если у пользователя больше нет отзывов, рейтинг можно сбросить или оставить как есть
+      await this.findByIdAndUpdate(userId, { averageRating: 0 }); // Сбрасываем до 0
     }
-    
-    console.log(`[updateAverageRating] Рассчитан новый средний рейтинг: ${newRating}`);
-    
-    await this.findByIdAndUpdate(userId, { rating: newRating });
-    console.log(`[updateAverageRating] Рейтинг для пользователя ${userId} успешно обновлен в базе данных.`);
-
   } catch (error) {
     console.error(`[updateAverageRating] Ошибка при обновлении среднего рейтинга для пользователя ${userId}:`, error);
   }

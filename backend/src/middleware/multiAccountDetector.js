@@ -33,7 +33,7 @@ const multiAccountDetector = async (req, res, next) => {
         userToBan.banDetails.reason = BAN_REASON;
         userToBan.banDetails.bannedAt = new Date();
         await userToBan.save();
-        console.log(`[MultiAccount] Пользователь ${userId} забанен по уже помеченному IP ${ip}`);
+        // console.log(`[MultiAccount] Пользователь ${userId} забанен по уже помеченному IP ${ip}`);
       }
       return res.status(403).json({ msg: BAN_REASON });
     }
@@ -50,9 +50,11 @@ const multiAccountDetector = async (req, res, next) => {
 
     // Если в наборе больше одного пользователя, значит, сработал триггер
     if (usersInSet.length > 1) {
-      console.log(`[MultiAccount] Обнаружена подозрительная активность с IP: ${ip}. Пользователи: ${usersInSet.join(', ')}`);
+      const banReason = `Обнаружена подозрительная активность (мультиаккаунт). IP: ${ip}. Связанные аккаунты: ${usersInSet.join(', ')}`;
+      
+      // console.log(`[MultiAccount] Обнаружена подозрительная активность с IP: ${ip}. Пользователи: ${usersInSet.join(', ')}`);
 
-      // Баним всех пользователей из этого набора
+      // Баним всех пользователей из сета
       for (const uid of usersInSet) {
         const userToBan = await User.findById(uid);
         // Проверяем, что пользователь существует и еще не забанен
@@ -63,11 +65,11 @@ const multiAccountDetector = async (req, res, next) => {
           // Можно добавить, кто забанил (системный бан)
           // userToBan.banDetails.bannedBy = ...; 
           await userToBan.save();
-          console.log(`[MultiAccount] Пользователь ${uid} перманентно забанен.`);
+          // console.log(`[MultiAccount] Пользователь ${uid} перманентно забанен.`);
         }
       }
       
-      // Помечаем IP как забаненный на 24 часа, чтобы сразу банить новых "гостей"
+      // Помечаем IP как забаненный в Redis
       await redis.set(ipBanFlag, '1', 'EX', 86400); 
 
       // Отправляем ответ, что доступ запрещен

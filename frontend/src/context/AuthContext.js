@@ -177,30 +177,30 @@ export const AuthProvider = ({ children }) => {
 
   // Функция для регистрации пользователя
   const register = async (userData) => {
-    setLoading(true);
-    setError(null);
+    // console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
     
     try {
-      console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
+      const formData = new FormData();
       
-      // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
-      let formData = new FormData();
-      let hasAvatar = false;
-      
-      // Копируем все поля из userData в formData, кроме аватара
-      Object.keys(userData).forEach(key => {
+      // Добавляем аватар, если он есть
+      if (userData.avatar) {
+        if (userData.avatar instanceof File) {
+          // console.log('AuthContext: В данных присутствует аватар в виде файла');
+          formData.append('avatar', userData.avatar);
+        } else if (typeof userData.avatar === 'string') {
+          // console.log('AuthContext: В данных присутствует аватар в виде URL:', userData.avatar.substring(0, 100) + '...');
+          formData.append('avatarUrl', userData.avatar);
+        }
+      } else {
+        // console.log('AuthContext: Аватар не предоставлен в данных регистрации');
+      }
+
+      // Добавляем остальные поля
+      for (const key in userData) {
         if (key === 'avatar') {
-          if (userData.avatar instanceof File) {
-            console.log('AuthContext: В данных присутствует аватар в виде файла');
-            formData.append('avatar', userData.avatar);
-            hasAvatar = true;
-          } else if (userData.avatar && typeof userData.avatar === 'string' && userData.avatar.length > 0) {
-            console.log('AuthContext: В данных присутствует аватар в виде URL:', userData.avatar.substring(0, 100) + '...');
-            // Если аватар - строка (URL или base64), добавляем как есть
-            formData.append('avatar', userData.avatar);
-            hasAvatar = true;
-          }
-        } else if (key === 'subjects' && Array.isArray(userData[key])) {
+          continue; // Пропускаем аватар, так как он уже обработан
+        }
+        if (key === 'subjects' && Array.isArray(userData[key])) {
           // Для массивов (например, предметы) добавляем каждый элемент отдельно
           userData[key].forEach(subject => {
             formData.append('subjects', subject);
@@ -208,34 +208,30 @@ export const AuthProvider = ({ children }) => {
         } else {
           formData.append(key, userData[key]);
         }
-      });
-      
-      if (!hasAvatar) {
-        console.log('AuthContext: Аватар не предоставлен в данных регистрации');
       }
       
       const response = await authService.register(formData);
-      console.log('AuthContext: Ответ сервера о регистрации:', response);
+      // console.log('AuthContext: Ответ сервера о регистрации:', response);
       
       if (response && response.data) {
-        console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
+        // console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
         
         // Проверяем, содержит ли ответ токен, который нужно сохранить
         if (response.data.token && response.data.user) {
-            console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
+            // console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
             // Используем loginWithToken для установки состояния
             loginWithToken(response.data.token, response.data.user);
             // Возвращаем успех, чтобы компонент мог среагировать
             return { success: true };
         } else {
-            console.warn('AuthContext: Ответ не содержит токен или пользователя.');
+            // console.warn('AuthContext: Ответ не содержит токен или пользователя.');
             // На всякий случай обрабатываем ситуацию, когда чего-то не хватает
             setError('Не удалось завершить сессию после регистрации.');
             toast.error('Не удалось завершить сессию после регистрации.');
             return { success: false, error: 'Missing token or user data' };
         }
       } else {
-        console.error('AuthContext: Неожиданный формат ответа:', response);
+        // console.error('AuthContext: Неожиданный формат ответа:', response);
         setLoading(false);
         throw new Error('Неожиданный формат ответа от сервера');
       }
@@ -244,15 +240,15 @@ export const AuthProvider = ({ children }) => {
       
       // Расширенное логирование информации об ошибке
       if (err.response) {
-        console.error('AuthContext: Данные ошибки:', err.response.data);
-        console.error('AuthContext: Статус ошибки:', err.response.status);
-        console.error('AuthContext: Заголовки ответа:', err.response.headers);
+        // console.error('AuthContext: Данные ошибки:', err.response.data);
+        // console.error('AuthContext: Статус ошибки:', err.response.status);
+        // console.error('AuthContext: Заголовки ответа:', err.response.headers);
         
         // Полезно для отладки - сериализуем полностью ответ об ошибке
         try {
-          console.error('AuthContext: Полный объект ответа:', JSON.stringify(err.response));
+          // console.error('AuthContext: Полный объект ответа:', JSON.stringify(err.response));
         } catch (e) {
-          console.error('AuthContext: Не удалось сериализовать объект ответа');
+          // console.error('AuthContext: Не удалось сериализовать объект ответа');
         }
       }
       
@@ -293,7 +289,7 @@ export const AuthProvider = ({ children }) => {
       delete payload._id;
       delete payload.id;
 
-      console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
+      // console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
       const response = await usersService.updateProfile(payload);
       
       const updatedUserData = processUserData({...currentUser, ...response.data});
@@ -343,7 +339,7 @@ export const AuthProvider = ({ children }) => {
 
   // Функция для выхода пользователя
   const logout = async (showToast = true) => {
-    console.log('Выполняется выход...');
+    // console.log('Выполняется выход...');
     try {
         const token = getAuthToken();
         if (token) {

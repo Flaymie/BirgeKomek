@@ -19,7 +19,7 @@ try {
   });
 
   redis.on('connect', () => {
-    console.log('Redis подключен успешно.');
+    // console.log('Redis подключен успешно.');
     redisConnected = true;
   });
 

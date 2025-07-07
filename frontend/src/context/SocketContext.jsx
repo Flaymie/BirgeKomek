@@ -39,20 +39,24 @@ export const SocketProvider = ({ children }) => {
       socketRef.current = newSocket;
       setSocket(newSocket);
 
+      // Успешное подключение
       newSocket.on('connect', () => {
-        console.log('✅ Global Socket Connected:', newSocket.id);
+        // console.log('✅ Global Socket Connected:', newSocket.id);
         // Запрашиваем счетчик после успешного подключения
         newSocket.emit('get_unread_notifications_count', (count) => {
            setUnreadCount(count);
         });
       });
 
-      newSocket.on('disconnect', (reason) => {
-        console.log('Global Socket Disconnected:', reason);
-      });
-
+      // Ошибка подключения
       newSocket.on('connect_error', (err) => {
         console.error('Global Socket Connection Error:', err.message);
+      });
+
+      // Отключение
+      newSocket.on('disconnect', (reason) => {
+        // console.log('Global Socket Disconnected:', reason);
+        setSocket(null);
       });
 
       // Обработчик для принудительного обновления счетчика
@@ -96,10 +100,12 @@ export const SocketProvider = ({ children }) => {
         );
       };
       
-      const handleUserBanned = (data) => {
-        console.log('Получено событие о бане через сокет!', data);
-        showBanModal(data);
-      };
+      // Глобальный слушатель события бана
+      newSocket.on('user_banned', (data) => {
+        // console.log('Получено событие о бане через сокет!', data);
+        showBanModal(data.banDetails);
+        newSocket.disconnect(); // Принудительно отключаем сокет забаненного пользователя
+      });
       
       socket.on('new_notification', handleNewNotification);
       socket.on('user_banned', handleUserBanned);

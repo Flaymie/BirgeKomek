@@ -70,7 +70,7 @@ const UserMenu = () => {
               Мои запросы
             </Link>
           </div>
-          {currentUser.roles?.admin && (
+          {currentUser.role === 'admin' && (
             <div className="px-1 py-1">
               <Link 
                 to="/admin" 

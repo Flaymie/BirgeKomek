@@ -403,7 +403,7 @@ const ChatPage = () => {
 
     // 1. Присоединяемся к комнате чата
     socket.emit('join_chat', requestId);
-    console.log(`[Socket] Emitted 'join_chat' for room: ${requestId}`);
+    // console.log(`[Socket] Emitted 'join_chat' for room: ${requestId}`);
 
     // 2. ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
     const markMessagesAsRead = async () => {
@@ -425,7 +425,7 @@ const ChatPage = () => {
     // 4. Отписка при выходе
     return () => {
       socket.emit('leave_chat', requestId);
-      console.log(`[Socket] Emitted 'leave_chat' for room: ${requestId}`);
+      // console.log(`[Socket] Emitted 'leave_chat' for room: ${requestId}`);
 
       // Отписываемся от всех событий, чтобы избежать утечек памяти
       socket.off('new_message', handleNewMessage);
@@ -960,10 +960,10 @@ const ChatPage = () => {
             
             const handleAttachmentButtonClick = () => {
               if (!dropzoneDisabled) {
-                console.log('[ChatPage] Triggering hidden file input click.');
+                // console.log('[ChatPage] Triggering hidden file input click.');
                 fileInputRef.current?.click();
               } else {
-                console.log('[ChatPage] Attachment button click ignored, disabled.');
+                // console.log('[ChatPage] Attachment button click ignored, disabled.');
               }
             };
             

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileMeRedirector from './components/auth/ProfileMeRedirector';
@@ -23,7 +23,7 @@ import NotFoundPage from './components/pages/NotFoundPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import { useAuth } from './context/AuthContext';
+import { useAuth, AuthProvider } from './context/AuthContext';
 import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
@@ -33,15 +33,6 @@ import AllReviewsPage from './components/pages/AllReviewsPage';
 import NotificationDetailPage from './components/pages/NotificationDetailPage';
 import CookieConsent from './components/shared/CookieConsent';
 import './App.css';
-
-// --- Компоненты админки ---
-import AdminRoute from './components/shared/AdminRoute';
-import AdminLayout from './pages/admin/AdminLayout';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsersPage from './pages/admin/UsersPage';
-import UserProfileAdminPage from './pages/admin/UserProfileAdminPage';
-import AdminRequestsPage from './pages/admin/RequestsPage';
-import RequestDetailsAdminPage from './pages/admin/RequestDetailsAdminPage';
 
 // Этот компонент отвечает за инициализацию перехватчика API
 // и рендер основного контента. Он должен быть внутри AuthProvider.
@@ -145,23 +136,6 @@ const AppContent = () => {
             <Route path="/notification/:id" element={<NotificationDetailPage />} />
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
             <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
-
-            {/* --- МАРШРУТЫ АДМИН-ПАНЕЛИ --- */}
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminLayout />
-                </AdminRoute>
-              }
-            >
-              <Route index element={<Navigate to="dashboard" />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsersPage />} />
-              <Route path="user/:id" element={<UserProfileAdminPage />} />
-              <Route path="requests" element={<AdminRequestsPage />} />
-              <Route path="request/:id" element={<RequestDetailsAdminPage />} />
-            </Route>
 
             {/* Маршрут для страницы не найдено */}
             <Route path="*" element={<NotFoundPage />} />

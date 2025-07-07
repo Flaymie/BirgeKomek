@@ -31,7 +31,6 @@ import User from './models/User.js';
 import { protectSocket } from './middleware/auth.js';
 import multiAccountDetector from './middleware/multiAccountDetector.js';
 import adminRoutes from './routes/admin.js';
-import godmodeRoutes from './routes/godmode.js';
 
 dotenv.config();
 
@@ -71,11 +70,7 @@ const PORT = process.env.PORT || 5050;
 // мидлвари
 app.use(express.json());
 app.use(mongoSanitize());
-app.use(helmet({ 
-  crossOriginResourcePolicy: false, 
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: false // Временно отключаем для работы AdminJS
-}));
+app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -119,7 +114,7 @@ app.disable('x-powered-by');
 mongoose.connect(process.env.MONGODB_URI, {
   autoIndex: process.env.NODE_ENV === 'development', // отключаем автоиндексацию в проде
 })
-  .then(() => console.log('MongoDB подключена'))
+  // .then(() => console.log('MongoDB подключена'))
   .catch(err => console.error('MongoDB не подключена:', err));
 
 // документация API
@@ -127,7 +122,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'Бірге Көмек API Docs'
 }));
-
 
 // роуты
 app.use('/api/auth', authRoutes);
@@ -141,7 +135,6 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes({ sseConnections }));
-app.use('/api/godmode', godmodeRoutes);
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
@@ -153,7 +146,7 @@ io.on('connection', (socket) => {
     return socket.disconnect();
   }
 
-  console.log(`[Socket.IO] User connected: ${socket.user.username} (${socket.user.id})`);
+  // console.log(`[Socket.IO] User connected: ${socket.user.username} (${socket.user.id})`);
   const userId = socket.user.id;
   const onlineKey = `online:${userId}`;
 
@@ -176,12 +169,12 @@ io.on('connection', (socket) => {
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
-    console.log(`User ${socket.user.username} (${socket.user.id}) joined chat for request ${requestId}`);
+    // console.log(`User ${socket.user.username} (${socket.user.id}) joined chat for request ${requestId}`);
   });
 
   socket.on('leave_chat', (requestId) => {
     socket.leave(requestId);
-    console.log(`User ${socket.user.username} (${socket.user.id}) left chat for request ${requestId}`);
+    // console.log(`User ${socket.user.username} (${socket.user.id}) left chat for request ${requestId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -266,7 +259,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
+    // console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
     if (isRedisConnected()) {
       // Можно удалить ключ сразу, но лучше положиться на TTL для надежности
       redis.del(onlineKey);
@@ -302,13 +295,13 @@ app.get('/', (req, res) => {
 
 // обработка 404
 app.use((req, res) => {
-  console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
+  // console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Не найдено ничего' });
 });
 
 // Catch-all для неопределенных API роутов
 app.all('/api/*', (req, res) => {
-  console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
+  // console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Не найдено ничего' });
 });
 

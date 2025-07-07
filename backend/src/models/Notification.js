@@ -57,8 +57,8 @@ const notificationSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Явно указываем название коллекции
-const Notification = mongoose.model('Notification', notificationSchema, 'notifications');
+const Notification = mongoose.model('Notification', notificationSchema);
 
-console.log('[DEBUG] Модель Notification инициализирована с коллекцией:', mongoose.model('Notification').collection.name);
+// console.log('[DEBUG] Модель Notification инициализирована с коллекцией:', mongoose.model('Notification').collection.name);
 
 export default Notification; 

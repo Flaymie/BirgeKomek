@@ -49,7 +49,7 @@ api.interceptors.response.use(
       // Единственная и правильная логика обработки бана
       if (status === 403 && data && data.isBanned) {
         if (authContext && typeof authContext.showBanModal === 'function') {
-          console.log("Перехват ошибки: пользователь забанен. Показываем модалку.", data.banDetails);
+          // console.log("Перехват ошибки: пользователь забанен. Показываем модалку.", data.banDetails);
           authContext.showBanModal(data.banDetails);
         }
         return Promise.reject(error);
@@ -76,11 +76,11 @@ api.interceptors.response.use(
       }
       */
 
-      console.error('Перехват ошибки в api interceptor:', error.message);
-      if (error.response) {
-        console.error('Данные ответа:', error.response.data);
-        console.error('Статус ответа:', error.response.status);
-      }
+      // console.error('Перехват ошибки в api interceptor:', error.message);
+      // if (error.response) {
+      //   console.error('Данные ответа:', error.response.data);
+      //   console.error('Статус ответа:', error.response.status);
+      // }
       
       const isRegistrationPage = window.location.pathname.includes('/register');
       
