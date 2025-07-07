@@ -197,6 +197,9 @@ node .
 
 ## Лицензия
 
-Этот проект распространяется под лицензией Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International.
+**Автор:** Владимир (Flaymie) ([https://github.com/Flaymie](https://github.com/Flaymie))  
+Copyright (c) 2025-2026 Flaymie & The Project Contributors
+
+Этот проект распространяется под лицензией [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](LICENSE).
 
 Подробнее см. в файле [LICENSE](LICENSE). 
