@@ -7,7 +7,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "seed": "node src/scripts/seed.js",
+    "seed:destroy": "node src/scripts/seed.js -d"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
