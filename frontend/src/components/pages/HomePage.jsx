@@ -7,7 +7,6 @@ const HomePage = () => {
   const { currentUser, loading } = useAuth();
 
   if (loading) {
-    // Показываем простой лоадер, пока определяется статус пользователя
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-lg font-semibold text-gray-700">Загрузка платформы...</div>

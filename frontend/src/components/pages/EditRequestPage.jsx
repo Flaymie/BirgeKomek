@@ -109,7 +109,9 @@ const EditRequestPage = () => {
       toast.success('Заявка успешно обновлена!');
       navigate(`/request/${id}`);
     } catch (err) {
-      toast.error(err.response?.data?.msg || 'Не удалось обновить заявку');
+      // ПРАВИЛЬНАЯ ОБРАБОТКА ОШИБОК ВАЛИДАЦИИ
+      const errorMsg = err.response?.data?.errors?.[0]?.msg || 'Не удалось обновить заявку. Проверьте данные.';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

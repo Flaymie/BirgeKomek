@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell, FiShield } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const Username = ({ user }) => {
@@ -98,6 +98,11 @@ const Header = () => {
                         <Link to="/my-requests" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiGrid className="w-4 h-4" /> Мои заявки
                         </Link>
+                        {currentUser.roles?.admin && (
+                          <Link to="/admin" className="flex items-center gap-3 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-md font-semibold">
+                             <FiShield className="w-4 h-4" /> Админ-панель
+                          </Link>
+                        )}
                         {requestId && (
                            <Link to={`/request/${requestId}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                               <FiInfo className="w-4 h-4" /> Детали этой заявки
@@ -210,6 +215,11 @@ const Header = () => {
                    <Link to="/my-requests" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/my-requests')}`}>
                      <FiGrid className="w-6 h-6" /> Мои заявки
                    </Link>
+                   {currentUser.roles?.admin && (
+                     <Link to="/admin" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/admin')} font-semibold text-purple-600`}>
+                        <FiShield className="w-6 h-6" /> Админ-панель
+                     </Link>
+                   )}
                    {requestId && (
                      <Link to={`/request/${requestId}`} className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive(`/request/${requestId}`)}`}>
                         <FiInfo className="w-6 h-6" /> Детали заявки

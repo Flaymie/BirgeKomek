@@ -28,68 +28,6 @@ export const SocketProvider = ({ children }) => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // --->>> ЛОГИКА СТАТУСА АКТИВНОСТИ <<<---
-  const idleTimerRef = useRef(null);
-  const userStatusRef = useRef('active'); // 'active' or 'idle'
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const goActive = () => {
-      // Отправляем событие, только если статус изменился
-      if (userStatusRef.current !== 'active') {
-        console.log('[Status] User is now ACTIVE');
-        socket.emit('user_active');
-        userStatusRef.current = 'active';
-      }
-    };
-
-    const goIdle = () => {
-      // Отправляем событие, только если статус изменился
-      if (userStatusRef.current !== 'idle') {
-        console.log('[Status] User is now IDLE');
-        socket.emit('user_idle');
-        userStatusRef.current = 'idle';
-      }
-    };
-    
-    const resetIdleTimer = () => {
-      goActive(); // Пользователь активен, сбрасываем таймер
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(goIdle, 60000); // 1 минута неактивности
-    };
-    
-    // Обработчик видимости страницы
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        clearTimeout(idleTimerRef.current);
-        goIdle();
-      } else {
-        resetIdleTimer();
-      }
-    };
-
-    // Вешаем слушатели
-    window.addEventListener('mousemove', resetIdleTimer);
-    window.addEventListener('mousedown', resetIdleTimer);
-    window.addEventListener('keydown', resetIdleTimer);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Начальный запуск
-    resetIdleTimer();
-
-    // Очистка при размонтировании
-    return () => {
-      clearTimeout(idleTimerRef.current);
-      window.removeEventListener('mousemove', resetIdleTimer);
-      window.removeEventListener('mousedown', resetIdleTimer);
-      window.removeEventListener('keydown', resetIdleTimer);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-
-  }, [socket]);
-  // --->>> КОНЕЦ ЛОГИКИ СТАТУСА АКТИВНОСТИ <<<---
-
   useEffect(() => {
     // Если есть токен и сокета еще нет, создаем его
     if (token && !socketRef.current) {
@@ -141,6 +79,12 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (socket) {
+      const pingInterval = setInterval(() => {
+        if(socket.connected) {
+        socket.emit('user_ping');
+        }
+      }, 30000);
+
       // Отправляем событие при каждой смене страницы
       socket.emit('user_navigate', { path: location.pathname });
 
@@ -161,6 +105,7 @@ export const SocketProvider = ({ children }) => {
       socket.on('user_banned', handleUserBanned);
 
       return () => {
+        clearInterval(pingInterval);
         socket.off('new_notification', handleNewNotification);
         socket.off('user_banned', handleUserBanned);
       };

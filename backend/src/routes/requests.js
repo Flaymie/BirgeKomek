@@ -999,8 +999,8 @@ router.post('/:id/cancel', protect, [
    *         name: id
    *         required: true
    *         schema: { type: 'string', description: 'ID заявки' }
- *     requestBody:
- *       required: true
+   *     requestBody:
+   *       required: true
  *       content:
  *         application/json:
  *           schema:

@@ -31,6 +31,7 @@ import User from './models/User.js';
 import { protectSocket } from './middleware/auth.js';
 import multiAccountDetector from './middleware/multiAccountDetector.js';
 import adminRoutes from './routes/admin.js';
+import godmodeRoutes from './routes/godmode.js';
 
 dotenv.config();
 
@@ -70,7 +71,11 @@ const PORT = process.env.PORT || 5050;
 // мидлвари
 app.use(express.json());
 app.use(mongoSanitize());
-app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(helmet({ 
+  crossOriginResourcePolicy: false, 
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false // Временно отключаем для работы AdminJS
+}));
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -123,6 +128,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customSiteTitle: 'Бірге Көмек API Docs'
 }));
 
+
 // роуты
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes({ io }));
@@ -135,6 +141,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes({ sseConnections }));
+app.use('/api/godmode', godmodeRoutes);
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
@@ -150,40 +157,22 @@ io.on('connection', (socket) => {
   const userId = socket.user.id;
   const onlineKey = `online:${userId}`;
 
-  // --->>> ОБНОВЛЕННАЯ ЛОГИКА СТАТУСА <<<---
-  const setUserOnline = async () => {
+  if (isRedisConnected()) {
+    // Устанавливаем ключ с TTL (time-to-live) в 120 секунд.
+    // Если в течение 120с не будет 'user_ping', Redis сам удалит ключ.
+    redis.setex(onlineKey, 120, '1');
+  }
+
+  // Разово обновляем lastSeen при подключении, для надежности
+  User.findByIdAndUpdate(userId, { lastSeen: new Date() }).exec();
+
+  // Слушаем пинги от клиента
+  socket.on('user_ping', () => {
+    // Просто обновляем TTL ключа еще на 120 секунд
     if (isRedisConnected()) {
-      // Устанавливаем ключ с TTL (time-to-live) в 120 секунд.
-      redis.setex(onlineKey, 120, '1');
+      redis.expire(onlineKey, 120);
     }
-    await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
-    console.log(`[Status] User ${userId} is ONLINE`);
-  };
-
-  const setUserOffline = async () => {
-    if (isRedisConnected()) {
-      redis.del(onlineKey);
-    }
-    await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
-    console.log(`[Status] User ${userId} is OFFLINE`);
-  };
-
-  // При подключении сразу ставим онлайн
-  setUserOnline();
-
-  // Слушаем пинги от клиента (старый 'user_ping' заменен)
-  socket.on('user_active', () => {
-    // Просто обновляем TTL ключа и статус
-    console.log(`[Status] User ${userId} is ACTIVE (ping)`);
-    setUserOnline();
   });
-
-  socket.on('user_idle', () => {
-    console.log(`[Status] User ${userId} is IDLE`);
-    setUserOffline();
-  });
-
-  // Разово обновляем lastSeen при подключении, для надежности - УЖЕ ВНУТРИ setUserOnline
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
@@ -278,8 +267,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
-    // --->>> ОБНОВЛЕННАЯ ЛОГИКА СТАТУСА <<<---
-    setUserOffline();
+    if (isRedisConnected()) {
+      // Можно удалить ключ сразу, но лучше положиться на TTL для надежности
+      redis.del(onlineKey);
+    }
   });
 });
 

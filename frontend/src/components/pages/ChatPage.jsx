@@ -886,7 +886,7 @@ const ChatPage = () => {
           </div>
         </header>
 
-        <div 
+        <div
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto p-4"
           onScroll={handleScroll}
@@ -910,14 +910,14 @@ const ChatPage = () => {
                       </div>
                     </div>
                   )}
-                  <Message
-                    msg={msg}
-                    isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                    onImageClick={setViewerFile}
-                    onEdit={handleStartEdit}
-                    onDelete={setMessageToDelete}
-                    isChatActive={isChatActive || requestDetails.status === 'open'}
-                  />
+              <Message
+                msg={msg}
+                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                onImageClick={setViewerFile}
+                onEdit={handleStartEdit}
+                onDelete={setMessageToDelete}
+                isChatActive={isChatActive || requestDetails.status === 'open'}
+              />
                 </React.Fragment>
               );
             })}

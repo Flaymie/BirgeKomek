@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await authService.login(credentials);
       storeToken(data.token);
       setToken(data.token);
-
+      
       // --->>> ЯВНО ЗАПРАШИВАЕМ ПОЛНЫЙ ПРОФИЛЬ ПОСЛЕ ЛОГИНА <<<---
       const response = await usersService.getCurrentUser();
       processAndCheckBan(response.data);
