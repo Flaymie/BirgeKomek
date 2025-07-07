@@ -150,22 +150,40 @@ io.on('connection', (socket) => {
   const userId = socket.user.id;
   const onlineKey = `online:${userId}`;
 
-  if (isRedisConnected()) {
-    // Устанавливаем ключ с TTL (time-to-live) в 120 секунд.
-    // Если в течение 120с не будет 'user_ping', Redis сам удалит ключ.
-    redis.setex(onlineKey, 120, '1');
-  }
-
-  // Разово обновляем lastSeen при подключении, для надежности
-  User.findByIdAndUpdate(userId, { lastSeen: new Date() }).exec();
-
-  // Слушаем пинги от клиента
-  socket.on('user_ping', () => {
-    // Просто обновляем TTL ключа еще на 120 секунд
+  // --->>> ОБНОВЛЕННАЯ ЛОГИКА СТАТУСА <<<---
+  const setUserOnline = async () => {
     if (isRedisConnected()) {
-      redis.expire(onlineKey, 120);
+      // Устанавливаем ключ с TTL (time-to-live) в 120 секунд.
+      redis.setex(onlineKey, 120, '1');
     }
+    await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
+    console.log(`[Status] User ${userId} is ONLINE`);
+  };
+
+  const setUserOffline = async () => {
+    if (isRedisConnected()) {
+      redis.del(onlineKey);
+    }
+    await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
+    console.log(`[Status] User ${userId} is OFFLINE`);
+  };
+
+  // При подключении сразу ставим онлайн
+  setUserOnline();
+
+  // Слушаем пинги от клиента (старый 'user_ping' заменен)
+  socket.on('user_active', () => {
+    // Просто обновляем TTL ключа и статус
+    console.log(`[Status] User ${userId} is ACTIVE (ping)`);
+    setUserOnline();
   });
+
+  socket.on('user_idle', () => {
+    console.log(`[Status] User ${userId} is IDLE`);
+    setUserOffline();
+  });
+
+  // Разово обновляем lastSeen при подключении, для надежности - УЖЕ ВНУТРИ setUserOnline
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
@@ -260,10 +278,8 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
-    if (isRedisConnected()) {
-      // Можно удалить ключ сразу, но лучше положиться на TTL для надежности
-      redis.del(onlineKey);
-    }
+    // --->>> ОБНОВЛЕННАЯ ЛОГИКА СТАТУСА <<<---
+    setUserOffline();
   });
 });
 
