@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss-clean';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import http from 'http';
@@ -69,7 +70,10 @@ const PORT = process.env.PORT || 5050;
 
 // мидлвари
 app.use(express.json());
+// ЗАЩИТА ОТ ИНЪЕКЦИЙ
 app.use(mongoSanitize());
+app.use(xss());
+
 app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
 
 const corsOptions = {
@@ -114,7 +118,6 @@ app.disable('x-powered-by');
 mongoose.connect(process.env.MONGODB_URI, {
   autoIndex: process.env.NODE_ENV === 'development', // отключаем автоиндексацию в проде
 })
-  // .then(() => console.log('MongoDB подключена'))
   .catch(err => console.error('MongoDB не подключена:', err));
 
 // документация API
@@ -146,7 +149,6 @@ io.on('connection', (socket) => {
     return socket.disconnect();
   }
 
-  // console.log(`[Socket.IO] User connected: ${socket.user.username} (${socket.user.id})`);
   const userId = socket.user.id;
   const onlineKey = `online:${userId}`;
 
@@ -169,12 +171,10 @@ io.on('connection', (socket) => {
 
   socket.on('join_chat', (requestId) => {
     socket.join(requestId);
-    // console.log(`User ${socket.user.username} (${socket.user.id}) joined chat for request ${requestId}`);
   });
 
   socket.on('leave_chat', (requestId) => {
     socket.leave(requestId);
-    // console.log(`User ${socket.user.username} (${socket.user.id}) left chat for request ${requestId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -259,7 +259,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // console.log(`[Socket.IO] User disconnected: ${socket.user.id}`);
     if (isRedisConnected()) {
       // Можно удалить ключ сразу, но лучше положиться на TTL для надежности
       redis.del(onlineKey);
@@ -272,14 +271,6 @@ setInterval(() => {
   const now = Date.now();
   const timeout = 90 * 1000; // 1.5 минуты неактивности
   
-  // onlineUsers.forEach((timestamp, userId) => {
-  //   if (now - timestamp > timeout) {
-  //     onlineUsers.delete(userId);
-  //     console.log(`[Socket.IO Cleaner] Removed stale user: ${userId}`);
-  //     // Можно и здесь обновить lastSeen, но disconnect должен справляться
-  //     User.findByIdAndUpdate(userId, { lastSeen: new Date(timestamp) }).exec();
-  //   }
-  // });
 }, 60 * 1000); // Проверка каждую минуту
 
 // глобальный обработчик ошибок
@@ -295,13 +286,11 @@ app.get('/', (req, res) => {
 
 // обработка 404
 app.use((req, res) => {
-  // console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Не найдено ничего' });
 });
 
 // Catch-all для неопределенных API роутов
 app.all('/api/*', (req, res) => {
-  // console.log(`[404 Handler] Path not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ msg: 'Не найдено ничего' });
 });
 
