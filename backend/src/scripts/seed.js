@@ -186,7 +186,18 @@ const importData = async () => {
 };
 
 const deleteData = async () => {
-    // ... (логика удаления остается прежней)
+  try {
+    await Request.deleteMany();
+    await Response.deleteMany();
+    await Message.deleteMany();
+    await Review.deleteMany();
+    await User.deleteMany();
+    console.log('Все демо-данные успешно удалены из базы данных.');
+    process.exit();
+  } catch (error) {
+    console.error(`Ошибка при удалении данных: ${error}`);
+    process.exit(1);
+  }
 };
 
 // --- Запуск ---
