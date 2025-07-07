@@ -11,18 +11,15 @@ if (!fs.existsSync(uploadDir)) {
 // Настройка хранилища для multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir); // Папка для сохранения аватаров
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Генерируем уникальное имя файла, чтобы избежать конфликтов
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// Фильтр для проверки типа файла
 const fileFilter = (req, file, cb) => {
-  // Принимаем только изображения
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
@@ -30,13 +27,12 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Создаем middleware для загрузки аватара
 const uploadAvatar = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 1024 * 1024 * 5 // Ограничение размера файла 5 МБ
+    fileSize: 1024 * 1024 * 5
   }
-}).single('avatar'); // Ожидаем одно поле с именем 'avatar'
+}).single('avatar');
 
 export default uploadAvatar; 

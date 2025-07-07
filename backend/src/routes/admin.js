@@ -91,54 +91,15 @@ export default ({ sseConnections }) => {
   );
 
   // Блокировка пользователя
-  router.post('/ban', protect, isModOrAdmin, [
-    body('userId', 'Требуется ID пользователя').isMongoId(),
-    body('reason', 'Причина бана обязательна').not().isEmpty().trim(),
-    body('durationHours', 'Срок бана (в часах) должен быть числом').optional().isNumeric(),
-  ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+  router.post('/ban', protect, isModOrAdmin, async (req, res) => {
+    // Отправляем уведомление заблокированному пользователю
+    await createAndSendNotification({
+      user: userToBan._id,
+      type: 'account_banned',
+      title: 'Ваш аккаунт заблокирован',
+    });
 
-    const { userId, reason, durationHours } = req.body;
-    const moderator = req.user;
-
-    try {
-      const userToBan = await User.findById(userId);
-
-      if (!userToBan) {
-        return res.status(404).json({ msg: 'Пользователь не найден' });
-      }
-
-      if (userToBan.roles.admin || userToBan.roles.moderator) {
-        return res.status(403).json({ msg: 'Нельзя заблокировать другого администратора или модератора' });
-      }
-
-      userToBan.isBanned = true;
-      userToBan.ban = {
-        reason: reason,
-        moderator: moderator.id,
-        expires: durationHours ? new Date(Date.now() + durationHours * 60 * 60 * 1000) : null,
-      };
-
-      await userToBan.save();
-
-      // Отправляем уведомление заблокированному пользователю
-      await createAndSendNotification({
-        user: userToBan._id,
-        type: 'account_banned',
-        title: 'Ваш аккаунт заблокирован',
-        message: `Причина: ${reason}. ${durationHours ? `Срок: ${durationHours} ч.` : 'Навсегда.'}`,
-        relatedEntity: { userId: moderator.id },
-      });
-
-      res.status(200).json({ msg: `Пользователь ${userToBan.username} заблокирован.` });
-
-    } catch (error) {
-      console.error('Ошибка при блокировке пользователя:', error);
-      res.status(500).json({ msg: 'Ошибка сервера' });
-    }
+    res.status(200).json({ msg: `Пользователь ${userToBan.username} заблокирован.` });
   });
 
   return router;

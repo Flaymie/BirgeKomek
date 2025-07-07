@@ -10,17 +10,16 @@ const options = {
     },
     servers: [
       {
-        url: process.env.REACT_APP_API_URL, // Адрес вашего сервера
+        url: process.env.REACT_APP_API_URL,
         description: 'Адрес вашего сервера'
       },
-      // Можно добавить другие серверы (например, для продакшена)
     ],
     components: {
       securitySchemes: {
-        bearerAuth: { // Имя схемы безопасности
+        bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT', // Указываем формат токена
+          bearerFormat: 'JWT',
         }
       },
       schemas: {
@@ -43,7 +42,7 @@ const options = {
             reviews: {
               type: 'array',
               items: {
-                type: 'string', // ID отзывов
+                type: 'string',
                 example: '60d21b4967d0d8992e610c85'
               }
             },
@@ -76,8 +75,8 @@ const options = {
                 end: { type: 'string', format: 'date-time' },
               },
             },
-            author: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
-            helper: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
+            author: { $ref: '#/components/schemas/User' },
+            helper: { $ref: '#/components/schemas/User' },
             status: { type: 'string', enum: ['open', 'assigned', 'completed', 'cancelled'] },
             isUrgent: { type: 'boolean' },
             createdAt: { type: 'string', format: 'date-time' },
@@ -88,11 +87,11 @@ const options = {
           type: 'object',
           properties: {
             _id: { type: 'string' },
-            requestId: { type: 'string' }, // ID заявки
-            sender: { $ref: '#/components/schemas/User' }, // Ссылка на схему User
+            requestId: { type: 'string' },
+            sender: { $ref: '#/components/schemas/User' },
             content: { type: 'string' },
             attachments: { type: 'array', items: { type: 'string' } },
-            readBy: { type: 'array', items: { type: 'string' } }, // Массив ID пользователей, прочитавших сообщение
+            readBy: { type: 'array', items: { type: 'string' } },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
@@ -101,16 +100,16 @@ const options = {
           type: 'object',
           properties: {
             _id: { type: 'string' },
-            requestId: { type: 'string' }, // ID заявки
-            reviewerId: { $ref: '#/components/schemas/User' }, // Ссылка на схему User (кто оставил отзыв)
-            helperId: { $ref: '#/components/schemas/User' }, // Ссылка на схему User (о ком отзыв)
+            requestId: { type: 'string' },
+            reviewerId: { $ref: '#/components/schemas/User' },
+            helperId: { $ref: '#/components/schemas/User' },
             rating: { type: 'integer', minimum: 1, maximum: 5 },
             comment: { type: 'string' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
         },
-        Notification: { // Новая схема для уведомлений
+        Notification: {
           type: 'object',
           properties: {
             _id: { type: 'string', example: '60f123abc123def456abc789' },
@@ -148,7 +147,7 @@ const options = {
       { name: 'Statistics', description: 'Статистика и аналитика по платформе' },
     ],
   },
-  apis: ['./src/routes/*.js'], // Указываем путь к файлам с JSDoc аннотациями
+  apis: ['./src/routes/*.js'],
 };
 
 const swaggerSpecs = swaggerJsdoc(options);

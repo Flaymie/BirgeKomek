@@ -67,8 +67,7 @@ router.get('/', async (req, res) => {
       // Только запросы со статусом, где возможен чат
       status: { $in: ['assigned', 'in_progress', 'completed'] }
     }).populate('author', 'username avatar').populate('helper', 'username avatar');
-    
-    // console.log(`Найдено ${requests.length} запросов для пользователя ${userId}`);
+  
     
     // Получаем ID всех найденных запросов
     const requestIds = requests.map(req => req._id);

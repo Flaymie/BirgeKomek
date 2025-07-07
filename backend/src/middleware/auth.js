@@ -8,7 +8,6 @@ export const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
-  // Добавляем проверку токена в query параметрах для SSE
   else if (req.query.token) {
     token = req.query.token;
   }
@@ -21,18 +20,13 @@ export const protect = async (req, res, next) => {
     // проверяем токен
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // ВЫВОДИМ В ЛОГ, ЧТОБЫ УВИДЕТЬ СТРУКТУРУ ТОКЕНА
 
-    // ВРЕМЕННЫЙ КОСТЫЛЬ для поддержки старых и новых токенов
     const userId = decoded.user ? decoded.user.id : decoded.id;
-    
-    // ДОПОЛНИТЕЛЬНЫЙ ЛОГ
 
     if (!userId) {
       return res.status(401).json({ msg: 'Невалидный токен (нет ID пользователя)' });
     }
 
-    // ищем юзера и не возвращаем пароль
     const user = await User.findById(userId).select('-password');
     
     if (!user) {
@@ -42,7 +36,6 @@ export const protect = async (req, res, next) => {
     // ПРОВЕРКА НА БАН
     if (user.banDetails.isBanned) {
       const now = new Date();
-      // Если есть срок бана и он истек, снимаем бан
       if (user.banDetails.expiresAt && user.banDetails.expiresAt <= now) {
         user.banDetails.isBanned = false;
         user.banDetails.reason = null;
@@ -50,7 +43,6 @@ export const protect = async (req, res, next) => {
         user.banDetails.expiresAt = null;
         await user.save();
       } else {
-        // Если бан все еще активен
         const banReason = user.banDetails.reason || 'Причина не указана';
         let message = `Ваш аккаунт заблокирован. Причина: ${banReason}`;
         if (user.banDetails.expiresAt) {
@@ -90,7 +82,6 @@ export const protectSocket = async (socket, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
 
-    // ВРЕМЕННЫЙ КОСТЫЛЬ для поддержки старых и новых токенов
     const userId = decoded.user ? decoded.user.id : decoded.id;
 
 

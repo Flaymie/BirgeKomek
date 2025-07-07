@@ -37,7 +37,6 @@ export const createAndSendNotification = async (notificationData) => {
     
     if (userSocket) {
         userSocket.emit('new_notification', notification);
-        // console.log(`Уведомление отправлено через сокет пользователю ${user}`);
     }
     
     // 2. Отправка в Telegram (остается без изменений)
@@ -64,7 +63,6 @@ export const createAndSendNotification = async (notificationData) => {
                 parse_mode: 'MarkdownV2',
                 reply_markup: inlineKeyboard
             });
-            // console.log(`Уведомление успешно отправлено в Telegram пользователю ${userToSend.username}`);
         } catch (tgError) {
             console.error(`Ошибка отправки уведомления в Telegram для ${userToSend.username}:`, tgError.response ? tgError.response.data : tgError.message);
         }

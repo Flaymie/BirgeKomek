@@ -13,24 +13,19 @@ try {
   }
 
   redis = new Redis(redisUrl, {
-    maxRetriesPerRequest: 3, // Меньше попыток переподключения
-    connectTimeout: 5000,    // 5 секунд на подключение
-    lazyConnect: true        // Подключаться только при первой команде
+    maxRetriesPerRequest: 3,
+    connectTimeout: 5000,
+    lazyConnect: true
   });
 
   redis.on('connect', () => {
-    // console.log('Redis подключен успешно.');
     redisConnected = true;
   });
 
   redis.on('error', (err) => {
     console.error('Не удалось подключиться к Redis:', err.message);
-    // Важно не выставлять redisConnected в false здесь, 
-    // чтобы избежать "моргания" состояния при временных сбоях.
-    // ioredis сам попробует переподключиться.
   });
 
-  // Первоначальное подключение
   redis.connect().catch(err => {
     console.error('Первоначальное подключение к Redis не удалось:', err.message);
   });
@@ -38,7 +33,6 @@ try {
 } catch (error) {
   console.warn(`[ПРЕДУПРЕЖДЕНИЕ] ${error.message}`);
   // Создаем "пустышку", если Redis не настроен, чтобы приложение не падало.
-  // Методы будут просто возвращать значения по умолчанию.
   redis = {
     get: async () => null,
     set: async () => 'OK',
@@ -49,9 +43,8 @@ try {
     smembers: async () => [],
     hgetall: async () => ({}),
     hset: async () => 1,
-    // Добавляем заглушку для connect, чтобы избежать ошибок при вызове
     connect: () => Promise.resolve(),
-    on: () => {}, // Пустая функция для on
+    on: () => {},
   };
   redisConnected = false;
 }

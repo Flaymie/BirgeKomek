@@ -37,29 +37,29 @@ const EditRequestPage = () => {
     const fetchRequest = async () => {
       try {
         const res = await requestsService.getRequestForEdit(id);
-        setFormData({
+      setFormData({
           title: res.data.title,
           description: res.data.description,
           subject: res.data.subject,
           grade: res.data.grade,
         });
         setExistingAttachments(res.data.attachments || []);
-      } catch (err) {
+    } catch (err) {
         toast.error('Не удалось загрузить данные заявки');
         navigate(`/request/${id}`);
-      } finally {
+    } finally {
         setLoading(false);
-      }
+    }
     };
     fetchRequest();
   }, [id, navigate]);
-
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
-
+  
   const validateForm = () => {
     const newErrors = {};
     if (!formData.title.trim() || formData.title.length < MIN_TITLE_LENGTH) {
@@ -81,17 +81,17 @@ const EditRequestPage = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-
+    
     setIsSubmitting(true);
     const requestData = new FormData();
     Object.keys(formData).forEach(key => {
       requestData.append(key, formData[key]);
     });
-    
+
     // Добавляем инфу о файлах
     if (attachmentsToDelete.length > 0) {
       requestData.append('deletedAttachments', JSON.stringify(attachmentsToDelete));
@@ -102,8 +102,8 @@ const EditRequestPage = () => {
 
     if (editReason) {
       requestData.append('editReason', editReason);
-    }
-
+      }
+      
     try {
       await requestsService.updateRequest(id, requestData);
       toast.success('Заявка успешно обновлена!');
@@ -142,7 +142,7 @@ const EditRequestPage = () => {
       </div>
     );
   }
-
+  
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100">
@@ -271,7 +271,7 @@ const EditRequestPage = () => {
                 maxFiles={MAX_FILES - existingAttachments.length}
               />
             </div>
-
+            
             {/* Кнопки действий */}
             <div className="flex justify-end gap-4">
               <button

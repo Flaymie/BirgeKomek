@@ -70,7 +70,6 @@ const parseGeminiResponse = (text) => {
 const moderateRequest = async (title, description) => {
   // Проверяем, включена ли фича в .env
   if (process.env.GEMINI_AUTOMOD_ENABLED !== "true") {
-    // console.log("Автомодерация отключена. Пропускаем.");
     return {
       is_safe: true,
       suggested_title: title,
@@ -84,7 +83,6 @@ const moderateRequest = async (title, description) => {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    // console.log("Ответ от Gemini:", text);
 
     const moderatedContent = parseGeminiResponse(response.text());
     return moderatedContent;

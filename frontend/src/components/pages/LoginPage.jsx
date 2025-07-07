@@ -46,7 +46,10 @@ const LoginPage = () => {
       setAuthMessage(sessionMessage);
       sessionStorage.removeItem('auth_message');
     }
-  }, [location]);
+    if (currentUser) {
+      navigate('/');
+    }
+  }, [location, currentUser, navigate]);
   
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

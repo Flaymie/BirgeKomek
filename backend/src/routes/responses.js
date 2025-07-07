@@ -57,11 +57,9 @@ export default ({ io }) => {
       .withMessage('Сообщение должно быть от 1 до 1000 символов'),
     tgRequired
   ], async (req, res) => {
-    // console.log('Получен POST запрос на /api/responses:', req.body);
     
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // console.log('Ошибки валидации:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -69,7 +67,6 @@ export default ({ io }) => {
       const { request: requestId, message } = req.body;
       const helper = req.user._id;
 
-      // console.log('Данные отклика:', { requestId, message, helper });
       
       // Проверяем существование запроса
       const request = await Request.findById(requestId);
@@ -256,8 +253,6 @@ export default ({ io }) => {
           request.status = 'in_progress';
           request.helper = response.helper._id;
           await request.save();
-          
-          // console.log(`Запрос ${request._id} обновлен: статус изменен на in_progress, назначен хелпер ${response.helper._id}`);
           
           // Уведомление хелперу, что его отклик приняли
           await createAndSendNotification({

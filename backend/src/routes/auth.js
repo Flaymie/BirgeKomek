@@ -428,8 +428,6 @@ router.post('/telegram/generate-token', generalLimiter, (req, res) => {
         const { loginTokens } = req.app.locals; 
         loginTokens.set(token, { status: 'pending', userId: null, expires: Date.now() + 3 * 60 * 1000 });
 
-        // console.log(`Сгенерирован токен для входа: ${token}`);
-
         res.json({ loginToken: token });
     } catch (error) {
         console.error('Ошибка генерации токена для входа:', error);

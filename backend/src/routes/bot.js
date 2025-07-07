@@ -8,7 +8,6 @@ const botToken = process.env.BOT_TOKEN;
 
 // Роут для приема вебхуков от Telegram
 router.post(`/webhook/${botToken}`, async (req, res) => {
-    // console.log('[Telegram Webhook] Получено обновление:', JSON.stringify(req.body, null, 2));
 
     const { callback_query } = req.body;
 
@@ -19,16 +18,8 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
         if (action === 'mark' && data.startsWith('mark_read_')) {
             const realNotificationId = data.substring('mark_read_'.length);
             
-            // console.log('[DEBUG] Webhook получил callback_query для отметки уведомления:', {
-            //     realNotificationId,
-            //     callbackQueryId: callback_query.id,
-            //     fromUser: callback_query.from
-            // });
-            
             try {
-                // console.log('[DEBUG] Проверяем существование уведомления с ID:', realNotificationId);
                 const notificationExists = await Notification.findById(realNotificationId);
-                // console.log('[DEBUG] Результат проверки:', notificationExists ? 'Существует' : 'Не существует');
                 
                 const notification = await Notification.findByIdAndUpdate(
                     realNotificationId, 
@@ -51,9 +42,7 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
                             ]]
                         }
                     });
-                     // console.log(`[Telegram] Уведомление ${realNotificationId} помечено как прочитанное.`);
                 } else {
-                     // console.log(`[Telegram] Уведомление ${realNotificationId} не найдено.`);
                      await axios.post(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
                         callback_query_id: callback_query.id,
                         text: 'Ошибка: уведомление не найдено.',
@@ -73,39 +62,23 @@ router.post(`/webhook/${botToken}`, async (req, res) => {
 router.post('/mark-notification-read', async (req, res) => {
     const { notificationId, telegramId } = req.body;
     
-    // console.log('🛠️ DEBUG: notificationId =', notificationId);
-    // console.log('🛠️ DEBUG: telegramId =', telegramId);
-    // console.log('🛠️ DEBUG: typeof telegramId =', typeof telegramId);
     
     if (!notificationId) {
-        // console.log('[DEBUG] Отсутствует ID уведомления');
         return res.status(400).json({ msg: 'Отсутствует ID уведомления' });
     }
     
     try {
         // Проверяем, является ли ID валидным ObjectId для MongoDB
         if (!mongoose.Types.ObjectId.isValid(notificationId)) {
-            // console.log('[DEBUG] Невалидный ObjectId:', notificationId);
             return res.status(400).json({ msg: 'Невалидный формат ID уведомления' });
         }
         
         // СНАЧАЛА ПРОСТО ПРОВЕРИМ, СУЩЕСТВУЕТ ЛИ УВЕДОМЛЕНИЕ ВООБЩЕ
         const notif = await Notification.findById(notificationId);
         if (!notif) {
-            // console.log('🔍 Уведомление НЕ НАЙДЕНО по ID:', notificationId);
             return res.status(404).json({ msg: 'Не найдено по ID вообще' });
         }
         
-        // console.log('🔍 Уведомление НАЙДЕНО:', JSON.stringify(notif, null, 2));
-        
-        // Обновляем уведомление
-        const updatedNotif = await Notification.findByIdAndUpdate(
-            notificationId,
-            { isRead: true },
-            { new: true }
-        );
-        
-        // console.log('✅ Уведомление обновлено:', updatedNotif ? 'успешно' : 'ошибка');
         
         return res.status(200).json({ msg: 'Уведомление успешно отмечено как прочитанное' });
     } catch (error) {
@@ -125,7 +98,6 @@ router.get('/set-webhook', async (req, res) => {
 
     try {
         const response = await axios.get(`https://api.telegram.org/bot${botToken}/setWebhook?url=${webhookUrl}`);
-        // console.log('Ответ от Telegram API:', response.data);
         res.status(200).json({ msg: `Вебхук успешно установлен на ${webhookUrl}`, details: response.data });
     } catch (error) {
         console.error('Ошибка установки вебхука:', error.response ? error.response.data : error.message);

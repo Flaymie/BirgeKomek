@@ -1252,8 +1252,6 @@ router.post('/:id/reopen', protect, [
             { $set: { isArchived: true } }
         );
 
-        // console.log(`[ARCHIVE] Request ID: ${request._id}. Messages update result:`, updateResult);
-
         // Сбрасываем хелпера и возвращаем статус 'open'
         request.helper = null;
         request.status = 'open';

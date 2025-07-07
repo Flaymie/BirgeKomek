@@ -31,20 +31,20 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (token) {
       if (!socketRef.current) {
-        const newSocket = io(SOCKET_URL, {
-          auth: { token },
+      const newSocket = io(SOCKET_URL, {
+        auth: { token },
           transports: ['websocket'],
           reconnectionAttempts: 5,
-        });
+      });
         socketRef.current = newSocket;
-        
+
         // --- Глобальные слушатели, которые живут вместе с сокетом ---
-        newSocket.on('connect', () => {
+      newSocket.on('connect', () => {
           setIsConnected(true);
           newSocket.emit('get_unread_notifications_count', (count) => {
             setUnreadCount(count || 0);
           });
-        });
+      });
 
         newSocket.on('disconnect', () => {
           setIsConnected(false);
@@ -60,7 +60,7 @@ export const SocketProvider = ({ children }) => {
             <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
             { closeButton: true, autoClose: 8000 }
           );
-        });
+      });
 
         newSocket.on('user_banned', (data) => {
           showBanModal(data);
@@ -74,11 +74,11 @@ export const SocketProvider = ({ children }) => {
         }, 90000); // Увеличим интервал до 90 сек для снижения нагрузки
         
         // Функция очистки при размонтировании всего провайдера
-        return () => {
+      return () => {
           clearInterval(pingInterval);
-          newSocket.disconnect();
+        newSocket.disconnect();
           socketRef.current = null;
-        };
+      };
       }
     } else {
       if (socketRef.current) {
@@ -100,7 +100,7 @@ export const SocketProvider = ({ children }) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('mark_notifications_read', (response) => {
         if (response.success) {
-          setUnreadCount(0);
+      setUnreadCount(0);
         } else {
           console.error('Failed to mark notifications as read', response.error);
           toast.error("Не удалось отметить уведомления как прочитанные");

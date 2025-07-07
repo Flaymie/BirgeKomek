@@ -12,14 +12,6 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     match: [/^[a-zA-Z0-9_]+$/, 'Имя пользователя может содержать только латинские буквы, цифры и подчеркивания'],
   },
-  // email: {
-  //   type: String,
-  //   required: [true, 'Email обязателен'],
-  //   unique: true,
-  //   lowercase: true,
-  //   trim: true,
-  //   match: [/\S+@\S+\.\S+/, 'Неверный формат email']
-  // },
   password: {
     type: String,
     minlength: [6, 'Пароль должен быть не менее 6 символов'],
@@ -160,17 +152,13 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Статический метод для обновления среднего рейтинга хелпера
 userSchema.statics.updateAverageRating = async function (userId) {
-  // console.log(`[updateAverageRating] Запущено для пользователя: ${userId}`);
   const Review = mongoose.model('Review');
   try {
     const reviews = await Review.find({ helperId: userId });
-    // console.log(`[updateAverageRating] Найдено отзывов: ${reviews.length}`);
     if (reviews.length > 0) {
       const totalRating = reviews.reduce((acc, item) => acc + item.rating, 0);
       const newRating = (totalRating / reviews.length).toFixed(1);
-      // console.log(`[updateAverageRating] Рассчитан новый средний рейтинг: ${newRating}`);
       await this.findByIdAndUpdate(userId, { averageRating: newRating });
-      // console.log(`[updateAverageRating] Рейтинг для пользователя ${userId} успешно обновлен в базе данных.`);
     } else {
       // Если у пользователя больше нет отзывов, рейтинг можно сбросить или оставить как есть
       await this.findByIdAndUpdate(userId, { averageRating: 0 }); // Сбрасываем до 0

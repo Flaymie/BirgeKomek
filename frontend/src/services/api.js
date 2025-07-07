@@ -49,7 +49,6 @@ api.interceptors.response.use(
       // Единственная и правильная логика обработки бана
       if (status === 403 && data && data.isBanned) {
         if (authContext && typeof authContext.showBanModal === 'function') {
-          // console.log("Перехват ошибки: пользователь забанен. Показываем модалку.", data.banDetails);
           authContext.showBanModal(data.banDetails);
         }
         return Promise.reject(error);
