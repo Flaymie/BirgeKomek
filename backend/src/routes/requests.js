@@ -16,6 +16,63 @@ import path from 'path';
 import { sendTelegramMessage } from './users.js';
 import geminiService from "../services/geminiService.js"; // Импортируем наш сервис
 
+// --->>> НОВАЯ ФУНКЦИЯ ДЛЯ ОПОВЕЩЕНИЯ ХЕЛПЕРОВ <<<---
+const notifyHelpersAboutNewRequest = async (request, author) => {
+    // Убедимся, что автор не получит уведомление о своей же заявке
+    if (!request || !author || request.status === 'draft') {
+        return;
+    }
+
+    try {
+        const { subject, grade, title, _id } = request;
+
+        // Находим всех хелперов, подходящих по предмету, и исключаем автора
+        const helpersForSubject = await User.find({
+            'roles.helper': true,
+            subjects: subject,
+            _id: { $ne: author._id }
+        });
+
+        if (helpersForSubject.length === 0) {
+            return; // Некого уведомлять
+        }
+
+        const helperIds = helpersForSubject.map(h => h._id);
+
+        // 1. Уведомления на сайте
+        const notificationPromises = helperIds.map(helperId => {
+            return createAndSendNotification({
+                user: helperId,
+                type: 'new_request_for_subject',
+                title: `Новая заявка по вашему предмету: ${subject}`,
+                message: `Пользователь ${author.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
+                link: `/requests/${_id}`
+            });
+        });
+        await Promise.all(notificationPromises);
+
+        // 2. Уведомления в Telegram
+        const tgUsers = helpersForSubject.filter(h =>
+            h.telegramIntegration && h.telegramIntegration.notificationsEnabled && h.telegramId
+        );
+
+        for (const tgUser of tgUsers) {
+            const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
+            await sendTelegramMessage(tgUser.telegramId, messageText, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/requests/${_id}` }]
+                    ]
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Ошибка при оповещении хелперов о новой заявке:", error);
+        // Не бросаем ошибку дальше, чтобы не сломать основной процесс создания заявки
+    }
+};
+
 // Middleware для декодирования имен файлов
 const decodeFileNames = (req, res, next) => {
   if (req.files && req.files.length > 0) {
@@ -331,51 +388,8 @@ router.post('/', uploadAttachments, createRequestLimiter, [
 
         if (populatedRequest.status !== 'draft') {
             io.emit('new_request', populatedRequest);
-        }
-
-        if (request.status === 'open') {
-            // Старый код с уведомлениями хелперам можно пока оставить или убрать,
-            // но он не решает проблему обновления списка заявок.
-            // Оповещаем хелперов, только если это НЕ черновик
-            if (request.status === 'open') {
-                const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
-        if (helpersForSubject.length > 0) {
-                    // Убираем ID автора из списка получателей
-                    const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== req.user.id);
-
-                    if (helperIds.length > 0) {
-                        const notificationPromises = helperIds.map(helperId => {
-                    return createAndSendNotification({
-                                user: helperId,
-                        type: 'new_request_for_subject',
-                                title: `Новая заявка по вашему предмету: ${subject}`,
-                                message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                                link: `/requests/${request._id}`
-                            });
-            });
-            await Promise.all(notificationPromises);
-
-                        // Отправка в Telegram
-                        const tgUsers = await User.find({
-                            _id: { $in: helperIds }, 
-                            'telegramIntegration.notificationsEnabled': true,
-                            telegramId: { $exists: true }
-                        });
-
-                        for (const tgUser of tgUsers) {
-                            const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
-                            await sendTelegramMessage(tgUser.telegramId, messageText, {
-                                parse_mode: 'Markdown',
-                                reply_markup: {
-                                    inline_keyboard: [
-                                        [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${request._id}` }]
-                                    ]
-                                }
-                            });
-                        }
-                    }
-                }
-            }
+            // --->>> ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ <<<---
+            await notifyHelpersAboutNewRequest(populatedRequest, req.user);
         }
 
         res.status(201).json(populatedRequest);
@@ -1089,43 +1103,9 @@ router.post('/:id/cancel', protect, [
           if (oldStatus === 'draft' && newStatus === 'open') {
               io.emit('new_request', populatedRequest);
               
-              // --- ОПОВЕЩЕНИЕ ХЕЛПЕРОВ (логика, скопированная из POST /requests) ---
-              const { subject, grade, title, _id } = populatedRequest;
-              const helpersForSubject = await User.find({ 'roles.helper': true, subjects: subject });
+              // --->>> ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ <<<---
+              await notifyHelpersAboutNewRequest(populatedRequest, req.user);
 
-              if (helpersForSubject.length > 0) {
-                  const helperIds = helpersForSubject.map(h => h._id.toString()).filter(id => id !== userId); // Убираем автора из получателей
-
-                  const notificationPromises = helperIds.map(helperId => {
-                      return createAndSendNotification({
-                          user: helperId,
-                          type: 'new_request_for_subject',
-                          title: `Новая заявка по вашему предмету: ${subject}`,
-                          message: `Пользователь ${req.user.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                          link: `/request/${_id}`
-                      });
-                  });
-                  await Promise.all(notificationPromises);
-
-                  // Отправка в Telegram
-                  const tgUsers = await User.find({
-                      _id: { $in: helperIds },
-                      'telegramIntegration.notificationsEnabled': true,
-                      telegramId: { $exists: true }
-                  });
-
-                  for (const tgUser of tgUsers) {
-                      const messageText = `🔔 *Новая заявка по вашему предмету!* 🔔\n\n*Тема:* ${title}\n*Предмет:* ${subject}, ${grade} класс\n\nВы можете откликнуться на нее на сайте.`;
-                      await sendTelegramMessage(tgUser.telegramId, messageText, {
-                          parse_mode: 'Markdown',
-                          reply_markup: {
-                              inline_keyboard: [
-                                  [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${_id}` }]
-                              ]
-                          }
-                      });
-                  }
-              }
           } else {
               io.emit('request_updated', populatedRequest);
           }
