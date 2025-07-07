@@ -69,6 +69,26 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(processUserData(userData));
   }, [checkAdminTelegramRequirement, processUserData, showBanModal]);
 
+  const logout = useCallback(async (showToast = true) => {
+    console.log('Выполняется выход...');
+    try {
+        const token = getAuthToken();
+        if (token) {
+            await authService.logout();
+        }
+    } catch (err) {
+        console.error("Ошибка при выходе на сервере, но выходим локально", err);
+    } finally {
+        setCurrentUser(null);
+        removeToken();
+        setToken(null);
+        // Закрываем все модальные окна и сбрасываем состояния
+        setIsBannedModalOpen(false);
+        setBanDetails(null);
+        setIsReadOnly(true);
+    }
+  }, []);
+
   // --->>> НОВАЯ ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОГО ОБНОВЛЕНИЯ ДАННЫХ <<<---
   const refreshCurrentUser = useCallback(async () => {
     const token = getAuthToken();
@@ -362,27 +382,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Функция для выхода пользователя
-  const logout = async (showToast = true) => {
-    console.log('Выполняется выход...');
-    try {
-        const token = getAuthToken();
-        if (token) {
-            await authService.logout();
-        }
-    } catch (err) {
-        console.error("Ошибка при выходе на сервере, но выходим локально", err);
-    } finally {
-        setCurrentUser(null);
-        removeToken();
-        setToken(null);
-        // Закрываем все модальные окна и сбрасываем состояния
-        setIsBannedModalOpen(false);
-        setBanDetails(null);
-        setIsReadOnly(true);
-    }
-  };
-
   const closeLinkTelegramModal = useCallback(() => {
     if (pollingIntervalId) {
       clearInterval(pollingIntervalId);
@@ -472,6 +471,10 @@ export const AuthProvider = ({ children }) => {
     isReadOnly,
     updateUser: _updateCurrentUserState,
     isRequireTgModalOpen,
+    requireTgConfirmation: () => {
+        setIsRequireTgModalOpen(false);
+        logout();
+    },
     handleLinkTelegram,
     handleUnlinkTelegram,
     isLinkTelegramModalOpen,

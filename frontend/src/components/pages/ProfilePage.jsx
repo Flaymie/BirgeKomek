@@ -23,6 +23,14 @@ import ModeratorActionsDropdown from '../shared/ModeratorActionsDropdown';
 import SendNotificationModal from '../modals/SendNotificationModal';
 // --- ИКОНКИ ДЛЯ РОЛЕЙ ---
 
+const processUserData = (userData) => {
+  if (!userData) return null;
+  return {
+    ...userData,
+    formattedAvatar: formatAvatarUrl(userData),
+  };
+};
+
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
   if (!dateString) return 'давно';
@@ -763,44 +771,38 @@ const ProfilePage = () => {
   
   const isMyProfile = currentUser?._id === userId;
 
+  const fetchProfileData = useCallback(async () => {
+    setLoading(true);
+    try {
+      let data;
+      if (isMyProfile) {
+        data = await refreshCurrentUser();
+      } else {
+        const response = await usersService.getProfile(userId);
+        data = response.data;
+      }
+      setProfile(processUserData(data));
+    } catch (error) {
+      console.error("Ошибка при загрузке профиля:", error);
+      setError(error.response?.data?.msg || "Не удалось загрузить профиль.");
+      if (error.response?.status === 404) {
+        setProfile(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, isMyProfile, refreshCurrentUser]);
+
   // Эффект для загрузки данных профиля
   useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      try {
-        // Если это мой профиль, мы можем сначала показать данные из currentUser,
-        // а потом обновить их до самых актуальных.
-        if (isMyProfile) {
-          setProfile(currentUser); // Показываем то, что есть сразу
-          const freshData = await refreshCurrentUser(); // Запрашиваем свежие данные
-          if(freshData) {
-            setProfile(processUserData(freshData));
-          }
-        } else {
-          const response = await usersService.getProfile(userId);
-          setProfile(processUserData(response.data));
-        }
-      } catch (error) {
-        console.error("Ошибка при загрузке профиля:", error);
-        setError(error.response?.data?.msg || "Не удалось загрузить профиль.");
-        if (error.response?.status === 404) {
-          setProfile(null); // Явно указываем, что профиль не найден
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (userId) {
-        fetchProfile();
+      fetchProfileData();
     }
-  }, [userId, isMyProfile, refreshCurrentUser]); // Добавляем isMyProfile и refreshCurrentUser
+  }, [userId, fetchProfileData]);
 
   // Эффект для синхронизации локального стейта с глобальным, если это мой профиль
   useEffect(() => {
     if (isMyProfile && currentUser) {
-      // Это предотвратит показ устаревших данных, если они обновились в контексте
-      // (например, после привязки телеграма или другого действия)
       setProfile(currentUser);
     }
   }, [currentUser, isMyProfile]);
@@ -938,11 +940,10 @@ const ProfilePage = () => {
     setModActionCallback(() => async (confirmationCode) => { // Сохраняем коллбэк
       setModActionLoading(true);
       try {
-        // Вызываем сервис с кодом
         await usersService.banUser(profile._id, reason, duration, confirmationCode);
         toast.success(`Пользователь ${profile.username} забанен.`);
-        setIsConfirmingModAction(false); // Закрываем модалку подтверждения
-        fetchUserData(profile._id); // Обновляем данные
+        setIsConfirmingModAction(false);
+        fetchProfileData();
       } catch (err) {
         console.error('Ошибка при подтверждении бана:', err);
         toast.error(err.response?.data?.msg || 'Не удалось забанить пользователя.');
@@ -956,7 +957,7 @@ const ProfilePage = () => {
       await usersService.banUser(profile._id, reason, duration);
       // Если прошло без ошибки (например, для админа без 2FA), просто обновляем
       toast.success(`Пользователь ${profile.username} забанен.`);
-      fetchUserData(profile._id);
+      fetchProfileData();
     } catch (err) {
       // Ожидаемая ошибка, требующая подтверждения
       if (err.response && err.response.data.confirmationRequired) {
@@ -977,7 +978,7 @@ const ProfilePage = () => {
     try {
       await usersService.unbanUser(profile._id);
       toast.success(`Пользователь ${profile.username} разбанен.`);
-      fetchUserData(profile._id);
+      fetchProfileData();
     } catch (err) {
       console.error('Ошибка при разбане:', err);
       toast.error(err.response?.data?.msg || 'Не удалось разбанить пользователя.');
