@@ -285,22 +285,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Периодическая проверка "мертвых душ"
-setInterval(() => {
-  const now = Date.now();
-  const timeout = 90 * 1000; // 1.5 минуты неактивности
-  
-}, 60 * 1000); // Проверка каждую минуту
-
 // глобальный обработчик ошибок
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send({ error: 'Что-то пошло не так!' });
-});
-
-// простой тест что сервак живой
-app.get('/', (req, res) => {
-  res.send('Бірге Көмек API запущен');
 });
 
 // обработка 404
