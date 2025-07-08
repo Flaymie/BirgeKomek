@@ -43,6 +43,17 @@ export const sendMessageLimiter = rateLimit({
   keyGenerator: (req, res) => req.user.id,
 });
 
+export const createReportLimiter = rateLimit({
+  ...commonOptions,
+  windowMs: 60 * 60 * 1000, // 1 час
+  max: 5,
+  message: { msg: 'Вы можете подать не более 5 жалоб в час. Попробуйте позже.' },
+  store: new RedisStore({
+    sendCommand: (...args) => redis.call(...args),
+  }),
+  keyGenerator: (req, res) => req.user.id, // Лимит на пользователя
+});
+
 export const uploadLimiter = rateLimit({
   ...commonOptions,
   windowMs: 24 * 60 * 60 * 1000,
@@ -80,11 +91,9 @@ const getMaxRequestsByRole = (req) => {
       return req.user.telegramId ? 1000 : 500;
     }
   }
-  // Для гостей (неавторизованных) или юзеров без роли
   return 200;
 };
 
-// Сам основной лимитер
 export const generalLimiter = rateLimit({
   ...commonOptions,
   windowMs: 15 * 60 * 1000,

@@ -26,7 +26,6 @@ const LinkTokenSchema = new mongoose.Schema({
   },
 });
 
-// TTL-индекс для автоматического удаления истекших токенов из базы
 LinkTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const LinkToken = mongoose.model('LinkToken', LinkTokenSchema);

@@ -2,21 +2,21 @@ import mongoose from 'mongoose';
 
 const telegramUserSchema = new mongoose.Schema({
   telegramId: {
-    type: String, // ID от Telegram - это большие числа, безопаснее хранить как строку
+    type: String,
     required: true,
     unique: true,
-    index: true, // Индекс для быстрого поиска по ID
+    index: true,
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Ссылка на основную модель пользователя
+    ref: 'User',
     required: true,
-    unique: true, // Один аккаунт на сайте = один аккаунт в Telegram
+    unique: true,
   },
-  username: { // Опционально, можем хранить @username из Telegram
+  username: {
     type: String,
   },
-}, { timestamps: true }); // Добавим метки времени создания/обновления
+}, { timestamps: true });
 
 const TelegramUser = mongoose.model('TelegramUser', telegramUserSchema);
 

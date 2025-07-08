@@ -21,7 +21,11 @@ import ImageViewerModal from '../modals/ImageViewerModal';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ModeratorActionsDropdown from '../shared/ModeratorActionsDropdown';
 import SendNotificationModal from '../modals/SendNotificationModal';
-// --- ИКОНКИ ДЛЯ РОЛЕЙ ---
+import ReportModal from '../modals/ReportModal';
+import { FlagIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
+
+
 
 // Функция для форматирования времени "last seen"
 const formatLastSeen = (dateString) => {
@@ -174,7 +178,7 @@ const BanInfo = ({ banDetails }) => {
 };
 
 // === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
-const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotify, isMyProfile, onAvatarClick }) => {
+const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotify, isMyProfile, onAvatarClick, onReport }) => {
   if (!profile) return null;
   
   const canModerate = currentUser?.roles?.admin || currentUser?.roles?.moderator;
@@ -211,16 +215,36 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
         "max-w-4xl mx-auto bg-white rounded-lg overflow-hidden relative",
         styles.borderClass && `profile-card-wrapper ${styles.borderClass}`
       )}>
-            {canModerate && !isMyProfile && !targetIsAdmin && (
           <div className="absolute top-4 right-4 z-10">
+          {isMyProfile ? (
+            <Link
+              to="/profile" // Ссылка на страницу редактирования
+              className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+              title="Редактировать профиль"
+            >
+              <PencilIcon className="h-5 w-5 text-gray-600" />
+            </Link>
+          ) : (
+            <>
+              {canModerate && !targetIsAdmin ? (
             <ModeratorActionsDropdown 
               isBanned={profile.banDetails?.isBanned}
               onBan={onBan}
               onUnban={onUnban}
               onNotify={onNotify}
             />
+              ) : !canModerate ? (
+                <button
+                  onClick={onReport}
+                  className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full hover:bg-red-200 transition-colors"
+                  title="Пожаловаться на пользователя"
+                >
+                  <FlagIcon className="h-5 w-5 text-red-600" />
+                </button>
+              ) : null}
+            </>
+          )}
               </div>
-            )}
         <div className="p-6">
           <BanInfo banDetails={profile.banDetails} />
 
@@ -737,7 +761,11 @@ const ProfilePage = () => {
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
   const [isDeletingLoading, setIsDeletingLoading] = useState(false);
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
-  const [isNotificationModalOpen, setNotificationModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [isReportLoading, setNotificationModalOpen] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
@@ -1029,7 +1057,6 @@ const ProfilePage = () => {
 
   const handleNotificationSent = (notification) => {
     toast.success(`Уведомление для ${profile.username} успешно отправлено!`);
-    // Тут можно будет добавить что-то еще, если понадобится
   };
 
   if (loading || authLoading) return <Loader />;
@@ -1048,6 +1075,7 @@ const ProfilePage = () => {
             onNotify={handleSendNotificationClick}
             isMyProfile={isMyProfile}
             onAvatarClick={handleAvatarClick}
+            onReport={() => setIsReportModalOpen(true)}
           />
           {profile?.roles?.helper && (
             <div className="container mx-auto px-4 py-8">
@@ -1119,6 +1147,13 @@ const ProfilePage = () => {
         onClose={() => setNotificationModalOpen(false)}
         recipient={profile}
         onNotificationSent={handleNotificationSent}
+      />
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        targetId={profile?._id}
+        targetType="User"
+        targetName={profile?.username}
       />
     </>
   );

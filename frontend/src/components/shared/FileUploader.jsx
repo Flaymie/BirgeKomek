@@ -5,8 +5,30 @@ import { ArrowUpTrayIcon, PaperClipIcon, XMarkIcon } from '@heroicons/react/24/o
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILES_TOTAL = 10;
+const DEFAULT_ACCEPT = {
+  'application/pdf': ['.pdf'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'text/plain': ['.txt'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/vnd.ms-powerpoint': ['.ppt'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'image/jpeg': ['.jpeg', '.jpg'],
+  'image/png': ['.png'],
+  'image/gif': ['.gif'],
+  'image/webp': ['.webp'],
+};
+const DEFAULT_ACCEPT_LABEL = 'Разрешены: .pdf, .doc(x), .xls(x), .ppt(x), .txt, .jpg, .png, .gif, .webp';
 
-const FileUploader = ({ files, setFiles, maxFiles }) => {
+
+const FileUploader = ({ 
+    files, 
+    setFiles, 
+    maxFiles, 
+    accept = DEFAULT_ACCEPT, 
+    acceptLabel = DEFAULT_ACCEPT_LABEL 
+}) => {
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     const availableSlots = maxFiles - files.length;
     const newFiles = acceptedFiles.slice(0, availableSlots);
@@ -35,20 +57,7 @@ const FileUploader = ({ files, setFiles, maxFiles }) => {
     maxSize: MAX_FILE_SIZE_MB * 1024 * 1024,
     maxFiles: maxFiles,
     disabled: maxFiles <= 0,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
-      'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-powerpoint': ['.ppt'],
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-      'image/jpeg': ['.jpeg', '.jpg'],
-      'image/png': ['.png'],
-      'image/gif': ['.gif'],
-      'image/webp': ['.webp'],
-    }
+    accept: accept
   });
 
   return (
@@ -65,9 +74,11 @@ const FileUploader = ({ files, setFiles, maxFiles }) => {
           <p className="text-xs mt-1">
             Можно добавить еще: {maxFiles}
           </p>
-          <p className="text-xs text-gray-400 mt-2 px-4">
-            Разрешены: .pdf, .doc(x), .xls(x), .ppt(x), .txt, .jpg, .png, .gif, .webp
-          </p>
+          {acceptLabel && (
+            <p className="text-xs text-gray-400 mt-2 px-4">
+                {acceptLabel}
+            </p>
+          )}
         </div>
       </div>
       {files.length > 0 && (

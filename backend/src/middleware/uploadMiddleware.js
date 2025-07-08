@@ -2,7 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Проверяем и создаем директорию для загрузок, если ее нет
+// Проверяем и создаем директорию для загрузок если ее нету
 const uploadDir = 'uploads/avatars';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });

@@ -26,12 +26,15 @@ import notificationRoutes, { createAndSendNotification } from './routes/notifica
 import statsRoutes from './routes/stats.js';
 import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
+import adminRoutes from './routes/admin.js';
+import reportRoutes from './routes/reports.js';
 import Message from './models/Message.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
 import { protectSocket } from './middleware/auth.js';
 import multiAccountDetector from './middleware/multiAccountDetector.js';
-import adminRoutes from './routes/admin.js';
+import Notification from './models/Notification.js';
+
 
 dotenv.config();
 
@@ -138,6 +141,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes({ sseConnections }));
+app.use('/api/reports', reportRoutes({ io }));
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
@@ -255,6 +259,21 @@ io.on('connection', (socket) => {
   socket.on('user_navigate', () => {
     if(isRedisConnected()) {
       redis.expire(onlineKey, 120);
+    }
+  });
+
+  // Обработчик для отметки всех уведомлений как прочитанных
+  socket.on('mark_notifications_read', async (callback) => {
+    try {
+      const userId = socket.user.id;
+      await Notification.updateMany(
+        { user: userId, isRead: false },
+        { $set: { isRead: true } }
+      );
+      callback({ success: true });
+    } catch (error) {
+      console.error('Ошибка при отметке уведомлений как прочитанных:', error);
+      callback({ success: false, error: 'Ошибка сервера' });
     }
   });
 

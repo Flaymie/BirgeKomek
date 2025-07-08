@@ -11,11 +11,12 @@ import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
-import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, EyeIcon, PaperClipIcon, ArrowDownTrayIcon, DocumentIcon } from '@heroicons/react/24/solid';
+import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, EyeIcon, PaperClipIcon, ArrowDownTrayIcon, DocumentIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import { motion } from 'framer-motion';
 import { downloadFile } from '../../services/downloadService';
+import ReportModal from '../modals/ReportModal';
 
 // Простое модальное окно для предпросмотра
 const Lightbox = ({ imageUrl, onClose }) => {
@@ -58,6 +59,7 @@ const RequestDetailPage = () => {
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
   const [isAdminDeleteModalOpen, setAdminDeleteModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
   const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
@@ -538,8 +540,9 @@ const RequestDetailPage = () => {
             {showActionsBlock && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                  <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>
+                 <div className="space-y-3">
                   {isAuthor && request.status === 'open' && (
-                    <div className="space-y-3">
+                    <>
                       <button
                         onClick={() => navigate(`/request/${request._id}/edit`)}
                         className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
@@ -549,12 +552,12 @@ const RequestDetailPage = () => {
                       </button>
                       <button
                         onClick={() => setIsDeleteModalOpen(true)}
-                        className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
+                        className="btn btn-danger-outline w-full inline-flex items-center justify-center gap-2"
                       >
                          <TrashIcon className="h-5 w-5" />
                         Удалить
                       </button>
-                    </div>
+                    </>
                   )}
                    {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
                                 <button 
@@ -568,9 +571,19 @@ const RequestDetailPage = () => {
                    {request.status === 'open' && !isAuthor && !isHelper() && (
                       <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
                    )}
+                   {currentUser && !isAuthor && (
+                    <button
+                        onClick={() => setIsReportModalOpen(true)}
+                        className="btn bg-red-100 text-red-700 hover:bg-red-200 w-full inline-flex items-center justify-center gap-2"
+                      >
+                        <ExclamationTriangleIcon className="h-5 w-5" />
+                        Пожаловаться
+                      </button>
+                   )}
                    {['closed', 'completed', 'cancelled'].includes(request.status) && (
                       <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
           )}
+          </div>
         </div>
       )}
       
@@ -656,6 +669,15 @@ const RequestDetailPage = () => {
       <ResponseModal isOpen={isResponseModalOpen} onClose={() => setIsResponseModalOpen(false)} requestId={id} />
       <ConfirmDeleteModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteRequest} title="Подтверждение удаления" body="Вы уверены, что хотите удалить этот запрос? Это действие нельзя отменить." />
       <ModeratorActionConfirmModal isOpen={isConfirmingModAction} onClose={() => setIsConfirmingModAction(false)} onConfirm={confirmAdminDelete} actionTitle={`Удаление заявки "${request?.title}"`} isLoading={modActionLoading} />
+      {isReportModalOpen && (
+        <ReportModal
+            isOpen={isReportModalOpen}
+            onClose={() => setIsReportModalOpen(false)}
+            targetId={request._id}
+            targetType="Request"
+            targetName={`"${request.title}"`}
+        />
+      )}
         </div>
     );
 };

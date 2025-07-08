@@ -46,7 +46,7 @@ const notifyHelpersAboutNewRequest = async (request, author) => {
                 type: 'new_request_for_subject',
                 title: `Новая заявка по вашему предмету: ${subject}`,
                 message: `Пользователь ${author.username} опубликовал заявку \"${title}\" по предмету ${subject} для ${grade} класса.`,
-                link: `/requests/${_id}`
+                link: `/request/${_id}`
             });
         });
         await Promise.all(notificationPromises);
@@ -62,7 +62,7 @@ const notifyHelpersAboutNewRequest = async (request, author) => {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/requests/${_id}` }]
+                        [{ text: "👀 Посмотреть заявку", url: `${process.env.FRONTEND_URL}/request/${_id}` }]
                     ]
                 }
             });

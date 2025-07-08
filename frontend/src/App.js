@@ -24,6 +24,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { useAuth, AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
@@ -31,6 +32,8 @@ import RequireTelegramModal from './components/modals/RequireTelegramModal';
 import LinkTelegramModal from './components/modals/LinkTelegramModal';
 import AllReviewsPage from './components/pages/AllReviewsPage';
 import NotificationDetailPage from './components/pages/NotificationDetailPage';
+import ReportsPage from './components/pages/ReportsPage';
+import ReportDetailsPage from './components/pages/ReportDetailsPage';
 import CookieConsent from './components/shared/CookieConsent';
 import './App.css';
 
@@ -137,6 +140,10 @@ const AppContent = () => {
             <Route path="/my-requests" element={<ProtectedRoute><MyRequestsPage /></ProtectedRoute>} />
             <Route path="/reviews/:userId" element={<ProtectedRoute><AllReviewsPage /></ProtectedRoute>} />
 
+            {/* Маршруты для модераторов/админов */}
+            <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportsPage /></ProtectedRoute>} />
+            <Route path="/reports/:id" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportDetailsPage /></ProtectedRoute>} />
+
             {/* Маршрут для страницы не найдено */}
             <Route path="*" element={<NotFoundPage />} />
         </Routes>
@@ -150,7 +157,11 @@ const AppContent = () => {
 // Главный компонент приложения с правильной структурой
 function App() {
   return (
+    <AuthProvider>
+      <SocketProvider>
       <AppInitializer />
+      </SocketProvider>
+    </AuthProvider>
   );
 }
 

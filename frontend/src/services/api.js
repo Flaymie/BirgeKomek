@@ -414,3 +414,27 @@ export const statsService = {
   getActivitySummary: (userId) => api.get(`/stats/activity/summary/${userId}`),
   getPendingReviews: (userId) => api.get(`/stats/activity/pending-reviews/${userId}`),
 }; 
+
+export const reportsService = {
+  // Создать жалобу
+  createReport: (reportData) => {
+    // Axios сам определит Content-Type для FormData
+    return api.post('/reports', reportData);
+  },
+  // Получить все жалобы
+  getAllReports: () => {
+    return api.get('/reports');
+  },
+  // Получить одну жалобу по ID
+  getReportById: (id) => {
+    return api.get(`/reports/${id}`);
+  },
+  // Получить историю жалоб на пользователя
+  getReportHistoryForUser: (userId) => {
+    return api.get(`/reports/user/${userId}`);
+  },
+  // Обновить статус жалобы
+  updateReport: (id, data) => {
+    return api.put(`/reports/${id}`, data);
+  }
+}; 

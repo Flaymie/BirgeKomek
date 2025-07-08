@@ -14,7 +14,6 @@ const messageSchema = new mongoose.Schema({
   content: {
     type: String,
     required: function() {
-      // Контент обязателен, только если нет вложений
       return !this.attachments || this.attachments.length === 0;
     },
     trim: true
@@ -37,7 +36,7 @@ const messageSchema = new mongoose.Schema({
   isArchived: {
     type: Boolean,
     default: false,
-    index: true // Индексируем для быстрого поиска по этому флагу
+    index: true
   },
   createdAt: {
     type: Date,

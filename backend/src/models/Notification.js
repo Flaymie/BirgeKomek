@@ -5,11 +5,11 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    index: true, // Индексируем для быстрого поиска уведомлений пользователя
+    index: true,
   },
   userTelegramId: {
     type: String,
-    index: true, // Индексируем для быстрого поиска по telegramId
+    index: true,
   },
   type: {
     type: String,
@@ -24,26 +24,27 @@ const notificationSchema = new mongoose.Schema({
       'new_message_in_request',  // Новое сообщение в чате заявки
       'request_marked_completed',// Заявка отмечена как выполненная (и для автора, и для хелпера)
       'new_review_for_you',      // О тебе оставили новый отзыв (для хелпера)
-      'request_status_changed',  // Общее изменение статуса заявки (напр. отменена)
-      'request_deleted_by_admin',         // Заявка была удалена (для хелпера, если он был назначен)
-      'request_edited_by_admin',
+      'request_status_changed',  // Общее изменение статуса заявки
+      'request_deleted_by_admin',         // Заявка была удалена
+      'request_edited_by_admin',          // Заявка была отредактирована
       'request_reopened_by_author', // Автор переоткрыл заявку (для хелпера)
       'request_reopened_by_you',    // Ты переоткрыл заявку (для автора)
       'security_alert',             // Уведомление безопасности (смена пароля и т.д.)
       'request_completed',          // Заявка завершена (после оценки)
       'moderator_warning',          // Предупреждение от модератора
-      // Можно добавить другие типы по мере необходимости
+      'new_report',                 // Новая жалоба (для модераторов)
+      'report_status_changed',      // Статус жалобы изменен (для автора жалобы)
     ],
   },
   title: {
     type: String, 
-    required: true, // Краткий заголовок уведомления
+    required: true,
   },
   message: {
-    type: String, // Более подробное описание, если нужно
+    type: String,
   },
   link: {
-    type: String, // Ссылка для перехода (например, /requests/:requestId)
+    type: String,
   },
   isRead: {
     type: Boolean,
@@ -51,12 +52,10 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedEntity: {
     requestId: { type: mongoose.Schema.Types.ObjectId, ref: 'Request' },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Например, кто оставил отзыв
-    // Можно добавить другие связанные сущности
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   }
 }, { timestamps: true });
 
-// Явно указываем название коллекции
 const Notification = mongoose.model('Notification', notificationSchema);
 
 
