@@ -1,33 +1,46 @@
 import React, { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import ReadOnlyBanner from './ReadOnlyBanner';
+import { useAuth } from '../../context/AuthContext';
+import CommandPalette from '../shared/CommandPalette';
+import { useCommandPalette } from '../../context/CommandPaletteContext';
 
-const Layout = ({ children }) => {
-  const location = useLocation();
-  const hideFooterOn = ['/chat', '/requests/'];
+const Layout = () => {
+    const location = useLocation();
+    const { user, loading } = useAuth();
+    const { openPalette } = useCommandPalette();
 
-  // Проверяем, начинается ли путь с одного из шаблонов для скрытия
-  const shouldHideFooter = hideFooterOn.some(path => location.pathname.includes(path));
+    const noHeaderFooterRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
 
-  // Эффект для анимации при смене страницы
-  useEffect(() => {
-    if (!location.pathname.includes('/chat')) {
-    window.scrollTo(0, 0);
+    const showHeaderFooter = !noHeaderFooterRoutes.some(route => location.pathname.startsWith(route));
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+                e.preventDefault();
+                openPalette();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [openPalette]);
+
+    if (loading) {
+        return <div className="flex items-center justify-center h-screen bg-gray-50"></div>;
     }
-  }, [location.pathname]);
-  
-  return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <Header />
-      <main key={location.pathname} className="flex-1 flex flex-col pt-8">
-        <ReadOnlyBanner />
-        {children}
-      </main>
-      {!shouldHideFooter && <Footer />}
-    </div>
-  );
+
+    return (
+        <div className="flex flex-col min-h-screen bg-gray-50">
+            {showHeaderFooter && <Header user={user} />}
+            <main className="flex-grow">
+                <Outlet />
+            </main>
+            <CommandPalette />
+            {showHeaderFooter && <Footer />}
+        </div>
+    );
 };
 
 export default Layout; 

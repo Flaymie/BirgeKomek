@@ -162,7 +162,16 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-      <AppInitializer />
+        <NotificationProvider>
+          <CommandPaletteProvider> {/* Оборачиваем */}
+            <Router>
+              <Toaster
+                position="top-center"
+              />
+              <AppRoutes />
+            </Router>
+          </CommandPaletteProvider> {/* Оборачиваем */}
+        </NotificationProvider>
       </SocketProvider>
     </AuthProvider>
   );
