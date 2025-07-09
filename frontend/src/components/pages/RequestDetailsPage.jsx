@@ -481,7 +481,7 @@ const RequestDetailPage = () => {
               </div>
             )}
 
-            {/* --- ИСПРАВЛЕНИЕ: ПРАВИЛЬНАЯ ЛОГИКА ОТОБРАЖЕНИЯ БЛОКА ОТКЛИКА --- */}
+            {/* ИСПРАВЛЕНИЕ: ПРАВИЛЬНАЯ ЛОГИКА ОТОБРАЖЕНИЯ БЛОКА ОТКЛИКА */}
             {/* Показываем блок, только если пользователь НЕ автор И (он может откликнуться ИЛИ он уже откликнулся) */}
             {!isAuthor && (canHelperRespond || myResponse) && (
               <div className="bg-white rounded-xl shadow-lg p-6">
@@ -533,7 +533,7 @@ const RequestDetailPage = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="lg:col-span-1 space-y-8"
           >
-            {/* --- ИСПРАВЛЕНИЕ: Скрываем блок, если он пустой --- */}
+            {/* ИСПРАВЛЕНИЕ: Скрываем блок, если он пустой */}
             {showActionsBlock && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                  <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>

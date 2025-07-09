@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaTelegramPlane, FaInstagram, FaVk } from 'react-icons/fa';
+import packageJson from '../../../package.json';
+
 
 const Footer = () => {
   const currYear = new Date().getFullYear();
+  const projectVersion = packageJson.version;
 
   const socialLinks = [
     { icon: <FaInstagram />, href: "https://instagram.com", name: "Instagram" },
@@ -17,9 +20,10 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
                  <img src="/img/logo.png" alt="Бірге Көмек" className="w-9 h-9" />
-                 <p className="text-sm text-gray-600">
-                    © {currYear} Бірге Көмек. Все права защищены.
-                </p>
+                 <div className="text-sm text-gray-600">
+                    <p>© {currYear} Бірге Көмек. Все права защищены.</p>
+                    <p className="text-xs text-gray-500 mt-1">Версия: v{projectVersion}</p>
+                 </div>
             </div>
           
             <div className="flex items-center gap-6 text-sm text-gray-600">
