@@ -26,7 +26,6 @@ import { Toaster } from 'react-hot-toast';
 
 import { useAuth, AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
-import { NotificationProvider } from './context/NotificationContext';
 import { CommandPaletteProvider } from './context/CommandPaletteContext';
 import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
@@ -166,7 +165,6 @@ function App() {
     <Router>
       <AuthProvider>
         <SocketProvider>
-          <NotificationProvider>
             <CommandPaletteProvider>
                 <Toaster
                   position="top-center"
@@ -174,7 +172,6 @@ function App() {
                 />
                 <AppInitializer />
             </CommandPaletteProvider>
-          </NotificationProvider>
         </SocketProvider>
       </AuthProvider>
     </Router>
