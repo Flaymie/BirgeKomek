@@ -123,7 +123,7 @@ const CommandPalette = () => {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" />
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20">
@@ -136,15 +136,15 @@ const CommandPalette = () => {
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="mx-auto max-w-xl transform divide-y divide-gray-700 overflow-hidden rounded-xl bg-gray-800 shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
+            <Dialog.Panel className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
               <Combobox onChange={handleSelect}>
                 <div className="relative">
                   <Search
-                    className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-500"
+                    className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
                     aria-hidden="true"
                   />
                   <Combobox.Input
-                    className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-100 placeholder-gray-500 focus:ring-0 sm:text-sm"
+                    className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-800 placeholder-gray-400 focus:ring-0 sm:text-sm"
                     placeholder="Что ищем, командир?"
                     onChange={(event) => setQuery(event.target.value)}
                     autoComplete="off"
@@ -152,7 +152,7 @@ const CommandPalette = () => {
                 </div>
 
                 {availableCommands.length > 0 && (
-                  <Combobox.Options static className="max-h-80 scroll-py-2 divide-y divide-gray-700 overflow-y-auto">
+                  <Combobox.Options static className="max-h-80 scroll-py-2 divide-y divide-gray-100 overflow-y-auto">
                     {Object.entries(
                       availableCommands.reduce((acc, command) => {
                         if (!acc[command.category]) {
@@ -163,8 +163,8 @@ const CommandPalette = () => {
                       }, {})
                     ).map(([category, commands]) => (
                       <li key={category} className="p-2">
-                        <h2 className="text-xs font-semibold text-gray-400 px-3 mb-1">{category}</h2>
-                        <ul className="text-sm text-gray-300">
+                        <h2 className="text-xs font-semibold text-gray-500 px-3 mb-1">{category}</h2>
+                        <ul className="text-sm text-gray-700">
                           {commands.map((command) => (
                             <Combobox.Option
                               key={command.name}
@@ -177,7 +177,7 @@ const CommandPalette = () => {
                             >
                               {({ active }) => (
                                 <>
-                                  <div className={`mr-3 ${active ? 'text-white' : 'text-gray-500'}`}>{command.icon}</div>
+                                  <div className={`mr-3 ${active ? 'text-white' : 'text-gray-400'}`}>{command.icon}</div>
                                   <span>{command.name}</span>
                                 </>
                               )}
@@ -191,8 +191,8 @@ const CommandPalette = () => {
 
                 {query !== '' && availableCommands.length === 0 && (
                   <div className="px-6 py-14 text-center sm:px-14">
-                    <FiCommand className="mx-auto h-8 w-8 text-gray-500" />
-                    <p className="mt-4 text-base text-gray-200">Ничего не найдено по вашему запросу.</p>
+                    <FiCommand className="mx-auto h-8 w-8 text-gray-400" />
+                    <p className="mt-4 text-base text-gray-800">Ничего не найдено по вашему запросу.</p>
                     <p className="text-sm text-gray-500">Попробуйте другие ключевые слова.</p>
                   </div>
                 )}
