@@ -117,10 +117,13 @@ const CommandPalette = () => {
         });
         
   const availableCommands = filteredCommands.filter(cmd => {
-    const isGuest = !user;
-    if (cmd.requiresAuth && !user) return false;
-    if (cmd.requiresGuest && user) return false;
-    return true;
+    if (cmd.requiresAuth && !user) {
+      return false; // Скрыть, если нужна авторизация, а ее нет
+    }
+    if (cmd.requiresGuest && user) {
+      return false; // Скрыть, если команда только для гостей, а юзер залогинен
+    }
+    return true; // Показать во всех остальных случаях
   });
 
   const handleSelect = (command) => {
