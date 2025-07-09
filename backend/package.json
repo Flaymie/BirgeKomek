@@ -1,8 +1,9 @@
 {
   "name": "birgekomek-backend",
-  "version": "0.1.0",
+  "version": "0.5.2",
+  "description": "Серверная часть (Node.js, Express) для платформы 'Бірге Көмек', включая API и WebSocket.",
   "main": "src/index.js",
-  "author": "flaymie",
+  "author": "Flaymie",
   "license": "MIT",
   "type": "module",
   "scripts": {

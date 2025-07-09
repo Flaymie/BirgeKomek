@@ -35,6 +35,7 @@ import NotificationDetailPage from './components/pages/NotificationDetailPage';
 import ReportsPage from './components/pages/ReportsPage';
 import ReportDetailsPage from './components/pages/ReportDetailsPage';
 import CookieConsent from './components/shared/CookieConsent';
+import AnalyticsPage from './components/pages/AnalyticsPage'; // Импортируем новую страницу
 import './App.css';
 
 // Этот компонент отвечает за инициализацию перехватчика API
@@ -143,6 +144,8 @@ const AppContent = () => {
             {/* Маршруты для модераторов/админов */}
             <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/reports/:id" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportDetailsPage /></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AnalyticsPage /></ProtectedRoute>} />
+
 
             {/* Маршрут для страницы не найдено */}
             <Route path="*" element={<NotFoundPage />} />

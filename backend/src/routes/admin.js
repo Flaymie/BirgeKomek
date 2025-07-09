@@ -5,6 +5,9 @@ import { protect, isModOrAdmin } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import Request from '../models/Request.js';
+import Message from '../models/Message.js';
+import Report from '../models/Report.js';
 
 export default ({ sseConnections }) => {
   const router = express.Router();
@@ -118,6 +121,85 @@ export default ({ sseConnections }) => {
       }
     }
   );
+
+  /**
+   * @swagger
+   * /api/admin/stats:
+   *   get:
+   *     summary: Получить статистику платформы
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Статистика успешно получена.
+   *       403:
+   *         description: Доступ запрещен.
+   *       500:
+   *         description: Ошибка сервера.
+   */
+  router.get('/stats', protect, isModOrAdmin, async (req, res) => {
+    try {
+      // Основные счетчики
+      const [
+        totalUsers,
+        totalRequests,
+        completedRequests,
+        totalMessages,
+        totalReports,
+        openReports
+      ] = await Promise.all([
+        User.countDocuments(),
+        Request.countDocuments(),
+        Request.countDocuments({ status: 'completed' }),
+        Message.countDocuments(),
+        Report.countDocuments(),
+        Report.countDocuments({ status: 'open' })
+      ]);
+
+      // Агрегированные данные для графиков
+      
+      // Распределение заявок по предметам
+      const requestsBySubject = await Request.aggregate([
+        { $match: { subject: { $ne: null } } }, // Исключаем заявки без предмета
+        { $group: { _id: "$subject", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]);
+      
+      // Динамика регистраций за последние 7 дней
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const registrationsByDay = await User.aggregate([
+        { $match: { createdAt: { $gte: sevenDaysAgo } } },
+        { 
+          $group: { 
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, 
+            count: { $sum: 1 } 
+          } 
+        },
+        { $sort: { _id: 1 } }
+      ]);
+
+      res.status(200).json({
+        general: {
+          totalUsers,
+          totalRequests,
+          completedRequests,
+          totalMessages,
+          totalReports,
+          openReports
+        },
+        charts: {
+          requestsBySubject,
+          registrationsByDay
+        }
+      });
+    } catch (error) {
+      console.error('Ошибка при сборе статистики:', error);
+      res.status(500).json({ msg: 'Ошибка сервера при сборе статистики' });
+    }
+  });
 
   // Блокировка пользователя
   router.post('/ban', protect, isModOrAdmin, async (req, res) => {
