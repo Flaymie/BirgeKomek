@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileMeRedirector from './components/auth/ProfileMeRedirector';
@@ -162,19 +162,17 @@ const AppContent = () => {
 // Главный компонент приложения с правильной структурой
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <SocketProvider>
-            <CommandPaletteProvider>
-                <Toaster
-                  position="top-center"
-                  reverseOrder={false}
-                />
-                <AppInitializer />
-            </CommandPaletteProvider>
-        </SocketProvider>
-      </AuthProvider>
-    </Router>
+    <AuthProvider>
+      <SocketProvider>
+          <CommandPaletteProvider>
+              <Toaster
+                position="top-center"
+                reverseOrder={false}
+              />
+              <AppInitializer />
+          </CommandPaletteProvider>
+      </SocketProvider>
+    </AuthProvider>
   );
 }
 

@@ -77,12 +77,6 @@ const CommandPalette = () => {
       category: 'Информация',
     },
     {
-        name: 'Помощь',
-        action: () => navigate('/help'),
-        icon: <LifeBuoy className="h-5 w-5" />,
-        category: 'Информация',
-    },
-    {
       name: 'Выйти',
       action: () => {
         logout();
@@ -104,8 +98,10 @@ const CommandPalette = () => {
   const availableCommands = filteredCommands.filter(cmd => !cmd.requiresAuth || (cmd.requiresAuth && user));
 
   const handleSelect = (command) => {
-    command.action();
-    closePalette();
+    if (command) {
+      command.action();
+      closePalette();
+    }
   };
   
   // Reset query when palette is opened/closed
