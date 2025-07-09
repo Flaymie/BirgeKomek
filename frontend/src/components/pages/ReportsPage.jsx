@@ -78,48 +78,57 @@ const ReportsPage = () => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({ search: '', status: 'all' });
+    const [filters, setFilters] = useState({ search: '', status: 'open' });
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalReports: 0,
+    });
+
+    const REPORTS_PER_PAGE = 9;
 
     useEffect(() => {
-        const fetchReports = async () => {
+        const fetchReports = async (page = 1) => {
             try {
                 setLoading(true);
-                const res = await reportsService.getAllReports();
-                setReports(res.data);
+                const params = { 
+                    page, 
+                    limit: REPORTS_PER_PAGE, 
+                    status: filters.status === 'all' ? '' : filters.status,
+                    search: filters.search 
+                };
+                const res = await reportsService.getAllReports(params);
+                setReports(res.data.reports);
+                setPagination({
+                    currentPage: res.data.currentPage,
+                    totalPages: res.data.totalPages,
+                    totalReports: res.data.totalReports
+                });
             } catch (err) {
                 console.error("Ошибка при загрузке жалоб:", err);
-                // Используем toast.error, так как он уже настроен в проекте
                 toast.error(err.response?.data?.msg || 'Не удалось загрузить жалобы.');
                 setError('Не удалось загрузить данные. Проверьте права доступа.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchReports();
-    }, []);
+        fetchReports(pagination.currentPage);
+    }, [filters, pagination.currentPage]);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prev => ({ ...prev, [name]: value }));
+        setPagination(prev => ({ ...prev, currentPage: 1 })); // Сбрасываем на 1 страницу при смене фильтра
+    };
+    
+    const handlePageChange = (newPage) => {
+        if (newPage > 0 && newPage <= pagination.totalPages) {
+            setPagination(prev => ({ ...prev, currentPage: newPage }));
+        }
     };
 
-    const filteredReports = useMemo(() => {
-        return reports
-            .filter(report => {
-                if (filters.status === 'all') return true;
-                return report.status === filters.status;
-            })
-            .filter(report => {
-                const targetName = report.targetId?.username || report.targetId?.title || '';
-                const reporterName = report.reporter?.username || '';
-                const reason = report.reason || '';
-                const lowercasedTerm = filters.search.toLowerCase();
-
-                return targetName.toLowerCase().includes(lowercasedTerm) ||
-                       reporterName.toLowerCase().includes(lowercasedTerm) ||
-                       reason.toLowerCase().includes(lowercasedTerm);
-            });
-    }, [reports, filters]);
+    // Клиентская фильтрация больше не нужна, т.к. все делается на сервере
+    const filteredReports = reports;
 
     const statusOptions = [
         { value: 'all', label: 'Все статусы' },
@@ -134,7 +143,6 @@ const ReportsPage = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Лента жалоб</h1>
-            {/* Здесь может быть кнопка, например, "Статистика" */}
         </div>
       
         <div className="bg-white rounded-xl shadow-sm p-4 mb-8">
@@ -215,7 +223,28 @@ const ReportsPage = () => {
                         <p className="text-gray-500 mt-2">Попробуйте изменить фильтры. Возможно, все чисто!</p>
                     </div>
                 )}
-                {/* Здесь можно будет добавить пагинацию */}
+
+                {pagination.totalPages > 1 && (
+                    <div className="flex justify-center items-center mt-8">
+                        <button
+                            onClick={() => handlePageChange(pagination.currentPage - 1)}
+                            disabled={pagination.currentPage === 1}
+                            className="px-4 py-2 mx-1 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Назад
+                        </button>
+                        <span className="text-sm text-gray-700 mx-4">
+                            Страница {pagination.currentPage} из {pagination.totalPages}
+                        </span>
+                        <button
+                            onClick={() => handlePageChange(pagination.currentPage + 1)}
+                            disabled={pagination.currentPage === pagination.totalPages}
+                            className="px-4 py-2 mx-1 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Вперед
+                        </button>
+                    </div>
+                )}
             </>
         )}
       </div>

@@ -89,7 +89,6 @@ const SendNotificationModal = ({ isOpen, onClose, recipient, onNotificationSent 
         className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
           <div className="flex items-center gap-4">
             <div className="bg-blue-100 text-blue-600 p-2.5 rounded-lg">
@@ -105,7 +104,6 @@ const SendNotificationModal = ({ isOpen, onClose, recipient, onNotificationSent 
           </button>
         </div>
 
-        {/* Body */}
         <div className="overflow-y-auto p-5 space-y-4">
           <div>
             <label htmlFor="template-select" className="block text-sm font-medium text-gray-700 mb-1">Шаблоны</label>
@@ -161,7 +159,6 @@ const SendNotificationModal = ({ isOpen, onClose, recipient, onNotificationSent 
           </div>
         </div>
         
-        {/* Footer */}
         <div className="flex justify-end items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl gap-3">
           <button
             type="button"

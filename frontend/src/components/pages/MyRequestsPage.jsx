@@ -21,7 +21,7 @@ const MyRequestsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
-  const [activeTab, setActiveTab] = useState('published'); // 'published' или 'drafts'
+  const [activeTab, setActiveTab] = useState('published');
   
   const [filters, setFilters] = useState({
     subject: '',
@@ -93,15 +93,10 @@ const MyRequestsPage = () => {
       return;
     }
     try {
-      // Предполагаем, что у сервиса есть метод для удаления
       await requestsService.deleteRequest(requestId);
       setRequests(prevRequests => prevRequests.filter(r => r._id !== requestId));
-      // Если используете toast-уведомления:
-      // import { toast } from 'react-toastify';
-      // toast.success('Черновик успешно удален');
     } catch (err) {
       console.error('Ошибка при удалении черновика:', err);
-      // toast.error('Не удалось удалить черновик');
     }
   };
 

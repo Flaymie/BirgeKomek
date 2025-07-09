@@ -18,7 +18,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const timeUnits = [
     { value: 'hours', label: 'Часов', multiplier: 1 },
     { value: 'days', label: 'Дней', multiplier: 24 },
-    { value: 'months', label: 'Месяцев', multiplier: 720 } // 30 дней * 24 часа
+    { value: 'months', label: 'Месяцев', multiplier: 720 }
   ];
   
   // Получить максимальное значение для текущей единицы времени
@@ -82,8 +82,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
     if (isPermanent) {
       finalDuration = 'permanent';
     } else {
-      const unitChar = timeUnit.charAt(0); // 'h' for hours, 'd' for days, 'm' for months
-      // Для месяцев используем 'M', так как 'm' может быть для минут в будущем
+      const unitChar = timeUnit.charAt(0);
       const finalUnitChar = unitChar === 'm' ? 'M' : unitChar;
       finalDuration = `${duration}${finalUnitChar}`;
     }

@@ -95,7 +95,7 @@ const subjectOptions = [
   { value: 'Другое', label: 'Другое' },
 ];
 
-// === НОВАЯ ФУНКЦИЯ ФОРМАТИРОВАНИЯ ТЕЛЕФОНА ---
+// НОВАЯ ФУНКЦИЯ ФОРМАТИРОВАНИЯ ТЕЛЕФОНА
 const formatPhoneNumber = (phone) => {
   if (!phone) return '';
   const phoneNumber = parsePhoneNumberFromString(phone, 'KZ'); // KZ - Казахстан как страна по умолчанию
@@ -105,7 +105,7 @@ const formatPhoneNumber = (phone) => {
   return phone; // Возвращаем как есть, если не распознали
 };
 
-// === НОВЫЙ КОМПОНЕНТ СТАТИСТИКИ ===
+// НОВЫЙ КОМПОНЕНТ СТАТИСТИКИ
 const ProfileStats = ({ profile }) => {
   if (!profile || !profile.roles) return null;
 
@@ -177,7 +177,7 @@ const BanInfo = ({ banDetails }) => {
   );
 };
 
-// === ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ ===
+// ОБНОВЛЕННЫЙ КОМПОНЕНТ ПРОСМОТРА ПРОФИЛЯ
 const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotify, isMyProfile, onAvatarClick, onReport }) => {
   if (!profile) return null;
   
@@ -344,7 +344,7 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
   );
 };
 
-// === ИСПРАВЛЕННЫЙ КОМПОНЕНТ РЕДАКТИРОВАНИЯ ПРОФИЛЯ ===
+// ИСПРАВЛЕННЫЙ КОМПОНЕНТ РЕДАКТИРОВАНИЯ ПРОФИЛЯ
 const ProfileEditor = ({ 
   profileData, 
   profileErrors, 
@@ -387,7 +387,6 @@ const ProfileEditor = ({
           </p>
             </div>
             
-        {/* Main Form Card */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
             <form onSubmit={handleProfileSubmit} className="space-y-8">
               {profileSuccess && (
@@ -412,7 +411,6 @@ const ProfileEditor = ({
                 </div>
               )}
               
-            {/* Аватар по центру */}
             <div className="flex justify-center">
               <AvatarUpload 
                 currentAvatar={formatAvatarUrl(profileData)}
@@ -577,7 +575,6 @@ const ProfileEditor = ({
               </div>
             </div>
             
-            {/* Предметы для хелперов */}
               {currentUser.roles && currentUser.roles.helper && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">
@@ -625,7 +622,6 @@ const ProfileEditor = ({
                 </button>
             </form>
 
-          {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300" />
@@ -635,7 +631,6 @@ const ProfileEditor = ({
             </div>
           </div>
 
-          {/* Telegram Block */}
                 {currentUser.telegramId ? (
             <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
                         <div className="flex items-center">
@@ -704,7 +699,6 @@ const ProfileEditor = ({
                     </div>
                 )}
 
-          {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300" />
@@ -714,7 +708,6 @@ const ProfileEditor = ({
             </div>
             </div>
 
-          {/* Danger Zone */}
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center">
                     <div className="flex-grow mb-3 sm:mb-0">
@@ -763,8 +756,6 @@ const ProfilePage = () => {
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [actionError, setActionError] = useState('');
   const [isReportLoading, setNotificationModalOpen] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -781,7 +772,6 @@ const ProfilePage = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [viewerImageSrc, setViewerImageSrc] = useState(null);
   
-  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
   const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
   const [modActionCallback, setModActionCallback] = useState(null);
   const [modActionLoading, setModActionLoading] = useState(false);
@@ -800,7 +790,7 @@ const ProfilePage = () => {
       setIsUsernameChangeBlocked(false);
       setNextUsernameChangeDate(null);
 
-      // --- Логика блокировки смены ника ---
+      // Логика блокировки смены ника
       if (userData && userData.lastUsernameChange) {
           const lastChange = new Date(userData.lastUsernameChange);
           const now = new Date();
@@ -828,13 +818,13 @@ const ProfilePage = () => {
     } 
     else if (!authLoading) {
       if (currentUser) {
-        // --- ИСПРАВЛЕНИЕ: Устанавливаем и profile, и profileData ---
+        // ИСПРАВЛЕНИЕ: Устанавливаем и profile, и profileData
         setProfile({ ...currentUser });
         setProfileData({ ...currentUser });
         setIsMyProfile(true);
         setLoading(false);
 
-        // --- ИСПРАВЛЕНИЕ: Добавляем логику кулдауна для своего профиля ---
+        // ИСПРАВЛЕНИЕ: Добавляем логику кулдауна для своего профиля
         setIsUsernameChangeBlocked(false);
         setNextUsernameChangeDate(null);
 
@@ -886,7 +876,7 @@ const ProfilePage = () => {
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     
-    // --- ИСПРАВЛЕНИЕ: Добавляем проверку на read-only режим ---
+    // ИСПРАВЛЕНИЕ: Добавляем проверку на read-only режим
     if (checkAndShowModal()) {
       return; // Если юзер в ридонли, прерываем выполнение
     }
@@ -960,7 +950,6 @@ const ProfilePage = () => {
     // Эта функция вызывается из первой модалки (с вводом ника)
     setIsDeletingLoading(true);
     try {
-      // Это теперь шаг 1: запрос кода
       const res = await usersService.requestAccountDeletion();
       
       // Если бэкенд ответил, что ждет подтверждения

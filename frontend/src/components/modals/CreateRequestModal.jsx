@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
+import React, { useState, useEffect, useRef } from 'react';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS } from '../../services/constants';
 import { motion } from 'framer-motion';
-import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon, PaperClipIcon, ArrowUpTrayIcon, ServerIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon, ServerIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
-import FileUploader from '../shared/FileUploader'; // <-- ИМПОРТИРУЕМ ОБЩИЙ КОМПОНЕНТ
+import FileUploader from '../shared/FileUploader';
 
 const MAX_TITLE_LENGTH = 100;
 const MIN_TITLE_LENGTH = 5;
@@ -21,10 +20,9 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ФАЙЛОВ ---
-  const [newFiles, setNewFiles] = useState([]); // Новые, только что добавленные файлы
-  const [existingAttachments, setExistingAttachments] = useState([]); // Файлы, которые уже были в черновике
-  const [attachmentsToDelete, setAttachmentsToDelete] = useState([]); // Имена файлов на удаление
+  const [newFiles, setNewFiles] = useState([]);
+  const [existingAttachments, setExistingAttachments] = useState([]);
+  const [attachmentsToDelete, setAttachmentsToDelete] = useState([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -118,7 +116,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
             if (onSuccess) onSuccess(response?.data);
         } else {
             toast.success('Черновик успешно сохранен!');
-            if (onSuccess) onSuccess(); // Обновляем данные на предыдущей странице
+            if (onSuccess) onSuccess();
         }
       } else {
         newFiles.forEach(file => {
@@ -161,7 +159,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
     setExistingAttachments(prev => prev.filter(att => att.filename !== filename));
   };
 
-  const totalAttachments = existingAttachments.length + newFiles.length;
   const titleRemainingChars = MAX_TITLE_LENGTH - formData.title.length;
   const descriptionRemainingChars = MAX_DESCRIPTION_LENGTH - formData.description.length;
   const titleCharCounterClass = titleRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
@@ -179,7 +176,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
           onClick={e => e.stopPropagation()}
           ref={modalRef}
         >
-          {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-lg">
@@ -195,7 +191,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
             </button>
           </div>
           
-          {/* Form Body */}
           <div className="overflow-y-auto p-5 space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1">
@@ -235,7 +230,6 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
                 </div>
               </div>
 
-              {/* --- DROPZONE ДЛЯ ФАЙЛОВ --- */}
               <div>
                 {isEditing && existingAttachments.length > 0 && (
                   <div className="mb-4">
@@ -267,10 +261,9 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
               </div>
           </div>
 
-          {/* Footer */}
+
 <div className="flex justify-between items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
   
-  {/* Левая сторона: Действия с черновиком (только при редактировании) */}
   <div className="flex items-center gap-3">
     {isEditing && (
       <>
@@ -296,9 +289,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
     )}
   </div>
 
-  {/* Правая сторона: Основные действия */}
   <div className="flex items-center gap-3">
-    {/* Кнопка "В черновик" (только при создании) */}
     {!isEditing && (
       <button
         type="button"

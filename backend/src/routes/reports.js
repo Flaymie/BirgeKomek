@@ -259,18 +259,58 @@ export default ({ io }) => {
    *         description: Ошибка сервера.
    */
   router.get('/', protect, isModOrAdmin, async (req, res) => {
-      try {
-          const reports = await Report.find()
-              .populate('reporter', 'username avatar')
-              .populate('targetId') // Mongoose сам разберется, из какой коллекции брать
-              .sort({ createdAt: -1 });
+    try {
+        const { page = 1, limit = 9, status, search } = req.query;
 
-          res.json(reports);
-      } catch (error) {
-          console.error(error);
-          res.status(500).json({ msg: 'Ошибка сервера при получении жалоб' });
-      }
-  });
+        const query = {};
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        if (search) {
+            // Эта часть сложная, так как поиск идет по популированным полям.
+            // Мы не можем напрямую искать по `targetId.username` в `Report.find()`.
+            // Сначала найдем ID подходящих пользователей и заявок, а потом используем их в основном запросе.
+            
+            const searchRegex = new RegExp(search, 'i');
+            
+            const matchingUsers = await User.find({ username: searchRegex }).select('_id');
+            const matchingUserIds = matchingUsers.map(u => u._id);
+
+            const matchingRequests = await Request.find({ title: searchRegex }).select('_id');
+            const matchingRequestIds = matchingRequests.map(r => r._id);
+
+            const matchingTargetIds = [...matchingUserIds, ...matchingRequestIds];
+            
+            query.$or = [
+                { reason: searchRegex },
+                { category: searchRegex },
+                { targetId: { $in: matchingTargetIds } } 
+            ];
+        }
+
+        const reports = await Report.find(query)
+            .populate('reporter', 'username avatar')
+            .populate('targetId', 'username title')
+            .limit(parseInt(limit))
+            .skip((parseInt(page) - 1) * parseInt(limit))
+            .sort({ createdAt: -1 });
+
+        const totalReports = await Report.countDocuments(query);
+        const totalPages = Math.ceil(totalReports / limit);
+
+        res.json({
+            reports,
+            currentPage: parseInt(page),
+            totalPages,
+            totalReports
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ msg: 'Ошибка сервера при получении жалоб' });
+    }
+});
 
   /**
    * @swagger

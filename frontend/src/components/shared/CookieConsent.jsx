@@ -36,7 +36,6 @@ const CookieConsent = () => {
         };
         localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
         setIsVisible(false);
-        // Тут можно будет добавить логику для инициализации аналитики, если settings.analytics === true
     };
 
     const handleCustomize = () => {

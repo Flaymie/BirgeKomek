@@ -82,7 +82,7 @@ const AvatarUpload = ({ currentAvatar, onAvatarChange, size = 'md', editable = t
   };
 
   const handleRemoveAvatar = (e) => {
-    e.stopPropagation(); // Предотвращаем всплытие события
+    e.stopPropagation();
     setPreviewUrl(null);
     onAvatarChange('');
   };

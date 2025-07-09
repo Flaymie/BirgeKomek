@@ -2,30 +2,25 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FiFileText, FiAlertTriangle } from 'react-icons/fi';
 
-// Компонент для секции
 const Section = ({ children, className = '' }) => (
   <section className={`py-16 sm:py-24 ${className}`}>
     <div className="container-custom">{children}</div>
   </section>
 );
 
-// Компонент для заголовка секции контента
 const ContentHeader = ({ children }) => (
   <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 border-l-4 border-primary-500 pl-4">
     {children}
   </h2>
 );
 
-// Компонент для параграфа
 const P = ({ children }) => <p className="text-lg text-gray-700 mb-6 leading-relaxed">{children}</p>;
 
-// Компонент для списка
 const Ul = ({ children }) => <ul className="list-disc pl-6 mb-6 space-y-3 text-lg text-gray-700">{children}</ul>;
 
 const TermsPage = () => {
   return (
     <div className="bg-white">
-      {/* HERO */}
       <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-primary-800">
         <div className="absolute inset-0 bg-pattern opacity-10"></div>
         <div className="relative container-custom text-center py-20 sm:py-28">
@@ -39,7 +34,6 @@ const TermsPage = () => {
         </div>
       </div>
 
-      {/* Основной контент */}
       <Section>
         <div className="max-w-4xl mx-auto page-fade-in">
           <P><strong>Последнее обновление:</strong> 8 июля 2025 года</P>

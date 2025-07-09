@@ -28,7 +28,6 @@ const EditRequestPage = () => {
   const [errors, setErrors] = useState({});
   const editReason = location.state?.editReason || '';
 
-  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ФАЙЛОВ ---
   const [newFiles, setNewFiles] = useState([]);
   const [existingAttachments, setExistingAttachments] = useState([]);
   const [attachmentsToDelete, setAttachmentsToDelete] = useState([]);

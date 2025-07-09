@@ -75,8 +75,6 @@ const UserDashboard = () => {
     }, [fetchData]);
 
     const handleRequestCreated = () => {
-        // The modal shows its own success toast.
-        // We just refetch the data to update the dashboard silently.
         fetchData();
     };
 

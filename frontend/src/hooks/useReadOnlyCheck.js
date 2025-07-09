@@ -9,9 +9,9 @@ export const useReadOnlyCheck = () => {
   const checkAndShowModal = () => {
     if (isReadOnly) {
       setShowModal(true);
-      return true; // Возвращаем true, если пользователь "только для чтения"
+      return true;
     }
-    return false; // Возвращаем false, если все в порядке
+    return false;
   };
 
   const ReadOnlyModal = () => (

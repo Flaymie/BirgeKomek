@@ -121,7 +121,6 @@ const NotificationsPage = () => {
     fetchAndMarkNotifications();
   }, []);
 
-  // --- СЛУШАЕМ СОКЕТ ---
   useEffect(() => {
     if (!socket) return;
 

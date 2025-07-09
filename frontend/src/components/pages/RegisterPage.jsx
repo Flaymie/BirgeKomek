@@ -155,9 +155,9 @@ const RegisterPage = () => {
         return;
     }
     
-    if (debouncedUsername.length > 20) {
+    if (debouncedUsername.length > 10) {
         setUsernameStatus('unavailable');
-        setUsernameError('Имя пользователя не должно превышать 20 символов');
+        setUsernameError('Имя пользователя не должно превышать 10 символов');
         return;
     }
 
@@ -211,8 +211,8 @@ const RegisterPage = () => {
       newErrors.username = 'Введите никнейм';
     } else if (username.length < 3) {
       newErrors.username = 'Никнейм должен быть не менее 3 символов';
-    } else if (username.length > 20) {
-      newErrors.username = 'Никнейм должен быть не более 20 символов';
+    } else if (username.length > 10) {
+      newErrors.username = 'Никнейм должен быть не более 10 символов';
     }
     
     if (!password) {
@@ -280,7 +280,6 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 animate-gradient-x">
       <div className="w-full max-w-2xl">
-        {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-3xl mb-6 shadow-md">
             <HiOutlineUserGroup className="w-8 h-8 text-indigo-600" />
@@ -293,7 +292,6 @@ const RegisterPage = () => {
         </p>
       </div>
 
-        {/* Main Form Card */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
           <form className="space-y-8" onSubmit={onSubmit}>
             {error && (
@@ -305,7 +303,6 @@ const RegisterPage = () => {
               </div>
             )}
             
-            {/* Аватар по центру */}
             <div className="flex justify-center">
               <AvatarUpload 
                 onAvatarChange={handleAvatarChange} 
@@ -315,7 +312,6 @@ const RegisterPage = () => {
               />
             </div>
 
-            {/* Имя пользователя */}
             <div className="space-y-2">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                 Имя пользователя
@@ -351,7 +347,6 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* Пароль */}
             <div className="space-y-2">
               <label
                 htmlFor="password"
@@ -397,7 +392,6 @@ const RegisterPage = () => {
                <PasswordStrengthMeter score={passwordScore} />
             </div>
 
-            {/* Подтверждение пароля */}
             <div className="space-y-2">
               <label
                 htmlFor="password2"
@@ -442,7 +436,6 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* Выбор роли через карточки */}
             <div className="space-y-4">
               <label className="block text-sm font-medium text-gray-700">Кто вы?</label>
               <div className="grid grid-cols-2 gap-4">
@@ -487,7 +480,6 @@ const RegisterPage = () => {
                 </div>
               </div>
 
-              {/* Выбор класса */}
               {(role === 'student' || role === 'helper') && (
                 <div className="space-y-2 mt-4">
                   <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
@@ -519,7 +511,6 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              {/* Выбор предметов через карточки */}
               {role === 'helper' && (
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700">
@@ -569,7 +560,6 @@ const RegisterPage = () => {
               )}
             </button>
 
-            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300" />
@@ -590,7 +580,6 @@ const RegisterPage = () => {
           </form>
         </div>
         
-        {/* Login Link */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600">
             Уже есть аккаунт?{' '}

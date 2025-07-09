@@ -25,7 +25,6 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
       setIsLoading(false);
       setLoginToken('');
       setIsCompleted(false);
-      // Очистка интервала, если модальное окно было закрыто до завершения
       if (intervalId) clearInterval(intervalId);
       return;
     }
@@ -76,7 +75,6 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
 
     startLoginProcess();
 
-    // Очистка при размонтировании компонента
     return () => {
       if (intervalId) {
         clearInterval(intervalId);

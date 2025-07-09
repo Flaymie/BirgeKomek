@@ -7,29 +7,25 @@ const AttachmentModal = ({ file, onClose }) => {
   const [isZoomed, setIsZoomed] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   
-  // Эффект для плавного появления/исчезновения
   useEffect(() => {
     if (file) {
-      // Даем микро-задержку, чтобы React успел отрендерить компонент с opacity-0
       const timer = setTimeout(() => setIsVisible(true), 50);
       return () => clearTimeout(timer);
     }
   }, [file]);
   
-  // Обновленная функция закрытия с учетом анимации
   const handleClose = useCallback(() => {
     setIsVisible(false);
-    setTimeout(onClose, 300); // Ждем завершения анимации (duration-300)
+    setTimeout(onClose, 300);
   }, [onClose]);
 
-  // Закрытие по клавише Escape, с учетом зума и анимации
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
         if (isZoomed) {
-          setIsZoomed(false); // Сначала убираем зум
+          setIsZoomed(false);
         } else {
-          handleClose(); // Потом закрываем с анимацией
+          handleClose();
         }
       }
     };
@@ -39,7 +35,6 @@ const AttachmentModal = ({ file, onClose }) => {
     };
   }, [isZoomed, handleClose]);
 
-  // Сбрасываем зум при смене файла
   useEffect(() => {
     setIsZoomed(false);
   }, [file]);
@@ -51,7 +46,7 @@ const AttachmentModal = ({ file, onClose }) => {
   return (
     <div 
       className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out ${isVisible ? 'bg-opacity-80' : 'bg-opacity-0'}`}
-      onClick={handleClose} // Закрытие по клику на фон
+      onClick={handleClose}
     >
         {/* Изображение с новыми классами и анимацией */}
         <img 

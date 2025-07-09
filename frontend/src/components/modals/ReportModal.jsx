@@ -79,7 +79,6 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
           className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col"
           onClick={e => e.stopPropagation()}
         >
-          {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-red-100 text-red-600 p-2.5 rounded-lg">
@@ -97,7 +96,6 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
             </button>
           </div>
 
-          {/* Body */}
           <div className="overflow-y-auto p-5 space-y-4">
             {error && (
               <div className="bg-red-50 p-3 rounded-lg border border-red-200 text-sm text-red-700">
@@ -121,7 +119,6 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
                   maxLength={MAX_REASON_LENGTH}
               />
             </div>
-             {/* Загрузка файлов */}
              <div>
                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Прикрепить доказательства (до {MAX_FILES} изображений)
@@ -141,7 +138,6 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
              </div>
           </div>
           
-          {/* Footer */}
           <div className="flex justify-end items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl gap-3">
             <button
               type="button"

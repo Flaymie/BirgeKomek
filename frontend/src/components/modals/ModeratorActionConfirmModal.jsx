@@ -8,7 +8,7 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
 
   useEffect(() => {
     if (isOpen) {
-      setCode(''); // Сбрасываем код при каждом открытии
+      setCode('');
       modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isOpen]);

@@ -31,9 +31,9 @@ import axios from 'axios';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
 import StatusBadge from '../shared/StatusBadge';
-import { isSameDay, formatDateSeparator } from '../../utils/dateHelpers'; // <-- ИМПОРТ
+import { isSameDay, formatDateSeparator } from '../../utils/dateHelpers';
 
-// Создаем инстанс api прямо здесь для костыльного решения
+// Создаем инстанс api прямо здесь
 const api = axios.create({
   baseURL: baseURL,
   withCredentials: true,
@@ -52,9 +52,6 @@ api.interceptors.request.use(
   }
 );
 
-// --- Хелперы для отображения вложений ---
-
-// Форматируем размер файла
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -90,7 +87,6 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
   };
 
   if (isImage) {
-    // Просто показываем картинку, без всяких заглушек
     return (
       <div onClick={() => onImageClick(file)} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
         <img src={fileUrl} alt={file.fileName} className="w-full h-auto object-cover" />
@@ -150,7 +146,6 @@ const MessageContent = ({ text, isOwnMessage }) => {
     );
   }
 
-  // Обрезаем текст (очень простой способ, можно улучшить)
   const truncatedText = text.split('\n').slice(0, 7).join('\n');
 
   return (
@@ -251,8 +246,8 @@ const ChatPage = () => {
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
-  const [ratingContext, setRatingContext] = useState('complete'); // 'complete' или 'reopen'
-  const [isArchived, setIsArchived] = useState(false); // Новое состояние для архива
+  const [ratingContext, setRatingContext] = useState('complete');
+  const [isArchived, setIsArchived] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
 
@@ -266,16 +261,13 @@ const ChatPage = () => {
   const handleScroll = useCallback(() => {
     const chatContainer = chatContainerRef.current;
     if (!chatContainer) return;
-    // Кнопка появляется, если мы НЕ у самого низа (отступ < 100px)
     const nearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
     setShowScrollDown(!nearBottom);
   }, []);
 
-  // --- Стейты для полных профилей ---
   const [authorProfile, setAuthorProfile] = useState(null);
   const [helperProfile, setHelperProfile] = useState(null);
 
-  // --- Эффект для подгрузки полных профилей ---
   useEffect(() => {
     const fetchFullUserData = async (user, setUserProfile) => {
       if (!user?._id) return;
@@ -296,10 +288,9 @@ const ChatPage = () => {
     }
   }, [requestDetails]);
 
-  // --- Общий обработчик добавления файла (и для дропзоны и для инпута) ---
   const handleFileAdded = useCallback((file) => {
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10 MB лимит
+      if (file.size > 10 * 1024 * 1024) {
         toast.error('Размер файла не должен превышать 10 МБ');
         return;
       }
@@ -307,9 +298,7 @@ const ChatPage = () => {
     }
   }, []);
 
-  // --- Настройка Dropzone (ВОЗВРАЩАЮ НА МЕСТО) ---
   const onDrop = useCallback((acceptedFiles) => {
-    // Берем только первый файл
     const file = acceptedFiles[0];
     handleFileAdded(file);
   }, [handleFileAdded]);
@@ -364,7 +353,6 @@ const ChatPage = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // --- ОБРАБОТЧИКИ ДЛЯ SOCKET.IO, вынесены для стабильности ---
   const handleNewMessage = useCallback((message) => {
     if (message.requestId === requestId) {
       setMessages((prevMessages) => [...prevMessages, message]);
@@ -397,14 +385,11 @@ const ChatPage = () => {
     toast.error('Не удалось подключиться к чату.');
   }, []);
 
-  // --- ЕДИНЫЙ useEffect ДЛЯ ВСЕЙ ЛОГИКИ SOCKET.IO ---
   useEffect(() => {
     if (!socket || !requestId) return;
 
-    // 1. Присоединяемся к комнате чата
     socket.emit('join_chat', requestId);
 
-    // 2. ПОМЕТКА СООБЩЕНИЙ КАК ПРОЧИТАННЫХ
     const markMessagesAsRead = async () => {
       try {
         await messagesService.markAsRead(requestId);
@@ -414,18 +399,15 @@ const ChatPage = () => {
     };
     markMessagesAsRead();
     
-    // 3. Подписываемся на события
     socket.on('new_message', handleNewMessage);
     socket.on('message_updated', handleUpdateMessage);
     socket.on('typing_started', handleTypingBroadcast);
     socket.on('typing_stopped', handleTypingBroadcast);
     socket.on('connect_error', handleConnectError);
 
-    // 4. Отписка при выходе
     return () => {
       socket.emit('leave_chat', requestId);
 
-      // Отписываемся от всех событий, чтобы избежать утечек памяти
       socket.off('new_message', handleNewMessage);
       socket.off('message_updated', handleUpdateMessage);
       socket.off('typing_started', handleTypingBroadcast);
@@ -434,11 +416,8 @@ const ChatPage = () => {
     };
   }, [socket, requestId, currentUser, handleNewMessage, handleUpdateMessage, handleTypingBroadcast, handleConnectError]);
 
-  // Скролл чата и страницы вниз после загрузки
   useEffect(() => {
     if (!loading) {
-      // Самый надежный способ - скролл к конкретному элементу.
-      // Таймаут с 0 задержкой выполнит код после того, как React закончит все свои дела с рендерингом.
       setTimeout(() => {
         scrollToBottom('auto');
         footerRef.current?.scrollIntoView({ behavior: "auto" });
@@ -588,7 +567,7 @@ const ChatPage = () => {
     setIsRatingModalOpen(true); // Все равно открываем модалку для оценки
   };
 
-  // Шаг 3: Отправка отзыва и изменение статуса заявки
+  // Отправка отзыва и изменение статуса заявки
   const handleCompleteOrReopen = async (rating, comment) => {
     if (hasSubmittedReview) {
       toast.warn('Вы уже отправили отзыв.');
@@ -600,7 +579,6 @@ const ChatPage = () => {
       
       const isResolved = ratingContext === 'complete';
 
-      // 1. Отправляем отзыв через сервис, как и должно быть
       await reviewsService.createReview({ 
         requestId, 
         rating, 
@@ -609,23 +587,20 @@ const ChatPage = () => {
       });
       toast.success('Спасибо за ваш отзыв!');
 
-      // 2. Меняем статус заявки в зависимости от контекста
       if (ratingContext === 'complete') {
-        // Завершаем заявку
         await requestsService.updateRequestStatus(requestId, 'completed');
         toast.success('Заявка успешно завершена!');
-        // Обновляем локально статус, чтобы UI стал неактивным
         setRequestDetails(prev => ({...prev, status: 'completed'}));
         window.location.reload();
-      } else { // 'reopen'
+      } else {
         const response = await requestsService.reopenRequest(requestId);
         toast.success(response.data.msg || 'Заявка снова в поиске!');
-        navigate('/requests'); // Перенаправляем на страницу всех заявок
+        navigate('/requests');
       }
     } catch (err) {
       toast.error(err.response?.data?.msg || 'Произошла ошибка');
       console.error(err);
-      setHasSubmittedReview(false); // Позволяем попробовать еще раз
+      setHasSubmittedReview(false);
     }
   };
 
@@ -698,9 +673,7 @@ const ChatPage = () => {
     }
   };
 
-  // --- КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ПЕЧАТАЮЩИХ ---
   const TypingIndicator = () => {
-    // ИСПРАВЛЕНО: используем Object.keys для получения имен
     const users = Object.keys(typingUsers);
     
     if (users.length === 0) return null;

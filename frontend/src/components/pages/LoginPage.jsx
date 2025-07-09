@@ -110,7 +110,6 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 py-12 px-4">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-2xl mb-6">
             <HiOutlineUser className="w-8 h-8 text-indigo-600" />
@@ -123,7 +122,6 @@ const LoginPage = () => {
           </p>
         </div>
 
-        {/* Messages */}
         {authMessage && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <div className="flex items-start">
@@ -133,7 +131,6 @@ const LoginPage = () => {
           </div>
         )}
 
-        {/* Main Form Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {generalError && (
@@ -145,7 +142,6 @@ const LoginPage = () => {
               </div>
             )}
 
-            {/* Username Field */}
             <div className="space-y-2">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                 Никнейм
@@ -176,7 +172,6 @@ const LoginPage = () => {
               )}
             </div>
 
-            {/* Password Field */}
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Пароль
@@ -218,7 +213,6 @@ const LoginPage = () => {
               )}
             </div>
 
-            {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
               <label className="flex items-center">
                 <input
@@ -239,7 +233,6 @@ const LoginPage = () => {
               </Link>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -255,7 +248,6 @@ const LoginPage = () => {
               )}
             </button>
 
-            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300" />
@@ -265,7 +257,6 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {/* Telegram Button */}
             <button
               type="button"
               onClick={() => setIsTelegramModalOpen(true)}
@@ -277,7 +268,6 @@ const LoginPage = () => {
           </form>
         </div>
 
-        {/* Register Link */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600">
             Нет аккаунта?{' '}

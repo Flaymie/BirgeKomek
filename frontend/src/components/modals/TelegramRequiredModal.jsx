@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { XMarkIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
-import Modal from './Modal'; // Используем кастомный компонент модалки
+import Modal from './Modal';
 
 const TelegramRequiredModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();

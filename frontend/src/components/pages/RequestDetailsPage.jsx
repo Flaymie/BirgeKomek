@@ -34,7 +34,7 @@ const Lightbox = ({ imageUrl, onClose }) => {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.8, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()} // Остановка всплытия, чтобы клик по картинке не закрывал ее
+        onClick={(e) => e.stopPropagation()}
       />
     </div>
   );
@@ -61,12 +61,12 @@ const RequestDetailPage = () => {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ ---
+  // НОВЫЕ СТЕЙТЫ ДЛЯ ПОДТВЕРЖДЕНИЯ
   const [isConfirmingModAction, setIsConfirmingModAction] = useState(false);
   const [modActionArgs, setModActionArgs] = useState(null);
   const [modActionLoading, setModActionLoading] = useState(false);
 
-  // --- НОВАЯ ЛОГИКА ДЛЯ ВЛОЖЕНИЙ ---
+  // НОВАЯ ЛОГИКА ДЛЯ ВЛОЖЕНИЙ
   const isImageFile = (fileName = '') => {
     const imageExtensions = ['.png', '.jpg', '.jpeg', ' .gif', '.webp'];
     const fileExtension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
@@ -82,14 +82,14 @@ const RequestDetailPage = () => {
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
 
-  // --- НОВЫЙ СТЕЙТ ДЛЯ ПОЛНЫХ ДАННЫХ ЮЗЕРОВ ---
+  // НОВЫЙ СТЕЙТ ДЛЯ ПОЛНЫХ ДАННЫХ ЮЗЕРОВ
   const [authorProfile, setAuthorProfile] = useState(null);
   const [helperProfile, setHelperProfile] = useState(null);
 
-  // --- НОВЫЙ СТЕЙТ ДЛЯ ПРОФИЛЕЙ ИЗ ОТКЛИКОВ ---
+  // НОВЫЙ СТЕЙТ ДЛЯ ПРОФИЛЕЙ ИЗ ОТКЛИКОВ
   const [responderProfiles, setResponderProfiles] = useState({});
 
-  // --- НОВЫЙ ЭФФЕКТ ДЛЯ ПОДГРУЗКИ ПОЛНЫХ ПРОФИЛЕЙ ---
+  // НОВЫЙ ЭФФЕКТ ДЛЯ ПОДГРУЗКИ ПОЛНЫХ ПРОФИЛЕЙ
   useEffect(() => {
     const fetchFullUserData = async (user, setUserProfile) => {
       if (!user?._id) return;
@@ -217,7 +217,6 @@ const RequestDetailPage = () => {
     navigate(`/request/${id}/edit`, { state: { editReason: reason, fromAdmin: true } });
   };
   
-  // Шаг 2: Функция, которая вызывается ПОСЛЕ ввода кода
   const confirmAdminDelete = useCallback(async (confirmationCode) => {
     if (!modActionArgs) return;
     
@@ -239,7 +238,6 @@ const RequestDetailPage = () => {
     }
   }, [id, modActionArgs, navigate]);
 
-  // Шаг 1: Функция, которая ИНИЦИИРУЕТ удаление (с модалки)
   const handleAdminDelete = async (reason) => {
     setAdminDeleteModalOpen(false); // Сразу закрываем первую модалку
     try {
@@ -310,7 +308,6 @@ const RequestDetailPage = () => {
   }, [currentUser, request, myResponse]);
 
   useEffect(() => {
-    // --- НОВЫЙ КОД ДЛЯ ПОДГРУЗКИ ПРОФИЛЕЙ ОТКЛИКНУВШИХСЯ ---
     const fetchResponderProfiles = async () => {
       if (responses.length === 0) return;
 
@@ -341,9 +338,9 @@ const RequestDetailPage = () => {
 
     fetchResponderProfiles();
 
-  }, [request, responses]); // <<< Добавляем responses в зависимость
+  }, [request, responses]);
 
-  // --- ИСПРАВЛЕНИЕ: Переменная для скрытия пустого блока "Действия" ---
+  // ИСПРАВЛЕНИЕ: Переменная для скрытия пустого блока "Действия"
   const showActionsBlock =
     request && ( // <-- ВОТ ОН, СПАСИТЕЛЬНЫЙ КРЮК
       (isAuthor && request.status === 'open') ||

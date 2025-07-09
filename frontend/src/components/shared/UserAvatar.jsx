@@ -7,11 +7,6 @@ const COLORS = [
   '#f43f5e'
 ];
 
-/**
- * Генерирует стабильный цвет на основе строки (например, ника)
- * @param {string} str - Входная строка
- * @returns {string} - HEX-код цвета
- */
 const getColorFromString = (str) => {
   if (!str) return COLORS[0];
   let hash = 0;
@@ -22,11 +17,6 @@ const getColorFromString = (str) => {
   return COLORS[index];
 };
 
-/**
- * Получает инициалы из имени пользователя
- * @param {string} name - Имя пользователя
- * @returns {string} - Две заглавные буквы
- */
 const getInitials = (name) => {
   if (!name) return '??';
   
@@ -43,16 +33,6 @@ const getInitials = (name) => {
   return name.substring(0,2).toUpperCase() || '??';
 };
 
-/**
- * Компонент для отображения аватара пользователя.
- * Если есть URL аватара - показывает картинку.
- * Если нет - генерирует fallback-аватар с инициалами и цветным фоном.
- * @param {{
- *   username: string,
- *   avatarUrl?: string,
- *   className?: string
- * }} props
- */
 const UserAvatar = ({ username, avatarUrl, className = 'w-10 h-10 text-base' }) => {
   if (avatarUrl) {
     return (

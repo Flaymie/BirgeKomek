@@ -22,7 +22,6 @@ const Header = () => {
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   
-  // --- КОСТЫЛЬ ДЛЯ ДИНАМИЧЕСКОЙ ССЫЛКИ ---
   const chatPageMatch = location.pathname.match(/^\/requests\/(.+)\/chat$/);
   const requestId = chatPageMatch ? chatPageMatch[1] : null;
   

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { jwtDecode } from 'jwt-decode'; // Нужна библиотека для декодирования токена
+import { jwtDecode } from 'jwt-decode';
 
 const TelegramCallbackPage = () => {
   const { loginWithToken } = useAuth();

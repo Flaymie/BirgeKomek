@@ -4,14 +4,12 @@ const axios = require('axios');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_URL = process.env.API_URL;
-const FRONTEND_URL = process.env.FRONTEND_URL;
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: BOT_TOKEN не найден. Пожалуйста, проверьте ваш .env файл.');
   process.exit(1);
 }
 
-// --- Хелпер для создания клавиатуры ---
 function createSubjectsKeyboard(selectedSubjects = []) {
     const getButton = (value, label) => {
         const isSelected = selectedSubjects.includes(value);
@@ -29,11 +27,9 @@ function createSubjectsKeyboard(selectedSubjects = []) {
     ]);
 }
 
-// --- Сценарий регистрации ---
 
 const registrationScene = new Scenes.WizardScene(
   'registration',
-  // Step 1: Ask for role
   (ctx) => {
     ctx.reply(
       'Добро пожаловать в регистрацию! Кем вы хотите быть на платформе?',
@@ -45,7 +41,6 @@ const registrationScene = new Scenes.WizardScene(
     ctx.wizard.state.data = {};
     return ctx.wizard.next();
   },
-  // Step 2: Ask for grade
   (ctx) => {
     if (!ctx.callbackQuery?.data.startsWith('role_')) {
         ctx.reply('Пожалуйста, выберите роль, используя кнопки выше.');
@@ -62,7 +57,6 @@ const registrationScene = new Scenes.WizardScene(
     );
     return ctx.wizard.next();
   },
-  // Step 3: Ask for subjects (for helpers) or finalize
   (ctx) => {
     const grade = parseInt(ctx.message?.text, 10);
     if (isNaN(grade) || grade < 7 || grade > 11) {
@@ -79,16 +73,13 @@ const registrationScene = new Scenes.WizardScene(
         return ctx.wizard.next();
     }
     
-    // Студенты сразу переходят к запросу номера
     ctx.reply('Отлично! Теперь, пожалуйста, поделитесь вашим номером телефона. Это нужно для верификации вашего аккаунта.', 
       Markup.keyboard([
         Markup.button.contactRequest('📱 Поделиться номером')
       ]).resize().oneTime()
     );
-    // Для студентов это будет шаг 4, поэтому мы пропускаем шаг выбора предметов
     return ctx.wizard.selectStep(ctx.wizard.cursor + 1);
   },
-  // Step 4 (для хелперов): обработка выбора предметов
   async (ctx) => {
      if (ctx.callbackQuery?.data.startsWith('subject_')) {
         const subject = ctx.callbackQuery.data.split('_')[1];
@@ -115,12 +106,10 @@ const registrationScene = new Scenes.WizardScene(
         await ctx.reply('Нажмите на кнопку ниже:', Markup.keyboard([
             Markup.button.contactRequest('📱 Поделиться номером')
         ]).resize().oneTime());
-        return ctx.wizard.next(); // Переходим к шагу получения контакта
+        return ctx.wizard.next();
      }
-     // Если пришло не то, что мы ожидали
      ctx.reply('Пожалуйста, используйте кнопки для выбора предметов.');
   },
-  // Step 5 (финальный): получение контакта и регистрация
   (ctx) => {
     if (!ctx.message?.contact?.phone_number) {
         ctx.reply('Пожалуйста, используйте кнопку, чтобы поделиться вашим номером.');
@@ -132,7 +121,6 @@ const registrationScene = new Scenes.WizardScene(
   }
 );
 
-// --- Bot Setup ---
 const bot = new Telegraf(BOT_TOKEN);
 const stage = new Scenes.Stage([registrationScene]);
 
@@ -143,7 +131,6 @@ bot.start(async (ctx) => {
   const payload = ctx.startPayload;
 
   if (!payload) {
-    // Пользователь просто нашел бота и нажал /start
     const text = 
       `👋 Привет! Это официальный бот *Birge Kömek* — платформы взаимопомощи для школьников.\n\n` +
       `🛑 Чтобы пользоваться ботом, сначала зайди на наш сайт и нажми:\n` +
@@ -155,8 +142,6 @@ bot.start(async (ctx) => {
       disable_web_page_preview: true,
     };
 
-    // Telegram не позволяет использовать localhost в кнопках.
-    // Поэтому в режиме разработки отправляем ссылку текстом, а не кнопкой.
     if (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('localhost')) {
       return ctx.reply(`${text}\n\n🔗 *Ссылка для разработки:* ${process.env.FRONTEND_URL}`, options);
     }
@@ -169,18 +154,15 @@ bot.start(async (ctx) => {
     });
   }
 
-  // --- Пользователь пришел с сайта с payload'ом ---
 
   const [action, token] = payload.split('_');
 
   if (action === 'register') {
     try {
-      // ИСПОЛЬЗУЕМ НОВЫЙ ПРАВИЛЬНЫЙ РОУТ
       const response = await axios.get(`${API_URL}/api/users/by-telegram/${ctx.from.id}`);
       if (response.data.exists) {
         return ctx.reply('Вы уже зарегистрированы. Чтобы войти, вернитесь на сайт и нажмите "Войти через Telegram".');
       }
-      // Передаем токен в сцену, чтобы потом привязать пользователя
       ctx.scene.enter('registration', { loginToken: token });
     } catch (error) {
       console.error("Ошибка при проверке пользователя для регистрации:", error.response?.data || error.message);
@@ -194,7 +176,6 @@ bot.start(async (ctx) => {
       return ctx.reply('Некорректная ссылка для входа. Пожалуйста, попробуйте снова с сайта.');
     }
     try {
-      // Этот эндпоинт свяжет сессию на сайте (по токену) с telegramId
       await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
         telegramId: ctx.from.id,
         loginToken: token 
@@ -211,9 +192,8 @@ bot.start(async (ctx) => {
     if (!token) {
         return ctx.reply('Некорректная ссылка для привязки. Пожалуйста, попробуйте снова со страницы профиля.');
     }
-    // Сохраняем данные в сессию и запрашиваем номер
     ctx.session.linkData = {
-        linkToken: payload, // payload это "link_..."
+        linkToken: payload,
         telegramId: ctx.from.id,
         telegramUsername: ctx.from.username
     };
@@ -227,7 +207,6 @@ bot.start(async (ctx) => {
   return ctx.reply('Неизвестная команда. Пожалуйста, начните с нашего сайта.');
 });
 
-// Команда /settings для управления настройками
 bot.command('settings', async (ctx) => {
   try {
     const telegramId = ctx.from.id;
@@ -253,14 +232,12 @@ bot.command('settings', async (ctx) => {
   }
 });
 
-// Обработчик для колбэков от инлайн-кнопок
 bot.on('callback_query', async (ctx) => {
     const data = ctx.callbackQuery.data;
 
     if (data === 'toggle_notifications') {
         try {
             const telegramId = ctx.from.id;
-            // ИСПРАВЛЕННЫЙ РОУТ
             const response = await axios.post(`${API_URL}/api/users/by-telegram/${telegramId}/toggle-notifications`);
             const { telegramNotificationsEnabled } = response.data;
             
@@ -285,11 +262,9 @@ bot.on('callback_query', async (ctx) => {
     }
 });
 
-// --- ОБРАБОТЧИК ПОЛУЧЕНИЯ КОНТАКТА ДЛЯ ПРИВЯЗКИ ---
 bot.on('contact', async (ctx) => {
     const { linkData } = ctx.session;
     
-    // Проверяем, что это ответ на запрос привязки
     if (linkData && linkData.linkToken) {
         const phone = ctx.message.contact.phone_number;
         
@@ -304,11 +279,9 @@ bot.on('contact', async (ctx) => {
             const errorMessage = error.response?.data?.msg || 'Не удалось привязать аккаунт. Попробуйте снова.';
             await ctx.reply(`❌ Ошибка: ${errorMessage}`, Markup.removeKeyboard());
         } finally {
-            // Очищаем сессию
             ctx.session.linkData = null;
         }
     } else {
-        // Если контакт пришел вне сценария привязки
         ctx.reply('Спасибо, но сейчас мне не нужен ваш номер. 😊');
     }
 });
@@ -316,9 +289,8 @@ bot.on('contact', async (ctx) => {
 async function registerUser(ctx) {
     const { role, grade, subjects, phone } = ctx.wizard.state.data;
     const { id: telegramId, username, first_name, last_name } = ctx.from;
-    const { loginToken } = ctx.scene.state; // Получаем токен из состояния сцены
+    const { loginToken } = ctx.scene.state;
 
-    // Создаем резервное имя пользователя, если у юзера в телеграме его нет
     const candidateUsername = username || `${first_name || ''}${last_name || ''}`.replace(/[^a-zA-Z0-9_]/g, '') || `user${telegramId.toString().slice(-4)}`;
     
     if (!candidateUsername) {
@@ -329,15 +301,12 @@ async function registerUser(ctx) {
     try {
         await ctx.reply(`Проверяю данные...`);
 
-        // 1. Проверяем, доступно ли имя пользователя
         const checkResponse = await axios.post(`${API_URL}/api/auth/check-username`, { username: candidateUsername });
         if (!checkResponse.data.available) {
-            // TODO: В будущем можно попросить пользователя ввести другое имя
             await ctx.reply(`К сожалению, ваше имя пользователя в Telegram ('${candidateUsername}') уже занято на нашей платформе. Пожалуйста, измените его в настройках Telegram или зарегистрируйтесь на сайте, а затем привяжите аккаунт.`);
             return ctx.scene.leave();
         }
         
-        // 2. Отправляем данные на бэкенд для создания пользователя
         const regResponse = await axios.post(`${API_URL}/api/auth/telegram/register`, {
             role,
             grade,
@@ -349,14 +318,13 @@ async function registerUser(ctx) {
             phone: phone
         });
 
-        const { userId } = regResponse.data; // Получаем ID нового юзера
+        const { userId } = regResponse.data;
 
-        // 3. После успешной регистрации привязываем сессию на сайте
         if (loginToken && userId) {
              await axios.post(`${API_URL}/api/auth/telegram/complete-login`, { 
                 telegramId: telegramId,
                 loginToken: loginToken,
-                userId: userId // <-- Отправляем ID нового юзера
+                userId: userId
             });
             await ctx.reply('Супер! Вы успешно зарегистрированы. Теперь вернитесь на вкладку сайта, она должна обновиться автоматически.');
         } else {
@@ -378,6 +346,5 @@ bot.launch().then(() => {
     console.error('Ошибка при запуске бота:', err);
 });
 
-// Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM')); 

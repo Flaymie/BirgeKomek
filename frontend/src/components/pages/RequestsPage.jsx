@@ -12,7 +12,6 @@ import Pagination from '../shared/Pagination';
 const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useAuth();
   const { socket } = useSocket();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);

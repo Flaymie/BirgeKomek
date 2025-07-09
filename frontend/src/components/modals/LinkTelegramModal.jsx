@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
-import { FaTelegramPlane, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaTelegramPlane } from 'react-icons/fa';
 import Loader from '../shared/Loader';
 
 const LinkTelegramModal = ({ isOpen, onClose, linkUrl, isLoading }) => {
-  const [copied, setCopied] = useState(false);
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -14,9 +13,6 @@ const LinkTelegramModal = ({ isOpen, onClose, linkUrl, isLoading }) => {
     }
   }, [isOpen]);
 
-  const handleCopy = () => {
-    // ... (остальной код)
-  };
 
   if (!isOpen) return null;
 

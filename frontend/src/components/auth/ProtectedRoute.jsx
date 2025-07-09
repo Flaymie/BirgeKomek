@@ -16,7 +16,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
   
   // Если пользователь забанен, не позволяем доступ к защищенным маршрутам
-  // Модальное окно бана покажется через App.jsx
   if (isBanned) {
     return null;
   }

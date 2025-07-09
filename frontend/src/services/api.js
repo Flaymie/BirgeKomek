@@ -53,34 +53,21 @@ api.interceptors.response.use(
         }
         return Promise.reject(error);
       }
-      
-      // --- НОВОЕ УСЛОВИЕ ДЛЯ RATE LIMIT ---
+
       if (status === 429) {
-        // Создаем и диспатчим кастомное событие, чтобы App.js мог его поймать
         const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
         window.dispatchEvent(rateLimitEvent);
-        // Не логируем это как ошибку в консоль, чтобы не засорять
         return Promise.reject(error);
       }
-      
-      /*
-      // --- ВРЕМЕННО ОТКЛЮЧИМ УМНОЕ СКРЫТИЕ ОШИБОК ---
-      // --- НОВОЕ УСЛОВИЕ ---
+
       // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
       const isUserNotFound = status === 404 && error.config.url.startsWith('/users/');
       const isRequestNotFound = (status === 404 || status === 400) && error.config.url.startsWith('/requests/');
 
       if (isUserNotFound || isRequestNotFound) {
-        return Promise.reject(error); // Просто пробрасываем ошибку дальше без логирования
+        return Promise.reject(error);
       }
-      */
 
-      // console.error('Перехват ошибки в api interceptor:', error.message);
-      // if (error.response) {
-      //   console.error('Данные ответа:', error.response.data);
-      //   console.error('Статус ответа:', error.response.status);
-      // }
-      
       const isRegistrationPage = window.location.pathname.includes('/register');
       
       if (status === 401 && !isRegistrationPage) {
@@ -112,7 +99,6 @@ const requestsService = {
     return api.get(`/requests/${id}`);
   },
   
-  // --- НОВЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ДАННЫХ ДЛЯ РЕДАКТИРОВАНИЯ ---
   getRequestForEdit: async (id) => {
     return api.get(`/requests/${id}/edit`);
   },
@@ -153,7 +139,6 @@ const requestsService = {
     return api.post(`/requests/${requestId}/assign/${helperId}`);
   },
 
-  // --- Новая функция для обновления статуса ---
   updateRequestStatus: async (id, status) => {
     return api.put(`/requests/${id}/status`, { status });
   },
@@ -220,11 +205,9 @@ const usersService = {
     return api.put('/users/me', userData);
   },
   
-  // --- НОВАЯ ФУНКЦИЯ ---
   updateProfileCustomization: async (customizationData) => {
     return api.put('/users/me/customization', customizationData);
   },
-  // --------------------
   
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
@@ -241,7 +224,6 @@ const usersService = {
     return api.post('/users/me/delete', { confirmationCode });
   },
 
-  // --- Новые функции для модерации ---
   banUser: async (userId, reason, duration, confirmationCode) => {
     const payload = { reason, duration };
     if (confirmationCode) {
@@ -273,9 +255,7 @@ const authService = {
   resetPassword: (data) => api.post('/auth/reset-password', data),
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   updateProfile: (userId, profileData) => api.put(`/users/profile/${userId}`, profileData),
-  // --- Новые функции для проверки ---
   checkUsername: (username) => api.post('/auth/check-username', { username }),
-
   // Генерация токена для входа через Telegram
   generateTelegramToken: () => api.post('/auth/telegram/generate-token'),
 
@@ -391,10 +371,6 @@ const reviewsService = {
   }
 };
 
-export const adminService = {
-    // ... существующие методы
-};
-
 export {
   api,
   requestsService,
@@ -407,7 +383,6 @@ export {
   reviewsService,
 }; 
 
-// Сервис для работы со статистикой
 export const statsService = {
   getGeneralStats: () => api.get('/stats/general'),
   getUserStats: (userId) => api.get(`/stats/user/${userId}`),

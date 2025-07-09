@@ -20,19 +20,10 @@ export const AuthProvider = ({ children }) => {
   const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
   const navigate = useNavigate();
   
-  // --- НОВЫЕ ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ ПРИВЯЗКИ TELEGRAM ---
   const [isLinkTelegramModalOpen, setLinkTelegramModalOpen] = useState(false);
   const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
   const [isTelegramLoading, setIsTelegramLoading] = useState(false);
   const [pollingIntervalId, setPollingIntervalId] = useState(null);
-
-  // Компонент для кастомного тоста, вынесен для стабильности
-  const ToastBody = ({ title, message, link }) => (
-    <a href={link} className="block w-full" onClick={() => toast.dismiss()}>
-      <p className="font-bold text-gray-800">{title}</p>
-      {message && <p className="text-sm text-gray-600">{message}</p>}
-    </a>
-  );
 
   const processUserData = useCallback((userData) => {
     if (!userData) return null;
@@ -128,7 +119,6 @@ export const AuthProvider = ({ children }) => {
       storeToken(data.token);
       setToken(data.token);
       
-      // --->>> ЯВНО ЗАПРАШИВАЕМ ПОЛНЫЙ ПРОФИЛЬ ПОСЛЕ ЛОГИНА <<<---
       const response = await usersService.getCurrentUser();
       processAndCheckBan(response.data);
       setIsReadOnly(!response.data.telegramId);
@@ -300,14 +290,13 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(errorMessage);
-      toast.error(errorMessage); // Показываем тост с ошибкой здесь
+      toast.error(errorMessage);
       setLoading(false);
       setIsReadOnly(true);
       return { success: false, error: errorMessage };
     }
   };
 
-  // Функция для обновления пароля пользователя
   const updatePassword = async (currentPassword, newPassword) => {
     setLoading(true);
     setError(null);

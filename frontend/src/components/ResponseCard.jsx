@@ -54,7 +54,7 @@ const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile 
   
   const getStatusBadge = () => {
     if (response.status === 'pending') {
-      return null; // Для ожидающих откликов не показываем статус, так как понятно что они в ожидании
+      return null;
     } else if (response.status === 'accepted') {
       return <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Принят</span>;
     } else if (response.status === 'rejected') {

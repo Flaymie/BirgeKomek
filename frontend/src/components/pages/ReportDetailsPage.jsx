@@ -20,7 +20,7 @@ const STATUS_COLORS = {
     rejected: 'bg-red-100 text-red-800',
 };
 
-// --- Мини-компонент для отображения объекта жалобы ---
+// Мини-компонент для отображения объекта жалобы
 const TargetInfoCard = ({ targetType, target }) => {
     if (!target) {
         return (
@@ -85,7 +85,7 @@ const TargetInfoCard = ({ targetType, target }) => {
     return null;
 };
 
-// --- Мини-компонент для истории жалоб ---
+// Мини-компонент для истории жалоб
 const ComplaintHistory = ({ userId }) => {
     const [history, setHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -96,7 +96,6 @@ const ComplaintHistory = ({ userId }) => {
             try {
                 setIsLoading(true);
                 const res = await reportsService.getReportHistoryForUser(userId);
-                // Фильтруем текущий репорт из истории, чтобы не дублировать
                 const currentReportId = window.location.pathname.split('/').pop();
                 setHistory(res.data.filter(r => r._id !== currentReportId));
             } catch (error) {
@@ -219,7 +218,6 @@ const ReportDetailsPage = () => {
     return (
         <div className="bg-gray-50 min-h-screen">
             <div className="container mx-auto px-4 py-8">
-                {/* Шапка */}
                 <div className="mb-6">
                     <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-4">
                         <FiArrowLeft />
@@ -233,9 +231,7 @@ const ReportDetailsPage = () => {
                     </div>
                 </div>
 
-                {/* Основной контент */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Левая колонка - детали и действия */}
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
                         <h2 className="text-xl font-bold mb-4 border-b pb-3">Детали жалобы</h2>
                         
@@ -309,13 +305,11 @@ const ReportDetailsPage = () => {
                         </div>
                     </div>
 
-                    {/* Правая колонка - объект жалобы */}
                     <div className="bg-white rounded-xl shadow-md p-6 flex flex-col min-h-0">
                          <h2 className="text-xl font-bold mb-4 border-b pb-3">Объект жалобы</h2>
                          <TargetInfoCard targetType={report.targetType} target={report.targetId} />
                     </div>
 
-                    {/* --- НОВАЯ СЕКЦИЯ: ИСТОРИЯ ЖАЛОБ --- */}
                     {report.targetType === 'User' && report.targetId && (
                         <div className="bg-white rounded-xl shadow-md p-6">
                             <h2 className="text-xl font-bold mb-4 border-b pb-3">История жалоб на пользователя</h2>

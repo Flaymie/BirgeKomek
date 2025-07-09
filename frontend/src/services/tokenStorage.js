@@ -1,9 +1,6 @@
 const TOKEN_KEY = 'authToken';
 
-/**
- * Получает токен аутентификации из localStorage.
- * @returns {string|null} Токен или null, если он не найден.
- */
+
 export const getAuthToken = () => {
     try {
         return localStorage.getItem(TOKEN_KEY);
@@ -13,10 +10,6 @@ export const getAuthToken = () => {
     }
 };
 
-/**
- * Сохраняет токен аутентификации в localStorage.
- * @param {string} token - Токен для сохранения.
- */
 export const setAuthToken = (token) => {
     if (!token) {
         return;
@@ -28,9 +21,6 @@ export const setAuthToken = (token) => {
     }
 };
 
-/**
- * Удаляет токен аутентификации из localStorage.
- */
 export const clearAuthToken = () => {
     try {
         localStorage.removeItem(TOKEN_KEY);

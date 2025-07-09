@@ -26,8 +26,7 @@ export const SocketProvider = ({ children }) => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
-
-  // Эффект для управления жизненным циклом сокета
+  
   useEffect(() => {
     if (token) {
       if (!socketRef.current) {
@@ -38,7 +37,7 @@ export const SocketProvider = ({ children }) => {
       });
         socketRef.current = newSocket;
 
-        // --- Глобальные слушатели, которые живут вместе с сокетом ---
+
       newSocket.on('connect', () => {
           setIsConnected(true);
           newSocket.emit('get_unread_notifications_count', (count) => {
@@ -66,14 +65,12 @@ export const SocketProvider = ({ children }) => {
           showBanModal(data);
         });
 
-        // "Heartbeat" для поддержания статуса онлайн
         const pingInterval = setInterval(() => {
             if (newSocket.connected) {
                 newSocket.emit('user_ping');
             }
-        }, 90000); // Увеличим интервал до 90 сек для снижения нагрузки
+        }, 90000);
         
-        // Функция очистки при размонтировании всего провайдера
       return () => {
           clearInterval(pingInterval);
         newSocket.disconnect();
@@ -89,7 +86,6 @@ export const SocketProvider = ({ children }) => {
     }
   }, [token, showBanModal]);
 
-  // Эффект для отслеживания навигации пользователя
   useEffect(() => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('user_navigate', { path: location.pathname });
