@@ -21,110 +21,56 @@ import {
 
 const CommandPalette = () => {
   const { isOpen, closePalette } = useCommandPalette();
-  const { user, logout } = useAuth();
+  const { currentUser, logout } = useAuth(); // <--- ИСПРАВИЛ НА currentUser
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
-  const commands = [
-    {
-      name: 'Главная',
-      description: 'Перейти на главную страницу',
-      action: () => navigate('/'),
-      icon: <Home className="h-5 w-5" />,
-    },
-    {
-      name: 'Все заявки',
-      description: 'Посмотреть все активные заявки',
-      action: () => navigate('/requests'),
-      icon: <Briefcase className="h-5 w-5" />,
-    },
-    {
-      name: 'Войти',
-      description: 'Авторизоваться в системе',
-      action: () => navigate('/login'),
-      icon: <LogIn className="h-5 w-5" />,
-      requiresGuest: true,
-    },
-    {
-      name: 'Регистрация',
-      description: 'Создать новый аккаунт',
-      action: () => navigate('/register'),
-      icon: <UserPlus className="h-5 w-5" />,
-      requiresGuest: true,
-    },
-    {
-      name: 'Мой профиль',
-      description: 'Перейти в личный кабинет',
-      action: () => user && navigate(`/users/${user._id}`),
-      icon: <User className="h-5 w-5" />,
-      requiresAuth: true,
-    },
-    {
-      name: 'Мои заявки',
-      description: 'Просмотреть созданные вами заявки',
-      action: () => navigate('/my-requests'),
-      icon: <FileText className="h-5 w-5" />,
-      requiresAuth: true,
-    },
-    {
-      name: 'Чаты',
-      description: 'Открыть список ваших диалогов',
-      action: () => navigate('/chats'),
-      icon: <MessageSquare className="h-5 w-5" />,
-      requiresAuth: true,
-    },
-    {
-      name: 'О нас',
-      description: 'Узнать больше о проекте',
-      action: () => navigate('/about'),
-      icon: <Info className="h-5 w-5" />,
-    },
-    {
-      name: 'Условия использования',
-      description: 'Прочитать правила сервиса',
-      action: () => navigate('/terms'),
-      icon: <Book className="h-5 w-5" />,
-    },
-    {
-      name: 'Политика конфиденциальности',
-      description: 'Как мы обрабатываем ваши данные',
-      action: () => navigate('/privacy'),
-      icon: <Shield className="h-5 w-5" />,
-    },
-    {
-      name: 'Помощь',
-      description: 'Найти ответы на частые вопросы',
-      action: () => navigate('/help'),
-      icon: <LifeBuoy className="h-5 w-5" />,
-    },
-    {
-      name: 'Выйти',
-      description: 'Завершить текущий сеанс',
-      action: () => {
-        logout();
-        navigate('/login');
-      },
-      icon: <LogOut className="h-5 w-5" />,
-      requiresAuth: true,
-    },
+  const allCommands = [
+    // Команды для всех
+    { name: 'Главная', description: 'Перейти на главную страницу', action: () => navigate('/'), icon: <Home className="h-5 w-5" /> },
+    { name: 'Все заявки', description: 'Посмотреть все активные заявки', action: () => navigate('/requests'), icon: <Briefcase className="h-5 w-5" /> },
+    { name: 'О нас', description: 'Узнать больше о проекте', action: () => navigate('/about'), icon: <Info className="h-5 w-5" /> },
+    { name: 'Условия использования', description: 'Прочитать правила сервиса', action: () => navigate('/terms'), icon: <Book className="h-5 w-5" /> },
+    { name: 'Политика конфиденциальности', description: 'Как мы обрабатываем ваши данные', action: () => navigate('/privacy'), icon: <Shield className="h-5 w-5" /> },
+    { name: 'Помощь', description: 'Найти ответы на частые вопросы', action: () => navigate('/help'), icon: <LifeBuoy className="h-5 w-5" /> },
+
+    // Команды только для гостей
+    { name: 'Войти', description: 'Авторизоваться в системе', action: () => navigate('/login'), icon: <LogIn className="h-5 w-5" />, requiresGuest: true },
+    { name: 'Регистрация', description: 'Создать новый аккаунт', action: () => navigate('/register'), icon: <UserPlus className="h-5 w-5" />, requiresGuest: true },
+
+    // Команды только для авторизованных
+    { name: 'Мой профиль', description: 'Перейти в личный кабинет', action: () => currentUser && navigate(`/users/${currentUser._id}`), icon: <User className="h-5 w-5" />, requiresAuth: true },
+    { name: 'Мои заявки', description: 'Просмотреть созданные вами заявки', action: () => navigate('/my-requests'), icon: <FileText className="h-5 w-5" />, requiresAuth: true },
+    { name: 'Чаты', description: 'Открыть список ваших диалогов', action: () => navigate('/chats'), icon: <MessageSquare className="h-5 w-5" />, requiresAuth: true },
+    { name: 'Выйти', description: 'Завершить текущий сеанс', action: () => { logout(); navigate('/login'); }, icon: <LogOut className="h-5 w-5" />, requiresAuth: true },
   ];
 
-  const filteredCommands =
-    query === ''
-      ? commands
-      : commands.filter((command) => {
-          return command.name.toLowerCase().includes(query.toLowerCase()) || command.description.toLowerCase().includes(query.toLowerCase());
-        });
-        
-  const availableCommands = filteredCommands.filter(cmd => {
-    if (cmd.requiresAuth && !user) {
-      return false; // Скрыть, если нужна авторизация, а ее нет
+  const getAvailableCommands = () => {
+    const baseCommands = allCommands.filter(c => !c.requiresAuth && !c.requiresGuest);
+    const guestCommands = allCommands.filter(c => c.requiresGuest);
+    const authCommands = allCommands.filter(c => c.requiresAuth);
+
+    if (currentUser) {
+        return [...baseCommands, ...authCommands];
+    } else {
+        const publicCommands = ['Главная', 'Условия использования', 'Политика конфиденциальности'];
+        const minimalGuestCommands = allCommands.filter(c => publicCommands.includes(c.name));
+        return [...minimalGuestCommands, ...guestCommands];
     }
-    if (cmd.requiresGuest && user) {
-      return false; // Скрыть, если команда только для гостей, а юзер залогинен
-    }
-    return true; // Показать во всех остальных случаях
-  });
+  }
+  
+  const [availableCommands, setAvailableCommands] = useState(getAvailableCommands());
+
+  useEffect(() => {
+    setAvailableCommands(getAvailableCommands());
+  }, [currentUser]);
+
+  const filteredCommands = query === ''
+    ? availableCommands
+    : availableCommands.filter(command => 
+        command.name.toLowerCase().includes(query.toLowerCase()) || 
+        command.description.toLowerCase().includes(query.toLowerCase())
+      );
 
   const handleSelect = (command) => {
     if (command) {
@@ -134,8 +80,8 @@ const CommandPalette = () => {
   };
   
   useEffect(() => {
-    if (!isOpen) {
-      setTimeout(() => setQuery(''), 200);
+    if (isOpen) {
+        setQuery('');
     }
   }, [isOpen]);
 
@@ -164,7 +110,7 @@ const CommandPalette = () => {
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="mx-auto max-w-xl transform overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
+            <Dialog.Panel className="mx-auto max-w-lg transform overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
               <Combobox onChange={handleSelect}>
                 <div className="relative">
                   <Search
@@ -173,15 +119,15 @@ const CommandPalette = () => {
                   />
                   <Combobox.Input
                     className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-800 placeholder-gray-400 focus:ring-0 sm:text-sm"
-                    placeholder="Что ищем, командир?"
+                    placeholder="Быстрый поиск..."
                     onChange={(event) => setQuery(event.target.value)}
                     autoComplete="off"
                   />
                 </div>
                 <div className="border-t border-gray-100">
-                {availableCommands.length > 0 ? (
-                  <Combobox.Options static className="max-h-80 scroll-py-2 overflow-y-auto p-2">
-                      {availableCommands.map((command) => (
+                {filteredCommands.length > 0 ? (
+                  <Combobox.Options static className="max-h-72 scroll-py-2 overflow-y-auto p-2">
+                      {filteredCommands.map((command) => (
                         <Combobox.Option
                           key={command.name}
                           value={command}
@@ -193,7 +139,7 @@ const CommandPalette = () => {
                         >
                           {({ active }) => (
                             <>
-                              <div className={`mr-4 rounded-lg p-2 ${active ? 'bg-white bg-opacity-10 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
+                              <div className={`mr-4 flex-shrink-0 rounded-lg p-2 ${active ? 'bg-white bg-opacity-10 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
                                 {command.icon}
                               </div>
                               <div>
