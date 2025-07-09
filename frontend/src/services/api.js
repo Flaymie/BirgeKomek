@@ -397,8 +397,8 @@ export const reportsService = {
     return api.post('/reports', reportData);
   },
   // Получить все жалобы
-  getAllReports: () => {
-    return api.get('/reports');
+  getAllReports: (params) => {
+    return api.get('/reports', { params });
   },
   // Получить одну жалобу по ID
   getReportById: (id) => {
@@ -412,4 +412,11 @@ export const reportsService = {
   updateReport: (id, data) => {
     return api.put(`/reports/${id}`, data);
   }
+}; 
+
+// Сервис для административных задач
+export const adminService = {
+  getStats: () => {
+    return api.get('/admin/stats');
+  },
 }; 

@@ -144,7 +144,7 @@ const AppContent = () => {
             {/* Маршруты для модераторов/админов */}
             <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/reports/:id" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportDetailsPage /></ProtectedRoute>} />
-            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AnalyticsPage /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AnalyticsPage /></ProtectedRoute>} />
 
 
             {/* Маршрут для страницы не найдено */}

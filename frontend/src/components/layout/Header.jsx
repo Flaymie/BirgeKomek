@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
-import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell, FiFlag, FiBarChart2 } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell, FiFlag, FiBarChart2, FiShield } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const Username = ({ user }) => {
@@ -74,7 +74,32 @@ const Header = () => {
       return (
         <div className="hidden md:flex items-center gap-4">
             <NotificationBell />
+
+            {/* Меню Панели Управления */}
+            {(currentUser.roles?.admin || currentUser.roles?.moderator) && (
+              <div className="relative group">
+                <button className="flex items-center p-2 rounded-full text-gray-600 hover:bg-gray-100 hover:text-primary-600 transition-colors">
+                    <FiShield className="w-6 h-6" />
+                </button>
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right p-2 z-50">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <span className="font-bold text-gray-800">Панель управления</span>
+                    </div>
+                    <div className="py-2">
+                        <Link to="/reports" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                           <FiFlag className="w-4 h-4" /> Жалобы
+                        </Link>
+                        {currentUser.roles?.admin && (
+                           <Link to="/analytics" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
+                              <FiBarChart2 className="w-4 h-4" /> Аналитика
+                           </Link>
+                        )}
+                    </div>
+                </div>
+              </div>
+            )}
             
+            {/* Меню Пользователя */}
             <div className="relative group">
                 <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
                     <img 
@@ -97,16 +122,6 @@ const Header = () => {
                         <Link to="/my-requests" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                            <FiGrid className="w-4 h-4" /> Мои заявки
                         </Link>
-                        {(currentUser.roles?.admin) && (
-                           <Link to="/admin/analytics" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
-                              <FiBarChart2 className="w-4 h-4" /> Аналитика
-                           </Link>
-                        )}
-                        {(currentUser.roles?.admin || currentUser.roles?.moderator) && (
-                           <Link to="/reports" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
-                              <FiFlag className="w-4 h-4" /> Жалобы
-                           </Link>
-                        )}
                         {requestId && (
                            <Link to={`/request/${requestId}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary-600 rounded-md">
                               <FiInfo className="w-4 h-4" /> Детали этой заявки
@@ -199,6 +214,8 @@ const Header = () => {
               {currentUser && (
                 <>
                   <div className="pt-4 mt-4 border-t border-gray-200" />
+                  <span className="px-4 pb-1 block text-sm font-semibold text-gray-500 uppercase tracking-wider">Личный кабинет</span>
+
                   <Link to="/profile" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/profile')}`}>
                     <FiUser className="w-6 h-6" /> Профиль
                   </Link>
@@ -219,20 +236,25 @@ const Header = () => {
                    <Link to="/my-requests" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/my-requests')}`}>
                      <FiGrid className="w-6 h-6" /> Мои заявки
                    </Link>
-                   {(currentUser.roles?.admin) && (
-                      <Link to="/admin/analytics" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/admin/analytics')}`}>
-                        <FiBarChart2 className="w-6 h-6" /> Аналитика
-                      </Link>
-                   )}
-                   {(currentUser.roles?.admin || currentUser.roles?.moderator) && (
-                      <Link to="/reports" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/reports')}`}>
-                        <FiFlag className="w-6 h-6" /> Жалобы
-                      </Link>
-                   )}
                    {requestId && (
                      <Link to={`/request/${requestId}`} className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive(`/request/${requestId}`)}`}>
                         <FiInfo className="w-6 h-6" /> Детали заявки
                      </Link>
+                  )}
+
+                  {(currentUser.roles?.admin || currentUser.roles?.moderator) && (
+                    <>
+                      <div className="pt-4 mt-4 border-t border-gray-200" />
+                      <span className="px-4 pb-1 block text-sm font-semibold text-gray-500 uppercase tracking-wider">Панель управления</span>
+                      <Link to="/reports" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/reports')}`}>
+                        <FiFlag className="w-6 h-6" /> Жалобы
+                      </Link>
+                      {currentUser.roles.admin && (
+                         <Link to="/analytics" className={`flex items-center gap-4 px-4 py-3 rounded-lg text-lg ${isActive('/analytics')}`}>
+                           <FiBarChart2 className="w-6 h-6" /> Аналитика
+                         </Link>
+                      )}
+                    </>
                   )}
                 </>
               )}

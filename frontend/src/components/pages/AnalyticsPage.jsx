@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { statsService } from '../../services/api';
+import { adminService } from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { FiUsers, FiFileText, FiCheckSquare, FiMessageSquare, FiAlertTriangle, FiFlag } from 'react-icons/fi';
@@ -26,7 +26,7 @@ const AnalyticsPage = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const res = await statsService.getStats();
+        const res = await adminService.getStats();
         setStats(res.data);
       } catch (err) {
         toast.error(err.response?.data?.msg || "Не удалось загрузить статистику");
@@ -59,6 +59,21 @@ const AnalyticsPage = () => {
   ];
 
   const pieChartData = stats.charts.requestsBySubject.map(item => ({ name: item._id, value: item.count }));
+  const registrationsByDay = stats.charts.registrationsByDay || [];
+
+  const totalWeeklyRegistrations = registrationsByDay.reduce((sum, item) => sum + item.count, 0);
+  
+  const dailyAverage = registrationsByDay.length > 0 
+    ? (totalWeeklyRegistrations / registrationsByDay.length).toFixed(1) 
+    : '0.0';
+    
+  const maxInDay = registrationsByDay.length > 0 
+    ? Math.max(...registrationsByDay.map(item => item.count)) 
+    : 0;
+    
+  const minInDay = registrationsByDay.length > 0 
+    ? Math.min(...registrationsByDay.map(item => item.count)) 
+    : 0;
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
@@ -75,33 +90,147 @@ const AnalyticsPage = () => {
           
           {/* График регистраций */}
           <div className="xl:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Динамика регистраций (7 дней)</h2>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={stats.charts.registrationsByDay} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="_id" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="count" name="Новые пользователи" stroke="#8884d8" strokeWidth={3} activeDot={{ r: 8 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Динамика регистраций</h2>
+                <p className="text-sm text-gray-500 mt-1">Новые пользователи за последние 7 дней</p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span className="text-sm font-medium text-blue-700">
+                  Всего: {totalWeeklyRegistrations}
+                </span>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mb-4">
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={stats.charts.registrationsByDay} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e7ff" />
+                  <XAxis 
+                    dataKey="_id" 
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={{ stroke: '#d1d5db' }}
+                  />
+                  <YAxis 
+                    allowDecimals={false} 
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={{ stroke: '#d1d5db' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#1f2937',
+                      border: 'none',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+                      color: '#fff'
+                    }}
+                    labelStyle={{ color: '#d1d5db' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="count" 
+                    name="Новые пользователи" 
+                    stroke="#8884d8" 
+                    strokeWidth={4}
+                    fill="url(#colorGradient)"
+                    activeDot={{ 
+                      r: 8, 
+                      fill: '#8884d8',
+                      stroke: '#fff',
+                      strokeWidth: 3,
+                      shadow: '0 0 10px rgba(136, 132, 216, 0.5)'
+                    }}
+                    dot={{ 
+                      r: 5, 
+                      fill: '#8884d8',
+                      stroke: '#fff',
+                      strokeWidth: 2
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Дополнительная статистика */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Среднее в день</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {dailyAverage}
+                </p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Максимум</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {maxInDay}
+                </p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Минимум</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {minInDay}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Диаграмма по предметам */}
           <div className="bg-white p-6 rounded-2xl shadow-lg">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Заявки по предметам</h2>
-            <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
-                <Pie data={pieChartData} cx="50%" cy="50%" labelLine={false} outerRadius={120} fill="#8884d8" dataKey="value" nameKey="name" label={(props) => `${props.name} (${props.value})`}>
-                  {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Заявки по предметам</h2>
+            
+            {/* Диаграмма */}
+            <div className="mb-6">
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie 
+                    data={pieChartData} 
+                    cx="50%" 
+                    cy="50%" 
+                    labelLine={false} 
+                    outerRadius={90} 
+                    fill="#8884d8" 
+                    dataKey="value" 
+                    nameKey="name"
+                  >
+                    {pieChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name) => [value, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Легенда с подробностями */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Детализация</h3>
+              {pieChartData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-4 h-4 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    ></div>
+                    <span className="text-sm font-medium text-gray-700 truncate">{entry.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-gray-900">{entry.value}</span>
+                    <span className="text-xs text-gray-500">
+                      ({((entry.value / pieChartData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>
@@ -110,4 +239,4 @@ const AnalyticsPage = () => {
   );
 };
 
-export default AnalyticsPage; 
+export default AnalyticsPage;
