@@ -31,7 +31,6 @@ export const createAndSendNotification = async (notificationData) => {
     
     await notification.save();
 
-    // 1. Отправка через Socket.IO на фронтенд
     const sockets = await io.fetchSockets();
     const userSocket = sockets.find(s => s.user && s.user.id === user.toString());
     
@@ -39,7 +38,6 @@ export const createAndSendNotification = async (notificationData) => {
         userSocket.emit('new_notification', notification);
     }
     
-    // 2. Отправка в Telegram (остается без изменений)
     if (userToSend.telegramId && userToSend.telegramNotificationsEnabled) {
         const botToken = process.env.BOT_TOKEN;
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -76,6 +74,36 @@ export const createAndSendNotification = async (notificationData) => {
 
 // Главный экспорт - функция, которая принимает зависимости и возвращает роутер
 export default () => {
+    /**
+     * @swagger
+     * /api/notifications:
+     *   get:
+     *     summary: Получить уведомления пользователя с пагинацией
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: page
+     *         schema:
+     *           type: integer
+     *         description: Номер страницы
+     *       - in: query
+     *         name: limit
+     *         schema:
+     *           type: integer
+     *         description: Количество элементов на странице
+     *       - in: query
+     *         name: isRead
+     *         schema:
+     *           type: boolean
+     *         description: Фильтр по статусу прочтения (true/false)
+     *     responses:
+     *       200:
+     *         description: Список уведомлений и информация о пагинации
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.get('/', protect, generalLimiter, async (req, res) => {
       try {
         const userId = req.user.id;
@@ -116,6 +144,20 @@ export default () => {
       }
     });
 
+    /**
+     * @swagger
+     * /api/notifications/unread:
+     *   get:
+     *     summary: Получить все непрочитанные уведомления
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Список непрочитанных уведомлений
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.get('/unread', protect, generalLimiter, async (req, res) => {
       try {
         const notifications = await Notification.find({ user: req.user._id, isRead: false })
@@ -127,6 +169,20 @@ export default () => {
       }
     });
 
+    /**
+     * @swagger
+     * /api/notifications/unread/count:
+     *   get:
+     *     summary: Получить количество непрочитанных уведомлений
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Количество непрочитанных уведомлений
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.get('/unread/count', protect, generalLimiter, async (req, res) => {
       try {
         const count = await Notification.countDocuments({ user: req.user._id, isRead: false });
@@ -137,6 +193,20 @@ export default () => {
       }
     });
 
+    /**
+     * @swagger
+     * /api/notifications/read-all:
+     *   put:
+     *     summary: Отметить все уведомления как прочитанные
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Все уведомления отмечены как прочитанные
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.put('/read-all', protect, generalLimiter, async (req, res) => {
       try {
         await Notification.updateMany(
@@ -150,6 +220,31 @@ export default () => {
       }
     });
 
+    /**
+     * @swagger
+     * /api/notifications/{id}/read:
+     *   put:
+     *     summary: Отметить уведомление как прочитанное
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID уведомления
+     *     responses:
+     *       200:
+     *         description: Уведомление отмечено как прочитанное
+     *       400:
+     *         description: Некорректный ID
+     *       404:
+     *         description: Уведомление не найдено
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.put('/:id/read', protect, generalLimiter, [
       param('id').isMongoId().withMessage('Некорректный ID уведомления'),
     ], async (req, res) => {
@@ -176,6 +271,31 @@ export default () => {
       }
     });
 
+    /**
+     * @swagger
+     * /api/notifications/{id}:
+     *   delete:
+     *     summary: Удалить уведомление
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID уведомления
+     *     responses:
+     *       200:
+     *         description: Уведомление удалено
+     *       400:
+     *         description: Некорректный ID
+     *       404:
+     *         description: Уведомление не найдено
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.delete('/:id', protect, generalLimiter, [
       param('id').isMongoId().withMessage('Некорректный ID уведомления'),
     ], async (req, res) => {
@@ -201,6 +321,31 @@ export default () => {
         }
     });
 
+    /**
+     * @swagger
+     * /api/notifications/{id}:
+     *   get:
+     *     summary: Получить уведомление по ID
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID уведомления
+     *     responses:
+     *       200:
+     *         description: Данные уведомления
+     *       403:
+     *         description: Доступ запрещен
+     *       404:
+     *         description: Уведомление не найдено
+     *       500:
+     *         description: Ошибка сервера
+     */
     router.get('/:id', protect, async (req, res) => {
       try {
         const notification = await Notification.findById(req.params.id);

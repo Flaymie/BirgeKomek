@@ -1,24 +1,22 @@
 import express from 'express';
 import { body, validationResult, param, query } from 'express-validator';
 import Request from '../models/Request.js';
-import User from '../models/User.js'; // Убедимся, что User импортирован
-import Message from '../models/Message.js'; // Импортируем Message
-import { protect, isHelper, isAdmin, isModOrAdmin } from '../middleware/auth.js';
-import { createAndSendNotification } from './notifications.js'; // Правильный путь импорта
-import mongoose from 'mongoose';
-import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
+import User from '../models/User.js';
+import Message from '../models/Message.js';
+import { protect, isHelper, isModOrAdmin } from '../middleware/auth.js';
+import { createAndSendNotification } from './notifications.js';
+import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js';
 import { uploadAttachments } from './upload.js';
-import tgRequired from '../middleware/tgRequired.js';
 import redis from '../config/redis.js'; 
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { sendTelegramMessage } from './users.js';
-import geminiService from "../services/geminiService.js"; // Импортируем наш сервис
+import geminiService from "../services/geminiService.js";
 
-// --->>> НОВАЯ ФУНКЦИЯ ДЛЯ ОПОВЕЩЕНИЯ ХЕЛПЕРОВ <<<---
+// новая функция для оповещения хелперов
 const notifyHelpersAboutNewRequest = async (request, author) => {
-    // Убедимся, что автор не получит уведомление о своей же заявке
+    // убеждаемся, что автор не получит уведомление о своей же заявке
     if (!request || !author || request.status === 'draft') {
         return;
     }
@@ -26,7 +24,7 @@ const notifyHelpersAboutNewRequest = async (request, author) => {
     try {
         const { subject, grade, title, _id } = request;
 
-        // Находим всех хелперов, подходящих по предмету, и исключаем автора
+        // находим всех хелперов, подходящих по предмету, и исключаем автора
         const helpersForSubject = await User.find({
             'roles.helper': true,
             subjects: subject,
@@ -34,12 +32,11 @@ const notifyHelpersAboutNewRequest = async (request, author) => {
         });
 
         if (helpersForSubject.length === 0) {
-            return; // Некого уведомлять
+            return; // некого уведомлять
         }
 
         const helperIds = helpersForSubject.map(h => h._id);
 
-        // 1. Уведомления на сайте
         const notificationPromises = helperIds.map(helperId => {
             return createAndSendNotification({
                 user: helperId,
@@ -51,7 +48,6 @@ const notifyHelpersAboutNewRequest = async (request, author) => {
         });
         await Promise.all(notificationPromises);
 
-        // 2. Уведомления в Telegram
         const tgUsers = helpersForSubject.filter(h =>
             h.telegramIntegration && h.telegramIntegration.notificationsEnabled && h.telegramId
         );
@@ -69,29 +65,15 @@ const notifyHelpersAboutNewRequest = async (request, author) => {
         }
     } catch (error) {
         console.error("Ошибка при оповещении хелперов о новой заявке:", error);
-        // Не бросаем ошибку дальше, чтобы не сломать основной процесс создания заявки
+        // не бросаем ошибку дальше, чтобы не сломать всю заявку
     }
 };
 
-// Middleware для декодирования имен файлов
-const decodeFileNames = (req, res, next) => {
-  if (req.files && req.files.length > 0) {
-    req.files.forEach(file => {
-      file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
-    });
-  }
-  next();
-};
-
-// ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
-  const router = express.Router(); // СОЗДАЕМ РОУТЕР ВНУТРИ
+  const router = express.Router();
 
-  // Применяем общий лимитер ко всем роутам в этом файле, которые идут ПОСЛЕ этого мидлваря
-  // и требуют авторизации (т.к. `generalLimiter` зависит от `req.user`)
   router.use(protect, generalLimiter);
 
-  // Middleware для проверки прав на редактирование/удаление
   const checkEditDeletePermission = async (req, res, next) => {
     try {
         const request = await Request.findById(req.params.id).populate('author', 'username _id');
@@ -107,9 +89,9 @@ export default ({ io }) => {
             return res.status(403).json({ msg: 'У вас нет прав для выполнения этого действия' });
         }
         
-        req.request = request; // Передаем найденный запрос дальше
-        req.isPrivilegedUser = isPrivileged; // Флаг, что у пользователя есть особые права
-        req.isModeratorAction = isPrivileged && !isAuthor; // Флаг, что модер/админ действует над чужой заявкой
+        req.request = request;
+        req.isPrivilegedUser = isPrivileged;
+        req.isModeratorAction = isPrivileged && !isAuthor;
         next();
     } catch (err) {
         console.error(err);
@@ -317,7 +299,7 @@ router.post('/', uploadAttachments, createRequestLimiter, [
         const isDraft = req.body.isDraft === 'true';
         const author = req.user.id;
         
-        // --->>> ИНТЕГРАЦИЯ GEMINI (ТОЛЬКО ДЛЯ ПУБЛИКАЦИИ) <<<---
+        // Интеграция гемини
         let finalTitle = title;
         let finalDescription = description;
 
@@ -355,7 +337,6 @@ router.post('/', uploadAttachments, createRequestLimiter, [
             finalTitle = moderatedContent.suggested_title;
             finalDescription = moderatedContent.suggested_description;
         }
-        // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
 
         const request = new Request({
             title: finalTitle,
@@ -388,7 +369,6 @@ router.post('/', uploadAttachments, createRequestLimiter, [
 
         if (populatedRequest.status !== 'draft') {
             io.emit('new_request', populatedRequest);
-            // --->>> ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ <<<---
             await notifyHelpersAboutNewRequest(populatedRequest, req.user);
         }
 
@@ -471,7 +451,6 @@ router.get('/:id', [
             return res.status(404).json({ msg: 'Запрос не найден' });
         }
         
-        // Явное добавление editReason, если оно есть
         const responseData = { ...request.toObject() };
         if (request.editedByAdminInfo && request.editedByAdminInfo.reason) {
             responseData.editReason = request.editedByAdminInfo.reason;
@@ -599,7 +578,7 @@ router.post('/:id/assign/:helperId', protect, isModOrAdmin, [
  *       403: { description: 'Только помощники могут брать заявки' }
  *       404: { description: 'Заявка не найдена' }
  */
-router.post('/:id/take', protect, isHelper, [ // isHelper middleware проверяет req.user.roles.helper
+router.post('/:id/take', protect, isHelper, [
     param('id').isMongoId().withMessage('Неверный ID заявки')
 ], async (req, res) => {
     const errors = validationResult(req);
@@ -699,7 +678,6 @@ router.post('/:id/complete', protect, [
         }
 
         request.status = 'completed';
-        // request.completedAt = Date.now(); // Можно добавить, если нужно
         await request.save();
 
         const populatedRequest = await Request.findById(request._id)
@@ -737,7 +715,6 @@ router.post('/:id/complete', protect, [
         }
         
 
-        // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О ЗАКРЫТИИ ЗАЯВКИ ---
         if (request.helper) {
             await createAndSendNotification({
                 user: request.helper,
@@ -803,8 +780,6 @@ router.post('/:id/cancel', protect, [
         
         const oldStatus = request.status;
         request.status = 'cancelled';
-        // request.cancelledAt = Date.now(); // Можно добавить
-        // request.cancelledBy = currentUserId; // Можно добавить
         await request.save();
 
         const populatedRequest = await Request.findById(request._id)
@@ -817,7 +792,7 @@ router.post('/:id/cancel', protect, [
         if (oldStatus === 'assigned' && request.helper && isAuthor) {
              await createAndSendNotification({
                 user: request.helper._id,
-                type: 'request_status_changed', // или более конкретный тип 'request_cancelled_by_author'
+                type: 'request_status_changed',
                 title: `Заявка \"${request.title}\" отменена`,
                 message: `Автор ${req.user.username} отменил заявку, на которую вы были назначены.`,
                 link: `/request/${request._id}`,
@@ -884,12 +859,10 @@ router.post('/:id/cancel', protect, [
         let { title, description, subject, grade, urgency, editReason, deletedAttachments } = req.body;
         let request = req.request; // Получаем из middleware
 
-        // 1. Удаляем старые вложения, если есть
         if (deletedAttachments) {
             try {
                 const attachmentsToDelete = JSON.parse(deletedAttachments);
                 if (Array.isArray(attachmentsToDelete)) {
-                     // Удаляем файлы с диска
                     request.attachments.forEach(att => {
                         if (attachmentsToDelete.includes(att.filename)) {
                             const filePath = path.join(process.cwd(), 'uploads/attachments', att.filename);
@@ -899,7 +872,6 @@ router.post('/:id/cancel', protect, [
                         }
                     });
 
-                    // Удаляем из массива в базе
                     request.attachments = request.attachments.filter(
                         att => !attachmentsToDelete.includes(att.filename)
                     );
@@ -923,7 +895,7 @@ router.post('/:id/cancel', protect, [
             request.attachments.push(...newAttachments);
         }
 
-        // --->>> ВОЗВРАЩАЕМ МОДЕРАЦИЮ ПРИ РЕДАКТИРОВАНИИ <<<---
+        // Интеграция гемини при редактировании
         if (title || description) {
             // Если это НЕ действие модератора над чужой заявкой, то отправляем на проверку.
             // Это покрывает и обычных юзеров, и модеров, редактирующих СВОИ заявки.
@@ -949,7 +921,6 @@ router.post('/:id/cancel', protect, [
                 if (description) request.description = description;
             }
         }
-        // --->>> КОНЕЦ ИНТЕГРАЦИИ <<<---
 
         // Обновляем остальные поля, если они были переданы
         if (subject) request.subject = subject;
@@ -1050,7 +1021,7 @@ router.post('/:id/cancel', protect, [
                   return res.status(403).json({ msg: 'Только автор может опубликовать черновик.' });
               }
 
-              // --->>> НОВАЯ ЛОГИКА: МОДЕРАЦИЯ ПЕРЕД ПУБЛИКАЦИЕЙ ЧЕРНОВИКА <<<---
+              // Интеграция гемини перед публикацией черновика
               const moderatedContent = await geminiService.moderateRequest(request.title, request.description);
 
               if (!moderatedContent.is_safe) {
@@ -1066,7 +1037,6 @@ router.post('/:id/cancel', protect, [
               // Если все ок, обновляем заявку отредактированными данными
               request.title = moderatedContent.suggested_title;
               request.description = moderatedContent.suggested_description;
-              // --->>> КОНЕЦ НОВОЙ ЛОГИКИ <<<---
 
               // Проверка на заполненность полей перед публикацией
               if (!request.description || !request.subject || !request.grade) {
@@ -1084,11 +1054,8 @@ router.post('/:id/cancel', protect, [
               if (!isAuthor) {
                   return res.status(403).json({ msg: 'Только автор может завершить заявку.' });
               }
-          } else {
-              // TODO: Добавить другие проверки, если они нужны для других статусов
           }
   
-          // --- ОБНОВЛЕНИЕ ---
           request.status = newStatus;
           if (newStatus === 'completed') {
               request.completedAt = new Date();
@@ -1099,11 +1066,11 @@ router.post('/:id/cancel', protect, [
               .populate('author', 'username _id rating avatar')
               .populate('helper', 'username _id rating avatar');
   
-          // --- УВЕДОМЛЕНИЯ И СОКЕТЫ ---
+          // Уведомления и сокеты
           if (oldStatus === 'draft' && newStatus === 'open') {
               io.emit('new_request', populatedRequest);
               
-              // --->>> ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ <<<---
+              // Используем новую функцию
               await notifyHelpersAboutNewRequest(populatedRequest, req.user);
 
           } else {
@@ -1129,9 +1096,84 @@ router.post('/:id/cancel', protect, [
 });
 
 /**
- * @route   DELETE api/requests/:id
- * @desc    Удалить заявку (доступно только автору)
- * @access  Private
+ * @swagger
+ * /api/requests/{id}:
+ *   delete:
+ *     summary: Удалить заявку
+ *     description: >
+ *       Удаляет заявку. Доступно автору заявки, а также модераторам и администраторам.
+ *       Для модераторов (не являющихся администраторами) требуется двухфакторное подтверждение через Telegram.
+ *       При первом вызове модератором будет отправлен код в Telegram, а API вернет ошибку 400 с `confirmationRequired: true`.
+ *       Второй вызов должен содержать этот код в поле `confirmationCode`.
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: mongoId
+ *         description: ID заявки для удаления
+ *     requestBody:
+ *       description: Причина удаления (для модераторов) и код подтверждения (для 2FA).
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               deleteReason:
+ *                 type: string
+ *                 description: Причина удаления (используется при удалении модератором).
+ *               confirmationCode:
+ *                 type: string
+ *                 description: 6-значный код подтверждения из Telegram (для второго шага 2FA модератора).
+ *                 example: "123456"
+ *     responses:
+ *       '200':
+ *         description: Заявка и связанные данные успешно удалены.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Запрос и все связанные данные успешно удалены
+ *       '400':
+ *         description: >
+ *           Ошибка валидации или требуется 2FA подтверждение.
+ *           - **confirmationRequired**: Модератору необходимо подтвердить действие кодом из Telegram.
+ *           - **Неверный код подтверждения**: Введен неверный `confirmationCode`.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - type: object
+ *                   properties:
+ *                     confirmationRequired:
+ *                       type: boolean
+ *                       example: true
+ *                     message:
+ *                       type: string
+ *                       example: Требуется подтверждение. Код отправлен вам в Telegram.
+ *                 - type: object
+ *                   properties:
+ *                     msg:
+ *                       type: string
+ *                       example: Неверный код подтверждения.
+ *       '401':
+ *         description: Не авторизован (отсутствует или неверный токен).
+ *       '403':
+ *         description: >
+ *           Нет прав для выполнения этого действия.
+ *           - Пользователь не является автором или модератором/админом.
+ *           - Модератор пытается удалить заявку, но его аккаунт не привязан к Telegram для 2FA.
+ *       '404':
+ *         description: Заявка не найдена.
+ *       '500':
+ *         description: Внутренняя ошибка сервера.
  */
 router.delete('/:id', protect, checkEditDeletePermission, [
     body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
@@ -1140,9 +1182,9 @@ router.delete('/:id', protect, checkEditDeletePermission, [
   try {
     const { confirmationCode, deleteReason } = req.body;
     const actingUser = req.user;
-    const request = req.request; // из checkEditDeletePermission
+    const request = req.request;
 
-    // --- ЛОГИКА 2FA ДЛЯ МОДЕРАТОРОВ ---
+    // Логика 2FA для модераторов
     if (req.isModeratorAction) {
       // Если это модер, но не админ, требуем 2FA
       if (actingUser.role !== 'admin') {
@@ -1153,7 +1195,6 @@ router.delete('/:id', protect, checkEditDeletePermission, [
         const redisKey = `mod-action:delete-request:${actingUser.id}:${request._id}`;
 
         if (!confirmationCode) {
-          // Этап 1: Генерация и отправка кода
           const code = crypto.randomInt(100000, 999999).toString();
           await redis.set(redisKey, code, 'EX', 300); // 5 минут
 
@@ -1167,15 +1208,13 @@ router.delete('/:id', protect, checkEditDeletePermission, [
               message: 'Требуется подтверждение. Код отправлен вам в Telegram.' 
           });
         } else {
-          // Этап 2: Проверка кода
           const storedCode = await redis.get(redisKey);
           if (storedCode !== confirmationCode) {
             return res.status(400).json({ msg: 'Неверный код подтверждения.' });
           }
-          await redis.del(redisKey); // Удаляем использованный код
+          await redis.del(redisKey);
         }
       }
-      // Если это админ или модер с верным кодом, уведомляем автора
       await createAndSendNotification({
           user: request.author,
           type: 'request_deleted_by_admin',
@@ -1186,12 +1225,9 @@ router.delete('/:id', protect, checkEditDeletePermission, [
       });
     }
 
-    // --- ОБЩАЯ ЛОГИКА УДАЛЕНИЯ ДЛЯ ВСЕХ (и для автора, и для модератора после проверки) ---
-    
     await Request.findByIdAndDelete(request._id);
     await Message.deleteMany({ request: request._id });
     
-    // Оповещение через сокеты об удалении
     io.emit('request_deleted', { id: request._id });
     
     res.json({ msg: 'Запрос и все связанные данные успешно удалены' });
@@ -1245,13 +1281,6 @@ router.post('/:id/reopen', protect, [
         
         const formerHelper = request.helper;
 
-        // Архивируем сообщения в чате, связанные с этой сессией помощи
-        // Важно: мы не удаляем их, а помечаем, чтобы их можно было потом посмотреть (например, админом)
-        const updateResult = await Message.updateMany(
-            { requestId: request._id }, 
-            { $set: { isArchived: true } }
-        );
-
         // Сбрасываем хелпера и возвращаем статус 'open'
         request.helper = null;
         request.status = 'open';
@@ -1297,5 +1326,5 @@ router.post('/:id/reopen', protect, [
     }
 });
 
-  return router; // ВОЗВРАЩАЕМ СКОНФИГУРИРОВАННЫЙ РОУТЕР В КОНЦЕ
+  return router;
 };

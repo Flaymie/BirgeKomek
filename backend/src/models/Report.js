@@ -8,7 +8,7 @@ const reportSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    // На что жалуемся ('User' или 'Request')
+    // На что жалуемся
     targetType: {
       type: String,
       enum: ['User', 'Request'],
@@ -18,7 +18,6 @@ const reportSchema = new mongoose.Schema(
     targetId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      // Динамическая ссылка в зависимости от targetType
       refPath: 'targetType',
     },
     // Причина жалобы (текст от пользователя)
@@ -29,7 +28,7 @@ const reportSchema = new mongoose.Schema(
       minlength: 10,
       maxlength: 2000
     },
-    // Вложения (массив путей к файлам)
+    // Вложения
     attachments: [{
         originalName: String,
         filename: String, 
@@ -65,7 +64,7 @@ const reportSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
   }
 );
 

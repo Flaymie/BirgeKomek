@@ -59,4 +59,6 @@ NOTES.md
 .DS_Store
 Thumbs.db 
 
-/uploads/ 
+/uploads/
+/uploads/avatars/
+/uploads/attachments/

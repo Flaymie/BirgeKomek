@@ -86,7 +86,7 @@ const userSchema = new mongoose.Schema({
     },
     expiresAt: {
       type: Date,
-      default: null, // null означает перманентный бан
+      default: null, // null это перманентный бан
     },
   },
   grade: {
@@ -127,19 +127,17 @@ const userSchema = new mongoose.Schema({
   }
 }, { 
   timestamps: true,
-  // --- ВАЖНО: Настройки для виртуальных полей ---
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// --- ВИРТУАЛЬНЫЕ ПОЛЯ ---
 
 // Количество созданных заявок
 userSchema.virtual('createdRequests', {
-  ref: 'Request', // Модель, которую считаем
-  localField: '_id', // Поле в User
-  foreignField: 'author', // Поле в Request, которое ссылается на User
-  count: true // Просто посчитать количество, а не загружать документы
+  ref: 'Request',
+  localField: '_id',
+  foreignField: 'author',
+  count: true
 });
 
 // Количество выполненных заявок (как хелпер)
@@ -184,8 +182,7 @@ userSchema.statics.updateAverageRating = async function (userId) {
       const newRating = (totalRating / reviews.length).toFixed(1);
       await this.findByIdAndUpdate(userId, { averageRating: newRating });
     } else {
-      // Если у пользователя больше нет отзывов, рейтинг можно сбросить или оставить как есть
-      await this.findByIdAndUpdate(userId, { averageRating: 0 }); // сбрасываем до 0
+      await this.findByIdAndUpdate(userId, { averageRating: 0 });
     }
   } catch (error) {
     console.error(`[updateAverageRating] Ошибка при обновлении среднего рейтинга для пользователя ${userId}:`, error);

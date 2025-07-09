@@ -1,43 +1,39 @@
 import express from 'express';
-import { body, validationResult, param, query } from 'express-validator'; // Добавил query
+import { body, validationResult, param, query } from 'express-validator';
 import User from '../models/User.js';
-import { protect, isAdmin, isModOrAdmin } from '../middleware/auth.js';
+import { protect, isModOrAdmin } from '../middleware/auth.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 import { createAndSendNotification } from './notifications.js';
-import axios from 'axios'; // <--- Добавляю axios
-import redis, { isRedisConnected } from '../config/redis.js'; // <-- ИМПОРТ REDIS
-import { generalLimiter } from '../middleware/rateLimiters.js'; // <-- Импортируем
-import tgRequired from '../middleware/tgRequired.js'; // ИМПОРТ
-import crypto from 'crypto'; // <-- ИМПОРТ ДЛЯ ГЕНЕРАЦИИ КОДА
-import multer from 'multer'; // <-- ИМПОРТ ДЛЯ ЗАГРУЗКИ ФАЙЛОВ
+import axios from 'axios';
+import redis, { isRedisConnected } from '../config/redis.js';
+import { generalLimiter } from '../middleware/rateLimiters.js';
+import tgRequired from '../middleware/tgRequired.js';
+import crypto from 'crypto';
+import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
 const router = express.Router();
 
-// --- НАСТРОЙКА MULTER ДЛЯ ЗАГРУЗКИ АВАТАРОВ ---
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = 'uploads/avatars';
-    // Создаем директорию, если она не существует
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    // Генерируем уникальное имя файла
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
     cb(null, `avatar-${uniqueSuffix}${ext}`);
   }
 });
 
-// Фильтр файлов - только изображения
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
@@ -50,11 +46,10 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB максимальный размер
+    fileSize: 5 * 1024 * 1024
   }
 });
 
-// --- НОВЫЙ ХЕЛПЕР ДЛЯ ОТПРАВКИ СООБЩЕНИЙ В TELEGRAM ---
 export const sendTelegramMessage = async (telegramId, message) => {
   if (!telegramId || !process.env.BOT_TOKEN) {
     console.log('Не удалось отправить сообщение в Telegram: отсутствует ID или токен бота.');
@@ -72,7 +67,7 @@ export const sendTelegramMessage = async (telegramId, message) => {
   }
 };
 
-export default ({ sseConnections, io }) => {
+export default ({ io }) => {
   /**
    * @swagger
    * tags:
@@ -198,7 +193,6 @@ export default ({ sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      // --- НОВАЯ, ПРАВИЛЬНАЯ ПРОВЕРКА ПАРОЛЯ ---
       if (newPassword) {
         if (!currentPassword) {
           return res.status(400).json({ 
@@ -211,7 +205,7 @@ export default ({ sseConnections, io }) => {
         }
       }
       
-      // --- НОВАЯ ЛОГИКА СМЕНЫ НИКНЕЙМА ---
+      // Новая логика смены никнейма
       if (username && username.toLowerCase() !== user.username) {
           // 1. Проверка на уникальность (без учета регистра)
           const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
@@ -235,7 +229,6 @@ export default ({ sseConnections, io }) => {
           user.lastUsernameChange = now;
       }
 
-      // --- ЛОГИКА ОБНОВЛЕНИЯ ПОЛЕЙ ---
       if (newPassword) {
         user.password = newPassword;
         user.hasPassword = true;
@@ -401,7 +394,7 @@ export default ({ sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
       
-      // --- НОВАЯ ПРОВЕРКА ОНЛАЙН-СТАТУСА ЧЕРЕЗ REDIS ---
+      // Новая проверка онлайн-статуса через Redis
       let isOnline = false;
       if (isRedisConnected()) {
         const onlineKey = `online:${user._id.toString()}`;
@@ -509,7 +502,6 @@ export default ({ sseConnections, io }) => {
       const queryOptions = { 'roles.helper': true };
 
       if (subject) {
-        // ИСПРАВЛЕНО: Ищем по полю 'subjects'
         queryOptions.subjects = { $in: [new RegExp(subject, 'i')] };
       }
       if (minRating !== undefined) {
@@ -524,7 +516,7 @@ export default ({ sseConnections, io }) => {
 
 
       const helpers = await User.find(queryOptions)
-        .select('_id username rating points subjects roles.helper') // ИСПРАВЛЕНО: Выбираем 'subjects'
+        .select('_id username rating points subjects roles.helper')
         .sort(sortParams)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -686,7 +678,6 @@ export default ({ sseConnections, io }) => {
     }
   });
   
-  // НОВЫЙ ЭНДПОИНТ: ЭТАП 2 - Подтверждение и удаление
   router.post('/me/delete', protect, generalLimiter, [
       body('confirmationCode').notEmpty().isLength({ min: 6, max: 6 }).withMessage('Код подтверждения должен состоять из 6 цифр.'),
   ], async (req, res) => {
@@ -710,7 +701,6 @@ export default ({ sseConnections, io }) => {
               return res.status(400).json({ msg: 'Неверный код подтверждения.' });
           }
           
-          // --- СЮДА ПЕРЕНЕСЕНА ВСЯ ЛОГИКА УДАЛЕНИЯ ---
           await Request.updateMany(
             { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
             { $set: { status: 'open' }, $unset: { helper: 1 } }
@@ -725,9 +715,8 @@ export default ({ sseConnections, io }) => {
           await Review.deleteMany({ reviewerId: userId });
           await Notification.deleteMany({ user: userId });
           await User.findByIdAndDelete(userId);
-          // --- КОНЕЦ ЛОГИКИ УДАЛЕНИЯ ---
 
-          await redis.del(redisKey); // Удаляем код после успешного использования
+          await redis.del(redisKey);
 
           res.status(200).json({ msg: 'Аккаунт и все связанные данные были успешно удалены.' });
 
@@ -795,7 +784,7 @@ export default ({ sseConnections, io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден.' });
       }
 
-      // --- ИСПРАВЛЕННАЯ ЛОГИКА ПРОВЕРКИ ПРАВ ---
+      // Исправленная логика проверки прав
       const isModeratorAdmin = moderator.roles && moderator.roles.admin;
       const isTargetAdmin = userToBan.roles && userToBan.roles.admin;
       const isTargetModerator = userToBan.roles && userToBan.roles.moderator;
@@ -809,9 +798,8 @@ export default ({ sseConnections, io }) => {
         return res.status(403).json({ msg: 'Модератор не может заблокировать другого модератора.' });
       }
       
-      // --- НОВАЯ ЛОГИКА 2FA ---
+      // Новая логика 2FA
       
-      // Админы могут банить без 2FA
       if (!isModeratorAdmin) {
         if (!moderator.telegramId) {
             return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
@@ -844,7 +832,7 @@ export default ({ sseConnections, io }) => {
         }
       }
 
-      // --- ОСНОВНАЯ ЛОГИКА БАНА ---
+      // Основная логика бана
       userToBan.banDetails.isBanned = true;
       userToBan.banDetails.reason = reason;
       userToBan.banDetails.bannedBy = moderator.id;
@@ -896,7 +884,7 @@ export default ({ sseConnections, io }) => {
 
       // Отправляем уведомление забаненному
       await createAndSendNotification(
-          req.app.locals.sseConnections, // Передаем sseConnections
+          req.app.locals.sseConnections,
           userToBan._id,
           'account_banned',
           `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}.`,
@@ -948,7 +936,6 @@ export default ({ sseConnections, io }) => {
       userToUnban.banDetails.expiresAt = null;
       await userToUnban.save();
 
-      // --- ОТПРАВКА УВЕДОМЛЕНИЯ В TELEGRAM ---
       const telegramMessage = `✅ *Ваш аккаунт был разблокирован.*\n\nТеперь вы снова можете пользоваться платформой Бірге Көмек.`;
       await sendTelegramMessage(userToUnban.telegramId, telegramMessage);
       
@@ -959,14 +946,11 @@ export default ({ sseConnections, io }) => {
     }
   });
 
-  // @route   GET /api/users/by-telegram/:id
-  // @desc    Найти пользователя по Telegram ID
-  // @access  Internal (для бота)
+  // Найти пользователя по Telegram ID
   router.get('/by-telegram/:id', async (req, res) => {
     try {
       const user = await User.findOne({ telegramId: req.params.id });
       if (!user) {
-        // Это не ошибка, просто пользователя нет. Отправляем exists: false
         return res.json({ exists: false });
       }
       res.json({ exists: true, user: { id: user._id, username: user.username } });
@@ -975,8 +959,6 @@ export default ({ sseConnections, io }) => {
       res.status(500).json({ msg: 'Ошибка сервера' });
     }
   });
-
-  // --- Настройки пользователя для Telegram-бота ---
 
   // Получить текущие настройки уведомлений
   router.get('/by-telegram/:telegramId/settings', async (req, res) => {

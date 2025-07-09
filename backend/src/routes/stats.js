@@ -19,8 +19,6 @@ const router = express.Router();
  *   get:
  *     summary: Получить общую статистику по платформе
  *     tags: [Statistics]
- *     // security: Если нужна защита, раскомментировать и настроить
- *     //   - bearerAuth: []
  *     responses:
  *       200:
  *         description: Общая статистика
@@ -31,7 +29,7 @@ const router = express.Router();
  *               properties:
  *                 totalUsers: { type: 'integer' }
  *                 totalHelpers: { type: 'integer' }
- *                 activeRequests: { type: 'integer' } # open or assigned
+ *                 activeRequests: { type: 'integer' }
  *                 completedRequests: { type: 'integer' }
  *                 totalRequests: { type: 'integer' }
  *       500:
@@ -106,14 +104,6 @@ router.get('/general', async (req, res) => {
 router.get('/user/:userId', protect, generalLimiter, async (req, res) => {
   try {
     const requestedUserId = req.params.userId;
-    const currentUserId = req.user.id;
-
-    // Пока что, позволяем пользователю смотреть только свою статистику
-    if (requestedUserId !== currentUserId) {
-        // return res.status(403).json({ msg: 'Доступ запрещен. Вы можете просматривать только свою статистику.' });
-        // Пока разрешим смотреть всем аутентифицированным, для простоты разработки.
-        // В продакшене эту проверку нужно будет включить или доработать с учетом ролей.
-    }
 
     const user = await User.findById(requestedUserId).select('_id username roles rating');
     if (!user) {

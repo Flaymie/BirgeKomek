@@ -9,9 +9,38 @@ import User from '../models/User.js';
 export default ({ sseConnections }) => {
   const router = express.Router();
 
-  // @route   POST /api/admin/notify-user
-  // @desc    Отправить персональное уведомление пользователю
-  // @access  Admin/Moderator
+  /**
+   * @swagger
+   * tags:
+   *   name: Admin
+   *   description: Управление административными задачами
+   */
+
+  /**
+   * @swagger
+   * /api/admin/notify-user:
+   *   post:
+   *     summary: Отправить персональное уведомление пользователю
+   *     tags: [Admin]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [recipientId, title, message]
+   *             properties:
+   *               recipientId: { type: 'string', description: 'Требуется ID получателя' }
+   *               title: { type: 'string', description: 'Заголовок не может быть пустым' }
+   *               message: { type: 'string', description: 'Сообщение не может быть пустым' }
+   *     responses:
+   *       201:
+   *         description: Уведомление успешно отправлено.
+   *       400:
+   *         description: Ошибки валидации.
+   *       500:
+   *         description: Ошибка сервера.
+   */
   router.post(
     '/notify-user',
     protect,

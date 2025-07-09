@@ -45,13 +45,13 @@ export const sendMessageLimiter = rateLimit({
 
 export const createReportLimiter = rateLimit({
   ...commonOptions,
-  windowMs: 60 * 60 * 1000, // 1 час
+  windowMs: 60 * 60 * 1000,
   max: 5,
   message: { msg: 'Вы можете подать не более 5 жалоб в час. Попробуйте позже.' },
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),
   }),
-  keyGenerator: (req, res) => req.user.id, // Лимит на пользователя
+  keyGenerator: (req, res) => req.user.id,
 });
 
 export const uploadLimiter = rateLimit({

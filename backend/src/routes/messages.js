@@ -18,7 +18,6 @@ const router = express.Router();
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/attachments';
-    // Создаем директорию, если она не существует
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -60,7 +59,6 @@ const upload = multer({
   }
 });
 
-// Применяем `protect` и `generalLimiter` ко всем роутам в этом файле
 router.use(protect, generalLimiter);
 
 /**
@@ -96,7 +94,6 @@ router.use(protect, generalLimiter);
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// получить сообщения по requestId
 router.get('/:requestId', [
   param('requestId').isMongoId().withMessage('Неверный формат ID')
 ], async (req, res) => {
@@ -116,7 +113,6 @@ router.get('/:requestId', [
       return res.status(404).json({ msg: 'Запрос не найден' });
     }
     
-    // НОВАЯ, БОЛЕЕ СТРОГАЯ ПРОВЕРКА НА АРХИВАЦИЮ
     const isUserAdminOrMod = req.user.roles && (req.user.roles.admin || req.user.roles.moderator);
     const archivedMessagesCount = await Message.countDocuments({ requestId, isArchived: true });
 
@@ -223,7 +219,7 @@ router.post('/', [protect, tgRequired], sendMessageLimiter, [
             sender: senderId,
             content,
             attachments: attachments || [],
-            readBy: [senderId] // Отправитель автоматически прочитал сообщение
+            readBy: [senderId]
         });
 
         await newMessage.save();
@@ -290,7 +286,7 @@ router.post('/:requestId/read', protect, async (req, res) => {
       { $addToSet: { readBy: userId } }
     );
     
-    // Здесь мы не отправляем ответ, так как это просто фоновая операция
+    // Здесь мы не отправляем ответ, так как это просто не нужно(фоновая операция)
     res.status(200).send();
 
   } catch (error) {
@@ -298,6 +294,24 @@ router.post('/:requestId/read', protect, async (req, res) => {
     res.status(500).json({ msg: 'Ошибка сервера' });
   }
 });
+
+// Создаем обертку для upload.single, чтобы ловить ошибки multer
+const uploadWithErrorHandler = (req, res, next) => {
+  const uploader = upload.single('attachment');
+  uploader(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ msg: 'Файл слишком большой. Максимальный размер - 10 МБ.' });
+      }
+      if (err.code === 'UNSUPPORTED_FILE_TYPE') {
+        return res.status(400).json({ msg: err.message });
+      }
+      // Другие ошибки multer
+      return res.status(400).json({ msg: 'Ошибка при загрузке файла.' });
+    }
+    next();
+  });
+};
 
 /**
  * @swagger
@@ -336,27 +350,9 @@ router.post('/:requestId/read', protect, async (req, res) => {
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// Создаем обертку для upload.single, чтобы ловить ошибки multer
-const uploadWithErrorHandler = (req, res, next) => {
-  const uploader = upload.single('attachment');
-  uploader(req, res, (err) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ msg: 'Файл слишком большой. Максимальный размер - 10 МБ.' });
-      }
-      if (err.code === 'UNSUPPORTED_FILE_TYPE') {
-        return res.status(400).json({ msg: err.message });
-      }
-      // Другие ошибки multer
-      return res.status(400).json({ msg: 'Ошибка при загрузке файла.' });
-    }
-    next();
-  });
-};
-
 router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
     body('requestId').isMongoId().withMessage('Неверный ID заявки'),
-    body('content').optional().trim().escape() // делаем контент опциональным
+    body('content').optional().trim().escape()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -377,9 +373,7 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
             return res.status(404).json({ msg: 'Заявка не найдена' });
     }
     
-        // НОВАЯ ПРОВЕРКА СТАТУСА ПЕРЕД ЗАГРУЗКОЙ
         if (!['assigned', 'in_progress'].includes(request.status)) {
-            // Важно удалить загруженный файл, если у пользователя нет прав
             fs.unlinkSync(file.path);
             return res.status(403).json({ msg: 'Сообщения можно отправлять только в активную заявку (в статусе "assigned" или "in_progress").' });
         }
@@ -388,19 +382,14 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
         const isHelper = request.helper && request.helper._id.toString() === senderId;
     
     if (!isAuthor && !isHelper) {
-            // Важно удалить загруженный файл, если у пользователя нет прав
             fs.unlinkSync(file.path);
       return res.status(403).json({ msg: 'Вы не можете отправлять сообщения в этот чат' });
     }
     
-        // --- 2. Логика для определения размеров ---
         let dimensions = null;
-        // Проверяем, является ли файл изображением, по MIME-типу
         if (file.mimetype && file.mimetype.startsWith('image/')) {
           try {
-            // Читаем файл в буфер
             const buffer = fs.readFileSync(file.path);
-            // Передаем буфер в sizeOf
             const imageSize = sizeOf(buffer);
             dimensions = {
               width: imageSize.width,
@@ -413,19 +402,18 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
         }
 
         const attachmentData = {
-          // Снова применяем фикс с Buffer, чтобы в БД попало правильное имя для отображения
           fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
-          fileUrl: `/uploads/attachments/${file.filename}`, // А для ссылки используем имя файла на диске
+          fileUrl: `/uploads/attachments/${file.filename}`,
           fileType: file.mimetype,
           fileSize: file.size,
-          dimensions: dimensions, // Добавляем размеры
+          dimensions: dimensions,
         };
 
         const newMessage = new Message({
           requestId,
                 sender: senderId,
           content: content || '',
-                attachments: [attachmentData], // <-- 3. Сохраняем данные с размерами
+                attachments: [attachmentData],
                 readBy: [senderId]
         });
         
@@ -462,7 +450,6 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
     }
 });
 
-// --- РУЧКИ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ ---
 
 /**
  * @swagger
@@ -575,7 +562,7 @@ router.delete('/:messageId', protect, [param('messageId').isMongoId()], async (r
     // "Мягкое" удаление - заменяем контент, удаляем вложения
     message.content = 'Сообщение удалено';
     message.attachments = [];
-    message.editedAt = new Date(); // Можно использовать как флаг "удаления"
+    message.editedAt = new Date();
 
     await message.save();
 

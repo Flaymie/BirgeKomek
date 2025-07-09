@@ -14,7 +14,7 @@ import LinkToken from '../models/LinkToken.js';
 
 const router = express.Router();
 
-// Список зарезервированных имен пользователей, которые нельзя использовать при регистрации
+// Список запрещенных имен пользователей
 const RESERVED_USERNAMES = [
     'admin', 'administrator', 'moderator', 'moder', 'support', 'root', 'system', 'api', 'backend', 'auth', 'login', 'logout', 'register',
     'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo', 'undefined', 'NaN', 'true', 'false', 'me', 'profile', 'user',
@@ -98,10 +98,9 @@ router.post('/register', registrationLimiter,
     .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания')
     .custom(value => {
         const lowerCaseValue = value.toLowerCase();
-        // Проверяем, не СОДЕРЖИТ ли имя пользователя зарезервированное слово
+        // Проверяем, не СОДЕРЖИТ ли имя пользователя запрещенное слово
         const isReserved = RESERVED_USERNAMES.some(reserved => lowerCaseValue.includes(reserved));
         if (isReserved) {
-            // Выбрасываем ошибку валидации
             return Promise.reject('Имя пользователя содержит зарезервированные слова.');
         }
         return true;
@@ -158,16 +157,12 @@ router.post('/register', registrationLimiter,
       return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
     }
 
-    // --- ЛОГИКА АВАТАРКИ ---
     let avatarUrl = '';
     if (req.file) {
-      // Если пользователь загрузил файл, используем его
       avatarUrl = `/uploads/avatars/${req.file.filename}`;
     } else {
-      // Иначе генерируем дефолтную SVG-аватарку
       avatarUrl = generateAvatar(username);
     }
-    // ----------------------
 
     const newUser = {
       username,
@@ -200,10 +195,8 @@ router.post('/register', registrationLimiter,
 
     user = new User(newUser);
 
-    // Сохраняем пользователя
     await user.save();
     
-    // Генерируем токен
     const payload = {
         user: {
             id: user.id,
@@ -226,7 +219,6 @@ router.post('/register', registrationLimiter,
             rating: user.rating,
             avatar: user.avatar,
             grade: user.grade,
-            // не отправляем пароль и прочую чувствительную инфу
         }
     });
 
@@ -350,8 +342,6 @@ router.post('/login', generalLimiter, [
   }
 });
 
-// --- Новые роуты для валидации ---
-
 /**
  * @swagger
  * /api/auth/check-username:
@@ -386,7 +376,6 @@ router.post('/check-username', [
     try {
         const username = req.body.username.toLowerCase();
 
-        // --- ПРОВЕРКА НА СОДЕРЖАНИЕ ЗАРЕЗЕРВИРОВАННЫХ СЛОВ ---
         const isReserved = RESERVED_USERNAMES.some(reserved => username.includes(reserved));
         if (isReserved) {
             return res.json({ available: false, message: 'Имя пользователя содержит зарезервированные слова.' });
@@ -424,7 +413,6 @@ router.post('/telegram/generate-token', generalLimiter, (req, res) => {
     try {
         const token = crypto.randomBytes(20).toString('hex');
         
-        // Используем глобальный или импортированный объект для хранения
         const { loginTokens } = req.app.locals; 
         loginTokens.set(token, { status: 'pending', userId: null, expires: Date.now() + 3 * 60 * 1000 });
 
@@ -561,6 +549,8 @@ router.post('/telegram/register', async (req, res) => {
             firstName,
             lastName
         } = req.body;
+        // Логика регистрации через тг бота
+
 
         // 1. Проверяем, что ID телеграма есть
         if (!telegramId) {
@@ -573,8 +563,6 @@ router.post('/telegram/register', async (req, res) => {
              // Если юзер уже есть - просто возвращаем его ID, НИЧЕГО НЕ МЕНЯЕМ
              return res.status(200).json({ userId: existingUserByTgId._id, message: 'Пользователь уже существует.' });
         }
-
-        // --- Если пользователя нет, продолжаем регистрацию ---
 
         // 3. Проверяем, что все нужные данные для НОВОГО юзера есть
         if (!role || !username) {
@@ -607,7 +595,7 @@ router.post('/telegram/register', async (req, res) => {
 
         await newUser.save();
 
-        // 7. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но пусть будет)
+        // 7. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но почему бы и да)
         const jwtToken = jwt.sign(
             { 
               user: {
@@ -636,7 +624,7 @@ router.post('/telegram/register', async (req, res) => {
  * /api/auth/telegram/complete-login:
  *   post:
  *     summary: Связать токен входа с пользователем из Telegram (внутренний)
- *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом после того, как пользователь подтвердил вход."
+ *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только Telegram-ботом и только после того, как пользователь подтвердил вход."
  *     tags: [Telegram, Internal]
  *     requestBody:
  *       required: true
@@ -691,7 +679,6 @@ router.post('/telegram/complete-login', async (req, res) => {
         tokenData.userId = finalUserId;
         loginTokens.set(loginToken, tokenData);
         
-        // --- ИСПРАВЛЕННЫЙ ТЕКСТ ---
         res.status(200).json({ msg: 'Вход подтвержден! Можете возвращаться на сайт, вы уже вошли в систему.' });
 
     } catch (error) {
@@ -699,11 +686,6 @@ router.post('/telegram/complete-login', async (req, res) => {
         res.status(500).json({ msg: 'Ошибка сервера' });
     }
 });
-
-/*
-*   НОВЫЙ РОУТ ДЛЯ ПРИВЯЗКИ ТЕЛЕГРАМА
-*/
-
 /**
  * @swagger
  * /api/auth/generate-link-token:
@@ -734,7 +716,6 @@ router.post('/generate-link-token', protect, generalLimiter, async (req, res) =>
         const linkToken = `link_${crypto.randomBytes(15).toString('hex')}`;
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 минут
 
-        // --- ИСПРАВЛЕНИЕ: Сохраняем токен в MongoDB, а не в память ---
         await LinkToken.create({
             token: linkToken,
             userId: req.user.id,
@@ -797,7 +778,7 @@ router.get('/check-link-status/:token', protect, generalLimiter, async (req, res
          return res.status(404).json({ msg: 'Связанный пользователь не найден.' });
       }
 
-      await tokenData.deleteOne(); // Удаляем использованный токен
+      await tokenData.deleteOne();
       
       return res.json({ status: 'linked', user });
     } else {
@@ -810,7 +791,7 @@ router.get('/check-link-status/:token', protect, generalLimiter, async (req, res
  * /api/auth/telegram/unlink:
  *   post:
  *     summary: Отвязать Telegram от аккаунта
- *     description: Удаляет связь между аккаунтом на сайте и Telegram. Невозможно, если у пользователя не установлен пароль.
+ *     description: Удаляет связь между аккаунтом на сайте и Telegram. Если у юзера нет пароля, телеграм отвязать НЕЛЬЗЯ.
  *     tags: [Telegram]
  *     security:
  *       - bearerAuth: []
@@ -851,7 +832,6 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
 
     await user.save();
 
-    // --- УВЕДОМЛЕНИЕ ОБ ОТВЯЗКЕ TELEGRAM ---
     await createAndSendNotification(req.app.locals.sseConnections, {
       user: req.user.id,
       type: 'security_alert',
@@ -875,7 +855,7 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
  * /api/auth/finalizelink:
  *   post:
  *     summary: Завершить привязку Telegram (внутренний)
- *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только вашим Telegram-ботом после того, как пользователь отправил ему токен привязки."
+ *     description: "ВНИМАНИЕ: Этот эндпоинт предназначен для вызова только Telegram-ботом и только после того, как пользователь отправил ему токен привязки."
  *     tags: [Telegram, Internal]
  *     requestBody:
  *       required: true
@@ -910,7 +890,7 @@ router.post('/finalizelink', async (req, res) => {
         return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
     }
 
-    // --- ИСПРАВЛЕНИЕ: Ищем токен в MongoDB ---
+    // Ищем токен в монге
     const tokenData = await LinkToken.findOne({ 
         token: linkToken, 
         expiresAt: { $gt: new Date() } 
@@ -936,15 +916,15 @@ router.post('/finalizelink', async (req, res) => {
         if (telegramUsername) { // Сохраним, только если он есть
            userToUpdate.telegramUsername = telegramUsername;
         }
-        if (phone) { // Сохраняем телефон, если он был передан
+        if (phone) { // Сохраняем телефон, если он был передан(надеюсь, что он будет передан)
             userToUpdate.phone = phone;
         }
         await userToUpdate.save();
 
-        // --- ИСПРАВЛЕНИЕ: Удаляем токен из базы после использования ---
+        // Удаляем токен из базы после использования
         await tokenData.deleteOne();
         
-        // --- УВЕДОМЛЕНИЕ О ПРИВЯЗКЕ TELEGRAM ---
+        // Уведомление о привязке телеграма
         await createAndSendNotification(req.app.locals.sseConnections, {
           user: userToUpdate._id,
           type: 'security_alert',
@@ -960,8 +940,6 @@ router.post('/finalizelink', async (req, res) => {
         res.status(500).json({ msg: 'Ошибка сервера' });
     }
 });
-
-// --- РОУТЫ ДЛЯ СБРОСА ПАРОЛЯ ---
 
 /**
  * @swagger
@@ -1003,7 +981,6 @@ router.post('/forgot-password', generalLimiter, [
 
     const { username } = req.body;
     
-    // Инициализируем хранилища, если их еще нет
     if (!req.app.locals.passwordResetTokens) {
         req.app.locals.passwordResetTokens = new Map();
     }
@@ -1014,7 +991,7 @@ router.post('/forgot-password', generalLimiter, [
     const { passwordResetTokens, passwordResetRateLimiter } = req.app.locals;
     const lowerCaseUsername = username.toLowerCase();
 
-    // ПРОВЕРКА ЛИМИТА ЧАСТОТЫ ЗАПРОСОВ
+    // ПРОВЕРКА ЛИМИТА ЧАСТОТЫ ЗАПРОСОВ(чтоб не абузили)
     const lastRequestTimestamp = passwordResetRateLimiter.get(lowerCaseUsername);
     const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
 
@@ -1037,12 +1014,12 @@ router.post('/forgot-password', generalLimiter, [
         }
 
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const expires = Date.now() + 10 * 60 * 1000; // 10 минут
+        const expires = Date.now() + 10 * 60 * 1000;
 
         passwordResetTokens.set(lowerCaseUsername, { code, expires });
-        passwordResetRateLimiter.set(lowerCaseUsername, Date.now()); // Устанавливаем метку времени для лимита
+        passwordResetRateLimiter.set(lowerCaseUsername, Date.now());
 
-        // Отправляем код через Telegram Bot API
+        // Отправляем код через апи телеграма
         const botToken = process.env.BOT_TOKEN;
         const message = `Ваш код для сброса пароля на Birge Kömek: *${code}*\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это сообщение.`;
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -1129,12 +1106,12 @@ router.post('/reset-password', generalLimiter, [
     try {
         const user = await User.findOne({ username: username.toLowerCase() }).select('+password');
         if (!user) {
-            // Этого не должно произойти, если код был найден, но на всякий случай
+            // Этого не должно произойти, если код был найден, но кто его знает
             return res.status(404).json({ msg: 'Пользователь не найден.' });
         }
 
         // ПРОВЕРКА НА СОВПАДЕНИЕ СО СТАРЫМ ПАРОЛЕМ
-        if(user.password) { // Проверяем, только если пароль вообще был
+        if(user.password) {
             const isSamePassword = await user.comparePassword(password);
             if (isSamePassword) {
                 return res.status(400).json({ msg: 'Новый пароль не может совпадать со старым.' });
@@ -1142,10 +1119,10 @@ router.post('/reset-password', generalLimiter, [
         }
 
         user.password = password; // хэширование произойдет в pre-save хуке
-        user.hasPassword = true; // Теперь у юзера есть пароль
+        user.hasPassword = true; // Теперь у юзера есть пароль(ура)
         await user.save();
 
-        passwordResetTokens.delete(username.toLowerCase()); // Код использован, удаляем
+        passwordResetTokens.delete(username.toLowerCase());
 
         res.status(200).json({ msg: 'Пароль успешно сброшен. Теперь вы можете войти.' });
 
@@ -1160,7 +1137,7 @@ router.post('/reset-password', generalLimiter, [
 router.post('/telegram/link-user', async (req, res) => {
     const { token, telegramId, telegramUsername, phone } = req.body;
     
-    // Секретный ключ для "авторизации" бота
+    // Секретный ключ для авторизации бота
     if (req.headers['x-bot-secret'] !== process.env.BOT_INTERNAL_SECRET) {
         return res.status(403).json({ msg: 'Forbidden' });
     }
@@ -1171,7 +1148,6 @@ router.post('/telegram/link-user', async (req, res) => {
             return res.status(404).json({ msg: 'Токен не найден или истек.' });
         }
         
-        // --- ИСПРАВЛЕНИЕ ЛОГИКИ ---
         const userToUpdate = await User.findById(tokenData.userId);
         if (!userToUpdate) {
             return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });

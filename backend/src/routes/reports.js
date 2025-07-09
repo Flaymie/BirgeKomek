@@ -12,7 +12,6 @@ import { createAndSendNotification } from './notifications.js';
 
 const router = express.Router();
 
-// --- НАСТРОЙКА MULTER ДЛЯ ВЛОЖЕНИЙ В ЖАЛОБАХ ---
 const attachmentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/reports';
@@ -41,20 +40,74 @@ const uploadReportAttachments = multer({
   storage: attachmentStorage,
   fileFilter: imageFileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10 МБ
-    files: 5 // до 5 файлов
+    fileSize: 10 * 1024 * 1024,
+    files: 5
   }
 }).array('attachments', 5);
-// -------------------------------------------------
 
-// ЭКСПОРТИРУЕМ ФУНКЦИЮ, ЧТОБЫ ПРИНЯТЬ io И ИНКАПСУЛИРОВАТЬ ВСЮ ЛОГИКУ
 export default ({ io }) => {
-  // @desc    Создать новую жалобу
-  // @route   POST /api/reports
-  // @access  Private
-  router.post('/', protect, createReportLimiter, async (req, res, next) => { // Добавляем лимитер
-    // --- ПРОВЕРКА ВОЗРАСТА АККАУНТА ---
-    const userAccountAge = (new Date() - new Date(req.user.createdAt)) / (1000 * 60 * 60 * 24); // в днях
+  /**
+   * @swagger
+   * /api/reports:
+   *   post:
+   *     summary: Создать новую жалобу
+   *     tags: [Reports]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - targetType
+   *               - targetId
+   *               - reason
+   *               - category
+   *             properties:
+   *               targetType:
+   *                 type: string
+   *                 enum: [User, Request]
+   *                 description: Тип объекта, на который подается жалоба.
+   *               targetId:
+   *                 type: string
+   *                 description: ID объекта жалобы.
+   *               reason:
+   *                 type: string
+   *                 description: Подробное описание причины жалобы.
+   *               category:
+   *                 type: string
+   *                 enum: [spam, insult, fraud, illegal_content, other]
+   *                 description: Категория жалобы.
+   *               attachments:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                   format: binary
+   *                 description: Вложения (до 5 изображений, до 10МБ каждое).
+   *     responses:
+   *       '201':
+   *         description: Жалоба успешно создана.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Report'
+   *       '400':
+   *         description: Неверные данные запроса, ошибка загрузки файла или жалоба на самого себя.
+   *       '401':
+   *         description: Необходима авторизация.
+   *       '403':
+   *         description: Аккаунт слишком новый для подачи жалоб.
+   *       '404':
+   *         description: Объект жалобы не найден.
+   *       '429':
+   *         description: Слишком много запросов (превышен лимит или повторная жалоба в течение 24 часов).
+   *       '500':
+   *         description: Ошибка сервера.
+   */
+  router.post('/', protect, createReportLimiter, async (req, res, next) => {
+    const userAccountAge = (new Date() - new Date(req.user.createdAt)) / (1000 * 60 * 60 * 24);
     if (userAccountAge < 2) {
       return res.status(403).json({ msg: 'Ваш аккаунт слишком новый для подачи жалоб. Попробуйте через некоторое время.' });
     }
@@ -67,11 +120,11 @@ export default ({ io }) => {
               return res.status(400).json({ msg: err.message });
           }
 
-          // Теперь остальная логика
+          // Дальше остальная логика
           const { targetType, targetId, reason, category } = req.body;
           const reporterId = req.user.id;
           
-          // --- ПРОВЕРКА КУЛДАУНА НА ПОВТОРНУЮ ЖАЛОБУ ---
+          // кд на повторную жалобу
           const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
           const existingReport = await Report.findOne({
             reporter: reporterId,
@@ -84,7 +137,7 @@ export default ({ io }) => {
             return res.status(429).json({ msg: 'Вы уже недавно жаловались на этот объект. Повторная жалоба будет доступна через 24 часа.' });
           }
         
-          // Проверяем, что цель существует
+          // проверяем, что цель существует
           let target;
           if (targetType === 'User') {
             target = await User.findById(targetId);
@@ -96,7 +149,7 @@ export default ({ io }) => {
             return res.status(404).json({ msg: `Объект жалобы (${targetType}) не найден` });
           }
           
-          // Нельзя жаловаться на самого себя
+          // нельзя жаловаться на самого себя
           if (targetType === 'User' && targetId === reporterId) {
               return res.status(400).json({ msg: 'Вы не можете пожаловаться на самого себя' });
           }
@@ -119,7 +172,7 @@ export default ({ io }) => {
                   attachments: attachmentsData,
               });
               
-              // --- УВЕДОМЛЕНИЕ АДМИНОВ И МОДЕРОВ ---
+              // уведомление админов и модеров
               const adminsAndMods = await User.find({
                 $or: [
                   { 'roles.admin': true },
@@ -131,7 +184,7 @@ export default ({ io }) => {
               console.log(`Найдено ${adminsAndMods.length} админов и модераторов для уведомления`);
               
               for (const adminOrMod of adminsAndMods) {
-                  if (adminOrMod._id.toString() !== reporterId) { // Не отправляем уведомление, если модер сам на себя пожаловался (хотя это запрещено выше)
+                  if (adminOrMod._id.toString() !== reporterId) { // Не отправляем уведомление, если модер сам на себя пожаловался (хотя это запрещено выше...)
                       try {
                           await createAndSendNotification({
                               user: adminOrMod._id,
@@ -146,9 +199,8 @@ export default ({ io }) => {
                       }
                   }
               }
-              // ------------------------------------
 
-              // --- ЛОГИКА АВТОБАНА/АВТОУДАЛЕНИЯ ---
+              // логика автобана/автоудаления
               const openReportsCount = await Report.countDocuments({ targetId: targetId, targetType: targetType, status: 'open' });
 
               if (openReportsCount >= 5) {
@@ -163,18 +215,17 @@ export default ({ io }) => {
                   } else if (targetType === 'Request') {
                       await Request.findByIdAndDelete(targetId);
                   }
-                  // Закрываем все жалобы на этот объект
+                  // закрываем все жалобы на этот объект
                   await Report.updateMany(
                       { targetId: targetId, targetType: targetType, status: 'open' },
                       { $set: { status: 'resolved', moderatorComment: 'Автоматическое закрытие в связи с большим количеством жалоб и применением санкций.' } }
                   );
               }
-              // ------------------------------------
             
             res.status(201).json(report);
           } catch (error) {
               console.error(error);
-              // Если ошибка валидации Mongoose
+              // если ошибка валидации Mongoose
               if (error.name === 'ValidationError') {
                    return res.status(400).json({ msg: Object.values(error.errors).map(e => e.message).join(', ') });
               }
@@ -183,14 +234,35 @@ export default ({ io }) => {
       });
   });
 
-  // @desc    Получить все жалобы (для модераторов/админов)
-  // @route   GET /api/reports
-  // @access  Private (Moderator, Admin)
+  /**
+   * @swagger
+   * /api/reports:
+   *   get:
+   *     summary: Получить все жалобы (для модераторов/админов)
+   *     tags: [Reports]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       '200':
+   *         description: Список всех жалоб.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Report'
+   *       '401':
+   *         description: Необходима авторизация.
+   *       '403':
+   *         description: Доступ запрещен (необходимы права модератора или администратора).
+   *       '500':
+   *         description: Ошибка сервера.
+   */
   router.get('/', protect, isModOrAdmin, async (req, res) => {
       try {
           const reports = await Report.find()
               .populate('reporter', 'username avatar')
-              .populate('targetId') // Mongoose сам разберется, из какой коллекции брать, благодаря refPath
+              .populate('targetId') // Mongoose сам разберется, из какой коллекции брать
               .sort({ createdAt: -1 });
 
           res.json(reports);
@@ -200,19 +272,47 @@ export default ({ io }) => {
       }
   });
 
-  // @desc    Получить одну жалобу по ID (для модераторов/админов)
-  // @route   GET /api/reports/:id
-  // @access  Private (Moderator, Admin)
+  /**
+   * @swagger
+   * /api/reports/{id}:
+   *   get:
+   *     summary: Получить одну жалобу по ID (для модераторов/админов)
+   *     tags: [Reports]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID жалобы.
+   *     responses:
+   *       '200':
+   *         description: Детали жалобы.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Report'
+   *       '401':
+   *         description: Необходима авторизация.
+   *       '403':
+   *         description: Доступ запрещен (необходимы права модератора или администратора).
+   *       '404':
+   *         description: Жалоба не найдена.
+   *       '500':
+   *         description: Ошибка сервера.
+   */
   router.get('/:id', protect, isModOrAdmin, async (req, res) => {
       try {
           const report = await Report.findById(req.params.id)
               .populate('reporter', 'username _id')
               .populate({
                   path: 'targetId',
-                  model: 'User', // Указываем модель явно, для надежности
+                  model: 'User', // указываем модель явно, для надежности
                   populate: [
-                      { path: 'createdRequests' }, // Популируем виртуальное поле
-                      { path: 'completedRequests' } // И это тоже
+                      { path: 'createdRequests' }, // популируем виртуальное поле
+                      { path: 'completedRequests' } // и тут тоже
                   ]
               });
 
@@ -231,9 +331,37 @@ export default ({ io }) => {
       }
   });
 
-  // @desc    Получить историю жалоб на конкретного пользователя
-  // @route   GET /api/reports/user/:userId
-  // @access  Private (Moderator, Admin)
+  /**
+   * @swagger
+   * /api/reports/user/{userId}:
+   *   get:
+   *     summary: Получить историю жалоб на конкретного пользователя (для модераторов/админов)
+   *     tags: [Reports]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID пользователя, на которого были поданы жалобы.
+   *     responses:
+   *       '200':
+   *         description: Список жалоб на пользователя.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Report'
+   *       '401':
+   *         description: Необходима авторизация.
+   *       '403':
+   *         description: Доступ запрещен (необходимы права модератора или администратора).
+   *       '500':
+   *         description: Ошибка сервера.
+   */
   router.get('/user/:userId', protect, isModOrAdmin, async (req, res) => {
       try {
           const { userId } = req.params;
@@ -248,9 +376,53 @@ export default ({ io }) => {
       }
   });
 
-  // @desc    Обновить статус жалобы
-  // @route   PUT /api/reports/:id
-  // @access  Private (Moderator, Admin)
+  /**
+   * @swagger
+   * /api/reports/{id}:
+   *   put:
+   *     summary: Обновить статус жалобы (для модераторов/админов)
+   *     tags: [Reports]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID жалобы для обновления.
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               status:
+   *                 type: string
+   *                 enum: [open, in_progress, resolved, rejected]
+   *                 description: Новый статус жалобы.
+   *               moderatorComment:
+   *                 type: string
+   *                 description: Комментарий модератора (необязательно).
+   *     responses:
+   *       '200':
+   *         description: Жалоба успешно обновлена.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Report'
+   *       '400':
+   *         description: Неверный статус.
+   *       '401':
+   *         description: Необходима авторизация.
+   *       '403':
+   *         description: Доступ запрещен (необходимы права модератора или администратора).
+   *       '404':
+   *         description: Жалоба не найдена.
+   *       '500':
+   *         description: Ошибка сервера.
+   */
   router.put('/:id', protect, isModOrAdmin, async (req, res) => {
       try {
           const { status, moderatorComment } = req.body;
@@ -282,7 +454,7 @@ export default ({ io }) => {
               await populatedReport.populate('targetId', 'username avatar createdAt roles rating completedRequests createdRequests');
           }
 
-          // --- УВЕДОМЛЕНИЕ АВТОРУ ЖАЛОБЫ ---
+          // уведомление автору жалобы
           const STATUS_LABELS_RU = {
               in_progress: 'взята в работу',
               resolved: 'рассмотрена и решена',
@@ -299,7 +471,6 @@ export default ({ io }) => {
                   relatedEntity: { reportId: report._id }
               });
           }
-          // ------------------------------------
 
           res.json(populatedReport);
 
@@ -309,5 +480,5 @@ export default ({ io }) => {
       }
   });
 
-  return router; // ВОЗВРАЩАЕМ СКОНФИГУРИРОВАННЫЙ РОУТЕР В КОНЦЕ
-}; 
+  return router;
+};

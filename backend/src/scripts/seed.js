@@ -4,12 +4,10 @@ import bcrypt from 'bcryptjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// --- Настройка для ES Modules ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-// --- Импорт моделей ---
 import User from '../models/User.js';
 import Request from '../models/Request.js';
 import Response from '../models/Response.js';
@@ -26,7 +24,6 @@ const connectDB = async () => {
   }
 };
 
-// --- Демо-данные ---
 const usersData = [
   {
     username: 'admin',
@@ -94,7 +91,6 @@ const usersData = [
 
 const importData = async () => {
   try {
-    // 1. Очистка коллекций
     await Request.deleteMany();
     await Response.deleteMany();
     await Message.deleteMany();
@@ -102,11 +98,9 @@ const importData = async () => {
     await User.deleteMany();
     console.log('Старые данные удалены.');
 
-    // 2. Создание пользователей
     const createdUsers = await Promise.all(
       usersData.map(async (userData) => {
         const user = new User({ ...userData, hasPassword: true });
-        // Хешируем пароль вручную, так как pre-save хук может не сработать в некоторых сценариях
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(userData.password, salt);
         return user.save();
@@ -114,14 +108,11 @@ const importData = async () => {
     );
     console.log('Пользователи созданы.');
 
-    // 3. Распределение ролей для удобства
-    const adminUser = createdUsers.find(u => u.username === 'admin');
     const studentAmina = createdUsers.find(u => u.username === 'student_amina');
     const studentTimur = createdUsers.find(u => u.username === 'student_timur');
     const helperMath = createdUsers.find(u => u.username === 'helper_math');
     const helperHistory = createdUsers.find(u => u.username === 'helper_history');
 
-    // 4. Создание заявок
     const requestsData = [
       {
         title: 'Помогите решить задачу по тригонометрии',
@@ -154,7 +145,6 @@ const importData = async () => {
     const createdRequests = await Request.insertMany(requestsData);
     console.log('Заявки созданы.');
 
-    // 5. Создание переписки в чате
     const assignedRequest = createdRequests.find(r => r.status === 'assigned');
     const messagesData = [
         { requestId: assignedRequest._id, sender: studentTimur._id, content: 'Здравствуйте! Спасибо, что откликнулись.' },
@@ -164,12 +154,11 @@ const importData = async () => {
     await Message.insertMany(messagesData);
     console.log('Сообщения в чате созданы.');
 
-    // 6. Создание отзыва
     const completedRequest = createdRequests.find(r => r.status === 'completed');
     const reviewData = {
         requestId: completedRequest._id,
-        reviewerId: studentAmina._id, // Правильное поле
-        helperId: helperMath._id,     // Правильное поле
+        reviewerId: studentAmina._id,
+        helperId: helperMath._id,
         rating: 5,
         comment: 'Все отлично объяснили, спасибо!',
         isResolved: true,
@@ -200,7 +189,6 @@ const deleteData = async () => {
   }
 };
 
-// --- Запуск ---
 const run = async () => {
   await connectDB();
   if (process.argv[2] === '-d') {

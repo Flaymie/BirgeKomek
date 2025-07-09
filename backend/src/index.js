@@ -1,16 +1,13 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
-import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import http from 'http';
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -38,10 +35,7 @@ import Notification from './models/Notification.js';
 
 dotenv.config();
 
-// --- ОБЪЕКТЫ ДЛЯ ХРАНЕНИЯ СОСТОЯНИЯ ONLINE ---
 const sseConnections = {};
-// Для Socket.IO (статус "онлайн", чаты)
-// const onlineUsers = new Map(); // БОЛЬШЕ НЕ ИСПОЛЬЗУЕТСЯ, ЗАМЕНЕНО НА REDIS
 
 // Это нужно для __dirname в ES-модулях
 const __filename = fileURLToPath(import.meta.url);
@@ -49,14 +43,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// --- ГЛОБАЛЬНЫЕ ХРАНИЛИЩА ---
 app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
 app.locals.sseConnections = sseConnections;
 // app.locals.onlineUsers = onlineUsers; // БОЛЬШE НЕ ИСПОЛЬЗУЕТСЯ
 
 const server = http.createServer(app);
-// ЭКСПОРТИРУЕМ io, чтобы он был доступен в других файлах
 export const io = new Server(server, {
   cors: {
     origin: [
@@ -79,10 +71,13 @@ app.use(xss());
 
 app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
 
+const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL];
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Для разработки разрешаем все. В проде нужно будет настроить строже.
-    callback(null, true);
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS не разрешен'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -92,20 +87,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(multiAccountDetector);
 
-// НОВЫЙ, НАДЕЖНЫЙ РОУТ ДЛЯ РАЗДАЧИ ФАЙЛОВ
-// Он будет обрабатывать запросы вида /uploads/avatars/filename.png
 app.get('/uploads/:folder/:filename', (req, res) => {
   const { folder, filename } = req.params;
 
-  // Простая проверка безопасности
   if (filename.includes('..') || folder.includes('..')) {
     return res.status(400).send('Invalid path');
   }
   
-  // Строим абсолютный путь к файлу
   const filePath = path.join(__dirname, '..', 'uploads', folder, filename);
 
-  // Отправляем файл. Express сам выставит нужные заголовки.
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error(`Ошибка отправки файла: ${filePath}`, err);
@@ -114,12 +104,11 @@ app.get('/uploads/:folder/:filename', (req, res) => {
   });
 });
 
-// отключаем строку X-Powered-By
 app.disable('x-powered-by');
 
 // подрубаем к монге с безопасными настройками
 mongoose.connect(process.env.MONGODB_URI, {
-  autoIndex: process.env.NODE_ENV === 'development', // отключаем автоиндексацию в проде
+  autoIndex: process.env.NODE_ENV === 'development',
 })
   .catch(err => console.error('MongoDB не подключена:', err));
 
@@ -165,9 +154,8 @@ io.on('connection', (socket) => {
   // Разово обновляем lastSeen при подключении, для надежности
   User.findByIdAndUpdate(userId, { lastSeen: new Date() }).exec();
 
-  // Слушаем пинги от клиента
+  // Слушаем пинки от клиента
   socket.on('user_ping', () => {
-    // Просто обновляем TTL ключа еще на 120 секунд
     if (isRedisConnected()) {
       redis.expire(onlineKey, 120);
     }
@@ -182,7 +170,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    const { requestId, content, attachment } = data;
+    const { requestId, content } = data;
 
     if (!requestId) {
       console.error('Socket: Error - requestId is missing in received data');
@@ -195,7 +183,7 @@ io.on('connection', (socket) => {
         return socket.emit('message_error', { error: 'Request not found.' });
       }
 
-      // Получаем всех пользователей, которые сейчас в комнате
+      // Получаем всех пользователей, которые сейчас в чате
       const socketsInRoom = await io.in(requestId).fetchSockets();
       const userIdsInRoom = socketsInRoom.map(s => s.user.id);
 
@@ -237,7 +225,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ИСПРАВЛЕННАЯ ЛОГИКА ИНДИКАТОРА ПЕЧАТИ
+  // ИСПРАВЛЕННАЯ ЛОГИКА ИНДИКАТОРА ПЕЧАТИ(НАКОНЕЦ-ТО)
   const handleTyping = (eventName) => (data) => {
     const { chatId } = data;
     const { id, username } = socket.user;
@@ -246,7 +234,7 @@ io.on('connection', (socket) => {
       socket.to(chatId).emit(eventName, { 
         userId: id, 
         username: username,
-        isTyping: eventName === 'typing_started', // true для started, false для stopped
+        isTyping: eventName === 'typing_started',
         chatId: chatId 
       });
     }
@@ -279,7 +267,6 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (isRedisConnected()) {
-      // Можно удалить ключ сразу, но лучше положиться на TTL для надежности
       redis.del(onlineKey);
     }
   });

@@ -7,7 +7,6 @@ import { generalLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
-// Применяем `protect` и `generalLimiter` ко всем роутам в этом файле
 router.use(protect, generalLimiter);
 
 /**
@@ -80,11 +79,10 @@ router.get('/', async (req, res) => {
         .populate('sender', 'username avatar')
         .lean();
       
-      // Если сообщений нет, но запрос имеет статус assigned/in_progress, все равно показываем чат
       const request = requests.find(req => req._id.toString() === requestId.toString());
       
       if (!lastMessage && request.status !== 'completed') {
-        // Создаем фиктивное "системное" сообщение для отображения чата
+        // Создаем системное сообщение для отображения чата
         const defaultMessage = {
           _id: 'system_' + requestId,
           content: 'Начните общение',
@@ -93,7 +91,7 @@ router.get('/', async (req, res) => {
           hasAttachments: false
         };
         
-        // Получаем количество непрочитанных сообщений (должно быть 0)
+        // Получаем количество непрочитанных сообщений
         const unreadCount = 0;
         
         return {
@@ -143,10 +141,10 @@ router.get('/', async (req, res) => {
     // Ждем выполнения всех промисов
     let chats = await Promise.all(chatPromises);
     
-    // Фильтруем null значения (запросы без сообщений и не в статусе assigned/in_progress)
+    // Фильтруем null значения
     chats = chats.filter(chat => chat !== null);
     
-    // Сортируем по дате последнего сообщения (сначала новые)
+    // Сортируем по дате последнего сообщения
     chats.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
     
     res.json({ chats });
@@ -184,7 +182,6 @@ router.get('/unread', async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Находим все запросы, где пользователь является автором или хелпером
     const requests = await Request.find({
       $or: [
         { author: userId },
@@ -192,10 +189,8 @@ router.get('/unread', async (req, res) => {
       ]
     }).select('_id');
     
-    // Получаем ID всех найденных запросов
     const requestIds = requests.map(req => req._id);
     
-    // Считаем общее количество непрочитанных сообщений
     const unreadCount = await Message.countDocuments({
       requestId: { $in: requestIds },
       sender: { $ne: userId },

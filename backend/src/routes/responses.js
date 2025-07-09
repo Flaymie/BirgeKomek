@@ -10,7 +10,6 @@ import tgRequired from '../middleware/tgRequired.js';
 export default ({ io }) => {
   const router = express.Router();
 
-  // Применяем `protect` и `generalLimiter` ко всем роутам в этом файле
   router.use(protect, generalLimiter);
 
   /**
@@ -154,13 +153,11 @@ export default ({ io }) => {
     try {
       const { requestId } = req.params;
 
-      // Проверяем существование и права доступа к запросу
       const request = await Request.findById(requestId);
       if (!request) {
         return res.status(404).json({ msg: 'Запрос не найден' });
       }
 
-      // Проверяем, что пользователь либо автор запроса, либо хелпер
       if (request.author.toString() !== req.user._id.toString() && 
           !req.user.roles.helper) {
         return res.status(403).json({ msg: 'Недостаточно прав' });
@@ -233,7 +230,6 @@ export default ({ io }) => {
         return res.status(404).json({ msg: 'Отклик не найден' });
       }
 
-      // Проверяем, что текущий пользователь - автор запроса
       if (response.request.author.toString() !== req.user._id.toString()) {
         return res.status(403).json({ msg: 'Недостаточно прав' });
       }
@@ -241,7 +237,6 @@ export default ({ io }) => {
       response.status = status;
       await response.save();
 
-      // Отправляем сокет хелперу об обновлении статуса его отклика
       if (response.helper) {
           io.to(response.helper._id.toString()).emit('response_updated', response);
       }

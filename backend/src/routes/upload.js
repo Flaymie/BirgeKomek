@@ -13,14 +13,12 @@ const router = express.Router();
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/avatars';
-    // Создаем директорию, если она не существует
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Генерируем уникальное имя файла на основе ID пользователя
     const userId = req.user.id;
     const ext = path.extname(file.originalname);
     cb(null, `${userId}-${Date.now()}${ext}`);
@@ -29,7 +27,6 @@ const storage = multer.diskStorage({
 
 // Фильтр для проверки типов файлов - только изображения
 const fileFilter = (req, file, cb) => {
-  // Разрешенные типы файлов для аватарок
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   
   if (allowedTypes.includes(file.mimetype)) {
@@ -44,9 +41,16 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5 МБ
+    fileSize: 5 * 1024 * 1024
   }
 });
+
+  /**
+   * @swagger
+   * tags:
+   *   name: Upload
+   *   description: Загрузка файлов
+   */
 
 /**
  * @swagger
@@ -115,9 +119,7 @@ router.post('/avatar', [protect, tgRequired, generalLimiter, upload.single('avat
   }
 });
 
-// --- НОВЫЙ КОД ДЛЯ ВЛОЖЕНИЙ ---
 
-// Настройка хранилища для вложений
 const attachmentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/attachments';
@@ -137,17 +139,16 @@ const attachmentStorage = multer.diskStorage({
 
 // Фильтр для файлов вложений
 const attachmentFileFilter = (req, file, cb) => {
-  // Просто принимаем любой файл, но можно добавить логику для блокировки опасных типов
+  // Просто принимаем любой файл
   cb(null, true); 
 };
 
-// Настройка загрузчика для вложений
 export const uploadAttachments = multer({
   storage: attachmentStorage,
   fileFilter: attachmentFileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10 МБ
-    files: 10 // до 10 файлов
+    fileSize: 10 * 1024 * 1024,
+    files: 10
   }
 }).array('attachments', 10);
 
@@ -159,7 +160,6 @@ router.use((error, req, res, next) => {
         }
         return res.status(400).json({ msg: `Ошибка Multer: ${error.message}` });
     } else if (error) {
-        // Наша кастомная ошибка из fileFilter
         return res.status(400).json({ msg: error.message });
     }
     next();

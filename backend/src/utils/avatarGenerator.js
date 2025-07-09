@@ -33,7 +33,6 @@ export const generateAvatar = (username) => {
     </svg>
   `;
 
-  // Кодируем SVG в формат, безопасный для URL
   const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
   
   return dataUri;

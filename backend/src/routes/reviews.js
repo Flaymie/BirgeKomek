@@ -34,7 +34,6 @@ const router = express.Router();
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// получить отзывы для хелпера
 router.get('/helper/:helperId', [
   param('helperId').isMongoId().withMessage('Неверный формат ID')
 ], async (req, res) => {
@@ -106,7 +105,6 @@ router.get('/helper/:helperId', [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// создать отзыв на хелпера. Защищаем и лимитируем.
 router.post('/', protect, generalLimiter, [
   body('requestId')
     .notEmpty().withMessage('ID заявки обязателен')
@@ -171,7 +169,6 @@ router.post('/', protect, generalLimiter, [
     // Пересчитываем средний рейтинг хелпера
     await User.updateAverageRating(request.helper);
 
-    // --- УВЕДОМЛЕНИЕ ХЕЛПЕРУ О НОВОМ ОТЗЫВЕ ---
     const populatedReview = await Review.findById(newReview._id).populate('reviewerId', 'username');
     
     await createAndSendNotification(req.app.locals.sseConnections, {
@@ -214,7 +211,6 @@ router.post('/', protect, generalLimiter, [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// получить отзывы для пользователя
 router.get('/user/:userId', [
   param('userId').isMongoId().withMessage('Неверный формат ID пользователя')
 ], async (req, res) => {
@@ -241,9 +237,9 @@ router.get('/user/:userId', [
           rating: review.rating,
           comment: review.comment,
           createdAt: review.createdAt,
-          author: review.reviewerId, // Переименовываем 'reviewerId' в 'author'
-          request: review.requestId, // Переименовываем 'requestId' в 'request'
-          isResolved: review.isResolved, // ВОТ ОНО, СУКА
+          author: review.reviewerId,
+          request: review.requestId,
+          isResolved: review.isResolved,
         };
       });
     
