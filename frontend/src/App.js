@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileMeRedirector from './components/auth/ProfileMeRedirector';
@@ -22,9 +22,12 @@ import TermsPage from './components/pages/TermsPage';
 import NotFoundPage from './components/pages/NotFoundPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from 'react-hot-toast';
 
 import { useAuth, AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { CommandPaletteProvider } from './context/CommandPaletteContext';
 import { setAuthContext } from './services/api';
 import BannedUserModal from './components/modals/BannedUserModal';
 import RateLimitModal from './components/modals/RateLimitModal';
@@ -160,20 +163,21 @@ const AppContent = () => {
 // Главный компонент приложения с правильной структурой
 function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <NotificationProvider>
-          <CommandPaletteProvider> {/* Оборачиваем */}
-            <Router>
-              <Toaster
-                position="top-center"
-              />
-              <AppRoutes />
-            </Router>
-          </CommandPaletteProvider> {/* Оборачиваем */}
-        </NotificationProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <SocketProvider>
+          <NotificationProvider>
+            <CommandPaletteProvider>
+                <Toaster
+                  position="top-center"
+                  reverseOrder={false}
+                />
+                <AppInitializer />
+            </CommandPaletteProvider>
+          </NotificationProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 
