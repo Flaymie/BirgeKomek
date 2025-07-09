@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, Combobox, Transition } from '@headlessui/react';
 import { useCommandPalette } from '../../context/CommandPaletteContext';
@@ -16,7 +16,8 @@ import {
   Info,
   Shield,
   Book,
-  LifeBuoy
+  BarChart2,
+  AlertOctagon
 } from 'lucide-react';
 
 const CommandPalette = () => {
@@ -32,7 +33,6 @@ const CommandPalette = () => {
     { name: 'О нас', description: 'Узнать больше о проекте', action: () => navigate('/about'), icon: <Info className="h-5 w-5" /> },
     { name: 'Условия использования', description: 'Прочитать правила сервиса', action: () => navigate('/terms'), icon: <Book className="h-5 w-5" /> },
     { name: 'Политика конфиденциальности', description: 'Как мы обрабатываем ваши данные', action: () => navigate('/privacy'), icon: <Shield className="h-5 w-5" /> },
-    { name: 'Помощь', description: 'Найти ответы на частые вопросы', action: () => navigate('/help'), icon: <LifeBuoy className="h-5 w-5" /> },
 
     // Команды только для гостей
     { name: 'Войти', description: 'Авторизоваться в системе', action: () => navigate('/login'), icon: <LogIn className="h-5 w-5" />, requiresGuest: true },
@@ -43,27 +43,36 @@ const CommandPalette = () => {
     { name: 'Мои заявки', description: 'Просмотреть созданные вами заявки', action: () => navigate('/my-requests'), icon: <FileText className="h-5 w-5" />, requiresAuth: true },
     { name: 'Чаты', description: 'Открыть список ваших диалогов', action: () => navigate('/chats'), icon: <MessageSquare className="h-5 w-5" />, requiresAuth: true },
     { name: 'Выйти', description: 'Завершить текущий сеанс', action: () => { logout(); navigate('/login'); }, icon: <LogOut className="h-5 w-5" />, requiresAuth: true },
+
+    // Команды для ролей
+    { name: 'Аналитика', description: 'Просмотр статистики платформы', action: () => navigate('/analytics'), icon: <BarChart2 className="h-5 w-5" />, requiresAdmin: true },
+    { name: 'Жалобы', description: 'Управление жалобами пользователей', action: () => navigate('/reports'), icon: <AlertOctagon className="h-5 w-5" />, requiresModerator: true },
   ];
 
-  const getAvailableCommands = () => {
-    const baseCommands = allCommands.filter(c => !c.requiresAuth && !c.requiresGuest);
-    const guestCommands = allCommands.filter(c => c.requiresGuest);
-    const authCommands = allCommands.filter(c => c.requiresAuth);
-
-    if (currentUser) {
-        return [...baseCommands, ...authCommands];
-    } else {
-        const publicCommands = ['Главная', 'Условия использования', 'Политика конфиденциальности'];
-        const minimalGuestCommands = allCommands.filter(c => publicCommands.includes(c.name));
-        return [...minimalGuestCommands, ...guestCommands];
+  const getAvailableCommands = useCallback(() => {
+    if (!currentUser) {
+        const guestWhitelist = ['Главная', 'Условия использования', 'Политика конфиденциальности', 'Войти', 'Регистрация'];
+        return allCommands.filter(command => guestWhitelist.includes(command.name));
     }
-  }
+
+    return allCommands.filter(command => {
+        if (command.requiresGuest) return false;
+        
+        const isAdmin = currentUser.roles?.admin;
+        const isModerator = currentUser.roles?.moderator;
+
+        if (command.requiresAdmin && !isAdmin) return false;
+        if (command.requiresModerator && !isAdmin && !isModerator) return false;
+
+        return true;
+    });
+  }, [currentUser, allCommands]);
   
   const [availableCommands, setAvailableCommands] = useState(getAvailableCommands());
 
   useEffect(() => {
     setAvailableCommands(getAvailableCommands());
-  }, [currentUser]);
+  }, [currentUser, getAvailableCommands]);
 
   const filteredCommands = query === ''
     ? availableCommands
