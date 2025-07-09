@@ -8,6 +8,8 @@ import {
   Search,
   User,
   LogOut,
+  LogIn,
+  UserPlus,
   FileText,
   MessageSquare,
   Briefcase,
@@ -16,7 +18,6 @@ import {
   Book,
   LifeBuoy
 } from 'lucide-react';
-import { FiCommand } from 'react-icons/fi';
 
 const CommandPalette = () => {
   const { isOpen, closePalette } = useCommandPalette();
@@ -27,63 +28,83 @@ const CommandPalette = () => {
   const commands = [
     {
       name: 'Главная',
+      description: 'Перейти на главную страницу',
       action: () => navigate('/'),
       icon: <Home className="h-5 w-5" />,
-      category: 'Навигация',
     },
     {
       name: 'Все заявки',
+      description: 'Посмотреть все активные заявки',
       action: () => navigate('/requests'),
       icon: <Briefcase className="h-5 w-5" />,
-      category: 'Навигация',
+    },
+    {
+      name: 'Войти',
+      description: 'Авторизоваться в системе',
+      action: () => navigate('/login'),
+      icon: <LogIn className="h-5 w-5" />,
+      requiresGuest: true,
+    },
+    {
+      name: 'Регистрация',
+      description: 'Создать новый аккаунт',
+      action: () => navigate('/register'),
+      icon: <UserPlus className="h-5 w-5" />,
+      requiresGuest: true,
     },
     {
       name: 'Мой профиль',
+      description: 'Перейти в личный кабинет',
       action: () => user && navigate(`/users/${user._id}`),
       icon: <User className="h-5 w-5" />,
-      category: 'Аккаунт',
       requiresAuth: true,
     },
     {
-        name: 'Мои заявки',
-        action: () => navigate('/my-requests'),
-        icon: <FileText className="h-5 w-5" />,
-        category: 'Аккаунт',
-        requiresAuth: true,
+      name: 'Мои заявки',
+      description: 'Просмотреть созданные вами заявки',
+      action: () => navigate('/my-requests'),
+      icon: <FileText className="h-5 w-5" />,
+      requiresAuth: true,
     },
     {
       name: 'Чаты',
+      description: 'Открыть список ваших диалогов',
       action: () => navigate('/chats'),
       icon: <MessageSquare className="h-5 w-5" />,
-      category: 'Аккаунт',
       requiresAuth: true,
     },
     {
       name: 'О нас',
+      description: 'Узнать больше о проекте',
       action: () => navigate('/about'),
       icon: <Info className="h-5 w-5" />,
-      category: 'Информация',
     },
     {
       name: 'Условия использования',
+      description: 'Прочитать правила сервиса',
       action: () => navigate('/terms'),
       icon: <Book className="h-5 w-5" />,
-      category: 'Информация',
     },
     {
       name: 'Политика конфиденциальности',
+      description: 'Как мы обрабатываем ваши данные',
       action: () => navigate('/privacy'),
       icon: <Shield className="h-5 w-5" />,
-      category: 'Информация',
+    },
+    {
+      name: 'Помощь',
+      description: 'Найти ответы на частые вопросы',
+      action: () => navigate('/help'),
+      icon: <LifeBuoy className="h-5 w-5" />,
     },
     {
       name: 'Выйти',
+      description: 'Завершить текущий сеанс',
       action: () => {
         logout();
         navigate('/login');
       },
       icon: <LogOut className="h-5 w-5" />,
-      category: 'Аккаунт',
       requiresAuth: true,
     },
   ];
@@ -92,10 +113,15 @@ const CommandPalette = () => {
     query === ''
       ? commands
       : commands.filter((command) => {
-          return command.name.toLowerCase().includes(query.toLowerCase());
+          return command.name.toLowerCase().includes(query.toLowerCase()) || command.description.toLowerCase().includes(query.toLowerCase());
         });
         
-  const availableCommands = filteredCommands.filter(cmd => !cmd.requiresAuth || (cmd.requiresAuth && user));
+  const availableCommands = filteredCommands.filter(cmd => {
+    const isGuest = !user;
+    if (cmd.requiresAuth && !user) return false;
+    if (cmd.requiresGuest && user) return false;
+    return true;
+  });
 
   const handleSelect = (command) => {
     if (command) {
@@ -104,7 +130,6 @@ const CommandPalette = () => {
     }
   };
   
-  // Reset query when palette is opened/closed
   useEffect(() => {
     if (!isOpen) {
       setTimeout(() => setQuery(''), 200);
@@ -136,7 +161,7 @@ const CommandPalette = () => {
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
+            <Dialog.Panel className="mx-auto max-w-xl transform overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
               <Combobox onChange={handleSelect}>
                 <div className="relative">
                   <Search
@@ -150,52 +175,41 @@ const CommandPalette = () => {
                     autoComplete="off"
                   />
                 </div>
-
-                {availableCommands.length > 0 && (
-                  <Combobox.Options static className="max-h-80 scroll-py-2 divide-y divide-gray-100 overflow-y-auto">
-                    {Object.entries(
-                      availableCommands.reduce((acc, command) => {
-                        if (!acc[command.category]) {
-                          acc[command.category] = [];
-                        }
-                        acc[command.category].push(command);
-                        return acc;
-                      }, {})
-                    ).map(([category, commands]) => (
-                      <li key={category} className="p-2">
-                        <h2 className="text-xs font-semibold text-gray-500 px-3 mb-1">{category}</h2>
-                        <ul className="text-sm text-gray-700">
-                          {commands.map((command) => (
-                            <Combobox.Option
-                              key={command.name}
-                              value={command}
-                              className={({ active }) =>
-                                `flex cursor-pointer select-none items-center rounded-md px-3 py-2 ${
-                                  active ? 'bg-indigo-600 text-white' : ''
-                                }`
-                              }
-                            >
-                              {({ active }) => (
-                                <>
-                                  <div className={`mr-3 ${active ? 'text-white' : 'text-gray-400'}`}>{command.icon}</div>
-                                  <span>{command.name}</span>
-                                </>
-                              )}
-                            </Combobox.Option>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
+                <div className="border-t border-gray-100">
+                {availableCommands.length > 0 ? (
+                  <Combobox.Options static className="max-h-80 scroll-py-2 overflow-y-auto p-2">
+                      {availableCommands.map((command) => (
+                        <Combobox.Option
+                          key={command.name}
+                          value={command}
+                          className={({ active }) =>
+                            `flex cursor-pointer select-none items-center rounded-md px-3 py-3 ${
+                              active ? 'bg-indigo-600 text-white' : ''
+                            }`
+                          }
+                        >
+                          {({ active }) => (
+                            <>
+                              <div className={`mr-4 rounded-lg p-2 ${active ? 'bg-white bg-opacity-10 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
+                                {command.icon}
+                              </div>
+                              <div>
+                                <p className={`text-sm font-medium ${active ? 'text-white' : 'text-gray-900'}`}>{command.name}</p>
+                                <p className={`text-sm ${active ? 'text-indigo-200' : 'text-gray-500'}`}>{command.description}</p>
+                              </div>
+                            </>
+                          )}
+                        </Combobox.Option>
+                      ))}
                   </Combobox.Options>
-                )}
-
-                {query !== '' && availableCommands.length === 0 && (
+                ) : (
                   <div className="px-6 py-14 text-center sm:px-14">
-                    <FiCommand className="mx-auto h-8 w-8 text-gray-400" />
-                    <p className="mt-4 text-base text-gray-800">Ничего не найдено по вашему запросу.</p>
+                    <Search className="mx-auto h-8 w-8 text-gray-400" />
+                    <p className="mt-4 text-base text-gray-800">Ничего не найдено.</p>
                     <p className="text-sm text-gray-500">Попробуйте другие ключевые слова.</p>
                   </div>
                 )}
+                </div>
               </Combobox>
             </Dialog.Panel>
           </Transition.Child>
