@@ -169,7 +169,7 @@ function App() {
                 position="top-center"
                 reverseOrder={false}
               />
-              <AppInitializer />
+      <AppInitializer />
           </CommandPaletteProvider>
       </SocketProvider>
     </AuthProvider>

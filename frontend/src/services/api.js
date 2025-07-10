@@ -53,13 +53,13 @@ api.interceptors.response.use(
         }
         return Promise.reject(error);
       }
-
+      
       if (status === 429) {
         const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
         window.dispatchEvent(rateLimitEvent);
         return Promise.reject(error);
       }
-
+      
       // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
       const isUserNotFound = status === 404 && error.config.url.startsWith('/users/');
       const isRequestNotFound = (status === 404 || status === 400) && error.config.url.startsWith('/requests/');
@@ -67,7 +67,7 @@ api.interceptors.response.use(
       if (isUserNotFound || isRequestNotFound) {
         return Promise.reject(error);
       }
-
+      
       const isRegistrationPage = window.location.pathname.includes('/register');
       
       if (status === 401 && !isRegistrationPage) {

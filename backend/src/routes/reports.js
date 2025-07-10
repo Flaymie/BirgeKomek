@@ -346,20 +346,31 @@ export default ({ io }) => {
   router.get('/:id', protect, isModOrAdmin, async (req, res) => {
       try {
           const report = await Report.findById(req.params.id)
-              .populate('reporter', 'username _id')
-              .populate({
-                  path: 'targetId',
-                  model: 'User', // указываем модель явно, для надежности
-                  populate: [
-                      { path: 'createdRequests' }, // популируем виртуальное поле
-                      { path: 'completedRequests' } // и тут тоже
-                  ]
-              });
+              .populate('reporter', 'username _id');
 
           if (!report) {
               return res.status(404).json({ msg: 'Жалоба не найдена' });
           }
-          
+
+          // Динамически популируем targetId в зависимости от targetType
+          if (report.targetType === 'User') {
+              await report.populate({
+                  path: 'targetId',
+                  model: 'User',
+                  select: 'username avatar createdAt roles rating completedRequests createdRequests',
+                  populate: [
+                      { path: 'createdRequests' },
+                      { path: 'completedRequests' }
+                  ]
+              });
+          } else if (report.targetType === 'Request') {
+              await report.populate({
+                  path: 'targetId',
+                  model: 'Request',
+                  select: 'title description status author helper createdAt',
+                  populate: { path: 'author', select: 'username' }
+              });
+          }
 
           res.json(report);
       } catch (error) {
