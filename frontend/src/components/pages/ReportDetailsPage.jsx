@@ -194,13 +194,13 @@ const ComplaintHistory = ({ userId }) => {
                 return (
                     <div key={report._id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200">
                         <div className="p-4">
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-3">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                                         <StatusIcon className="w-5 h-5 text-gray-600" />
                                     </div>
                                     <div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center flex-wrap gap-x-2">
                                             <span className="font-semibold text-gray-900">
                                                 {new Date(report.createdAt).toLocaleDateString('ru-RU')}
                                             </span>
@@ -212,7 +212,7 @@ const ComplaintHistory = ({ userId }) => {
                                             <span className="font-medium">От:</span>{' '}
                                             <Link 
                                                 to={`/profile/${report.reporter?._id}`} 
-                                                className="text-indigo-600 hover:text-indigo-700 hover:underline transition-colors"
+                                                className="text-indigo-600 hover:text-indigo-700 hover:underline transition-colors break-all"
                                             >
                                                 {report.reporter?.username || 'Аноним'}
                                             </Link>

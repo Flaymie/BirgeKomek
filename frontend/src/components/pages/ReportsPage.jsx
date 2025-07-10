@@ -78,7 +78,7 @@ const ReportsPage = () => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({ search: '', status: 'open' });
+    const [filters, setFilters] = useState({ search: '', status: '' });
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
