@@ -16,6 +16,35 @@ const StatCardSkeleton = () => (
     </div>
 );
 
+const helperWelcomePhrases = [
+    "Вы помогли уже {count} раз. Так держать!",
+    "Невероятно! {count} выполненных заявок. Вы — герой!",
+    "Ваша помощь неоценима. Уже {count} успешных дел!",
+    "{count} раз вы пришли на помощь. Спасибо!",
+    "Продолжайте в том же духе! На вашем счету уже {count} выполненных запросов."
+];
+
+const studentWelcomePhrases = [
+    "Вы создали {count} запросов. Отличная работа!",
+    "Любознательность — ваше второе имя! Уже {count} созданных заявок.",
+    "{count} вопросов задано. Путь к знаниям открыт!",
+    "Продолжайте спрашивать! На вашем счету уже {count} заявок."
+];
+
+const genericWelcomePhrases = [
+    "Рады видеть вас на платформе!",
+    "Добро пожаловать! Готовы к новым свершениям?",
+    "Привет! Чем займемся сегодня?",
+    "С возвращением! Надеемся, у вас продуктивный день."
+];
+
+const getRandomPhrase = (phrases, count = 0) => {
+    if (!phrases || phrases.length === 0) return "";
+    const randomIndex = Math.floor(Math.random() * phrases.length);
+    return phrases[randomIndex].replace('{count}', count);
+};
+
+
 const ActivityItemSkeleton = () => (
     <li className="p-4 border rounded-lg animate-pulse">
         <div className="flex justify-between items-center">
@@ -88,12 +117,12 @@ const UserDashboard = () => {
     
     const getWelcomeMessage = () => {
         if (currentUser.roles?.helper && userStats?.completedRequestsAsHelper > 0) {
-            return `Вы помогли уже ${userStats.completedRequestsAsHelper} раз. Так держать!`;
+            return getRandomPhrase(helperWelcomePhrases, userStats.completedRequestsAsHelper);
         }
         if (currentUser.roles?.student && userStats?.createdRequests > 0) {
-            return `Вы создали ${userStats.createdRequests} запросов. Отличная работа!`;
+            return getRandomPhrase(studentWelcomePhrases, userStats.createdRequests);
         }
-        return "Рады видеть вас на платформе!";
+        return getRandomPhrase(genericWelcomePhrases);
     };
 
     return (

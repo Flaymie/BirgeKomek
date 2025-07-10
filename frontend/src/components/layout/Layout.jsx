@@ -32,16 +32,30 @@ const Layout = ({ children }) => {
   }, [openPalette]);
   
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      {/* Декоративные элементы фона */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full opacity-50 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full opacity-50 blur-3xl"></div>
+      </div>
+      
       <Header />
-      <main key={location.pathname} className="flex-1 flex flex-col pt-8">
+      
+      <main 
+        key={location.pathname} 
+        className="flex-1 flex flex-col pt-8 relative z-10"
+      >
         <ReadOnlyBanner />
-        {children}
+        <div className="flex-1">
+          {children}
+        </div>
       </main>
+      
       <CommandPalette />
+      
       {!shouldHideFooter && <Footer />}
     </div>
   );
 };
 
-export default Layout; 
+export default Layout;
