@@ -19,16 +19,16 @@ const StatCardSkeleton = () => (
 const helperWelcomePhrases = [
     "Вы помогли уже {count} раз. Так держать!",
     "Невероятно! {count} выполненных заявок. Вы — герой!",
-    "Ваша помощь неоценима. Уже {count} успешных дел!",
+    "Ваша помощь неоценима. Уже {count} успешных запросов!",
     "{count} раз вы пришли на помощь. Спасибо!",
     "Продолжайте в том же духе! На вашем счету уже {count} выполненных запросов."
 ];
 
 const studentWelcomePhrases = [
     "Вы создали {count} запросов. Отличная работа!",
-    "Любознательность — ваше второе имя! Уже {count} созданных заявок.",
+    "Любознательность — ваше второе имя! Уже {count} созданных запросов.",
     "{count} вопросов задано. Путь к знаниям открыт!",
-    "Продолжайте спрашивать! На вашем счету уже {count} заявок."
+    "Продолжайте спрашивать! На вашем счету уже {count} запросов."
 ];
 
 const genericWelcomePhrases = [
@@ -115,13 +115,73 @@ const UserDashboard = () => {
         </div>
     );
     
-    const getWelcomeMessage = () => {
-        if (currentUser.roles?.helper && userStats?.completedRequestsAsHelper > 0) {
-            return getRandomPhrase(helperWelcomePhrases, userStats.completedRequestsAsHelper);
+    const getPersonalizedMessage = (user, stats) => {
+        if (!user) {
+            return getRandomPhrase(genericWelcomePhrases);
         }
-        if (currentUser.roles?.student && userStats?.createdRequests > 0) {
-            return getRandomPhrase(studentWelcomePhrases, userStats.createdRequests);
+        
+        // Показываем общую фразу, пока грузятся статы
+        if (!stats) {
+            return getRandomPhrase(genericWelcomePhrases);
         }
+
+        // Логика для хелпера
+        if (user.roles?.helper && stats.completedRequestsAsHelper > 0) {
+            const count = stats.completedRequestsAsHelper;
+            const rating = stats.averageRatingAsHelper;
+
+            const milestones = {
+                100: `💯 Ого, ${count} заявок! Твой вклад неоценим. Ты — магистр помощи!`,
+                50: `🚀 ${count} решенных вопросов! Ты — настоящая легенда этого места!`,
+                25: `🔥 ${count} заявок выполнено! Ты на полпути к статусу супергероя!`,
+                10: `⭐ ${count} добрых дел! Ты уже опытный помощник на нашей платформе.`,
+                5: `🖐️ ${count} выполненных заявок! Ты вошел во вкус. Спасибо за помощь!`,
+                1: `🎉 Твоя первая выполненная заявка! Отличное начало, так держать!`
+            };
+
+            let message = "";
+            // Ищем максимальный достигнутый рубеж
+            for (const threshold of Object.keys(milestones).map(Number).sort((a, b) => b - a)) {
+                if (count >= threshold) {
+                    message = milestones[threshold];
+                    break;
+                }
+            }
+            
+            // Если рубеж не достигнут, но заявки есть
+            if (!message) {
+                message = getRandomPhrase(helperWelcomePhrases, count);
+            }
+
+            // Добавляем инфу про рейтинг, если он есть
+            if (rating > 0) {
+                message += ` Твой средний рейтинг: ${rating.toFixed(1)} ★. Отличная работа!`;
+            }
+            
+            return message;
+        }
+
+        // Логика для студента
+        if (user.roles?.student && stats.createdRequests > 0) {
+            const count = stats.createdRequests;
+            const milestones = {
+                50: `🧐 ${count} созданных заявок! Ты — неутомимый искатель знаний!`,
+                25: `🎓 ${count} вопросов! Твоя жажда знаний впечатляет.`,
+                10: `✍️ ${count} созданных заявок! Десять шагов к знаниям сделано.`,
+                5: `👍 ${count} созданных заявок. Любознательность — это сила!`,
+                1: `🌱 Твой первый вопрос задан! Отличное начало большого пути.`
+            };
+
+            for (const threshold of Object.keys(milestones).map(Number).sort((a, b) => b - a)) {
+                if (count >= threshold) {
+                    return milestones[threshold];
+                }
+            }
+
+            return getRandomPhrase(studentWelcomePhrases, count);
+        }
+
+        // Общий случай
         return getRandomPhrase(genericWelcomePhrases);
     };
 
@@ -131,7 +191,7 @@ const UserDashboard = () => {
                 С возвращением, {currentUser.username}!
             </h1>
             <p className="text-lg text-gray-600 mb-8">
-                {loading ? 'Загружаем вашу статистику...' : getWelcomeMessage()}
+                {loading ? 'Загружаем вашу статистику...' : getPersonalizedMessage(currentUser, userStats)}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
