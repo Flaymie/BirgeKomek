@@ -146,9 +146,9 @@ io.on('connection', (socket) => {
   const onlineKey = `online:${userId}`;
 
   if (isRedisConnected()) {
-    // Устанавливаем ключ с TTL (time-to-live) в 120 секунд.
-    // Если в течение 120с не будет 'user_ping', Redis сам удалит ключ.
-    redis.setex(onlineKey, 120, '1');
+    // Устанавливаем ключ с TTL (time-to-live) в 300 секунд (5 минут).
+    // Если в течение этого времени не будет 'user_ping', Redis сам удалит ключ.
+    redis.setex(onlineKey, 180, '1');
   }
 
   // Разово обновляем lastSeen при подключении, для надежности
@@ -157,7 +157,7 @@ io.on('connection', (socket) => {
   // Слушаем пинки от клиента
   socket.on('user_ping', () => {
     if (isRedisConnected()) {
-      redis.expire(onlineKey, 120);
+      redis.expire(onlineKey, 180);
     }
   });
 
@@ -246,7 +246,7 @@ io.on('connection', (socket) => {
   // Продление активности при навигации
   socket.on('user_navigate', () => {
     if(isRedisConnected()) {
-      redis.expire(onlineKey, 120);
+      redis.expire(onlineKey, 180); 
     }
   });
 
