@@ -43,10 +43,12 @@ const Layout = ({ children }) => {
       
       <main 
         key={location.pathname} 
-        className="flex-1 pt-8 relative z-10"
+        className="flex-1 flex flex-col pt-8 relative z-10"
       >
         <ReadOnlyBanner />
-        {children}
+        <div className="flex-1">
+          {children}
+        </div>
       </main>
       
       <CommandPalette />

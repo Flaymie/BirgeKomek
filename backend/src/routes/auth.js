@@ -11,6 +11,9 @@ import axios from 'axios';
 import { createAndSendNotification } from './notifications.js';
 import { generateAvatar } from '../utils/avatarGenerator.js';
 import LinkToken from '../models/LinkToken.js';
+import { analyzeIp } from '../services/ipAnalysisService.js';
+import { calculateRegistrationScore } from '../services/scoringService.js';
+import SystemReport from '../models/SystemReport.js';
 
 const router = express.Router();
 
@@ -133,10 +136,10 @@ router.post('/register', registrationLimiter,
     }),
   ], 
   async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
     const { username, password, grade, role } = req.body;
     let { subjects } = req.body;
@@ -152,10 +155,13 @@ router.post('/register', registrationLimiter,
   try {
     const lowerCaseUsername = username.toLowerCase();
 
+    // --- ПЕРЕНОСИМ ПРОВЕРКИ В НАЧАЛО ---
     let user = await User.findOne({ username: lowerCaseUsername });
     if (user) {
       return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
     }
+    // Тут можно добавить и другие проверки, например, на схожесть имен и т.д.
+    // --- КОНЕЦ ПРОВЕРОК ---
 
     let avatarUrl = '';
     if (req.file) {
@@ -192,10 +198,68 @@ router.post('/register', registrationLimiter,
         newUser.subjects = [];
       }
     }
-
+    
+    // --- ТЕПЕРЬ ВСЯ ЛОГИКА РАБОТАЕТ С ГАРАНТИРОВАННО НОВЫМ ЮЗЕРОМ ---
     user = new User(newUser);
+    
+    const ip = req.headers['x-test-ip'] || req.ip;
+    const ipInfo = await analyzeIp(ip);
 
-    await user.save();
+    if (ipInfo) {
+      user.registrationDetails = {
+        ip: ip,
+        ipInfo: {
+          country: ipInfo.country,
+          city: ipInfo.city,
+          isHosting: ipInfo.hosting,
+          isProxy: ipInfo.proxy,
+        }
+      };
+    }
+    
+    const { score, log } = calculateRegistrationScore(user);
+
+    if (score > 0) {
+      user.suspicionScore = score;
+      user.suspicionLog = log;
+    }
+    
+    await user.save(); // Первичное сохранение со всеми данными
+
+    if (score >= 51) {
+      const banExpires = new Date();
+      banExpires.setDate(banExpires.getDate() + 7); 
+
+      user.banDetails = {
+        isBanned: true,
+        reason: 'Автоматический бан: высокий уровень подозрительности при регистрации.',
+        bannedAt: new Date(),
+        expiresAt: banExpires,
+        bannedBy: null,
+      };
+      
+      await user.save(); 
+
+      return res.status(403).json({ 
+          msg: 'Ваша регистрация не может быть завершена из-за срабатывания автоматической системы защиты. Пожалуйста, свяжитесь с поддержкой.',
+          code: 'AUTO_BAN_ON_REGISTRATION' 
+      });
+    }
+
+    if (score >= 21) {
+        await SystemReport.create({
+            targetUser: user._id, // Теперь user._id 100% существует
+            type: 'suspicion_registration',
+            details: {
+                score,
+                log,
+                ip: user.registrationDetails.ip
+            }
+        });
+    }
+    
+    // Повторное сохранение не нужно, так как репорт не меняет юзера
+    // await user.save();
     
     const payload = {
         user: {

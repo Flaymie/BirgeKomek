@@ -89,6 +89,25 @@ const userSchema = new mongoose.Schema({
       default: null, // null это перманентный бан
     },
   },
+  suspicionScore: {
+    type: Number,
+    default: 0,
+    index: true
+  },
+  suspicionLog: [{
+    reason: String,
+    points: Number,
+    timestamp: { type: Date, default: Date.now }
+  }],
+  registrationDetails: {
+    ip: { type: String },
+    ipInfo: {
+      country: String,
+      city: String,
+      isHosting: Boolean,
+      isProxy: Boolean
+    },
+  },
   grade: {
     type: Number,
     min: [7, 'Класс не может быть меньше 7'],

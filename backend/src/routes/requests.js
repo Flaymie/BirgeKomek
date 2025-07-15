@@ -1224,7 +1224,7 @@ router.delete('/:id', protect, checkEditDeletePermission, [
           relatedEntity: { requestId: request._id }
       });
     }
-
+    
     await Request.findByIdAndDelete(request._id);
     await Message.deleteMany({ request: request._id });
     

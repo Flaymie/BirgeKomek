@@ -38,6 +38,8 @@ import ReportsPage from './components/pages/ReportsPage';
 import ReportDetailsPage from './components/pages/ReportDetailsPage';
 import CookieConsent from './components/shared/CookieConsent';
 import AnalyticsPage from './components/pages/AnalyticsPage'; // Импортируем новую страницу
+import SystemReportsPage from './components/pages/admin/SystemReportsPage';
+import SystemReportDetailsPage from './components/pages/admin/SystemReportDetailsPage';
 import './App.css';
 
 // Этот компонент отвечает за инициализацию перехватчика API
@@ -147,6 +149,8 @@ const AppContent = () => {
             <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/reports/:id" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><ReportDetailsPage /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AnalyticsPage /></ProtectedRoute>} />
+            <Route path="/admin/system-reports" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><SystemReportsPage /></ProtectedRoute>} />
+            <Route path="/admin/system-reports/:id" element={<ProtectedRoute allowedRoles={['admin', 'moderator']}><SystemReportDetailsPage /></ProtectedRoute>} />
 
 
             {/* Маршрут для страницы не найдено */}

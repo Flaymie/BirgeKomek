@@ -32,6 +32,19 @@ import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import RoleBadge from '../shared/RoleBadge';
 import StatusBadge from '../shared/StatusBadge';
 import { isSameDay, formatDateSeparator } from '../../utils/dateHelpers';
+import classNames from 'classnames';
+
+// КОМПОНЕНТ С БОРДЕРОМ - ищем золотую середину
+const OnlineStatusCircle = ({ isOnline }) => (
+  <span
+    className={classNames(
+      'h-2.5 w-2.5 ml-2 rounded-full flex-shrink-0 border-2',
+      isOnline ? 'bg-green-500 border-white' : 'bg-gray-400 border-gray-100'
+    )}
+    title={isOnline ? 'Онлайн' : 'Оффлайн'}
+  />
+);
+
 
 // Создаем инстанс api прямо здесь
 const api = axios.create({
@@ -164,7 +177,7 @@ const MessageContent = ({ text, isOwnMessage }) => {
 };
 
 // Новый компонент сообщения
-const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive }) => {
+const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive, isSenderOnline }) => {
   const hasAttachments = msg.attachments && msg.attachments.length > 0;
   const isDeleted = msg.content === 'Сообщение удалено';
   const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
@@ -178,15 +191,26 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className={`group flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
     >
-      <Link to={`/profile/${msg.sender._id}`} className="flex-shrink-0 self-end">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-            <DefaultAvatarIcon className="w-5 h-5 text-gray-500" />
-          </div>
+      <div className="relative flex-shrink-0 self-end">
+        <Link to={`/profile/${msg.sender._id}`}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={msg.sender.username} className="w-8 h-8 rounded-full" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+              <DefaultAvatarIcon className="w-5 h-5 text-gray-500" />
+            </div>
+          )}
+        </Link>
+        {isSenderOnline !== undefined && (
+          <span
+            className={classNames(
+              'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full border-2 border-white',
+              isSenderOnline ? 'bg-green-500' : 'bg-gray-400'
+            )}
+            title={isSenderOnline ? 'Онлайн' : 'Офлайн'}
+          />
         )}
-      </Link>
+      </div>
 
       {/* Основной пузырь сообщения или просто картинка */}
       <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
@@ -867,6 +891,13 @@ const ChatPage = () => {
               const prevMsg = messages[index - 1];
               const showDateSeparator = index === 0 || !isSameDay(msg.createdAt, prevMsg.createdAt);
 
+              let isSenderOnline;
+              if (authorProfile && msg.sender._id === authorProfile._id) {
+                isSenderOnline = authorProfile.isOnline;
+              } else if (helperProfile && msg.sender._id === helperProfile._id) {
+                isSenderOnline = helperProfile.isOnline;
+              }
+
               return (
                 <React.Fragment key={msg._id}>
                   {showDateSeparator && (
@@ -888,6 +919,7 @@ const ChatPage = () => {
                 onEdit={handleStartEdit}
                 onDelete={setMessageToDelete}
                 isChatActive={isChatActive || requestDetails.status === 'open'}
+                isSenderOnline={isSenderOnline}
               />
                 </React.Fragment>
               );

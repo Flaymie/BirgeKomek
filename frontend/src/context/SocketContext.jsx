@@ -26,7 +26,7 @@ export const SocketProvider = ({ children }) => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   useEffect(() => {
     if (token) {
       if (!socketRef.current) {
@@ -70,7 +70,7 @@ export const SocketProvider = ({ children }) => {
                 newSocket.emit('user_ping');
             }
         }, 90000);
-        
+      
       return () => {
           clearInterval(pingInterval);
         newSocket.disconnect();

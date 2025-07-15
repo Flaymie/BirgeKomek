@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell, FiFlag, FiBarChart2, FiShield } from 'react-icons/fi';
+import { AlertTriangle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const Username = ({ user }) => {
@@ -74,7 +75,7 @@ const Header = () => {
       return (
         <div className="hidden md:flex items-center gap-4">
             <NotificationBell />
-
+            
             {/* Меню Панели Управления */}
             {(currentUser.roles?.admin || currentUser.roles?.moderator) && (
               <div className="relative group">
@@ -88,6 +89,9 @@ const Header = () => {
                     <div className="py-2 space-y-1">
                         <Link to="/reports" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
                            <FiFlag className="w-4 h-4" /> Жалобы
+                        </Link>
+                        <Link to="/admin/system-reports" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
+                           <AlertTriangle className="w-4 h-4" /> Системные репорты
                         </Link>
                         {currentUser.roles?.admin && (
                            <Link to="/analytics" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
@@ -200,7 +204,7 @@ const Header = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center pb-6 border-b border-gray-200">
-              <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-lg font-bold">
                 Меню
               </span>
               <button 
@@ -261,6 +265,9 @@ const Header = () => {
                       <Link to="/reports" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/reports' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
                         <FiFlag className="w-6 h-6" /> Жалобы
                       </Link>
+                      <Link to="/admin/system-reports" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/admin/system-reports' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
+                        <AlertTriangle className="w-6 h-6" /> Системные репорты
+                      </Link>
                       {currentUser.roles.admin && (
                          <Link to="/analytics" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/analytics' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
                            <FiBarChart2 className="w-6 h-6" /> Аналитика
@@ -299,4 +306,4 @@ const Header = () => {
   );
 };
 
-export default Header;
+export default Header; 

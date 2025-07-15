@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { authService, usersService } from '../services/api';
+import { authService, usersService, notificationsService, baseURL } from '../services/api';
 import { formatAvatarUrl } from '../services/avatarUtils';
 import { getAuthToken, setAuthToken as storeToken, clearAuthToken as removeToken } from '../services/tokenStorage';
 
@@ -18,12 +17,21 @@ export const AuthProvider = ({ children }) => {
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
-  const navigate = useNavigate();
+  const [linkTelegramHandler, setLinkTelegramHandler] = useState(null);
   
+  // --- НОВЫЕ ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ ПРИВЯЗКИ TELEGRAM ---
   const [isLinkTelegramModalOpen, setLinkTelegramModalOpen] = useState(false);
   const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
   const [isTelegramLoading, setIsTelegramLoading] = useState(false);
   const [pollingIntervalId, setPollingIntervalId] = useState(null);
+
+  // Компонент для кастомного тоста, вынесен для стабильности
+  const ToastBody = ({ title, message, link }) => (
+    <a href={link} className="block w-full" onClick={() => toast.dismiss()}>
+      <p className="font-bold text-gray-800">{title}</p>
+      {message && <p className="text-sm text-gray-600">{message}</p>}
+    </a>
+  );
 
   const processUserData = useCallback((userData) => {
     if (!userData) return null;
@@ -119,9 +127,8 @@ export const AuthProvider = ({ children }) => {
       storeToken(data.token);
       setToken(data.token);
       
-      const response = await usersService.getCurrentUser();
-      processAndCheckBan(response.data);
-      setIsReadOnly(!response.data.telegramId);
+      processAndCheckBan(data.user);
+      setIsReadOnly(!data.user.telegramId);
       
       setLoading(false);
       toast.success('Вход выполнен успешно!');
@@ -170,6 +177,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     
     try {
+      console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
       
       // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
       let formData = new FormData();
@@ -179,9 +187,12 @@ export const AuthProvider = ({ children }) => {
       Object.keys(userData).forEach(key => {
         if (key === 'avatar') {
           if (userData.avatar instanceof File) {
+            console.log('AuthContext: В данных присутствует аватар в виде файла');
             formData.append('avatar', userData.avatar);
             hasAvatar = true;
           } else if (userData.avatar && typeof userData.avatar === 'string' && userData.avatar.length > 0) {
+            console.log('AuthContext: В данных присутствует аватар в виде URL:', userData.avatar.substring(0, 100) + '...');
+            // Если аватар - строка (URL или base64), добавляем как есть
             formData.append('avatar', userData.avatar);
             hasAvatar = true;
           }
@@ -195,21 +206,32 @@ export const AuthProvider = ({ children }) => {
         }
       });
       
+      if (!hasAvatar) {
+        console.log('AuthContext: Аватар не предоставлен в данных регистрации');
+      }
+      
       const response = await authService.register(formData);
+      console.log('AuthContext: Ответ сервера о регистрации:', response);
       
       if (response && response.data) {
+        console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
+        
         // Проверяем, содержит ли ответ токен, который нужно сохранить
         if (response.data.token && response.data.user) {
+            console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
             // Используем loginWithToken для установки состояния
             loginWithToken(response.data.token, response.data.user);
             // Возвращаем успех, чтобы компонент мог среагировать
             return { success: true };
         } else {
+            console.warn('AuthContext: Ответ не содержит токен или пользователя.');
+            // На всякий случай обрабатываем ситуацию, когда чего-то не хватает
             setError('Не удалось завершить сессию после регистрации.');
             toast.error('Не удалось завершить сессию после регистрации.');
             return { success: false, error: 'Missing token or user data' };
         }
       } else {
+        console.error('AuthContext: Неожиданный формат ответа:', response);
         setLoading(false);
         throw new Error('Неожиданный формат ответа от сервера');
       }
@@ -290,13 +312,14 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage); // Показываем тост с ошибкой здесь
       setLoading(false);
       setIsReadOnly(true);
       return { success: false, error: errorMessage };
     }
   };
 
+  // Функция для обновления пароля пользователя
   const updatePassword = async (currentPassword, newPassword) => {
     setLoading(true);
     setError(null);
@@ -316,6 +339,7 @@ export const AuthProvider = ({ children }) => {
 
   // Функция для выхода пользователя
   const logout = async (showToast = true) => {
+    console.log('Выполняется выход...');
     try {
         const token = getAuthToken();
         if (token) {
@@ -331,10 +355,6 @@ export const AuthProvider = ({ children }) => {
         setIsBannedModalOpen(false);
         setBanDetails(null);
         setIsReadOnly(true);
-        if (showToast) {
-            toast.info('Вы успешно вышли из системы.');
-        }
-        navigate('/login', { state: { message: 'Вы вышли из системы. Войдите снова, чтобы продолжить.' } });
     }
   };
 

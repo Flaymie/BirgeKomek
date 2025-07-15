@@ -25,6 +25,7 @@ import chatRoutes from './routes/chats.js';
 import uploadRoutes from './routes/upload.js';
 import adminRoutes from './routes/admin.js';
 import reportRoutes from './routes/reports.js';
+import systemReportsRoutes from './routes/systemReports.js';
 import Message from './models/Message.js';
 import Request from './models/Request.js';
 import User from './models/User.js';
@@ -131,6 +132,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes({ sseConnections }));
 app.use('/api/reports', reportRoutes({ io }));
+app.use('/api/system-reports', systemReportsRoutes);
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);

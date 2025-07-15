@@ -15,7 +15,7 @@ const Footer = () => {
 
   return (
     <footer className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
-      <div className="container-custom py-12">
+      <div className="container-custom py-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="flex items-center gap-4">
                  <img src="/img/logo.png" alt="Бірге Көмек" className="w-9 h-9" />
