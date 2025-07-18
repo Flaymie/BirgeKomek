@@ -1,13 +1,35 @@
 import express from 'express';
-import { body, validationResult } from 'express-validator';
+import { body, query, validationResult } from 'express-validator';
 import axios from 'axios';
-import { protect, isModOrAdmin } from '../middleware/auth.js';
+import { protect, isModOrAdmin, isAdmin } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import Report from '../models/Report.js';
+import Review from '../models/Review.js';
+import redis, { isRedisConnected } from '../config/redis.js';
+import crypto from 'crypto';
+
+// Утилита для отправки сообщений в Telegram, т.к. она нужна в нескольких местах
+const sendTelegramMessage = async (telegramId, message) => {
+  if (!telegramId || !process.env.BOT_TOKEN) {
+    console.log('Не удалось отправить сообщение в Telegram: отсутствует ID или токен бота.');
+    return;
+  }
+  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+  try {
+    await axios.post(url, {
+      chat_id: telegramId,
+      text: message,
+      parse_mode: 'Markdown',
+    });
+  } catch (error) {
+    console.error('Ошибка при отправке сообщения в Telegram:', error.response ? error.response.data : error.message);
+  }
+};
+
 
 export default ({ sseConnections }) => {
   const router = express.Router();
@@ -18,6 +40,380 @@ export default ({ sseConnections }) => {
    *   name: Admin
    *   description: Управление административными задачами
    */
+
+  /**
+   * @swagger
+   * /api/admin/users:
+   *   get:
+   *     summary: Получить список пользователей с фильтрацией и пагинацией (только для админов)
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema: { type: 'integer', default: 1 }
+   *         description: Номер страницы
+   *       - in: query
+   *         name: limit
+   *         schema: { type: 'integer', default: 10 }
+   *         description: Количество пользователей на странице
+   *       - in: query
+   *         name: search
+   *         schema: { type: 'string' }
+   *         description: Поиск по username или номеру телефона
+   *       - in: query
+   *         name: role
+   *         schema: { type: 'string', enum: ['helper', 'moderator', 'admin'] }
+   *         description: Фильтр по роли
+   *       - in: query
+   *         name: status
+   *         schema: { type: 'string', enum: ['active', 'banned'] }
+   *         description: Фильтр по статусу
+   *     responses:
+   *       200:
+   *         description: Список пользователей
+   *       400:
+   *         description: Ошибка валидации
+   *       403:
+   *         description: Доступ запрещен
+   *       500:
+   *         description: Внутренняя ошибка сервера
+   */
+  router.get(
+    '/users',
+    protect,
+    isAdmin, // Только админы могут смотреть список всех юзеров
+    [
+      query('page').optional().isInt({ min: 1 }).toInt(),
+      query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+      query('search').optional().trim().escape(),
+      query('role').optional({ checkFalsy: true }).isIn(['student', 'helper', 'moderator', 'admin']),
+      query('status').optional({ checkFalsy: true }).isIn(['active', 'banned']),
+    ],
+    async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      try {
+        const { page = 1, limit = 10, search, role, status } = req.query;
+
+        const queryOptions = {};
+
+        if (search) {
+          queryOptions.$or = [
+            { username: { $regex: search, $options: 'i' } },
+            { phone: { $regex: search, $options: 'i' } },
+          ];
+        }
+
+        if (role) {
+          queryOptions[`roles.${role}`] = true;
+        }
+
+        if (status) {
+          queryOptions['banDetails.isBanned'] = status === 'banned';
+        }
+
+        const users = await User.find(queryOptions)
+          .select('-password -registrationDetails') // Скрываем лишние данные для списка
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean();
+
+        const totalUsers = await User.countDocuments(queryOptions);
+        
+        // Добавляем онлайн-статус
+        const usersWithOnlineStatus = await Promise.all(
+          users.map(async (user) => {
+            let isOnline = false;
+            if (isRedisConnected()) {
+              const onlineKey = `online:${user._id.toString()}`;
+              const result = await redis.exists(onlineKey);
+              isOnline = result === 1;
+            }
+            return { ...user, isOnline };
+          })
+        );
+
+        res.json({
+          users: usersWithOnlineStatus,
+          totalPages: Math.ceil(totalUsers / limit),
+          currentPage: page,
+          totalUsers,
+        });
+      } catch (err) {
+        console.error('Ошибка при получении пользователей для админки:', err);
+        res.status(500).send('Ошибка сервера');
+      }
+    }
+  );
+
+  /**
+   * @swagger
+   * /api/admin/users/{id}:
+   *   get:
+   *     summary: Получить детальную информацию о пользователе (только для админов)
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: 'string' }
+   *         description: ID пользователя
+   *     responses:
+   *       200:
+   *         description: Детальная информация о пользователе
+   *       404:
+   *         description: Пользователь не найден
+   *       500:
+   *         description: Внутренняя ошибка сервера
+   */
+  router.get('/users/:id', protect, isAdmin, async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id)
+        .select('-password')
+        .populate('banDetails.bannedBy', 'username')
+        .lean();
+
+      if (!user) {
+        return res.status(404).json({ msg: 'Пользователь не найден' });
+      }
+      
+      let isOnline = false;
+      if (isRedisConnected()) {
+        const onlineKey = `online:${user._id.toString()}`;
+        isOnline = (await redis.exists(onlineKey)) === 1;
+      }
+
+      res.json({ ...user, isOnline });
+    } catch (err) {
+      console.error('Ошибка при получении детальной информации о пользователе:', err);
+      res.status(500).send('Ошибка сервера');
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/admin/users/{id}/roles:
+   *   put:
+   *     summary: Изменить роли пользователя (только для админов, с 2FA)
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: 'string' }
+   *         description: ID пользователя, которому меняют роли
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               isModerator:
+   *                 type: boolean
+   *                 description: "Присвоить (true) или забрать (false) роль модератора"
+   *               isHelper:
+   *                 type: boolean
+   *                 description: "Присвоить (true) или забрать (false) роль хелпера"
+   *               confirmationCode:
+   *                 type: string
+   *                 description: "6-значный код подтверждения из Telegram (если требуется)"
+   *     responses:
+   *       200:
+   *         description: Роли успешно обновлены
+   *       400:
+   *         description: "Неверный запрос, или требуется код подтверждения"
+   *       403:
+   *         description: "Нет прав, или попытка изменить свои роли"
+   */
+  router.put('/users/:id/roles', protect, isAdmin, [
+      body('isModerator').isBoolean().withMessage('Значение isModerator должно быть true или false.'),
+      body('isHelper').isBoolean().withMessage('Значение isHelper должно быть true или false.'),
+      body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
+  ], async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
+
+      const adminUser = req.user;
+      const targetUserId = req.params.id;
+      const { isModerator, isHelper, confirmationCode } = req.body;
+
+      if (adminUser.id === targetUserId) {
+          return res.status(403).json({ msg: 'Вы не можете изменить свои собственные роли.' });
+      }
+      
+      const targetUser = await User.findById(targetUserId);
+      if (!targetUser) {
+          return res.status(404).json({ msg: 'Пользователь для изменения не найден.' });
+      }
+
+      // Нельзя изменять роли другого админа
+      if (targetUser.roles.admin) {
+        return res.status(403).json({ msg: 'Нельзя изменять роли другого администратора.' });
+      }
+      
+      if (!adminUser.telegramId) {
+          return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
+      }
+
+      const redisKey = `admin-action:change-roles:${adminUser.id}:${targetUserId}`;
+      
+      if (!confirmationCode) {
+          const code = crypto.randomInt(100000, 999999).toString();
+          await redis.set(redisKey, JSON.stringify({ isModerator, isHelper, code }), 'EX', 300); // Сохраняем и новые роли, и код
+
+          const message = `Вы собираетесь изменить роли для *${targetUser.username}*.\n\nНовые роли:\n- Модератор: *${isModerator ? 'Да' : 'Нет'}*\n- Хелпер: *${isHelper ? 'Да' : 'Нет'}*\n\nДля подтверждения введите код: \`${code}\``;
+          await sendTelegramMessage(adminUser.telegramId, message);
+
+          return res.status(400).json({ 
+              confirmationRequired: true,
+              message: 'Требуется подтверждение. Код отправлен вам в Telegram.' 
+          });
+      } else {
+          const storedData = await redis.get(redisKey);
+          if (!storedData) {
+              return res.status(400).json({ msg: 'Срок действия кода истек. Попробуйте снова.' });
+          }
+          const { code: storedCode } = JSON.parse(storedData);
+          if (storedCode !== confirmationCode) {
+              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+          }
+          await redis.del(redisKey);
+      }
+
+      targetUser.roles.moderator = isModerator;
+      targetUser.roles.helper = isHelper;
+      
+      // Роль студента автоматически снимается, если юзер становится хелпером
+      if (isHelper) {
+          targetUser.roles.student = false;
+      } else {
+           // Если снимаем хелпера, он снова становится студентом (по умолчанию)
+          targetUser.roles.student = true;
+      }
+
+
+      await targetUser.save();
+      
+      const updatedUser = await User.findById(targetUserId).select('-password').populate('banDetails.bannedBy', 'username').lean();
+      res.json({ msg: `Роли для пользователя ${targetUser.username} успешно обновлены.`, user: updatedUser });
+  });
+
+  /**
+   * @swagger
+   * /api/admin/users/{id}:
+   *   delete:
+   *     summary: Удалить пользователя (только для админов, с 2FA)
+   *     tags: [Admin]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: 'string' }
+   *         description: ID пользователя для удаления
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               reason:
+   *                 type: string
+   *                 description: "Причина удаления (обязательно)"
+   *               confirmationCode:
+   *                 type: string
+   *                 description: "6-значный код подтверждения из Telegram (если требуется)"
+   *     responses:
+   *       200:
+   *         description: Пользователь успешно удален
+   *       400:
+   *         description: "Неверный запрос, или требуется код подтверждения"
+   *       403:
+   *         description: "Нет прав, или попытка удалить самого себя"
+   */
+    router.post('/users/:id/delete', protect, isAdmin, [
+        body('reason').notEmpty().withMessage('Причина удаления обязательна.'),
+        body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
+    ], async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const adminUser = req.user;
+        const targetUserId = req.params.id;
+        const { reason, confirmationCode } = req.body;
+
+        if (adminUser.id === targetUserId) {
+            return res.status(403).json({ msg: 'Вы не можете удалить свой собственный аккаунт.' });
+        }
+
+        const targetUser = await User.findById(targetUserId);
+        if (!targetUser) {
+            return res.status(404).json({ msg: 'Пользователь для удаления не найден.' });
+        }
+        
+        if (targetUser.roles.admin) {
+            return res.status(403).json({ msg: 'Нельзя удалить другого администратора.' });
+        }
+
+        if (!adminUser.telegramId) {
+            return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
+        }
+
+        const redisKey = `admin-action:delete-user:${adminUser.id}:${targetUserId}`;
+        
+        if (!confirmationCode) {
+            const code = crypto.randomInt(100000, 999999).toString();
+            await redis.set(redisKey, code, 'EX', 300);
+
+            const message = `Вы собираетесь НАВСЕГДА удалить пользователя *${targetUser.username}* по причине: _${reason}_.\n\nДля подтверждения введите код: \`${code}\``;
+            await sendTelegramMessage(adminUser.telegramId, message);
+
+            return res.status(400).json({ confirmationRequired: true, message: 'Код подтверждения отправлен в Telegram.' });
+        } else {
+            const storedCode = await redis.get(redisKey);
+            if (storedCode !== confirmationCode) {
+                return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+            }
+            await redis.del(redisKey);
+        }
+
+        // Логика удаления данных пользователя
+        // (можно скопировать из user.js, но лучше вынести в отдельный сервис)
+        await Request.updateMany(
+            { helper: targetUserId, status: { $in: ['assigned', 'in_progress'] } },
+            { $set: { status: 'open' }, $unset: { helper: 1 } }
+        );
+        const userRequests = await Request.find({ author: targetUserId }).select('_id');
+        const requestIds = userRequests.map(r => r._id);
+        if (requestIds.length > 0) {
+            await Message.deleteMany({ requestId: { $in: requestIds } });
+            await Review.deleteMany({ requestId: { $in: requestIds } });
+            await Request.deleteMany({ _id: { $in: requestIds } });
+        }
+        await Review.deleteMany({ reviewerId: targetUserId });
+        await Notification.deleteMany({ user: targetUserId });
+        await User.findByIdAndDelete(targetUserId);
+
+        res.json({ msg: `Пользователь ${targetUser.username} и все его данные были успешно удалены.` });
+    });
+
 
   /**
    * @swagger

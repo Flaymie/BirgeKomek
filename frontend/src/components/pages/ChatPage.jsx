@@ -34,17 +34,6 @@ import StatusBadge from '../shared/StatusBadge';
 import { isSameDay, formatDateSeparator } from '../../utils/dateHelpers';
 import classNames from 'classnames';
 
-// КОМПОНЕНТ С БОРДЕРОМ - ищем золотую середину
-const OnlineStatusCircle = ({ isOnline }) => (
-  <span
-    className={classNames(
-      'h-2.5 w-2.5 ml-2 rounded-full flex-shrink-0 border-2',
-      isOnline ? 'bg-green-500 border-white' : 'bg-gray-400 border-gray-100'
-    )}
-    title={isOnline ? 'Онлайн' : 'Оффлайн'}
-  />
-);
-
 
 // Создаем инстанс api прямо здесь
 const api = axios.create({
