@@ -218,7 +218,7 @@ const Header = () => {
               </button>
             </div>
             
-            <nav className="flex-grow mt-8 flex flex-col space-y-3">
+            <nav className="flex-grow mt-8 flex flex-col space-y-3 overflow-y-auto">
               <Link to="/requests" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${isActive('/requests')} ${location.pathname === '/requests' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
                 <FiGrid className="w-6 h-6" /> Заявки
               </Link>

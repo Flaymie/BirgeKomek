@@ -10,6 +10,7 @@ import BanUserModal from '../../modals/BanUserModal';
 import ChangeRoleModal from '../../modals/ChangeRoleModal';
 import AdminActionConfirmModal from '../../modals/AdminActionConfirmModal';
 import DeleteUserModal from '../../modals/DeleteUserModal';
+import AdminEditProfileModal from '../../modals/AdminEditProfileModal';
 
 const Loader = () => (
     <div className="flex justify-center items-center h-screen">
@@ -25,6 +26,7 @@ const UserDetailsPage = () => {
     const [isBanModalOpen, setIsBanModalOpen] = useState(false);
     const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [actionToConfirm, setActionToConfirm] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
@@ -105,6 +107,24 @@ const UserDetailsPage = () => {
                 toast.info('Код для подтверждения отправлен в Telegram.');
             } else {
                 toast.error(err.response?.data?.msg || 'Не удалось удалить пользователя.');
+            }
+        }
+    };
+
+    // Функция-триггер для редактирования профиля
+    const handleEditProfile = async (updatedData, reason) => {
+        try {
+            await api.put(`/admin/users/${id}/profile`, { ...updatedData, reason });
+        } catch (err) {
+            if (err.response?.data?.confirmationRequired) {
+                setActionToConfirm(() => (confirmationCode) =>
+                    api.put(`/admin/users/${id}/profile`, { ...updatedData, reason, confirmationCode })
+                );
+                setIsEditProfileModalOpen(false);
+                setIsConfirmModalOpen(true);
+                toast.info('Код для подтверждения отправлен в Telegram.');
+            } else {
+                toast.error(err.response?.data?.msg || 'Не удалось обновить профиль.');
             }
         }
     };
@@ -296,6 +316,7 @@ const UserDetailsPage = () => {
                                 <button onClick={() => setIsBanModalOpen(true)} className="btn btn-danger">Заблокировать</button>
                             )}
                             <button onClick={() => setIsChangeRoleModalOpen(true)} className="btn btn-secondary">Изменить роль</button>
+                            <button onClick={() => setIsEditProfileModalOpen(true)} className="btn btn-secondary">Изменить профиль</button>
                             <button onClick={() => setIsDeleteModalOpen(true)} className="btn btn-danger-outline">Удалить пользователя</button>
                          </div>
                     </div>
@@ -318,6 +339,12 @@ const UserDetailsPage = () => {
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDeleteUser}
                 username={user?.username}
+            />
+            <AdminEditProfileModal
+                isOpen={isEditProfileModalOpen}
+                onClose={() => setIsEditProfileModalOpen(false)}
+                onConfirm={handleEditProfile}
+                user={user}
             />
             <AdminActionConfirmModal
                 isOpen={isConfirmModalOpen}

@@ -437,7 +437,7 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
         type: 'new_message_in_request',
                 title: `Новое сообщение в заявке "${request.title}"`,
                 message: `Пользователь ${req.user.username} отправил сообщение: ${notificationMessage}`,
-                link: `/request/${requestId}/chat`,
+                link: `/requests/${requestId}/chat`,
                 relatedEntity: { requestId: request._id, userId: senderId }
       });
     }

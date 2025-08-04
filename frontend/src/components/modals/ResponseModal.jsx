@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { responsesService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 
 const ResponseModal = ({ isOpen, onClose, requestId }) => {
   const [message, setMessage] = useState('');
@@ -13,11 +14,12 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
 
   useEffect(() => {
     if (isOpen) {
-      modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setMessage('');
+        setError(null);
+        setLoading(false);
     }
   }, [isOpen]);
 
-  // Если модальное окно не открыто, не рендерим его
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -36,54 +38,57 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
         message,
       });
       toast.success('Ваш отклик успешно отправлен! Перезагружаем...');
-      // Жёсткий костыль с перезагрузкой
       setTimeout(() => {
         window.location.reload();
-      }, 1500); // Задержка, чтобы пользователь успел увидеть сообщение
+      }, 1500);
     } catch (err) {
-      setError(err.response?.data?.msg || 'Произошла ошибка');
-      toast.error(err.response?.data?.msg || 'Не удалось отправить отклик');
+      const errorMessage = err.response?.data?.msg || 'Произошла ошибка при отправке отклика';
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div ref={modalRef} className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold">Предложить помощь</h3>
-            <button 
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 focus:outline-none"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div ref={modalRef} className="bg-white rounded-xl p-6 md:p-8 w-full max-w-md mx-4 shadow-2xl transform transition-all relative">
+            <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-6 w-6" />
             </button>
-          </div>
-          
+            <h3 className="text-2xl font-bold mb-4 text-gray-800">Предложить помощь</h3>
+            <p className="text-gray-600 mb-6">Напишите автору заявки, почему именно вы сможете ему помочь. Ваш отклик будет виден только ему.</p>
+
           {error && (
-            <div className="text-red-500 mb-4">{error}</div>
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 rounded-md">
+                <p>{error}</p>
+            </div>
           )}
 
           <form onSubmit={handleSubmit}>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-              rows="4"
-              placeholder="Напишите ваше сообщение..."
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              rows="5"
+              placeholder="Например: 'Привет! Я хорошо разбираюсь в этой теме и готов помочь...' "
               maxLength={charLimit}
-            ></textarea>
-            <p className="text-right text-sm text-gray-500 mt-1">
+            />
+            <p className="text-right text-sm text-gray-500 mt-2">
               {message.length} / {charLimit}
             </p>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-6 flex justify-end gap-4 border-t pt-5">
+              <button 
+                  type="button"
+                  onClick={onClose}
+                  className="btn btn-secondary"
+              >
+                Отмена
+              </button>
               <button 
                   type="submit" 
                   disabled={loading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+                  className="btn btn-primary"
               >
                 {loading ? 'Отправка...' : 'Отправить отклик'}
               </button>
@@ -96,4 +101,4 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
   );
 };
 
-export default ResponseModal; 
+export default ResponseModal;

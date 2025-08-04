@@ -14,7 +14,7 @@ const commonOptions = {
 export const loginLimiter = rateLimit({
   ...commonOptions,
   windowMs: 10 * 60 * 1000,
-  max: 5,
+  max: 50,
   message: { msg: 'Слишком много попыток входа. Пожалуйста, попробуйте снова через 10 минут.' },
   keyGenerator: (req, res) => req.ip,
 });
@@ -22,8 +22,8 @@ export const loginLimiter = rateLimit({
 export const createRequestLimiter = rateLimit({
   ...commonOptions,
   windowMs: 24 * 60 * 60 * 1000,
-  max: 5,
-  message: { msg: 'Вы достигли лимита на создание заявок (5 в день).' },
+  max: 50,
+  message: { msg: 'Вы достигли лимита на создание заявок (50 в день).' },
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),
   }),
@@ -35,7 +35,7 @@ export const createRequestLimiter = rateLimit({
 export const sendMessageLimiter = rateLimit({
   ...commonOptions,
   windowMs: 60 * 1000,
-  max: 20,
+  max: 200,
   message: { msg: 'Вы отправляете сообщения слишком часто. Немного подождите.' },
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),
@@ -46,8 +46,8 @@ export const sendMessageLimiter = rateLimit({
 export const createReportLimiter = rateLimit({
   ...commonOptions,
   windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: { msg: 'Вы можете подать не более 5 жалоб в час. Попробуйте позже.' },
+  max: 50,
+  message: { msg: 'Вы можете подать не более 50 жалоб в час. Попробуйте позже.' },
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),
   }),
@@ -57,13 +57,13 @@ export const createReportLimiter = rateLimit({
 export const uploadLimiter = rateLimit({
   ...commonOptions,
   windowMs: 24 * 60 * 60 * 1000,
-  max: 20,
-  message: { msg: 'Вы достигли дневного лимита на загрузку файлов (20).' },
+  max: 200,
+  message: { msg: 'Вы достигли дневного лимита на загрузку файлов (200).' },
 });
 
 export const registrationLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  max: 1,
+  max: 10,
   message: { msg: 'С этого IP-адреса уже была произведена регистрация за последние 24 часа. Попробуйте позже.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -79,19 +79,19 @@ const getMaxRequestsByRole = (req) => {
   if (req.user) {
     const { role } = req.user;
     if (role === 'admin') {
-      return 7000;
+      return 700000;
     }
     if (role === 'moderator') {
-      return 3000;
+      return 300000;
     }
     if (role === 'helper') {
-      return 2000;
+      return 20000;
     }
     if (role === 'user') {
-      return req.user.telegramId ? 1000 : 500;
+      return req.user.telegramId ? 10000 : 5000;
     }
   }
-  return 200;
+  return 2000;
 };
 
 export const generalLimiter = rateLimit({

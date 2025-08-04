@@ -414,10 +414,96 @@ export default ({ sseConnections }) => {
         res.json({ msg: `Пользователь ${targetUser.username} и все его данные были успешно удалены.` });
     });
 
+  router.put('/users/:id/profile', protect, isAdmin, [
+      body('username').notEmpty().withMessage('Никнейм не может быть пустым.'),
+      body('reason').notEmpty().withMessage('Причина редактирования обязательна.'),
+      body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
+      // Другие поля можно не валидировать так строго, они могут быть пустыми
+  ], async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+      }
 
-  /**
-   * @swagger
-   * /api/admin/notify-user:
+      const adminUser = req.user;
+      const targetUserId = req.params.id;
+      const { confirmationCode, reason, ...profileData } = req.body;
+
+      if (adminUser.id === targetUserId) {
+          return res.status(403).json({ msg: 'Вы не можете редактировать свой собственный профиль через эту форму.' });
+      }
+
+      const targetUser = await User.findById(targetUserId);
+      if (!targetUser) {
+          return res.status(404).json({ msg: 'Пользователь не найден.' });
+      }
+
+      if (targetUser.roles.admin) {
+          return res.status(403).json({ msg: 'Нельзя редактировать профиль другого администратора.' });
+      }
+
+      if (!adminUser.telegramId) {
+          return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
+      }
+
+      const redisKey = `admin-action:edit-profile:${adminUser.id}:${targetUserId}`;
+
+      if (!confirmationCode) {
+          const code = crypto.randomInt(100000, 999999).toString();
+          // Сохраняем все данные + код в Redis
+          await redis.set(redisKey, JSON.stringify({ ...profileData, reason, code }), 'EX', 300);
+
+          const message = `Вы собираетесь изменить профиль *${targetUser.username}* по причине: _${reason}_.\n\nДля подтверждения введите код: \`${code}\``;
+          await sendTelegramMessage(adminUser.telegramId, message);
+
+          return res.status(400).json({ confirmationRequired: true, message: 'Код подтверждения отправлен в Telegram.' });
+      } else {
+          const storedDataRaw = await redis.get(redisKey);
+          if (!storedDataRaw) {
+              return res.status(400).json({ msg: 'Срок действия кода истек. Попробуйте снова.' });
+          }
+
+          const storedData = JSON.parse(storedDataRaw);
+          if (storedData.code !== confirmationCode) {
+              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+          }
+
+          // Код верный, БЕЗОПАСНО обновляем пользователя данными из Redis
+          const { reason: storedReason, code: storedCode, ...profileDataFromRedis } = storedData;
+          
+          const allowedFields = ['username', 'phone', 'location', 'grade', 'bio', 'avatar', 'subjects'];
+
+          for (const field of allowedFields) {
+              if (profileDataFromRedis[field] !== undefined) {
+                  targetUser[field] = profileDataFromRedis[field];
+              }
+          }
+
+          await targetUser.save();
+          await redis.del(redisKey);
+
+          // Отправляем уведомление пользователю
+           const notification = new Notification({
+              user: targetUserId,
+              type: 'profile_updated_by_admin',
+              title: 'Ваш профиль был обновлен',
+              message: `Администратор ${adminUser.username} обновил ваш профиль. Причина: "${storedReason}"`,
+              relatedEntity: { userId: adminUser.id },
+          });
+          await notification.save();
+          notification.link = `/notification/${notification._id}`;
+          await notification.save();
+
+
+          const updatedUser = await User.findById(targetUserId).select('-password').populate('banDetails.bannedBy', 'username').lean();
+          res.json({ msg: `Профиль пользователя ${targetUser.username} успешно обновлен.`, user: updatedUser });
+      }
+  });
+
+
+    /**
+     * @swagger
+     * /api/admin/notify-user:
    *   post:
    *     summary: Отправить персональное уведомление пользователю
    *     tags: [Admin]

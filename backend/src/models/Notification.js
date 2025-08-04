@@ -34,6 +34,7 @@ const notificationSchema = new mongoose.Schema({
       'moderator_warning',          // Предупреждение от модератора
       'new_report',                 // Новая жалоба (для модераторов)
       'report_status_changed',      // Статус жалобы изменен (для автора жалобы)
+      'profile_updated_by_admin',   // Профиль обновлен админом (для пользователя)
     ],
   },
   title: {
