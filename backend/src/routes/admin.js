@@ -395,7 +395,6 @@ export default ({ sseConnections }) => {
         }
 
         // Логика удаления данных пользователя
-        // (можно скопировать из user.js, но лучше вынести в отдельный сервис)
         await Request.updateMany(
             { helper: targetUserId, status: { $in: ['assigned', 'in_progress'] } },
             { $set: { status: 'open' }, $unset: { helper: 1 } }
@@ -468,7 +467,6 @@ export default ({ sseConnections }) => {
               return res.status(400).json({ msg: 'Неверный код подтверждения.' });
           }
 
-          // Код верный, БЕЗОПАСНО обновляем пользователя данными из Redis
           const { reason: storedReason, code: storedCode, ...profileDataFromRedis } = storedData;
           
           const allowedFields = ['username', 'phone', 'location', 'grade', 'bio', 'avatar', 'subjects'];
@@ -482,7 +480,6 @@ export default ({ sseConnections }) => {
           await targetUser.save();
           await redis.del(redisKey);
 
-          // Отправляем уведомление пользователю
            const notification = new Notification({
               user: targetUserId,
               type: 'profile_updated_by_admin',
@@ -560,14 +557,12 @@ export default ({ sseConnections }) => {
         notification.link = notificationLink;
         await notification.save();
         
-        // 1. Отправка через SSE
         const client = sseConnections[recipientId.toString()];
         if (client) {
             client.write(`event: new_notification\n`);
             client.write(`data: ${JSON.stringify(notification)}\n\n`);
         }
 
-        // 2. Отправка в Telegram
         const recipientUser = await User.findById(recipientId);
         if (recipientUser && recipientUser.telegramId && recipientUser.telegramNotificationsEnabled) {
             const botToken = process.env.BOT_TOKEN;
@@ -639,7 +634,6 @@ export default ({ sseConnections }) => {
         Report.countDocuments({ status: 'open' })
       ]);
 
-      // Агрегированные данные для графиков
       
       // Распределение заявок по предметам
       const requestsBySubject = await Request.aggregate([

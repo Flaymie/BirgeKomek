@@ -11,6 +11,17 @@ import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// ГЛОБАЛЬНЫЕ ПРЕДОХРАНИТЕЛИ ОТ КРАШЕЙ
+process.on('uncaughtException', (err) => {
+  console.error('НЕПЕРЕХВАЧЕННАЯ ОШИБКА (UNCAUGHT EXCEPTION):', err);
+  // В идеале здесь нужно слать уведомление админу, но пока просто логгируем, чтобы сервер не падал.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('НЕОБРАБОТАННЫЙ ПРОМИС РЕДЖЕКТ (UNHANDLED REJECTION):', reason);
+});
+
+
 import redis, { isRedisConnected } from './config/redis.js';
 import swaggerSpecs from './config/swagger.js';
 import authRoutes from './routes/auth.js';
@@ -47,7 +58,6 @@ const app = express();
 app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
 app.locals.sseConnections = sseConnections;
-// app.locals.onlineUsers = onlineUsers; // БОЛЬШE НЕ ИСПОЛЬЗУЕТСЯ
 
 const server = http.createServer(app);
 export const io = new Server(server, {
@@ -99,8 +109,10 @@ app.get('/uploads/:folder/:filename', (req, res) => {
 
   res.sendFile(filePath, (err) => {
     if (err) {
-      console.error(`Ошибка отправки файла: ${filePath}`, err);
-      res.status(404).send('Resource not found');
+      // Это предотвратит краш ERR_HTTP_HEADERS_SENT
+      if (!res.headersSent) {
+          res.status(404).send('Resource not found');
+      }
     }
   });
 });

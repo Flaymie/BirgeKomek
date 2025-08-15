@@ -115,7 +115,7 @@ export const isHelper = (req, res, next) => {
   next();
 };
 
-// Проверка на администратора
+// Проверка на админа
 export const isAdmin = (req, res, next) => {
   if (req.user && req.user.roles && req.user.roles.admin) {
     next();
@@ -124,7 +124,7 @@ export const isAdmin = (req, res, next) => {
   }
 };
 
-// Проверка на модератора
+// Проверка на модера
 export const isModerator = (req, res, next) => {
   if (req.user && req.user.roles && req.user.roles.moderator) {
     next();
@@ -133,7 +133,7 @@ export const isModerator = (req, res, next) => {
   }
 };
 
-// Проверка на модератора или администратора
+// Проверка на модера или админа
 export const isModOrAdmin = (req, res, next) => {
   if (req.user && req.user.roles && (req.user.roles.moderator || req.user.roles.admin)) {
     next();

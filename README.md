@@ -176,16 +176,28 @@ npm start
 
 ### Образовательные курсы
 - **JavaScript:**
-  - [JavaScript, уровень 1](https://htmlacademy.ru/intensive/javascript) от HTML Academy
-  - [Продвинутый JavaScript](https://learn.javascript.ru/) - Современный учебник JavaScript
+  - [JavaScript](https://htmlacademy.ru/intensive/javascript)
+  - [Продвинутый JavaScript](https://learn.javascript.ru/)
 - **React & Node.js:**
-  - [Фулстек-разработка веб-сервиса на TypeScript, Reaсt, Node.js](https://stepik.org/course/210768/promo?search=7377060860) на Stepik
-  - [Node.js - с нуля, основы и построение архитектуры приложений](https://stepik.org/course/105538/promo?search=7377067362) на Stepik
+  - [Фулстек-разработка веб-сервиса на TypeScript, Reaсt, Node.js](https://stepik.org/course/210768/promo?search=7377060860)
+  - [Node.js - с нуля, основы и построение архитектуры приложений](https://stepik.org/course/105538/promo?search=7377067362)
+- **Node.js & Backend:**
+  - [Бэкенд-разработка на Node.js — Нетология](https://netology.ru/programs/nodejs)
+  - [Pluralsight: JWT Fundamentals](https://www.pluralsight.com/courses/jwt-fundamentals)
+- **MongoDB:**
+  - [MongoDB University (официальные бесплатные курсы)](https://www.mongodb.com/developer/products/mongodb/learn-mongodb-university-online-free-mooc/)
+  - [MongoDB Basics — практический курс на UpShell](https://upshell.io/ru/courses/mongodb-basics)
+- **WebSocket**
+  - [Udemy: WebSockets Mastery – Beginner to Advanced](https://www.udemy.com/course/websockets)
+  - [JavaRush: WebSocket в JavaScript](https://javarush.com/quests/lectures/ru.javarush.web.core.lecture.level23.lecture05)
+- **Redis:**
+  - [Курс Redis на Hexlet (обновлён май 2025)](https://ru.hexlet.io/courses/redis-basics)
+  - [Интерактивный курс Redis на LabEx](https://labex.io/ru/learn/redis)
 - **Общие принципы:**
-  - [Алгоритмы: теория и практика. Методы](https://stepik.org/course/217?search=7378331692) на Stepik
+  - [Алгоритмы: теория и практика. Методы](https://stepik.org/course/217?search=7378331692)
 
 ### Консультации
-- **AI-ассистенты:** В процессе разработки для решения конкретных проблем, отладки кода и поиска оптимальных подходов активно использовались консультации с моделями ChatGPT (версии 4.0) и Google Gemini. 
+- **AI-ассистенты:** В процессе разработки для решения конкретных проблем, отладки кода и поиска оптимальных подходов активно использовались консультации с моделями ChatGPT и Google Gemini. 
 
 ## Лицензия
 

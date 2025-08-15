@@ -10,6 +10,7 @@ const commonOptions = {
   },
 };
 
+// Тут выставлены лимиты, в 10 раз превышающие стандартные, только для тестирования
 
 export const loginLimiter = rateLimit({
   ...commonOptions,

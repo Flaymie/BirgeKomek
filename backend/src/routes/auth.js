@@ -90,7 +90,6 @@ const RESERVED_USERNAMES = [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-// регистрация
 router.post('/register', registrationLimiter,
   uploadAvatar,
   [
@@ -199,7 +198,6 @@ router.post('/register', registrationLimiter,
       }
     }
     
-    // --- ТЕПЕРЬ ВСЯ ЛОГИКА РАБОТАЕТ С ГАРАНТИРОВАННО НОВЫМ ЮЗЕРОМ ---
     user = new User(newUser);
     
     const ip = req.headers['x-test-ip'] || req.ip;
