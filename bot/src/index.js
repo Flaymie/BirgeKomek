@@ -78,9 +78,19 @@ const registrationScene = new Scenes.WizardScene(
         Markup.button.contactRequest('📱 Поделиться номером')
       ]).resize().oneTime()
     );
-    return ctx.wizard.selectStep(ctx.wizard.cursor + 1);
+    // Для роли "student" сразу переходим на шаг получения контакта (шаг 3)
+    return ctx.wizard.selectStep(3);
   },
   async (ctx) => {
+     // Если роль не helper, этот шаг (выбор предметов) пропускаем и просим номер телефона
+     if (ctx.wizard.state.data.role !== 'helper') {
+        await ctx.reply('Пожалуйста, используйте кнопку, чтобы поделиться вашим номером.', 
+          Markup.keyboard([
+            Markup.button.contactRequest('📱 Поделиться номером')
+          ]).resize().oneTime()
+        );
+        return ctx.wizard.selectStep(3);
+     }
      if (ctx.callbackQuery?.data.startsWith('subject_')) {
         const subject = ctx.callbackQuery.data.split('_')[1];
         const subjects = ctx.wizard.state.data.subjects;
@@ -108,7 +118,10 @@ const registrationScene = new Scenes.WizardScene(
         ]).resize().oneTime());
         return ctx.wizard.next();
      }
-     ctx.reply('Пожалуйста, используйте кнопки для выбора предметов.');
+     // Сообщение-подсказка оставляем только для хелперов
+     if (ctx.wizard.state.data.role === 'helper') {
+        ctx.reply('Пожалуйста, используйте кнопки для выбора предметов.');
+     }
   },
   (ctx) => {
     if (!ctx.message?.contact?.phone_number) {
