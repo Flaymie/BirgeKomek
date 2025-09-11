@@ -19,6 +19,7 @@
     "aos": "^2.3.4",
     "axios": "^1.10.0",
     "classnames": "^2.5.1",
+    "date-fns": "^2.30.0",
     "framer-motion": "^12.16.0",
     "i18next": "^25.3.1",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -74,6 +75,10 @@
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "npm-run-all": "^4.1.5",
-    "postcss": "^8.5.6"
+    "postcss": "^8.5.6",
+    "typescript": "4.9.5"
+  },
+  "overrides": {
+    "typescript": "4.9.5"
   }
 }
