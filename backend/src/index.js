@@ -59,20 +59,33 @@ app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
 app.locals.sseConnections = sseConnections;
 
+// ENV and CORS origins parser
+const PORT = process.env.PORT || 5050;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const parseOrigins = () => {
+  const envList = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (process.env.FRONTEND_URL) {
+    envList.push(process.env.FRONTEND_URL.trim());
+  }
+  if (NODE_ENV !== 'production') {
+    envList.push(`http://localhost:3000`, `http://localhost:${PORT}`);
+  }
+  // dedupe
+  return Array.from(new Set(envList));
+};
+const allowedOrigins = parseOrigins();
+
 const server = http.createServer(app);
 export const io = new Server(server, {
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5050',
-      'http://192.168.1.22:3000',
-      'http://192.168.1.22:5050'
-    ],
-    methods: ['GET', 'POST']
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true,
   }
 });
-
-const PORT = process.env.PORT || 5050;
 
 // мидлвари
 app.use(express.json());
@@ -82,10 +95,9 @@ app.use(xss());
 
 app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
 
-const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL];
-
 const corsOptions = {
   origin: (origin, callback) => {
+    // Разрешаем запросы без Origin (например, curl, мобильные приложения)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('CORS не разрешен'));
@@ -304,6 +316,10 @@ app.all('/api/*', (req, res) => {
 
 // Запускаем сервер
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Сервер запущен на http://0.0.0.0:${PORT}`);
-  console.log(`Документация API доступна по адресу http://localhost:${PORT}/api-docs`);
+  console.log(`Сервер запущен на 0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV || 'development'})`);
+  if ((process.env.NODE_ENV || 'development') === 'production') {
+    console.log('Документация API доступна по адресу: /api-docs');
+  } else {
+    console.log(`Документация API доступна по адресу: http://localhost:${PORT}/api-docs`);
+  }
 }); 
