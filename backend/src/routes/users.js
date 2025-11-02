@@ -242,8 +242,9 @@ export default ({ io }) => {
       }
 
       await user.save();
-      const updatedUser = user.toObject();
-      delete updatedUser.password;
+      
+      // Явно возвращаем пользователя без пароля, но со всеми нужными полями
+      const updatedUser = await User.findById(userId).select('-password').lean();
       res.json(updatedUser);
 
     } catch (err) {
