@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading }) => {
+const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) => {
   const [code, setCode] = useState('');
   const inputRef = useRef(null);
+  const [remainingAttempts, setRemainingAttempts] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       setCode('');
+      setRemainingAttempts(null);
       // Фокус на инпуте при открытии
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    // Извлекаем remainingAttempts из ошибки, если есть
+    if (error && typeof error === 'object' && error.remainingAttempts !== undefined) {
+      setRemainingAttempts(error.remainingAttempts);
+    }
+  }, [error]);
 
   const handleConfirmClick = () => {
     if (code.length === 6 && !isLoading) {
@@ -36,6 +45,18 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading }) => {
         <p className="mb-4 text-gray-600">
           Мы отправили 6-значный код в ваш Telegram. Введите его ниже, чтобы навсегда удалить свой аккаунт.
         </p>
+        {remainingAttempts !== null && remainingAttempts < 3 && (
+          <div className={`mb-4 p-3 rounded-lg ${remainingAttempts === 1 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            <p className="font-semibold">
+              ⚠️ Осталось попыток: {remainingAttempts}
+            </p>
+            <p className="text-sm mt-1">
+              {remainingAttempts === 1 
+                ? 'Последняя попытка! При неверном вводе аккаунт будет заблокирован на 7 дней.'
+                : 'После 3 неудачных попыток аккаунт будет заблокирован из-за подозрения во взломе.'}
+            </p>
+          </div>
+        )}
         <div className="my-6">
             <label htmlFor="confirmationCode" className="block text-sm font-medium text-gray-700 mb-2">Код подтверждения</label>
             <input

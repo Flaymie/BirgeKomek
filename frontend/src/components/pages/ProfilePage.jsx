@@ -996,6 +996,8 @@ const ProfilePage = () => {
       } catch (err) {
         console.error('Ошибка при подтверждении бана:', err);
         toast.error(err.response?.data?.msg || 'Не удалось забанить пользователя.');
+        // Закрываем модалку при ошибке
+        setIsConfirmingModAction(false);
       } finally {
         setModActionLoading(false);
       }

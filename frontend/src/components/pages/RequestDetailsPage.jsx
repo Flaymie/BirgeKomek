@@ -232,6 +232,8 @@ const RequestDetailPage = () => {
     } catch (err) {
       console.error('Ошибка при подтверждении удаления:', err);
       toast.error(err.response?.data?.msg || 'Не удалось удалить заявку');
+      // Закрываем модалку при ошибке
+      setIsConfirmingModAction(false);
     } finally {
       setModActionLoading(false);
       setModActionArgs(null); // Очищаем аргументы

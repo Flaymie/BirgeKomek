@@ -2,16 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
-const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, isLoading }) => {
+const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, isLoading, error }) => {
   const [code, setCode] = useState('');
   const modalRef = useRef(null);
+  const [remainingAttempts, setRemainingAttempts] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       setCode('');
+      setRemainingAttempts(null);
       modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    // Извлекаем remainingAttempts из ошибки, если есть
+    if (error && typeof error === 'object' && error.remainingAttempts !== undefined) {
+      setRemainingAttempts(error.remainingAttempts);
+    }
+  }, [error]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,6 +47,18 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
             <p className="text-gray-600 mb-6">
               Для выполнения действия <span className="font-semibold">"{actionTitle}"</span>, пожалуйста, введите код, отправленный вам в Telegram.
             </p>
+            {remainingAttempts !== null && remainingAttempts < 3 && (
+              <div className={`mb-4 p-3 rounded-lg ${remainingAttempts === 1 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                <p className="font-semibold">
+                  ⚠️ Осталось попыток: {remainingAttempts}
+                </p>
+                <p className="text-sm mt-1">
+                  {remainingAttempts === 1 
+                    ? 'Последняя попытка! При неверном вводе аккаунт будет заблокирован на 7 дней.'
+                    : 'После 3 неудачных попыток аккаунт будет заблокирован из-за подозрения во взломе.'}
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="w-full">
               <input
                 type="text"

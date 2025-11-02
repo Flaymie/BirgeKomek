@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult, param, query } from 'express-validator';
 import User from '../models/User.js';
 import { protect, isModOrAdmin } from '../middleware/auth.js';
+import { setCodeProtectionContext, resetAttempts, handleFailedCodeAttempt } from '../middleware/codeVerificationProtection.js';
 import Request from '../models/Request.js';
 import Message from '../models/Message.js';
 import Review from '../models/Review.js';
@@ -679,9 +680,9 @@ export default ({ io }) => {
     }
   });
   
-  router.post('/me/delete', protect, generalLimiter, [
+  router.post('/me/delete', protect, generalLimiter, setCodeProtectionContext('delete'), [
       body('confirmationCode').notEmpty().isLength({ min: 6, max: 6 }).withMessage('Код подтверждения должен состоять из 6 цифр.'),
-  ], async (req, res) => {
+  ], async (req, res, next) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
           return res.status(400).json({ errors: errors.array() });
@@ -699,8 +700,12 @@ export default ({ io }) => {
           }
 
           if (storedCode !== confirmationCode) {
-              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+              // Неверный код - используем middleware для обработки
+              return handleFailedCodeAttempt(req, res, next);
           }
+          
+          // Код верный - сбрасываем счетчик попыток
+          await resetAttempts(userId, 'delete');
           
           await Request.updateMany(
             { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
@@ -764,12 +769,12 @@ export default ({ io }) => {
    *       403:
    *         description: "Нет прав, или попытка забанить админа"
    */
-  router.post('/:id/ban', protect, isModOrAdmin, [
+  router.post('/:id/ban', protect, isModOrAdmin, setCodeProtectionContext('ban'), [
     param('id').isMongoId().withMessage('Неверный ID пользователя.'),
     body('reason').notEmpty().withMessage('Причина бана обязательна.'),
     body('duration').notEmpty().withMessage('Срок бана обязателен.'),
     body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
-  ], async (req, res) => {
+  ], async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -826,10 +831,13 @@ export default ({ io }) => {
             // Этап 2: Код есть, проверяем
             const storedCode = await redis.get(redisKey);
             if (storedCode !== confirmationCode) {
-                return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+                // Устанавливаем targetId для отслеживания попыток конкретного бана
+                req.codeProtection.targetId = targetUserId;
+                return handleFailedCodeAttempt(req, res, next);
             }
-            // Код верный, удаляем его, чтобы нельзя было использовать повторно
+            // Код верный, удаляем его и сбрасываем счетчик попыток
             await redis.del(redisKey);
+            await resetAttempts(moderator.id, 'ban', targetUserId);
         }
       }
 

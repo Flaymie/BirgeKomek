@@ -6,6 +6,7 @@ import Message from '../models/Message.js';
 import { protect, isHelper, isModOrAdmin } from '../middleware/auth.js';
 import { createAndSendNotification } from './notifications.js';
 import { createRequestLimiter, generalLimiter } from '../middleware/rateLimiters.js';
+import { setCodeProtectionContext, resetAttempts, handleFailedCodeAttempt } from '../middleware/codeVerificationProtection.js';
 import { uploadAttachments } from './upload.js';
 import redis from '../config/redis.js'; 
 import crypto from 'crypto';
@@ -1175,10 +1176,10 @@ router.post('/:id/cancel', protect, [
  *       '500':
  *         description: Внутренняя ошибка сервера.
  */
-router.delete('/:id', protect, checkEditDeletePermission, [
+router.delete('/:id', protect, checkEditDeletePermission, setCodeProtectionContext('delete-request'), [
     body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
     body('deleteReason').optional().isString().trim()
-], async (req, res) => {
+], async (req, res, next) => {
   try {
     const { confirmationCode, deleteReason } = req.body;
     const actingUser = req.user;
@@ -1210,9 +1211,11 @@ router.delete('/:id', protect, checkEditDeletePermission, [
         } else {
           const storedCode = await redis.get(redisKey);
           if (storedCode !== confirmationCode) {
-            return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+            req.codeProtection.targetId = request._id.toString();
+            return handleFailedCodeAttempt(req, res, next);
           }
           await redis.del(redisKey);
+          await resetAttempts(actingUser.id, 'delete-request', request._id.toString());
         }
       }
       await createAndSendNotification({

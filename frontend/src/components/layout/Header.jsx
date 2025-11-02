@@ -93,13 +93,15 @@ const Header = () => {
                         <Link to="/admin/system-reports" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
                            <AlertTriangle className="w-4 h-4" /> Системные репорты
                         </Link>
-                        <Link to="/admin/users" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
-                           <FiUser className="w-4 h-4" /> Пользователи
-                        </Link>
                         {currentUser.roles?.admin && (
-                           <Link to="/analytics" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
-                              <FiBarChart2 className="w-4 h-4" /> Аналитика
-                           </Link>
+                          <Link to="/admin/users" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
+                            <FiUser className="w-4 h-4" /> Пользователи
+                          </Link>
+                        )}
+                        {currentUser.roles?.admin && (
+                          <Link to="/analytics" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600 rounded-xl transition-all duration-300 hover:scale-105">
+                            <FiBarChart2 className="w-4 h-4" /> Аналитика
+                          </Link>
                         )}
                     </div>
                 </div>
@@ -271,9 +273,11 @@ const Header = () => {
                       <Link to="/admin/system-reports" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/admin/system-reports' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
                         <AlertTriangle className="w-6 h-6" /> Системные репорты
                       </Link>
-                      <Link to="/admin/users" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/admin/users' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
-                        <FiUser className="w-6 h-6" /> Пользователи
-                      </Link>
+                      {currentUser.roles.admin && (
+                        <Link to="/admin/users" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/admin/users' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
+                          <FiUser className="w-6 h-6" /> Пользователи
+                        </Link>
+                      )}
                       {currentUser.roles.admin && (
                          <Link to="/analytics" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/analytics' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
                            <FiBarChart2 className="w-6 h-6" /> Аналитика

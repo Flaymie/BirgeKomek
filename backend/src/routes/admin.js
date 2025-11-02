@@ -3,6 +3,7 @@ import { body, query, validationResult } from 'express-validator';
 import axios from 'axios';
 import { protect, isModOrAdmin, isAdmin } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
+import { setCodeProtectionContext, resetAttempts, handleFailedCodeAttempt } from '../middleware/codeVerificationProtection.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import Request from '../models/Request.js';
@@ -236,11 +237,11 @@ export default ({ sseConnections }) => {
    *       403:
    *         description: "Нет прав, или попытка изменить свои роли"
    */
-  router.put('/users/:id/roles', protect, isAdmin, [
+  router.put('/users/:id/roles', protect, isAdmin, setCodeProtectionContext('change-roles'), [
       body('isModerator').isBoolean().withMessage('Значение isModerator должно быть true или false.'),
       body('isHelper').isBoolean().withMessage('Значение isHelper должно быть true или false.'),
       body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
-  ], async (req, res) => {
+  ], async (req, res, next) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
           return res.status(400).json({ errors: errors.array() });
@@ -288,9 +289,11 @@ export default ({ sseConnections }) => {
           }
           const { code: storedCode } = JSON.parse(storedData);
           if (storedCode !== confirmationCode) {
-              return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+              req.codeProtection.targetId = targetUserId;
+              return handleFailedCodeAttempt(req, res, next);
           }
           await redis.del(redisKey);
+          await resetAttempts(adminUser.id, 'change-roles', targetUserId);
       }
 
       targetUser.roles.moderator = isModerator;
@@ -346,10 +349,10 @@ export default ({ sseConnections }) => {
    *       403:
    *         description: "Нет прав, или попытка удалить самого себя"
    */
-    router.post('/users/:id/delete', protect, isAdmin, [
+    router.post('/users/:id/delete', protect, isAdmin, setCodeProtectionContext('delete-user'), [
         body('reason').notEmpty().withMessage('Причина удаления обязательна.'),
         body('confirmationCode').optional().isString().isLength({ min: 6, max: 6 }),
-    ], async (req, res) => {
+    ], async (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
@@ -389,9 +392,11 @@ export default ({ sseConnections }) => {
         } else {
             const storedCode = await redis.get(redisKey);
             if (storedCode !== confirmationCode) {
-                return res.status(400).json({ msg: 'Неверный код подтверждения.' });
+                req.codeProtection.targetId = targetUserId;
+                return handleFailedCodeAttempt(req, res, next);
             }
             await redis.del(redisKey);
+            await resetAttempts(adminUser.id, 'delete-user', targetUserId);
         }
 
         // Логика удаления данных пользователя

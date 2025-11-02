@@ -201,9 +201,16 @@ router.post('/', [protect, tgRequired], sendMessageLimiter, [
             return res.status(404).json({ msg: 'Заявка не найдена' });
         }
 
-        // НОВАЯ ПРОВЕРКА СТАТУСА ПЕРЕД ОТПРАВКОЙ
+        // Проверка статуса заявки перед отправкой сообщения
         if (!['assigned', 'in_progress'].includes(request.status)) {
-            return res.status(403).json({ msg: 'Сообщения можно отправлять только в активную заявку (в статусе "assigned" или "in_progress").' });
+            const statusMessages = {
+                'completed': 'Эта заявка уже завершена. Отправка сообщений невозможна.',
+                'cancelled': 'Эта заявка отменена. Отправка сообщений невозможна.',
+                'closed': 'Эта заявка закрыта. Отправка сообщений невозможна.',
+                'open': 'К этой заявке еще не назначен исполнитель.'
+            };
+            const errorMsg = statusMessages[request.status] || 'Сообщения можно отправлять только в активную заявку.';
+            return res.status(403).json({ msg: errorMsg });
         }
 
         // Проверка, что отправитель является автором или назначенным исполнителем
@@ -373,9 +380,17 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
             return res.status(404).json({ msg: 'Заявка не найдена' });
     }
     
+        // Проверка статуса заявки перед отправкой файла
         if (!['assigned', 'in_progress'].includes(request.status)) {
             fs.unlinkSync(file.path);
-            return res.status(403).json({ msg: 'Сообщения можно отправлять только в активную заявку (в статусе "assigned" или "in_progress").' });
+            const statusMessages = {
+                'completed': 'Эта заявка уже завершена. Отправка сообщений невозможна.',
+                'cancelled': 'Эта заявка отменена. Отправка сообщений невозможна.',
+                'closed': 'Эта заявка закрыта. Отправка сообщений невозможна.',
+                'open': 'К этой заявке еще не назначен исполнитель.'
+            };
+            const errorMsg = statusMessages[request.status] || 'Сообщения можно отправлять только в активную заявку.';
+            return res.status(403).json({ msg: errorMsg });
         }
 
         const isAuthor = request.author && request.author._id.toString() === senderId;
@@ -506,6 +521,12 @@ router.put('/:messageId', protect, [
       return res.status(403).json({ msg: 'Вы не можете редактировать чужие сообщения' });
     }
 
+    // Проверяем статус заявки перед редактированием
+    const request = await Request.findById(message.requestId);
+    if (request && !['assigned', 'in_progress'].includes(request.status)) {
+      return res.status(403).json({ msg: 'Нельзя редактировать сообщения в завершенной или закрытой заявке.' });
+    }
+
     message.content = content;
     message.editedAt = new Date();
     
@@ -557,6 +578,12 @@ router.delete('/:messageId', protect, [param('messageId').isMongoId()], async (r
 
     if (message.sender.toString() !== userId) {
       return res.status(403).json({ msg: 'Вы не можете удалять чужие сообщения' });
+    }
+
+    // Проверяем статус заявки перед удалением
+    const request = await Request.findById(message.requestId);
+    if (request && !['assigned', 'in_progress'].includes(request.status)) {
+      return res.status(403).json({ msg: 'Нельзя удалять сообщения в завершенной или закрытой заявке.' });
     }
 
     // "Мягкое" удаление - заменяем контент, удаляем вложения

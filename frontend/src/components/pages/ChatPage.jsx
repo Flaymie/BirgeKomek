@@ -412,11 +412,19 @@ const ChatPage = () => {
     };
     markMessagesAsRead();
     
+    // Обработчик обновления статуса заявки
+    const handleRequestUpdate = (updatedRequest) => {
+      if (updatedRequest._id === requestId) {
+        setRequestDetails(updatedRequest);
+      }
+    };
+    
     socket.on('new_message', handleNewMessage);
     socket.on('message_updated', handleUpdateMessage);
     socket.on('typing_started', handleTypingBroadcast);
     socket.on('typing_stopped', handleTypingBroadcast);
     socket.on('connect_error', handleConnectError);
+    socket.on('request_updated', handleRequestUpdate);
 
     return () => {
       socket.emit('leave_chat', requestId);
@@ -426,6 +434,7 @@ const ChatPage = () => {
       socket.off('typing_started', handleTypingBroadcast);
       socket.off('typing_stopped', handleTypingBroadcast);
       socket.off('connect_error', handleConnectError);
+      socket.off('request_updated', handleRequestUpdate);
     };
   }, [socket, requestId, currentUser, handleNewMessage, handleUpdateMessage, handleTypingBroadcast, handleConnectError]);
 
