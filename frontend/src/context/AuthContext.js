@@ -292,7 +292,13 @@ export const AuthProvider = ({ children }) => {
       console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
       const response = await usersService.updateProfile(payload);
       
-      const updatedUserData = processUserData({...currentUser, ...response.data});
+      // Сохраняем telegramId из текущего пользователя, если его нет в ответе
+      const mergedData = {...currentUser, ...response.data};
+      if (response.data.telegramId === undefined && currentUser.telegramId) {
+        mergedData.telegramId = currentUser.telegramId;
+      }
+      
+      const updatedUserData = processUserData(mergedData);
       setCurrentUser(updatedUserData);
       setIsReadOnly(!updatedUserData.telegramId);
       

@@ -45,6 +45,14 @@ export const SocketProvider = ({ children }) => {
           });
       });
 
+        newSocket.on('connect_error', (error) => {
+          if (error.message === 'TOKEN_EXPIRED') {
+            localStorage.removeItem('token');
+            sessionStorage.setItem('auth_message', 'Ваша сессия истекла. Пожалуйста, войдите снова.');
+            window.location.href = '/login';
+          }
+        });
+
         newSocket.on('disconnect', () => {
           setIsConnected(false);
         });

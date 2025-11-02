@@ -64,6 +64,14 @@ export const protect = async (req, res, next) => {
     next();
   } catch (err) {
     console.error('Ошибка авторизации:', err);
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        msg: 'Токен истек. Пожалуйста, войдите снова.',
+        tokenExpired: true 
+      });
+    }
+    
     res.status(401).json({ msg: 'Невалидный токен' });
   }
 };
@@ -103,6 +111,11 @@ export const protectSocket = async (socket, next) => {
     next();
   } catch (err) {
     console.error('Socket Auth Error:', err.message);
+    
+    if (err.name === 'TokenExpiredError') {
+      return next(new Error('TOKEN_EXPIRED'));
+    }
+    
     return next(new Error('Невалидный токен'));
   }
 };

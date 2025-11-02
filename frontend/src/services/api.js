@@ -73,7 +73,10 @@ api.interceptors.response.use(
       if (status === 401 && !isRegistrationPage) {
         clearAuthToken();
         if (!window.location.pathname.includes('/login')) {
-          sessionStorage.setItem('auth_message', 'Сессия истекла, пожалуйста, авторизуйтесь снова');
+          const message = data?.tokenExpired 
+            ? 'Ваша сессия истекла. Пожалуйста, войдите снова.' 
+            : 'Сессия истекла, пожалуйста, авторизуйтесь снова';
+          sessionStorage.setItem('auth_message', message);
           window.location.href = '/login';
         }
       }

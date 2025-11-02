@@ -756,7 +756,7 @@ const ProfilePage = () => {
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isReportLoading, setNotificationModalOpen] = useState(false);
+  const [isReportLoading, setIsReportLoading] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});
@@ -1041,7 +1041,7 @@ const ProfilePage = () => {
   };
 
   const handleSendNotificationClick = () => {
-    setNotificationModalOpen(true);
+    setIsNotificationModalOpen(true);
   };
 
   const handleNotificationSent = (notification) => {
@@ -1133,7 +1133,7 @@ const ProfilePage = () => {
       />
       <SendNotificationModal
         isOpen={isNotificationModalOpen}
-        onClose={() => setNotificationModalOpen(false)}
+        onClose={() => setIsNotificationModalOpen(false)}
         recipient={profile}
         onNotificationSent={handleNotificationSent}
       />
