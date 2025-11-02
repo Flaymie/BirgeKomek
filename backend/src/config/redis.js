@@ -12,10 +12,18 @@ try {
     throw new Error('REDIS_URL не определена в .env файле. Redis не будет использоваться.');
   }
 
+  // Позволяем явно отключать Redis без ошибок через значения: 'skip' или 'disabled'
+  if (['skip', 'disabled'].includes(redisUrl.trim().toLowerCase())) {
+    throw new Error('Redis отключен (REDIS_URL=skip|disabled). Будет использоваться заглушка.');
+  }
+
+  // Поддержка TLS: если используется схема rediss:// или порт 6380, включаем TLS
+  const useTls = redisUrl.startsWith('rediss://') || /:(6380)(\b|\/)/.test(redisUrl);
   redis = new Redis(redisUrl, {
     maxRetriesPerRequest: 3,
     connectTimeout: 5000,
-    lazyConnect: true
+    lazyConnect: true,
+    tls: useTls ? {} : undefined,
   });
 
   redis.on('connect', () => {
@@ -31,7 +39,7 @@ try {
   });
 
 } catch (error) {
-  console.warn(`[ПРЕДУПРЕЖДЕНИЕ] ${error.message}`);
+  console.warn(`[ПРЕДУПРЕЖДЕНИЕ Redis] ${error.message}`);
   // Создаем пустышку, если Redis не настроен, чтобы приложение не падало.
   redis = {
     get: async () => null,

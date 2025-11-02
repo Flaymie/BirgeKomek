@@ -55,6 +55,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+app.set('trust proxy', true);
+
 app.locals.loginTokens = new Map();
 app.locals.passwordResetTokens = new Map();
 app.locals.sseConnections = sseConnections;
@@ -316,10 +318,17 @@ app.all('/api/*', (req, res) => {
 
 // Запускаем сервер
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Сервер запущен на 0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV || 'development'})`);
-  if ((process.env.NODE_ENV || 'development') === 'production') {
-    console.log('Документация API доступна по адресу: /api-docs');
+  const isProduction = NODE_ENV === 'production';
+  
+  console.log(`✅ Сервер запущен (${NODE_ENV})`);
+  
+  if (isProduction) {
+    console.log(`📡 Внешний URL: ${process.env.RENDER_EXTERNAL_URL || 'см. настройки Render'}`);
+    console.log(`📚 API Docs: ${process.env.RENDER_EXTERNAL_URL || ''}/api-docs`);
   } else {
-    console.log(`Документация API доступна по адресу: http://localhost:${PORT}/api-docs`);
+    console.log(`🔧 Локальный адрес: http://localhost:${PORT}`);
+    console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
   }
+  
+  console.log(`🔌 Внутренний порт: ${PORT}`);
 }); 
