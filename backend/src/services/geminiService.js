@@ -77,7 +77,7 @@ const moderateRequest = async (title, description) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = getModerationPrompt(title, description);
 
     const result = await model.generateContent(prompt);
