@@ -298,10 +298,6 @@ const UserDetailsPage = () => {
                                             </>
                                         )}
                                     </div>
-                                    <div className="mt-4">
-                                        <h4 className="font-semibold text-gray-600">User-Agent</h4>
-                                        <p className="font-mono text-xs text-gray-800 bg-gray-50 p-2 rounded-md break-all">{user.registrationDetails.userAgent}</p>
-                                    </div>
                                 </>
                             )}
                         </div>

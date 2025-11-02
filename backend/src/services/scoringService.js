@@ -4,7 +4,7 @@
 
 const SCORING_RULES = {
   IP_HOSTING: { points: 15, reason: 'IP-адрес принадлежит хостингу или дата-центру.' },
-  IP_PROXY: { points: 20, reason: 'IP-адрес является известным прокси/VPN.' }
+  IP_PROXY: { points: 21, reason: 'IP-адрес является известным прокси/VPN.' }
 };
 
 /**
@@ -23,13 +23,13 @@ export const calculateRegistrationScore = (user) => {
   }
 
   // Правило 1: IP-адрес хостинга/VPN
-  if (ipInfo.hosting) {
+  if (ipInfo.isHosting) {
     score += SCORING_RULES.IP_HOSTING.points;
     log.push({ reason: SCORING_RULES.IP_HOSTING.reason, points: SCORING_RULES.IP_HOSTING.points });
   }
   
   // Правило 2: IP-адрес прокси
-  if (ipInfo.proxy) {
+  if (ipInfo.isProxy) {
     score += SCORING_RULES.IP_PROXY.points;
     log.push({ reason: SCORING_RULES.IP_PROXY.reason, points: SCORING_RULES.IP_PROXY.points });
   }
