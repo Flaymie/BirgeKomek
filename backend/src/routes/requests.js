@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { sendTelegramMessage } from './users.js';
 import geminiService from "../services/geminiService.js";
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinaryUpload.js';
 
 // новая функция для оповещения хелперов
 const notifyHelpersAboutNewRequest = async (request, author) => {
@@ -353,13 +354,17 @@ router.post('/', uploadAttachments, createRequestLimiter, [
 
         // Обработка вложений после сохранения основной заявки
         if (req.files && req.files.length > 0) {
-            const attachments = req.files.map(file => ({
-                filename: file.filename,
-                path: `/uploads/attachments/${file.filename}`,
-                mimetype: file.mimetype,
-                size: file.size,
-                // FIX: Декодируем имя файла прямо здесь
-                originalName: Buffer.from(file.originalname, 'latin1').toString('utf8')
+            const attachments = await Promise.all(req.files.map(async (file) => {
+                // Загружаем файл в Cloudinary
+                const cloudinaryResult = await uploadToCloudinary(file.path, 'birgekomek/requests', 'auto');
+                
+                return {
+                    filename: file.filename,
+                    path: cloudinaryResult.url,
+                    mimetype: file.mimetype,
+                    size: file.size,
+                    originalName: Buffer.from(file.originalname, 'latin1').toString('utf8')
+                };
             }));
             request.attachments = attachments;
             await request.save();
@@ -864,14 +869,19 @@ router.post('/:id/cancel', protect, [
             try {
                 const attachmentsToDelete = JSON.parse(deletedAttachments);
                 if (Array.isArray(attachmentsToDelete)) {
-                    request.attachments.forEach(att => {
+                    // Удаляем файлы из Cloudinary
+                    for (const att of request.attachments) {
                         if (attachmentsToDelete.includes(att.filename)) {
-                            const filePath = path.join(process.cwd(), 'uploads/attachments', att.filename);
-                            if (fs.existsSync(filePath)) {
-                                fs.unlinkSync(filePath);
+                            if (att.path && att.path.includes('cloudinary.com')) {
+                                const publicId = extractPublicId(att.path);
+                                if (publicId) {
+                                    await deleteFromCloudinary(publicId, 'raw').catch(err => 
+                                        console.error('Ошибка удаления из Cloudinary:', err)
+                                    );
+                                }
                             }
                         }
-                    });
+                    }
 
                     request.attachments = request.attachments.filter(
                         att => !attachmentsToDelete.includes(att.filename)
@@ -879,19 +889,21 @@ router.post('/:id/cancel', protect, [
                 }
             } catch(e) {
                 console.error("Ошибка парсинга списка удаляемых файлов:", e);
-                // Не прерываем выполнение, просто логируем ошибку
             }
         }
 
         // 2. Добавляем новые вложения
         if (req.files && req.files.length > 0) {
-            const newAttachments = req.files.map(file => ({
-                filename: file.filename,
-                path: `/uploads/attachments/${file.filename}`,
-                mimetype: file.mimetype,
-                size: file.size,
-                // FIX: Декодируем имя файла прямо здесь
-                originalName: Buffer.from(file.originalname, 'latin1').toString('utf8')
+            const newAttachments = await Promise.all(req.files.map(async (file) => {
+                const cloudinaryResult = await uploadToCloudinary(file.path, 'birgekomek/requests', 'auto');
+                
+                return {
+                    filename: file.filename,
+                    path: cloudinaryResult.url,
+                    mimetype: file.mimetype,
+                    size: file.size,
+                    originalName: Buffer.from(file.originalname, 'latin1').toString('utf8')
+                };
             }));
             request.attachments.push(...newAttachments);
         }

@@ -3,18 +3,19 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { protect, isModOrAdmin } from '../middleware/auth.js';
-import { createReportLimiter } from '../middleware/rateLimiters.js'; // Импортируем лимитер
+import { createReportLimiter } from '../middleware/rateLimiters.js';
 import Report from '../models/Report.js';
 import User from '../models/User.js';
 import Request from '../models/Request.js';
 import { createAndSendNotification } from './notifications.js';
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinaryUpload.js';
 
 
 const router = express.Router();
 
 const attachmentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/reports';
+    const uploadDir = 'uploads/temp';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -155,12 +156,17 @@ export default ({ io }) => {
           }
         
           try {
-              const attachmentsData = (req.files || []).map(file => ({
-                  originalName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
-                  filename: file.filename,
-                  path: file.path,
-                  mimetype: file.mimetype,
-                  size: file.size,
+              // Загружаем файлы в Cloudinary
+              const attachmentsData = await Promise.all((req.files || []).map(async (file) => {
+                  const cloudinaryResult = await uploadToCloudinary(file.path, 'birgekomek/reports', 'image');
+                  
+                  return {
+                      originalName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+                      filename: file.filename,
+                      path: cloudinaryResult.url,
+                      mimetype: file.mimetype,
+                      size: file.size,
+                  };
               }));
 
               const report = await Report.create({

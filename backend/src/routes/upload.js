@@ -6,13 +6,14 @@ import { protect } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
 import User from '../models/User.js';
 import tgRequired from '../middleware/tgRequired.js';
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinaryUpload.js';
 
 const router = express.Router();
 
-// Настройка хранилища для загрузки аватарок
+// Временное хранилище для Multer (файлы будут загружены в Cloudinary, затем удалены)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/avatars';
+    const uploadDir = 'uploads/temp';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -86,32 +87,30 @@ router.post('/avatar', [protect, tgRequired, generalLimiter, upload.single('avat
       return res.status(400).json({ msg: 'Файл не загружен' });
     }
     
-    // Формируем относительный путь к файлу
-    const avatarPath = `/uploads/avatars/${file.filename}`;
+    // Загружаем файл в Cloudinary
+    const cloudinaryResult = await uploadToCloudinary(file.path, 'birgekomek/avatars', 'image');
     
     // Обновляем поле avatar у пользователя
     const user = await User.findById(req.user.id);
     
-    // Если у пользователя уже был аватар, удаляем старый файл
-    if (user.avatar) {
-      const oldAvatarPath = path.join(process.cwd(), user.avatar.replace(/^\//, ''));
-      if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
+    // Если у пользователя уже был аватар в Cloudinary, удаляем старый
+    if (user.avatar && user.avatar.includes('cloudinary.com')) {
+      const oldPublicId = extractPublicId(user.avatar);
+      if (oldPublicId) {
+        await deleteFromCloudinary(oldPublicId, 'image').catch(err => 
+          console.error('Ошибка при удалении старого аватара:', err)
+        );
       }
     }
     
-    // Сохраняем новый путь к аватару
-    user.avatar = avatarPath;
+    // Сохраняем URL из Cloudinary
+    user.avatar = cloudinaryResult.url;
     await user.save();
-    
-    // Создаем полный URL для ответа
-    const baseUrl = process.env.BASE_URL || 'http://192.168.1.87:5050';
-    const fullAvatarUrl = `${baseUrl}${avatarPath}`;
     
     res.json({ 
       msg: 'Аватар успешно обновлен',
-      avatar: avatarPath,
-      avatarUrl: fullAvatarUrl
+      avatar: cloudinaryResult.url,
+      avatarUrl: cloudinaryResult.url
     });
   } catch (err) {
     console.error('Ошибка при загрузке аватара:', err);
@@ -122,7 +121,7 @@ router.post('/avatar', [protect, tgRequired, generalLimiter, upload.single('avat
 
 const attachmentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/attachments';
+    const uploadDir = 'uploads/temp';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }

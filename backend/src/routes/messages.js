@@ -11,13 +11,14 @@ import { createAndSendNotification } from './notifications.js';
 import { io } from '../index.js';
 import { sendMessageLimiter, uploadLimiter, generalLimiter } from '../middleware/rateLimiters.js';
 import tgRequired from '../middleware/tgRequired.js';
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinaryUpload.js';
 
 const router = express.Router();
 
-// Настройка хранилища для загрузки файлов
+// Временное хранилище для загрузки файлов (будут загружены в Cloudinary)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/attachments';
+    const uploadDir = 'uploads/temp';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -416,9 +417,12 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
           }
         }
 
+        // Загружаем файл в Cloudinary
+        const cloudinaryResult = await uploadToCloudinary(file.path, 'birgekomek/attachments', 'auto');
+
         const attachmentData = {
           fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
-          fileUrl: `/uploads/attachments/${file.filename}`,
+          fileUrl: cloudinaryResult.url,
           fileType: file.mimetype,
           fileSize: file.size,
           dimensions: dimensions,

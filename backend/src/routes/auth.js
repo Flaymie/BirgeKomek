@@ -14,6 +14,7 @@ import LinkToken from '../models/LinkToken.js';
 import { analyzeIp } from '../services/ipAnalysisService.js';
 import { calculateRegistrationScore } from '../services/scoringService.js';
 import SystemReport from '../models/SystemReport.js';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 
 const router = express.Router();
 
@@ -164,7 +165,9 @@ router.post('/register', registrationLimiter,
 
     let avatarUrl = '';
     if (req.file) {
-      avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      // Загружаем файл в Cloudinary
+      const cloudinaryResult = await uploadToCloudinary(req.file.path, 'birgekomek/avatars', 'image');
+      avatarUrl = cloudinaryResult.url;
     } else {
       avatarUrl = generateAvatar(username);
     }

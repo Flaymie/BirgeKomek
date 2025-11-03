@@ -17,12 +17,13 @@ import crypto from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinaryUpload.js';
 
 const router = express.Router();
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadDir = 'uploads/avatars';
+    const uploadDir = 'uploads/temp';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -1054,20 +1055,24 @@ export default ({ io }) => {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
 
-      // Удаляем старый аватар, если он существует
-      if (user.avatar && user.avatar !== 'default.png') {
-        const oldAvatarPath = path.join('uploads/avatars', path.basename(user.avatar));
-        if (fs.existsSync(oldAvatarPath)) {
-          fs.unlinkSync(oldAvatarPath);
+      // Загружаем файл в Cloudinary
+      const cloudinaryResult = await uploadToCloudinary(req.file.path, 'birgekomek/avatars', 'image');
+
+      // Удаляем старый аватар из Cloudinary
+      if (user.avatar && user.avatar.includes('cloudinary.com')) {
+        const oldPublicId = extractPublicId(user.avatar);
+        if (oldPublicId) {
+          await deleteFromCloudinary(oldPublicId, 'image').catch(err => 
+            console.error('Ошибка при удалении старого аватара:', err)
+          );
         }
       }
 
-      // Сохраняем путь к новому аватару
-      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-      user.avatar = avatarUrl;
+      // Сохраняем URL из Cloudinary
+      user.avatar = cloudinaryResult.url;
       await user.save();
 
-      res.json({ avatarUrl });
+      res.json({ avatarUrl: cloudinaryResult.url });
     } catch (err) {
       console.error('Ошибка при загрузке аватара:', err);
       res.status(500).json({ msg: 'Ошибка сервера при загрузке аватара' });
