@@ -69,7 +69,7 @@ const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile 
           <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 overflow-hidden">
             {helper.avatar ? (
               <img 
-                src={`${process.env.REACT_APP_API_URL}${helper.avatar}`} 
+                src={formatAvatarUrl(helper.avatar)} 
                 alt={helper.username}
                 className="h-full w-full object-cover"
               />
