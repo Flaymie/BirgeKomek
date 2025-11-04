@@ -282,6 +282,7 @@ router.post('/register', registrationLimiter,
             username: user.username,
             roles: user.roles,
             rating: user.rating,
+            averageRating: user.averageRating || 0,
             avatar: user.avatar,
             grade: user.grade,
         }
@@ -396,6 +397,7 @@ router.post('/login', generalLimiter, [
         roles: user.roles,
         avatar: user.avatar,
         rating: user.rating,
+        averageRating: user.averageRating || 0,
         grade: user.grade,
         lastSeen: user.lastSeen,
         telegramId: user.telegramId

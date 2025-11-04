@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node src/scripts/seed.js",
-    "seed:destroy": "node src/scripts/seed.js -d"
+    "seed:destroy": "node src/scripts/seed.js -d",
+    "recalculate-ratings": "node src/scripts/recalculate-ratings.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -120,6 +120,12 @@ const userSchema = new mongoose.Schema({
     min: 0,
     max: 5
   },
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
   reviews: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Review'
@@ -198,7 +204,7 @@ userSchema.statics.updateAverageRating = async function (userId) {
     const reviews = await Review.find({ helperId: userId });
     if (reviews.length > 0) {
       const totalRating = reviews.reduce((acc, item) => acc + item.rating, 0);
-      const newRating = (totalRating / reviews.length).toFixed(1);
+      const newRating = parseFloat((totalRating / reviews.length).toFixed(1));
       await this.findByIdAndUpdate(userId, { averageRating: newRating });
     } else {
       await this.findByIdAndUpdate(userId, { averageRating: 0 });

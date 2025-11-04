@@ -41,7 +41,7 @@ const AttachmentModal = ({ file, onClose }) => {
 
   if (!file) return null;
 
-  const fileUrl = `${serverURL}${file.fileUrl}`;
+  const fileUrl = file.fileUrl.startsWith('http') ? file.fileUrl : `${serverURL}${file.fileUrl}`;
 
   return (
     <div 

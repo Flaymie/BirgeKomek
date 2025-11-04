@@ -250,7 +250,11 @@ const UserDetailsPage = () => {
                                 {user.roles.helper && (
                                     <div>
                                         <h4 className="font-semibold text-gray-600">Рейтинг</h4>
-                                        <p className="text-gray-800 font-bold text-lg text-indigo-600">{user.rating.toFixed(1)}</p>
+                                        <p className="text-gray-800 font-bold text-lg text-indigo-600">
+                                            {user.averageRating && user.averageRating > 0 
+                                                ? user.averageRating.toFixed(1) 
+                                                : (user.rating ? user.rating.toFixed(1) : 'Н/Д')}
+                                        </p>
                                     </div>
                                 )}
                             </div>

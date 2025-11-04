@@ -75,7 +75,8 @@ const RequestDetailPage = () => {
 
   const handlePreviewClick = (file) => {
     if (isImageFile(file.originalName)) {
-      setLightboxImage(`${serverURL}${file.path}`);
+      const imageUrl = file.path.startsWith('http') ? file.path : `${serverURL}${file.path}`;
+      setLightboxImage(imageUrl);
     }
   };
   
@@ -449,7 +450,7 @@ const RequestDetailPage = () => {
                                       onClick={() => handlePreviewClick(file)}
                                   >
                                       {isImageFile(file.originalName) ? (
-                                          <img src={`${serverURL}${file.path}`} alt={file.originalName} className="h-14 w-14 object-cover rounded-md bg-gray-200 hover:ring-2 hover:ring-primary-500 transition-all" />
+                                          <img src={file.path.startsWith('http') ? file.path : `${serverURL}${file.path}`} alt={file.originalName} className="h-14 w-14 object-cover rounded-md bg-gray-200 hover:ring-2 hover:ring-primary-500 transition-all" />
                                       ) : (
                                           <div className="h-14 w-14 flex items-center justify-center bg-gray-200 rounded-md">
                                               <DocumentIcon className="h-8 w-8 text-gray-500" />

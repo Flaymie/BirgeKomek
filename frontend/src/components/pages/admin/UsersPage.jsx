@@ -182,7 +182,11 @@ const UsersPage = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <RoleBadge user={user} />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.rating.toFixed(1)}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {user.averageRating && user.averageRating > 0 
+                                                        ? user.averageRating.toFixed(1) 
+                                                        : (user.rating ? user.rating.toFixed(1) : 'Н/Д')}
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     {user.banDetails?.isBanned ? (
                                                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Забанен</span>

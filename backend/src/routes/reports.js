@@ -157,8 +157,11 @@ export default ({ io }) => {
         
           try {
               // Загружаем файлы в Cloudinary
+              console.log('📎 Загрузка вложений репорта:', req.files?.length || 0, 'файлов');
               const attachmentsData = await Promise.all((req.files || []).map(async (file) => {
+                  console.log('📤 Загружаю файл в Cloudinary:', file.originalname);
                   const cloudinaryResult = await uploadToCloudinary(file.path, 'birgekomek/reports', 'image');
+                  console.log('✅ Файл загружен:', cloudinaryResult.url);
                   
                   return {
                       originalName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
@@ -352,7 +355,8 @@ export default ({ io }) => {
   router.get('/:id', protect, isModOrAdmin, async (req, res) => {
       try {
           const report = await Report.findById(req.params.id)
-              .populate('reporter', 'username _id');
+              .populate('reporter', 'username _id')
+              .populate('assignedTo', 'username _id');
 
           if (!report) {
               return res.status(404).json({ msg: 'Жалоба не найдена' });
@@ -363,7 +367,7 @@ export default ({ io }) => {
               await report.populate({
                   path: 'targetId',
                   model: 'User',
-                  select: 'username avatar createdAt roles rating completedRequests createdRequests',
+                  select: 'username avatar createdAt roles rating averageRating completedRequests createdRequests',
                   populate: [
                       { path: 'createdRequests' },
                       { path: 'completedRequests' }
@@ -494,6 +498,18 @@ export default ({ io }) => {
               return res.status(404).json({ msg: 'Жалоба не найдена' });
           }
           
+          // Проверка прав доступа
+          if (status === 'in_progress') {
+              // Взять в работу может любой админ/модератор
+              report.assignedTo = req.user._id;
+          } else if (status === 'resolved' || status === 'rejected') {
+              // Завершить может только тот, кто взял в работу
+              if (report.assignedTo && report.assignedTo.toString() !== req.user._id.toString()) {
+                  return res.status(403).json({ msg: 'Только модератор, который взял жалобу в работу, может её завершить' });
+              }
+              report.resolvedBy = req.user._id;
+          }
+          
           report.status = status;
           if (moderatorComment) {
               report.moderatorComment = moderatorComment;
@@ -501,7 +517,9 @@ export default ({ io }) => {
           await report.save();
           
           // Полностью и заново популируем репорт, чтобы вернуть на фронт свежие данные
-          const populatedReport = await Report.findById(report._id).populate('reporter', 'username avatar email roles');
+          const populatedReport = await Report.findById(report._id)
+              .populate('reporter', 'username avatar email roles')
+              .populate('assignedTo', 'username');
           if (populatedReport.targetType === 'Request') {
               await populatedReport.populate({
                   path: 'targetId', model: 'Request',

@@ -105,14 +105,15 @@ router.get('/user/:userId', protect, generalLimiter, async (req, res) => {
   try {
     const requestedUserId = req.params.userId;
 
-    const user = await User.findById(requestedUserId).select('_id username roles rating');
+    const user = await User.findById(requestedUserId).select('_id username roles rating averageRating');
     if (!user) {
       return res.status(404).json({ msg: 'Пользователь не найден' });
     }
 
     const createdRequests = await Request.countDocuments({ author: requestedUserId });
     let completedRequestsAsHelper = 0;
-    let averageRatingAsHelper = user.rating;
+    // Используем averageRating если есть, иначе fallback на старый rating
+    let averageRatingAsHelper = (user.averageRating && user.averageRating > 0) ? user.averageRating : (user.rating || 0);
 
     if (user.roles && user.roles.helper) {
       completedRequestsAsHelper = await Request.countDocuments({ helper: requestedUserId, status: 'completed' });

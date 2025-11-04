@@ -508,7 +508,7 @@ export default ({ io }) => {
         queryOptions.subjects = { $in: [new RegExp(subject, 'i')] };
       }
       if (minRating !== undefined) {
-        queryOptions.rating = { $gte: minRating };
+        queryOptions.averageRating = { $gte: minRating };
       }
 
       const sortParams = {};
@@ -519,7 +519,7 @@ export default ({ io }) => {
 
 
       const helpers = await User.find(queryOptions)
-        .select('_id username rating points subjects roles.helper')
+        .select('_id username averageRating points subjects roles.helper avatar')
         .sort(sortParams)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -892,14 +892,18 @@ export default ({ io }) => {
 
       await userToBan.save();
 
-      // Отправляем уведомление забаненному
-      await createAndSendNotification(
-          req.app.locals.sseConnections,
-          userToBan._id,
-          'account_banned',
-          `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}.`,
-          `/profile/${userToBan.username}`
-      );
+      // Отправляем уведомление в систему
+      await createAndSendNotification({
+          user: userToBan._id,
+          type: 'account_banned',
+          title: 'Ваш аккаунт заблокирован',
+          message: `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}.`,
+          link: `/profile/${userToBan.username}`
+      });
+
+      // Отправляем уведомление в Telegram
+      const telegramMessage = `🚫 *Ваш аккаунт был заблокирован.*\n\n*Причина:* ${reason}\n*Срок:* ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}`;
+      await sendTelegramMessage(userToBan.telegramId, telegramMessage);
 
       res.json({ msg: `Пользователь ${userToBan.username} успешно забанен.` });
 
@@ -946,6 +950,16 @@ export default ({ io }) => {
       userToUnban.banDetails.expiresAt = null;
       await userToUnban.save();
 
+      // Отправляем уведомление в систему
+      await createAndSendNotification({
+          user: userToUnban._id,
+          type: 'account_unbanned',
+          title: 'Ваш аккаунт разблокирован',
+          message: 'Ваш аккаунт был разблокирован. Теперь вы снова можете пользоваться платформой.',
+          link: `/profile/${userToUnban.username}`
+      });
+
+      // Отправляем уведомление в Telegram
       const telegramMessage = `✅ *Ваш аккаунт был разблокирован.*\n\nТеперь вы снова можете пользоваться платформой Бірге Көмек.`;
       await sendTelegramMessage(userToUnban.telegramId, telegramMessage);
       

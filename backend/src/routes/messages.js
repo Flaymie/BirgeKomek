@@ -202,6 +202,11 @@ router.post('/', [protect, tgRequired], sendMessageLimiter, [
             return res.status(404).json({ msg: 'Заявка не найдена' });
         }
 
+        // Проверка на архивированный чат
+        if (request.chatIsArchived) {
+            return res.status(403).json({ msg: 'Этот чат заархивирован. Отправка сообщений невозможна.' });
+        }
+
         // Проверка статуса заявки перед отправкой сообщения
         if (!['assigned', 'in_progress'].includes(request.status)) {
             const statusMessages = {
@@ -380,6 +385,12 @@ router.post('/upload', uploadLimiter, uploadWithErrorHandler, [
     if (!request) {
             return res.status(404).json({ msg: 'Заявка не найдена' });
     }
+    
+        // Проверка на архивированный чат
+        if (request.chatIsArchived) {
+            fs.unlinkSync(file.path);
+            return res.status(403).json({ msg: 'Этот чат заархивирован. Отправка сообщений невозможна.' });
+        }
     
         // Проверка статуса заявки перед отправкой файла
         if (!['assigned', 'in_progress'].includes(request.status)) {

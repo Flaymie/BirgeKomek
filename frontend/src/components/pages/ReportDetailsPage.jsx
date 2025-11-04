@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { FiUser, FiFileText, FiArrowLeft, FiAlertCircle, FiCheckCircle, FiXCircle, FiPlayCircle, FiStar, FiCheckSquare, FiEdit, FiPaperclip, FiClock, FiCalendar, FiMessageCircle } from 'react-icons/fi';
 import ImageViewerModal from '../modals/ImageViewerModal';
 import ModeratorCommentModal from '../modals/ModeratorCommentModal';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUS_LABELS = {
     open: 'Открыта',
@@ -76,7 +77,11 @@ const TargetInfoCard = ({ targetType, target }) => {
                                         <FiStar className="w-4 h-4 text-yellow-500" />
                                         <span>Рейтинг:</span>
                                     </div>
-                                    <span className="font-bold text-yellow-700">{target.rating?.toFixed(1) || 'Н/Д'}</span>
+                                    <span className="font-bold text-yellow-700">
+                                        {target.averageRating && target.averageRating > 0 
+                                            ? target.averageRating.toFixed(1) 
+                                            : (target.rating ? target.rating.toFixed(1) : 'Н/Д')}
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
                                     <div className="flex items-center gap-2 text-sm">
@@ -266,6 +271,7 @@ const ComplaintHistory = ({ userId }) => {
 const ReportDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { currentUser } = useAuth();
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -317,7 +323,9 @@ const ReportDetailsPage = () => {
     };
 
     const handleImageClick = (path) => {
-        setViewerImageSrc(`${serverURL}/${path}`);
+        // Если путь уже полный URL (Cloudinary), используем как есть
+        const imageUrl = path.startsWith('http') ? path : `${serverURL}/${path}`;
+        setViewerImageSrc(imageUrl);
     };
 
     if (loading) {
@@ -429,7 +437,7 @@ const ReportDetailsPage = () => {
                                                 onClick={() => handleImageClick(file.path)}
                                             >
                                                 <img 
-                                                    src={`${serverURL}/${file.path}`} 
+                                                    src={file.path.startsWith('http') ? file.path : `${serverURL}/${file.path}`} 
                                                     alt={`Вложение ${index + 1}`} 
                                                     className="w-full h-full object-cover"
                                                 />
@@ -450,35 +458,46 @@ const ReportDetailsPage = () => {
                                 <FiEdit className="w-5 h-5 text-indigo-600" />
                                 Действия модератора
                             </h3>
-                            <div className="flex flex-wrap gap-3">
-                                {report.status === 'open' && (
-                                     <button 
-                                        onClick={() => handleUpdateStatus('in_progress')} 
-                                        disabled={isUpdating} 
-                                        className="btn btn-secondary-outline gap-2"
-                                    >
-                                        <FiPlayCircle /> Взять в работу
-                                    </button>
-                                )}
-                                {report.status === 'in_progress' && (
-                                    <>
-                                        <button 
-                                            onClick={() => openCommentModal('resolved', 'Пометить жалобу решенной')} 
+                            {report.status === 'in_progress' && report.assignedTo && report.assignedTo._id !== currentUser._id ? (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <p className="text-sm text-yellow-800">
+                                        <strong>Жалоба в работе у модератора:</strong> {report.assignedTo.username}
+                                    </p>
+                                    <p className="text-xs text-yellow-600 mt-1">
+                                        Только этот модератор может завершить работу с жалобой
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-3">
+                                    {report.status === 'open' && (
+                                         <button 
+                                            onClick={() => handleUpdateStatus('in_progress')} 
                                             disabled={isUpdating} 
-                                            className="btn bg-green-500 hover:bg-green-600 text-white gap-2"
+                                            className="btn btn-secondary-outline gap-2"
                                         >
-                                            <FiCheckCircle /> Пометить решенной
+                                            <FiPlayCircle /> Взять в работу
                                         </button>
-                                        <button 
-                                            onClick={() => openCommentModal('rejected', 'Отклонить жалобу')} 
-                                            disabled={isUpdating} 
-                                            className="btn bg-red-500 hover:bg-red-600 text-white gap-2"
-                                        >
-                                            <FiXCircle /> Отклонить
-                                        </button>
-                                    </>
-                                )}
-                            </div>
+                                    )}
+                                    {report.status === 'in_progress' && (
+                                        <>
+                                            <button 
+                                                onClick={() => openCommentModal('resolved', 'Пометить жалобу решенной')} 
+                                                disabled={isUpdating} 
+                                                className="btn bg-green-500 hover:bg-green-600 text-white gap-2"
+                                            >
+                                                <FiCheckCircle /> Пометить решенной
+                                            </button>
+                                            <button 
+                                                onClick={() => openCommentModal('rejected', 'Отклонить жалобу')} 
+                                                disabled={isUpdating} 
+                                                className="btn bg-red-500 hover:bg-red-600 text-white gap-2"
+                                            >
+                                                <FiXCircle /> Отклонить
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                             {isUpdating && (
                                 <div className="flex items-center gap-2 mt-3">
                                     <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-600"></div>

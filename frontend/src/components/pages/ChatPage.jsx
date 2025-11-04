@@ -77,7 +77,7 @@ const getFileIcon = (fileType) => {
 // Компонент для одного вложения (простой, без заглушек для фото)
 const Attachment = ({ file, isOwnMessage, onImageClick }) => {
   const isImage = file.fileType && file.fileType.startsWith('image/');
-  const fileUrl = `${serverURL}${file.fileUrl}`;
+  const fileUrl = file.fileUrl.startsWith('http') ? file.fileUrl : `${serverURL}${file.fileUrl}`;
 
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -720,14 +720,25 @@ const ChatPage = () => {
   };
 
   if (isArchived) {
+    const isAuthorViewing = currentUser?._id === requestDetails?.author?._id;
+    
     return (
       <div className="container mx-auto px-4 py-12 mt-16 text-center">
         <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-6 rounded-md shadow-md max-w-2xl mx-auto">
           <ArchiveBoxIcon className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
           <h2 className="text-2xl font-bold mb-2">Этот чат заархивирован</h2>
           <p className="mb-4">
-            Вы решили найти другого помощника, поэтому этот диалог был закрыт.
-            Ваша заявка снова активна и видна другим специалистам.
+            {isAuthorViewing ? (
+              <>
+                Вы решили найти другого помощника, поэтому этот диалог был закрыт.
+                Ваша заявка снова активна и видна другим специалистам.
+              </>
+            ) : (
+              <>
+                Автор заявки решил найти другого помощника, поэтому этот диалог был закрыт.
+                Заявка снова активна и видна другим специалистам.
+              </>
+            )}
           </p>
           <Link
             to="/requests"
@@ -950,7 +961,7 @@ const ChatPage = () => {
             )}
           </AnimatePresence>
           {(() => {
-            if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed') {
+            if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed' || requestDetails.chatIsArchived) {
                 return (
                   <div className="p-4 text-center text-gray-500">
                     <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
@@ -976,7 +987,7 @@ const ChatPage = () => {
               if(e.target) e.target.value = null;
             };
 
-            if (isChatActive || requestDetails.status === 'open') {
+            if ((isChatActive || requestDetails.status === 'open') && !requestDetails.chatIsArchived) {
               return (
                 <div className="p-4">
                   <div className="mx-auto max-w-4xl">
