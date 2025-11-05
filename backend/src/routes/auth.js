@@ -15,6 +15,19 @@ import { analyzeIp } from '../services/ipAnalysisService.js';
 import { calculateRegistrationScore } from '../services/scoringService.js';
 import SystemReport from '../models/SystemReport.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
+import { 
+  isIPTrusted, 
+  addTrustedIP, 
+  generateVerificationCode, 
+  saveVerificationCode, 
+  verifyCode,
+  isIPBlocked,
+  canResendCode,
+  incrementResendCount,
+  clearBlockedIPsCache
+} from '../utils/sessionManager.js';
+import { sendTelegramMessage } from './users.js';
+import checkBlockedIP from '../middleware/checkIP.js';
 
 const router = express.Router();
 
@@ -91,7 +104,7 @@ const RESERVED_USERNAMES = [
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.post('/register', registrationLimiter,
+router.post('/register', checkBlockedIP, registrationLimiter,
   uploadAvatar,
   [
   body('username')
@@ -342,7 +355,7 @@ router.post('/register', registrationLimiter,
  *         description: Внутренняя ошибка сервера
  */
 // логин
-router.post('/login', generalLimiter, [
+router.post('/login', checkBlockedIP, generalLimiter, [
   body('username', 'Введите имя пользователя').not().isEmpty(),
   body('password', 'Пароль обязателен').exists(),
 ], async (req, res) => {
@@ -387,6 +400,42 @@ router.post('/login', generalLimiter, [
     
     // Обновляем lastSeen
     user.lastSeen = Date.now();
+    
+    // Проверяем IP и добавляем в доверенные если нужно
+    const currentIP = req.headers['x-test-ip'] || req.ip;
+    const userAgent = req.headers['user-agent'] || '';
+    
+    // Если это первый вход (основной IP при регистрации)
+    if (user.registrationDetails?.ip && !user.trustedIPs) {
+      user.trustedIPs = [];
+    }
+    
+    // Проверяем, доверенный ли IP
+    const isTrusted = isIPTrusted(user, currentIP);
+    
+    // Если IP новый - отправляем КОД подтверждения в Telegram
+    if (!isTrusted && user.telegramId) {
+      const ipInfo = await analyzeIp(currentIP);
+      const location = ipInfo ? `${ipInfo.city}, ${ipInfo.country}` : 'Unknown';
+      
+      // Генерируем код подтверждения
+      const code = generateVerificationCode();
+      saveVerificationCode(user._id.toString(), currentIP, code);
+      
+      const message = `🔐 *Подтверждение нового IP адреса*\n\n` +
+                     `Обнаружен вход с нового IP: \`${currentIP}\`\n` +
+                     `Локация: ${location}\n\n` +
+                     `Ваш код подтверждения: *${code}*\n\n` +
+                     `⚠️ Никому не сообщайте этот код!\n` +
+                     `Если это были не вы, срочно смените пароль!`;
+      
+      try {
+        await sendTelegramMessage(user.telegramId, message);
+      } catch (err) {
+        console.error('Ошибка отправки кода:', err);
+      }
+    }
+    
     await user.save();
     
     res.json({
@@ -402,6 +451,8 @@ router.post('/login', generalLimiter, [
         lastSeen: user.lastSeen,
         telegramId: user.telegramId
       },
+      requireIPVerification: !isTrusted,
+      currentIP
     });
   } catch (err) {
     console.error(err.message);
@@ -476,7 +527,7 @@ router.post('/check-username', [
  *       500:
  *         description: Ошибка сервера при генерации токена.
  */
-router.post('/telegram/generate-token', generalLimiter, (req, res) => {
+router.post('/telegram/generate-token', checkBlockedIP, generalLimiter, (req, res) => {
     try {
         const token = crypto.randomBytes(20).toString('hex');
         
@@ -548,6 +599,31 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
                 return res.status(404).json({ status: 'error', message: 'Пользователь не найден' });
             }
 
+            // Если это первый вход после регистрации через Telegram (IP = 'telegram-bot'), обновляем IP
+            if (user.registrationDetails?.ip === 'telegram-bot') {
+                const ip = req.headers['x-test-ip'] || req.ip;
+                const { analyzeIp } = await import('../services/ipAnalysisService.js');
+                const ipInfo = await analyzeIp(ip);
+                
+                if (ipInfo) {
+                    user.registrationDetails.ip = ip;
+                    user.registrationDetails.ipInfo = {
+                        country: ipInfo.country,
+                        city: ipInfo.city,
+                        isHosting: ipInfo.hosting,
+                        isProxy: ipInfo.proxy,
+                    };
+                    
+                    // Пересчитываем suspicion score с реальным IP
+                    const { calculateRegistrationScore } = await import('../services/scoringService.js');
+                    const { score, log } = calculateRegistrationScore(user);
+                    user.suspicionScore = score;
+                    user.suspicionLog = log;
+                    
+                    await user.save();
+                }
+            }
+
             const jwtToken = jwt.sign(
                 { 
                   user: {
@@ -604,7 +680,7 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
  *       500:
  *         description: Ошибка сервера.
  */
-router.post('/telegram/register', async (req, res) => {
+router.post('/telegram/register', checkBlockedIP, async (req, res) => {
     try {
         const {
             role,
@@ -658,6 +734,17 @@ router.post('/telegram/register', async (req, res) => {
             grade: grade || undefined,
             subjects: subjects || [],
             isVerified: true, // Считаем верифицированным, раз пришел из телеги
+            registrationDetails: {
+                ip: 'telegram-bot',
+                ipInfo: {
+                    country: 'Unknown',
+                    city: 'Telegram Registration',
+                    isHosting: false,
+                    isProxy: false,
+                }
+            },
+            suspicionScore: 0,
+            suspicionLog: ['Регистрация через Telegram бота']
         });
 
         await newUser.save();
@@ -1256,5 +1343,152 @@ router.post('/telegram/link-user', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.status(200).json({ msg: 'Вы успешно вышли из системы' });
 });
+
+/**
+ * @swagger
+ * /api/auth/verify-ip:
+ *   post:
+ *     summary: Запросить код подтверждения для нового IP
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Код отправлен в Telegram
+ *       403:
+ *         description: Telegram не привязан
+ */
+router.post('/verify-ip', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user.telegramId) {
+      return res.status(403).json({ msg: 'Для подтверждения нового IP необходимо привязать Telegram' });
+    }
+    
+    const currentIP = req.headers['x-test-ip'] || req.ip;
+    
+    // Проверяем лимиты на повторную отправку
+    const resendCheck = canResendCode(user._id.toString(), currentIP);
+    
+    if (!resendCheck.canResend) {
+      return res.status(429).json({ 
+        msg: resendCheck.message,
+        waitTime: resendCheck.waitTime,
+        remainingResends: resendCheck.remainingResends
+      });
+    }
+    
+    const code = generateVerificationCode();
+    saveVerificationCode(user._id.toString(), currentIP, code);
+    incrementResendCount(user._id.toString(), currentIP);
+    
+    const message = `🔐 *Подтверждение нового IP адреса*\n\n` +
+                   `Обнаружен вход с нового IP: \`${currentIP}\`\n\n` +
+                   `Ваш код подтверждения: *${code}*\n\n` +
+                   `⚠️ Никому не сообщайте этот код!\n` +
+                   `Если это были не вы, срочно смените пароль!`;
+    
+    await sendTelegramMessage(user.telegramId, message);
+    
+    res.json({ 
+      msg: 'Код подтверждения отправлен в Telegram',
+      remainingResends: resendCheck.remainingResends - 1
+    });
+  } catch (error) {
+    console.error('Ошибка отправки кода:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/confirm-ip:
+ *   post:
+ *     summary: Подтвердить новый IP кодом из Telegram
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [code]
+ *             properties:
+ *               code: { type: string, example: "123456" }
+ *     responses:
+ *       200:
+ *         description: IP подтвержден
+ *       400:
+ *         description: Неверный код
+ */
+router.post('/confirm-ip', protect, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const user = await User.findById(req.user.id);
+    const currentIP = req.headers['x-test-ip'] || req.ip;
+    
+    const result = await verifyCode(user._id.toString(), currentIP, code);
+    
+    if (result.blocked) {
+      // IP заблокирован - отправляем уведомление в Telegram
+      if (user.telegramId) {
+        const message = `🚨 *ВНИМАНИЕ: Подозрительная активность!*\n\n` +
+                       `Обнаружена неудачная попытка входа в ваш аккаунт с IP: \`${currentIP}\`\n\n` +
+                       `IP адрес заблокирован на 24 часа из-за превышения количества попыток подтверждения.\n\n` +
+                       `⚠️ Если это были вы, свяжитесь с поддержкой.\n` +
+                       `Если это были не вы, ваш аккаунт в безопасности - смените пароль для дополнительной защиты.`;
+        await sendTelegramMessage(user.telegramId, message);
+      }
+      return res.status(403).json({ msg: 'IP адрес заблокирован на 24 часа из-за превышения количества попыток' });
+    }
+    
+    if (!result.success) {
+      return res.status(400).json({ 
+        msg: 'Неверный код', 
+        remainingAttempts: result.remainingAttempts 
+      });
+    }
+    
+    // Добавляем IP в доверенные
+    const userAgent = req.headers['user-agent'] || '';
+    const { analyzeIp } = await import('../services/ipAnalysisService.js');
+    const ipInfo = await analyzeIp(currentIP);
+    const location = ipInfo ? `${ipInfo.city}, ${ipInfo.country}` : 'Unknown';
+    
+    await addTrustedIP(user, currentIP, userAgent, location);
+    
+    // Отправляем уведомление об успешном добавлении
+    if (user.telegramId) {
+      const message = `✅ *IP адрес подтвержден*\n\n` +
+                     `IP \`${currentIP}\` добавлен в список доверенных.\n` +
+                     `Локация: ${location}`;
+      await sendTelegramMessage(user.telegramId, message);
+    }
+    
+    // Возвращаем данные пользователя для автоматического входа
+    const userWithoutPassword = await User.findById(user._id).select('-password');
+    
+    res.json({ 
+      msg: 'IP адрес успешно подтвержден',
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    console.error('Ошибка подтверждения IP:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
+  }
+});
+
+/**
+ * DEV ONLY: Очистить кэш заблокированных IP
+ */
+if (process.env.NODE_ENV === 'development') {
+  router.post('/dev/clear-cache', (req, res) => {
+    clearBlockedIPsCache();
+    res.json({ msg: 'Кэш заблокированных IP очищен' });
+  });
+}
 
 export default router; 

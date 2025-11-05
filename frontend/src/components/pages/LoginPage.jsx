@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import TelegramAuthModal from '../modals/TelegramAuthModal';
+import IPVerificationModal from '../modals/IPVerificationModal';
 import { 
   FaTelegramPlane 
 } from 'react-icons/fa';
@@ -34,6 +35,8 @@ const LoginPage = () => {
   const [authMessage, setAuthMessage] = useState('');
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isIPVerificationOpen, setIsIPVerificationOpen] = useState(false);
+  const [currentIP, setCurrentIP] = useState('');
   
   useEffect(() => {
     if (location.state?.message) {
@@ -100,11 +103,27 @@ const LoginPage = () => {
     setIsLoading(false);
     
     if (result.success) {
-      const from = location.state?.from || '/';
-      navigate(from, { replace: true });
+      // Проверяем, требуется ли подтверждение IP
+      if (result.requireIPVerification) {
+        setCurrentIP(result.currentIP || 'Unknown');
+        setIsIPVerificationOpen(true);
+      } else {
+        const from = location.state?.from || '/';
+        navigate(from, { replace: true });
+      }
     } else {
-      setGeneralError(result.error || 'Произошла ошибка входа');
+      // Проверяем, заблокирован ли IP
+      if (result.code === 'IP_BLOCKED') {
+        setGeneralError('Ваш IP адрес заблокирован на 24 часа из-за подозрительной активности. Если это ошибка, свяжитесь с поддержкой.');
+      } else {
+        setGeneralError(result.error || 'Произошла ошибка входа');
+      }
     }
+  };
+  
+  const handleIPVerificationSuccess = () => {
+    const from = location.state?.from || '/';
+    navigate(from, { replace: true });
   };
   
   return (
@@ -285,6 +304,13 @@ const LoginPage = () => {
         isOpen={isTelegramModalOpen}
         onClose={() => setIsTelegramModalOpen(false)}
         authAction="login"
+      />
+      
+      <IPVerificationModal
+        isOpen={isIPVerificationOpen}
+        onClose={() => setIsIPVerificationOpen(false)}
+        onSuccess={handleIPVerificationSuccess}
+        currentIP={currentIP}
       />
     </div>
   );

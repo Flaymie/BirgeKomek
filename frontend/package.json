@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Клиентская часть (React) для платформы социальной помощи 'Бірге Көмек'.",
   "author": "Flaymie",
   "private": true,
@@ -19,6 +19,7 @@
     "aos": "^2.3.4",
     "axios": "^1.10.0",
     "classnames": "^2.5.1",
+    "crypto-js": "^4.2.0",
     "date-fns": "^2.30.0",
     "framer-motion": "^12.16.0",
     "i18next": "^25.3.1",

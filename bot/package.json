@@ -1,6 +1,6 @@
 {
   "name": "bot",
-  "version": "0.5.2",
+  "version": "0.7.0",
   "description": "Telegram-бот для уведомлений и взаимодействия с пользователями платформы 'Бірге Көмек'.",
   "main": "src/index.js",
   "scripts": {

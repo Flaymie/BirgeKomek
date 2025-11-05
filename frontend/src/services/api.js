@@ -270,6 +270,11 @@ const authService = {
 
   // Проверка статуса привязки
   checkLinkStatus: (token) => api.get(`/auth/check-link-status/${token}`),
+  
+  // IP верификация
+  verifyIP: () => api.post('/auth/verify-ip'),
+  confirmIP: (code) => api.post('/auth/confirm-ip', { code }),
+  
 
   // Отвязка Telegram
   unlinkTelegram: () => api.post('/auth/telegram/unlink'),

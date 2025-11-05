@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { isIPBlocked, isIPTrusted } from '../utils/sessionManager.js';
 
 export const protect = async (req, res, next) => {
   let token;
@@ -33,7 +34,7 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ msg: 'Не найден юзер с этим токеном' });
     }
     
-    // ПРОВЕРКА НА БАН
+    // ПРОВЕРКА НА БАН АККАУНТА
     if (user.banDetails.isBanned) {
       const now = new Date();
       if (user.banDetails.expiresAt && user.banDetails.expiresAt <= now) {
@@ -57,6 +58,29 @@ export const protect = async (req, res, next) => {
           banDetails: user.banDetails
         });
       }
+    }
+
+    // ПРОВЕРКА НА БАН ПО IP (глобально для всех защищенных роутов)
+    const currentIP = req.headers['x-test-ip'] || req.ip;
+    if (await isIPBlocked(currentIP)) {
+      return res.status(403).json({
+        code: 'IP_BLOCKED',
+        msg: 'Ваш IP адрес заблокирован на 24 часа из-за подозрительной активности. Если это ошибка, свяжитесь с поддержкой.'
+      });
+    }
+
+    // Разрешаем работать без проверки доверенного IP только на спец-роутах подтверждения IP
+    const allowlistPaths = ['/api/auth/verify-ip', '/api/auth/confirm-ip'];
+    const path = req.originalUrl || req.path || '';
+    const isAllowlisted = allowlistPaths.some(p => path.startsWith(p));
+
+    // Если IP не доверенный — требуем подтверждение и запрещаем доступ ко всем защищенным ручкам
+    if (!isAllowlisted && !isIPTrusted(user, currentIP)) {
+      return res.status(403).json({
+        code: 'IP_VERIFICATION_REQUIRED',
+        msg: 'Обнаружен вход с нового IP адреса. Требуется подтверждение через Telegram.',
+        currentIP
+      });
     }
     
     // добавляем юзера в запрос

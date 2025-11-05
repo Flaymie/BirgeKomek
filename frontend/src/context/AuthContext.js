@@ -124,6 +124,20 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { data } = await authService.login(credentials);
+      
+      // Проверяем, требуется ли подтверждение IP
+      if (data.requireIPVerification) {
+        // Сохраняем токен, чтобы можно было подтвердить IP
+        storeToken(data.token);
+        setToken(data.token);
+        setLoading(false);
+        return { 
+          success: true, 
+          requireIPVerification: true,
+          currentIP: data.currentIP || 'Unknown'
+        };
+      }
+      
       storeToken(data.token);
       setToken(data.token);
       
@@ -150,7 +164,11 @@ export const AuthProvider = ({ children }) => {
       toast.error(errorMessage);
       setLoading(false);
       setIsReadOnly(true);
-      return { success: false, error: errorMessage };
+      return { 
+        success: false, 
+        error: errorMessage,
+        code: err.response?.data?.code
+      };
     }
   };
 

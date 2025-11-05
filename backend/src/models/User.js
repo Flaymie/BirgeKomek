@@ -108,6 +108,13 @@ const userSchema = new mongoose.Schema({
       isProxy: Boolean
     },
   },
+  trustedIPs: [{
+    ip: { type: String, required: true },
+    addedAt: { type: Date, default: Date.now },
+    lastUsed: { type: Date, default: Date.now },
+    userAgent: String,
+    location: String
+  }],
   grade: {
     type: Number,
     min: [7, 'Класс не может быть меньше 7'],
