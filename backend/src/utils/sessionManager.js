@@ -102,17 +102,18 @@ export const clearBlockedIPsCache = () => {
  * @param {String} userId - ID пользователя
  * @param {String} ip - IP адрес
  * @param {String} code - Код подтверждения
+ * @param {Boolean} isNewLogin - Флаг нового входа (сбрасывает таймеры)
  */
-export const saveVerificationCode = (userId, ip, code) => {
+export const saveVerificationCode = (userId, ip, code, isNewLogin = false) => {
   const key = `${userId}_${ip}`;
   const existing = verificationCodes.get(key);
   
   verificationCodes.set(key, {
     code,
     expiresAt: Date.now() + 5 * 60 * 1000, // 5 минут
-    attempts: 0,
-    resendCount: existing ? existing.resendCount : 0,
-    lastResendAt: existing ? existing.lastResendAt : null
+    attempts: existing && !isNewLogin ? existing.attempts : 0, // Сбрасываем попытки при новом входе
+    resendCount: isNewLogin ? 0 : (existing ? existing.resendCount : 0), // Сбрасываем счетчик при новом входе
+    lastResendAt: isNewLogin ? null : (existing ? existing.lastResendAt : null) // Сбрасываем таймер при новом входе
   });
 };
 

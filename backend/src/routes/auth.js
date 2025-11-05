@@ -420,7 +420,7 @@ router.post('/login', checkBlockedIP, generalLimiter, [
       
       // Генерируем код подтверждения
       const code = generateVerificationCode();
-      saveVerificationCode(user._id.toString(), currentIP, code);
+      saveVerificationCode(user._id.toString(), currentIP, code, true); // true = новый вход, сбрасываем таймеры
       
       const message = `🔐 *Подтверждение нового IP адреса*\n\n` +
                      `Обнаружен вход с нового IP: \`${currentIP}\`\n` +
