@@ -107,13 +107,17 @@ export const clearBlockedIPsCache = () => {
 export const saveVerificationCode = (userId, ip, code, isNewLogin = false) => {
   const key = `${userId}_${ip}`;
   const existing = verificationCodes.get(key);
+  const now = Date.now();
+  const hasActive = existing && existing.expiresAt && now < existing.expiresAt;
   
   verificationCodes.set(key, {
     code,
-    expiresAt: Date.now() + 5 * 60 * 1000, // 5 минут
-    attempts: existing && !isNewLogin ? existing.attempts : 0, // Сбрасываем попытки при новом входе
-    resendCount: isNewLogin ? 0 : (existing ? existing.resendCount : 0), // Сбрасываем счетчик при новом входе
-    lastResendAt: isNewLogin ? null : (existing ? existing.lastResendAt : null) // Сбрасываем таймер при новом входе
+    expiresAt: now + 5 * 60 * 1000, // 5 минут
+    // НЕ сбрасываем попытки при новом входе, если активный код еще не истек
+    attempts: hasActive ? (existing.attempts || 0) : 0,
+    // Сохраняем счетчик повторных отправок, но сбрасываем только таймер при новом входе
+    resendCount: hasActive ? (existing.resendCount || 0) : 0,
+    lastResendAt: isNewLogin ? null : (existing ? existing.lastResendAt : null)
   });
 };
 
@@ -171,7 +175,9 @@ export const incrementResendCount = (userId, ip) => {
   if (stored) {
     stored.resendCount = (stored.resendCount || 0) + 1;
     stored.lastResendAt = Date.now();
+    return { resendCount: stored.resendCount, lastResendAt: stored.lastResendAt };
   }
+  return { resendCount: 0, lastResendAt: null };
 };
 
 /**
@@ -228,14 +234,24 @@ export const verifyCode = async (userId, ip, code) => {
 
 /**
  * Проверяет, заблокирован ли IP (ТОЛЬКО MongoDB, БЕЗ кэша)
+ * Также удаляет истекшие баны при проверке
  * @param {String} ip - IP адрес
  * @returns {Promise<Boolean>}
  */
 export const isIPBlocked = async (ip) => {
   try {
+    const now = new Date();
+    
+    // Удаляем истекшие баны для этого IP (если есть)
+    await BlockedIP.deleteMany({ 
+      ip, 
+      expiresAt: { $lte: now } 
+    });
+    
+    // Проверяем, есть ли активный бан
     const blocked = await BlockedIP.findOne({ 
       ip, 
-      expiresAt: { $gt: new Date() } 
+      expiresAt: { $gt: now } 
     });
     
     return !!blocked;
@@ -243,5 +259,44 @@ export const isIPBlocked = async (ip) => {
     console.error('Ошибка проверки блокировки IP:', error);
     return false;
   }
+};
+
+/**
+ * Очищает все истекшие баны из базы данных
+ * Вызывается периодически (каждые 10 минут)
+ */
+export const cleanupExpiredBans = async () => {
+  try {
+    // Проверяем, подключена ли MongoDB
+    const mongoose = (await import('mongoose')).default;
+    if (mongoose.connection.readyState !== 1) {
+      // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+      return;
+    }
+    
+    const result = await BlockedIP.deleteMany({ 
+      expiresAt: { $lte: new Date() } 
+    });
+    
+    if (result.deletedCount > 0) {
+      console.log(`🧹 Очищено ${result.deletedCount} истекших банов IP`);
+    }
+  } catch (error) {
+    console.error('❌ Ошибка очистки истекших банов:', error);
+  }
+};
+
+/**
+ * Запускает периодическую очистку истекших банов
+ * Очистка происходит каждые 10 минут
+ */
+export const startBanCleanupScheduler = () => {
+  // Первая очистка через 30 секунд после старта (даем время MongoDB подключиться)
+  setTimeout(cleanupExpiredBans, 30 * 1000);
+  
+  // Затем каждые 10 минут
+  setInterval(cleanupExpiredBans, 10 * 60 * 1000);
+  
+  console.log('✅ Планировщик очистки банов запущен (первая очистка через 30 сек, затем каждые 10 минут)');
 };
 

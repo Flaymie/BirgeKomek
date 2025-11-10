@@ -14,8 +14,18 @@ const ForgotPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [remainingAttempts, setRemainingAttempts] = useState(3);
+  const [isBlocked, setIsBlocked] = useState(false);
   
   const navigate = useNavigate();
+
+  // Обработчик ввода кода - только цифры, максимум 6
+  const handleCodeChange = (e) => {
+    const value = e.target.value.replace(/\D/g, ''); // Удаляем все, кроме цифр
+    if (value.length <= 6) {
+      setCode(value);
+    }
+  };
 
   const handleRequestCode = async (e) => {
     e.preventDefault();
@@ -26,9 +36,20 @@ const ForgotPasswordPage = () => {
       const res = await authService.forgotPassword(username);
       setMessage(res.data.msg);
       toast.success(res.data.msg);
+      setRemainingAttempts(3); // Сбрасываем счетчик при новом коде
+      setIsBlocked(false); // Снимаем блокировку (если была)
       setStep(2);
     } catch (err) {
       const errMsg = err.response?.data?.msg || 'Произошла ошибка';
+      const errorData = err.response?.data;
+      
+      // Если IP заблокирован - редирект на главную
+      if (err.response?.status === 403 && errorData?.blocked) {
+        toast.error('Ваш IP заблокирован на 24 часа из-за превышения количества попыток');
+        setTimeout(() => navigate('/'), 2000);
+        return;
+      }
+      
       setError(errMsg);
       toast.error(errMsg);
     } finally {
@@ -52,8 +73,26 @@ const ForgotPasswordPage = () => {
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       const errMsg = err.response?.data?.msg || 'Произошла ошибка';
-      setError(errMsg);
-      toast.error(errMsg);
+      const errorData = err.response?.data;
+      
+      // Обрабатываем блокировку IP
+      if (err.response?.status === 403 && errorData?.blocked) {
+        setIsBlocked(true);
+        setRemainingAttempts(0);
+        setError(errMsg);
+        toast.error(errMsg);
+      } 
+      // Обрабатываем неверный код с оставшимися попытками
+      else if (errorData?.remainingAttempts !== undefined) {
+        setRemainingAttempts(errorData.remainingAttempts);
+        setError(errMsg);
+        toast.error(errMsg);
+      } 
+      // Обычная ошибка
+      else {
+        setError(errMsg);
+        toast.error(errMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -75,8 +114,26 @@ const ForgotPasswordPage = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
-          {error && <p className="text-center text-sm text-red-600 mb-4">{error}</p>}
-          {message && <p className="text-center text-sm text-green-600 mb-4">{message}</p>}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            </div>
+          )}
+          {message && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-green-800">{message}</p>
+              </div>
+            </div>
+          )}
 
           {step === 1 ? (
             <form className="space-y-6" onSubmit={handleRequestCode}>
@@ -126,13 +183,27 @@ const ForgotPasswordPage = () => {
                     id="code"
                     name="code"
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength="6"
                     required
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleCodeChange}
+                    disabled={isBlocked}
+                    className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="123456"
                   />
                 </div>
+                {remainingAttempts < 3 && remainingAttempts > 0 && (
+                  <p className="mt-1 text-sm text-orange-600">
+                    Осталось попыток: {remainingAttempts}
+                  </p>
+                )}
+                {isBlocked && (
+                  <p className="mt-1 text-sm text-red-600 font-semibold">
+                    Ваш IP заблокирован на 24 часа
+                  </p>
+                )}
               </div>
 
               <div>
@@ -178,10 +249,10 @@ const ForgotPasswordPage = () => {
               <div>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  disabled={loading || isBlocked}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Сброс...' : 'Сбросить пароль'}
+                  {loading ? 'Сброс...' : isBlocked ? 'IP заблокирован' : 'Сбросить пароль'}
                 </button>
               </div>
             </form>

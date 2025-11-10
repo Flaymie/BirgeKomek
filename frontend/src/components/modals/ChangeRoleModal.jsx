@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Modal from './Modal';
 import { FiShield, FiUserCheck } from 'react-icons/fi';
 import classNames from 'classnames';
 
@@ -47,7 +48,7 @@ const ChangeRoleModal = ({ isOpen, onClose, onConfirm, user }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
                 <div className="p-6">
                     <div className="flex items-center gap-3 mb-4">

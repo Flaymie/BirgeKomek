@@ -17,28 +17,9 @@ import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import { motion } from 'framer-motion';
 import { downloadFile } from '../../services/downloadService';
 import ReportModal from '../modals/ReportModal';
+import ImageViewerModal from '../modals/ImageViewerModal';
 
-// Простое модальное окно для предпросмотра
-const Lightbox = ({ imageUrl, onClose }) => {
-  if (!imageUrl) return null;
-
-  return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50"
-      onClick={onClose}
-    >
-      <motion.img 
-        src={imageUrl} 
-        alt="Предпросмотр вложения" 
-        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  );
-};
+ 
 
 
 const RequestDetailPage = () => {
@@ -68,7 +49,7 @@ const RequestDetailPage = () => {
 
   // НОВАЯ ЛОГИКА ДЛЯ ВЛОЖЕНИЙ
   const isImageFile = (fileName = '') => {
-    const imageExtensions = ['.png', '.jpg', '.jpeg', ' .gif', '.webp'];
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
     const fileExtension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
     return imageExtensions.includes(fileExtension);
   };
@@ -663,7 +644,7 @@ const RequestDetailPage = () => {
       </div>
 
       {/* Модальные окна */}
-      <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />
+      <ImageViewerModal src={lightboxImage} alt="Предпросмотр вложения" onClose={() => setLightboxImage(null)} />
       <AdminEditModal isOpen={isAdminEditModalOpen} onClose={() => setAdminEditModalOpen(false)} onConfirm={handleAdminEdit} requestTitle={request.title} />
       <AdminDeleteModal isOpen={isAdminDeleteModalOpen} onClose={() => setAdminDeleteModalOpen(false)} onConfirm={handleAdminDelete} requestTitle={request.title} />
       <ResponseModal isOpen={isResponseModalOpen} onClose={() => setIsResponseModalOpen(false)} requestId={id} />

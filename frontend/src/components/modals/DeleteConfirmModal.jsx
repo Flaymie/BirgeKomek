@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Modal from './Modal';
 
 const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) => {
   const [code, setCode] = useState('');
@@ -39,7 +40,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) =>
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto">
       <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all">
         <h3 className="text-xl font-bold mb-4 text-gray-800">Подтвердите удаление</h3>
         <p className="mb-4 text-gray-600">

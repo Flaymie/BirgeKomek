@@ -43,6 +43,7 @@ import User from './models/User.js';
 import { protectSocket } from './middleware/auth.js';
 import multiAccountDetector from './middleware/multiAccountDetector.js';
 import Notification from './models/Notification.js';
+import { startBanCleanupScheduler } from './utils/sessionManager.js';
 
 
 dotenv.config();
@@ -331,4 +332,7 @@ server.listen(PORT, '0.0.0.0', () => {
   }
   
   console.log(`🔌 Внутренний порт: ${PORT}`);
+  
+  // Запускаем планировщик очистки истекших банов
+  startBanCleanupScheduler();
 }); 

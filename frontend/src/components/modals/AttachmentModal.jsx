@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Modal from './Modal';
 import { serverURL } from '../../services/api';
 import { ArrowDownCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { downloadFile } from '../../services/downloadService';
@@ -44,49 +45,48 @@ const AttachmentModal = ({ file, onClose }) => {
   const fileUrl = file.fileUrl.startsWith('http') ? file.fileUrl : `${serverURL}${file.fileUrl}`;
 
   return (
-    <div 
-      className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out ${isVisible ? 'bg-opacity-80' : 'bg-opacity-0'}`}
-      onClick={handleClose}
-    >
-        {/* Изображение с новыми классами и анимацией */}
-        <img 
-          src={fileUrl} 
-          alt={file.fileName}
-          className={`block rounded-lg shadow-2xl transition-all duration-300 ease-in-out ${
-            isZoomed 
-              ? 'max-w-none max-h-none cursor-zoom-out' 
-              : 'h-auto max-h-[95vh] w-auto max-w-[95vw] cursor-zoom-in'
-          } ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsZoomed(!isZoomed);
-          }}
-        />
-      
-      {/* Кнопки управления с анимацией */}
-      <div className={`fixed bottom-4 right-4 flex gap-3 transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              downloadFile(file);
-            }}
-            className="p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors" 
-            title="Скачать"
-          >
-            <ArrowDownCircleIcon className="h-7 w-7" />
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }} 
-            className="p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors" 
-            title="Закрыть (Esc)"
-          >
-            <XMarkIcon className="h-7 w-7" />
-          </button>
+    <Modal isOpen={!!file} onClose={handleClose}>
+      <div
+        className={`w-screen h-screen flex items-center justify-center p-4 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        onClick={handleClose}
+      >
+        <div className="relative">
+          {/* Изображение с центровкой и ограничениями */}
+          <img
+            src={fileUrl}
+            alt={file.fileName}
+            className={`block rounded-lg shadow-2xl transition-opacity duration-200 ${
+              isVisible ? 'opacity-100' : 'opacity-0'
+            } max-w-[90vw] max-h-[85vh] object-contain`}
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Кнопки управления */}
+          <div className="absolute -top-3 -right-3 flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadFile(file);
+              }}
+              className="p-2 bg-white text-gray-800 rounded-full shadow hover:bg-gray-100 transition-colors"
+              title="Скачать"
+            >
+              <ArrowDownCircleIcon className="h-6 w-6" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClose();
+              }}
+              className="p-2 bg-white text-gray-800 rounded-full shadow hover:bg-gray-100 transition-colors"
+              title="Закрыть (Esc)"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import Modal from './Modal';
 
 const AdminEditModal = ({ isOpen, onClose, onConfirm, requestTitle }) => {
   const [reason, setReason] = useState('');
@@ -20,7 +21,7 @@ const AdminEditModal = ({ isOpen, onClose, onConfirm, requestTitle }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
       <div ref={modalRef} className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
         <h2 className="text-xl font-bold mb-4">Редактирование заявки</h2>
         <p className="mb-4">Вы собираетесь отредактировать заявку: <span className="font-semibold">{requestTitle}</span>.</p>

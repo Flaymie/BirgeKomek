@@ -105,7 +105,8 @@ const LoginPage = () => {
     if (result.success) {
       // Проверяем, требуется ли подтверждение IP
       if (result.requireIPVerification) {
-        setCurrentIP(result.currentIP || 'Unknown');
+        const ip = result.currentIP || 'Unknown';
+        setCurrentIP(ip);
         setIsIPVerificationOpen(true);
       } else {
         const from = location.state?.from || '/';

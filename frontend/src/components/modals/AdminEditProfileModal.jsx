@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
 import AvatarUpload from '../layout/AvatarUpload';
+import { motion } from 'framer-motion';
+import Modal from './Modal';
 
 const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
     const [userData, setUserData] = useState({});
@@ -63,64 +65,138 @@ const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
 
     if (!isOpen || !user) return null;
 
-    const inputStyles = "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm";
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 md:p-8 max-w-2xl w-full mx-4 shadow-2xl transform transition-all relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                    <XMarkIcon className="h-6 w-6" />
-                </button>
-                <h3 className="text-2xl font-bold mb-6 text-gray-800">{`Редактирование профиля: ${user.username}`}</h3>
-                
-                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-4 -mr-4 custom-scrollbar">
-                    <div className="flex justify-center mb-6">
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Заголовок */}
+                <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-lg">
+                            <UserCircleIcon className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900">Редактирование профиля</h3>
+                            <p className="text-sm text-gray-500">@{user.username}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 rounded-full">
+                        <XMarkIcon className="h-6 w-6" />
+                    </button>
+                </div>
+
+                {/* Контент */}
+                <div className="overflow-y-auto p-5 space-y-4">
+                    <div className="flex justify-center mb-4">
                         <AvatarUpload currentAvatar={userData.avatar} onUpload={handleAvatarUpload} isLoading={isLoading} />
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Никнейм</label>
-                            <input type="text" name="username" value={userData.username} onChange={handleChange} className={inputStyles} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Никнейм</label>
+                            <input 
+                                type="text" 
+                                name="username" 
+                                value={userData.username} 
+                                onChange={handleChange} 
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Телефон</label>
-                            <input type="text" name="phone" value={userData.phone} onChange={handleChange} className={inputStyles} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
+                            <input 
+                                type="text" 
+                                name="phone" 
+                                value={userData.phone} 
+                                onChange={handleChange} 
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Город</label>
-                            <input type="text" name="location" value={userData.location} onChange={handleChange} className={inputStyles} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
+                            <input 
+                                type="text" 
+                                name="location" 
+                                value={userData.location} 
+                                onChange={handleChange} 
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Класс</label>
-                            <input type="text" name="grade" value={userData.grade} onChange={handleChange} className={inputStyles} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
+                            <input 
+                                type="text" 
+                                name="grade" 
+                                value={userData.grade} 
+                                onChange={handleChange} 
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            />
                         </div>
                         
                         {user.roles.helper && (
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700">Предметы (через запятую)</label>
-                                <input type="text" name="subjects" value={subjects} onChange={(e) => setSubjects(e.target.value)} className={inputStyles} />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Предметы (через запятую)</label>
+                                <input 
+                                    type="text" 
+                                    name="subjects" 
+                                    value={subjects} 
+                                    onChange={(e) => setSubjects(e.target.value)} 
+                                    className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                                />
                             </div>
                         )}
 
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700">О себе (Bio)</label>
-                            <textarea name="bio" value={userData.bio} onChange={handleChange} rows="4" className={inputStyles} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">О себе (Bio)</label>
+                            <textarea 
+                                name="bio" 
+                                value={userData.bio} 
+                                onChange={handleChange} 
+                                rows="3" 
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            />
                         </div>
 
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700">Причина редактирования</label>
-                            <textarea name="reason" value={reason} onChange={(e) => setReason(e.target.value)} rows="2" className={`${inputStyles} border-gray-300 focus:border-indigo-500 focus:ring-indigo-500`} placeholder="Обязательно для заполнения" />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Причина редактирования *</label>
+                            <textarea 
+                                name="reason" 
+                                value={reason} 
+                                onChange={(e) => setReason(e.target.value)} 
+                                rows="2" 
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                                placeholder="Обязательно для заполнения" 
+                            />
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-6 flex justify-end gap-4 border-t pt-5">
-                    <button type="button" onClick={onClose} className="btn btn-secondary">Отмена</button>
-                    <button type="button" onClick={handleSubmit} disabled={isLoading || !reason.trim()} className="btn btn-primary">Сохранить и запросить код</button>
+                {/* Кнопки */}
+                <div className="flex justify-end gap-3 p-5 border-t border-gray-200">
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors"
+                    >
+                        Отмена
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={handleSubmit} 
+                        disabled={isLoading || !reason.trim()} 
+                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Сохранить и запросить код
+                    </button>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </Modal>
     );
 };
 

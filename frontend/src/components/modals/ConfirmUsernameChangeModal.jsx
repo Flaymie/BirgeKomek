@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import Modal from './Modal';
 
 const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername }) => {
   const modalRef = useRef(null);
@@ -14,7 +15,7 @@ const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername })
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto">
       <div ref={modalRef} className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
         <h3 className="text-xl font-bold mb-4 text-gray-900">Подтвердите смену никнейма</h3>
         <p className="mb-4">

@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { responsesService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PaperAirplaneIcon, HandRaisedIcon } from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
+import Modal from './Modal';
 
 const ResponseModal = ({ isOpen, onClose, requestId }) => {
   const [message, setMessage] = useState('');
@@ -51,51 +53,105 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-        <div ref={modalRef} className="bg-white rounded-xl p-6 md:p-8 w-full max-w-md mx-4 shadow-2xl transform transition-all relative">
-            <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <XMarkIcon className="h-6 w-6" />
-            </button>
-            <h3 className="text-2xl font-bold mb-4 text-gray-800">Предложить помощь</h3>
-            <p className="text-gray-600 mb-6">Напишите автору заявки, почему именно вы сможете ему помочь. Ваш отклик будет виден только ему.</p>
-
-          {error && (
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 rounded-md">
-                <p>{error}</p>
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          ref={modalRef}
+          className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Заголовок */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-lg">
+                <HandRaisedIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Предложить помощь</h3>
+                <p className="text-sm text-gray-500">Отправьте отклик автору заявки</p>
+              </div>
             </div>
-          )}
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-gray-600 p-2 rounded-full"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
 
-          <form onSubmit={handleSubmit}>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              rows="5"
-              placeholder="Например: 'Привет! Я хорошо разбираюсь в этой теме и готов помочь...' "
-              maxLength={charLimit}
-            />
-            <p className="text-right text-sm text-gray-500 mt-2">
-              {message.length} / {charLimit}
-            </p>
-            <div className="mt-6 flex justify-end gap-4 border-t pt-5">
-              <button 
+          {/* Контент */}
+          <div className="overflow-y-auto p-5 space-y-4">
+            {/* Информационный блок */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-gray-700">
+              💡 <strong>Совет:</strong> Расскажите, почему именно вы сможете помочь. Ваш отклик будет виден только автору заявки.
+            </div>
+
+            {/* Ошибка */}
+            {error && (
+              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md">
+                <p>{error}</p>
+              </div>
+            )}
+
+            {/* Форма */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700">
+                    Ваше сообщение
+                  </label>
+                  <span className="text-sm text-gray-500">
+                    {message.length}/{charLimit}
+                  </span>
+                </div>
+                <textarea
+                  id="message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows="6"
+                  placeholder="Например: 'Привет! Я отлично разбираюсь в этой теме и уже помогал многим ученикам. Буду рад помочь и тебе!'"
+                  maxLength={charLimit}
+                />
+              </div>
+
+              {/* Кнопки действий */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button 
                   type="button"
                   onClick={onClose}
-                  className="btn btn-secondary"
-              >
-                Отмена
-              </button>
-              <button 
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button 
                   type="submit" 
-                  disabled={loading}
-                  className="btn btn-primary"
-              >
-                {loading ? 'Отправка...' : 'Отправить отклик'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+                  disabled={loading || !message.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Отправка...
+                    </>
+                  ) : (
+                    <>
+                      <PaperAirplaneIcon className="w-4 h-4" />
+                      Отправить отклик
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </Modal>
       <ReadOnlyModalComponent />
     </>
   );

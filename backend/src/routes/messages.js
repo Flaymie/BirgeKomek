@@ -66,7 +66,7 @@ router.use(protect, generalLimiter);
  * @swagger
  * /api/messages/{requestId}:
  *   get:
- *     summary: Получить сообщения для конкретной заявки
+ *     summary: Получить сообщения для конкретной заявки с пагинацией
  *     tags: [Messages]
  *     security:
  *       - bearerAuth: []
@@ -77,15 +77,35 @@ router.use(protect, generalLimiter);
  *         schema:
  *           type: string
  *         description: ID заявки
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Количество сообщений для загрузки
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *         description: ID сообщения, до которого загружать (для подгрузки старых)
  *     responses:
  *       200:
- *         description: Список сообщений
+ *         description: Список сообщений с метаданными пагинации
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Message'
+ *               type: object
+ *               properties:
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Message'
+ *                 hasMore:
+ *                   type: boolean
+ *                   description: Есть ли еще сообщения для загрузки
+ *                 oldestMessageId:
+ *                   type: string
+ *                   description: ID самого старого сообщения в выборке
  *       401:
  *         description: Требуется авторизация
  *       403:
@@ -106,6 +126,8 @@ router.get('/:requestId', [
     }
     
     const { requestId } = req.params;
+    const limit = parseInt(req.query.limit) || 50; // По умолчанию 50 сообщений
+    const before = req.query.before; // ID сообщения, до которого загружать
     
     // проверим, что запрос существует
     const request = await Request.findById(requestId);
@@ -129,15 +151,46 @@ router.get('/:requestId', [
       return res.status(403).json({ msg: 'Нет доступа к этому чату' });
     }
     
-    // получаем сообщения, исключая архивированные
-    const messages = await Message.find({ 
+    // Строим запрос для пагинации
+    const query = { 
       requestId,
       isArchived: { $ne: true } 
-    })
-      .populate('sender', 'username avatar')
-      .sort({ createdAt: 1 });
+    };
     
-    res.json(messages);
+    // Если указан before, загружаем сообщения старше этого
+    if (before) {
+      const beforeMessage = await Message.findById(before);
+      if (beforeMessage) {
+        query.createdAt = { $lt: beforeMessage.createdAt };
+      }
+    }
+    
+    // Получаем сообщения с лимитом
+    // Сортируем по убыванию (новые первыми), берем limit+1 для проверки hasMore
+    const messages = await Message.find(query)
+      .populate('sender', 'username avatar')
+      .sort({ createdAt: -1 }) // Новые первыми для пагинации
+      .limit(limit + 1);
+    
+    // Проверяем, есть ли еще сообщения
+    const hasMore = messages.length > limit;
+    
+    // Убираем лишнее сообщение
+    if (hasMore) {
+      messages.pop();
+    }
+    
+    // Разворачиваем обратно (старые первыми)
+    messages.reverse();
+    
+    // ID самого старого сообщения для следующего запроса
+    const oldestMessageId = messages.length > 0 ? messages[0]._id : null;
+    
+    res.json({
+      messages,
+      hasMore,
+      oldestMessageId
+    });
   } catch (err) {
     console.error('Ошибка при получении сообщений:', err);
     res.status(500).json({ msg: 'Что-то пошло не так' });

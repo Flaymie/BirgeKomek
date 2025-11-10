@@ -91,7 +91,12 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
   if (isImage) {
     return (
       <div onClick={() => onImageClick(file)} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
-        <img src={fileUrl} alt={file.fileName} className="w-full h-auto object-cover" />
+        <img 
+          src={fileUrl} 
+          alt={file.fileName} 
+          loading="lazy"
+          className="w-full h-auto object-cover" 
+        />
       </div>
     );
   }
@@ -250,6 +255,9 @@ const ChatPage = () => {
   const [newMessage, setNewMessage] = useState('');
   const [requestDetails, setRequestDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [oldestMessageId, setOldestMessageId] = useState(null);
   const [error, setError] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -262,6 +270,7 @@ const ChatPage = () => {
   const [ratingContext, setRatingContext] = useState('complete');
   const [isArchived, setIsArchived] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
+  const [isSending, setIsSending] = useState(false);
   const { checkAndShowModal, ReadOnlyModalComponent } = useReadOnlyCheck();
 
   const fileInputRef = useRef(null);
@@ -270,6 +279,8 @@ const ChatPage = () => {
   const chatContainerRef = useRef(null);
   const previousScrollHeight = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const loadMoreObserverRef = useRef(null);
+  const firstMessageRef = useRef(null);
 
   const handleScroll = useCallback(() => {
     const chatContainer = chatContainerRef.current;
@@ -346,7 +357,15 @@ const ChatPage = () => {
       }
       
       const messagesRes = await messagesService.getMessages(requestId);
-      setMessages(messagesRes.data);
+      // Новый формат ответа с пагинацией
+      if (messagesRes.data.messages) {
+        setMessages(messagesRes.data.messages);
+        setHasMore(messagesRes.data.hasMore);
+        setOldestMessageId(messagesRes.data.oldestMessageId);
+      } else {
+        // Обратная совместимость со старым форматом
+        setMessages(messagesRes.data);
+      }
 
     } catch (err) {
       // Умная обработка ошибок: если 403, то это архив
@@ -365,6 +384,51 @@ const ChatPage = () => {
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+
+  // Функция для подгрузки старых сообщений
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMore || !hasMore || !oldestMessageId) return;
+    
+    setLoadingMore(true);
+    try {
+      const messagesRes = await messagesService.getMessages(requestId, { before: oldestMessageId });
+      
+      if (messagesRes.data.messages) {
+        setMessages(prev => [...messagesRes.data.messages, ...prev]);
+        setHasMore(messagesRes.data.hasMore);
+        setOldestMessageId(messagesRes.data.oldestMessageId);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки старых сообщений:', err);
+      toast.error('Не удалось загрузить старые сообщения');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [requestId, loadingMore, hasMore, oldestMessageId]);
+
+  // IntersectionObserver для автоматической подгрузки при скролле вверх
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMoreMessages();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (firstMessageRef.current) {
+      observer.observe(firstMessageRef.current);
+    }
+
+    loadMoreObserverRef.current = observer;
+
+    return () => {
+      if (loadMoreObserverRef.current) {
+        loadMoreObserverRef.current.disconnect();
+      }
+    };
+  }, [hasMore, loadingMore, loadMoreMessages]);
 
   const handleNewMessage = useCallback((message) => {
     if (message.requestId === requestId) {
@@ -486,7 +550,7 @@ const ChatPage = () => {
     
     if (checkAndShowModal()) return;
     
-    if ((!newMessage.trim() && !attachment) || !socket) return;
+    if ((!newMessage.trim() && !attachment) || !socket || isSending) return;
 
     // Перед отправкой гасим наш индикатор печати
     if (typingTimeoutRef.current) {
@@ -498,11 +562,13 @@ const ChatPage = () => {
 
     try {
       if (attachment) {
+        setIsSending(true);
         await messagesService.sendMessageWithAttachment(
           requestId,
           newMessage,
           attachment
         );
+        setIsSending(false);
       } else {
       socket.emit('send_message', {
         requestId: requestId,
@@ -513,6 +579,7 @@ const ChatPage = () => {
     setNewMessage('');
     setAttachment(null);
     } catch (error) {
+      setIsSending(false);
       toast.error('Ошибка при отправке сообщения');
       console.error("Failed to send message:", error);
     }
@@ -895,6 +962,11 @@ const ChatPage = () => {
           className="flex-1 overflow-y-auto p-4"
           onScroll={handleScroll}
         >
+          {loadingMore && (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
           <AnimatePresence initial={false}>
             {messages.map((msg, index) => {
               const prevMsg = messages[index - 1];
@@ -921,15 +993,17 @@ const ChatPage = () => {
                       </div>
                     </div>
                   )}
-              <Message
-                msg={msg}
-                isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                onImageClick={setViewerFile}
-                onEdit={handleStartEdit}
-                onDelete={setMessageToDelete}
-                isChatActive={isChatActive || requestDetails.status === 'open'}
-                isSenderOnline={isSenderOnline}
-              />
+              <div ref={index === 0 ? firstMessageRef : null}>
+                <Message
+                  msg={msg}
+                  isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                  onImageClick={setViewerFile}
+                  onEdit={handleStartEdit}
+                  onDelete={setMessageToDelete}
+                  isChatActive={isChatActive || requestDetails.status === 'open'}
+                  isSenderOnline={isSenderOnline}
+                />
+              </div>
                 </React.Fragment>
               );
             })}
@@ -1016,7 +1090,7 @@ const ChatPage = () => {
                       <button
                         type="button"
                         onClick={handleAttachmentButtonClick}
-                        disabled={dropzoneDisabled}
+                        disabled={dropzoneDisabled || isSending}
                         className={`p-2 cursor-pointer text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300 self-end mb-1`}
                       >
                         <PaperClipIcon className="h-6 w-6" />
@@ -1027,17 +1101,24 @@ const ChatPage = () => {
                         value={newMessage}
                         onChange={handleMessageChange}
                         onKeyDown={handleKeyDown}
-                        placeholder={requestDetails.status === 'open' ? "Хелпер еще не назначен..." : "Напишите сообщение..."}
+                        placeholder={isSending ? "Отправка..." : (requestDetails.status === 'open' ? "Хелпер еще не назначен..." : "Напишите сообщение...")}
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                         autoComplete="off"
-                        disabled={requestDetails.status === 'open'}
+                        disabled={requestDetails.status === 'open' || isSending}
                       />
                       <button
                         type="submit"
-                        disabled={(!newMessage.trim() && !attachment) || dropzoneDisabled}
-                        className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors self-end"
+                        disabled={(!newMessage.trim() && !attachment) || dropzoneDisabled || isSending}
+                        className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors self-end relative"
                       >
-                        <ArrowUpCircleIcon className="h-6 w-6" />
+                        {isSending ? (
+                          <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <ArrowUpCircleIcon className="h-6 w-6" />
+                        )}
                       </button>
                     </form>
                   </div>

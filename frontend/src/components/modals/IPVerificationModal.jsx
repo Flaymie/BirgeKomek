@@ -8,11 +8,28 @@ import { useAuth } from '../../context/AuthContext';
 
 const IPVerificationModal = ({ isOpen, onClose, onSuccess, currentIP }) => {
   const { updateUser } = useAuth();
+  const storeKey = `ip_ver_attempts_${currentIP || 'unknown'}`;
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState(3);
   const [remainingResends, setRemainingResends] = useState(3);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // При открытии модалки восстанавливаем попытки из sessionStorage для текущего IP
+  useEffect(() => {
+    if (isOpen) {
+      const stored = sessionStorage.getItem(storeKey);
+      if (stored !== null) {
+        const parsed = parseInt(stored, 10);
+        if (!Number.isNaN(parsed)) setRemainingAttempts(parsed);
+      }
+    }
+  }, [isOpen, storeKey]);
+
+  // Сохраняем remainingAttempts в sessionStorage при изменении
+  useEffect(() => {
+    sessionStorage.setItem(storeKey, remainingAttempts.toString());
+  }, [remainingAttempts, storeKey]);
 
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -27,6 +44,9 @@ const IPVerificationModal = ({ isOpen, onClose, onSuccess, currentIP }) => {
     try {
       const response = await authService.verifyIP();
       setRemainingResends(response.data.remainingResends);
+      if (typeof response.data.nextWaitTime === 'number' && response.data.nextWaitTime > 0) {
+        setResendCooldown(response.data.nextWaitTime);
+      }
       toast.success('Код подтверждения отправлен повторно в Telegram');
     } catch (error) {
       console.error('Ошибка отправки кода:', error);
@@ -60,6 +80,7 @@ const IPVerificationModal = ({ isOpen, onClose, onSuccess, currentIP }) => {
       toast.success('Вход выполнен успешно!');
       setCode('');
       setRemainingAttempts(3);
+      sessionStorage.removeItem(storeKey); // Очищаем при успехе
       onClose();
       onSuccess();
     } catch (error) {
@@ -70,6 +91,7 @@ const IPVerificationModal = ({ isOpen, onClose, onSuccess, currentIP }) => {
         // IP заблокирован
         toast.error('Ваш IP заблокирован на 24 часа из-за превышения количества попыток');
         setRemainingAttempts(0);
+        sessionStorage.removeItem(storeKey);
         setTimeout(() => onClose(), 2000);
       } else {
         // Неверный код

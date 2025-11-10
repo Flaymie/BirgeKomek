@@ -176,7 +176,7 @@ export default ({ io }) => {
     body('phone').optional().isMobilePhone().withMessage('Неверный формат номера телефона'),
     body('location').optional().isLength({ max: 100 }).withMessage('Город не может превышать 100 символов'),
     body('bio').optional().isLength({ max: 500 }).withMessage('Текст биографии не может превышать 500 символов'),
-    body('grade').optional().isInt({ min: 1, max: 11 }).withMessage('Неверный формат класса'),
+    body('grade').optional().isIn(['7', '8', '9', '10', '11', 'student', 'adult']).withMessage('Класс/статус должен быть: 7-11, student или adult'),
     body('subjects').optional().isArray().withMessage('Неверный формат списка предметов'),
     body('newPassword').optional().isLength({ min: 6 }).withMessage('Новый пароль должен быть минимум 6 символов'),
     body('currentPassword').optional().isString(),

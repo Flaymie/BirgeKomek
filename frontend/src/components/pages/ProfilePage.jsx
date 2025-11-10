@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import classNames from 'classnames';
-import { usersService } from '../../services/api';
+import { usersService, authService } from '../../services/api';
+import PasswordStrengthMeter from '../shared/PasswordStrengthMeter';
+import zxcvbn from 'zxcvbn';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import AvatarUpload from '../layout/AvatarUpload';
 import DeleteAccountModal from '../modals/DeleteAccountModal';
@@ -45,6 +47,14 @@ const formatLastSeen = (dateString) => {
   if (diffDays < 30) return `${diffDays} д. назад`;
   
   return new Intl.DateTimeFormat('ru-RU').format(lastSeen);
+};
+
+// Функция для форматирования класса/статуса
+const formatGrade = (grade) => {
+  if (!grade) return 'Н/Д';
+  if (grade === 'student') return 'Студент';
+  if (grade === 'adult') return 'Взрослый';
+  return `${grade} класс`;
 };
 
 // Компонент загрузки
@@ -127,8 +137,8 @@ const ProfileStats = ({ profile }) => {
             <p className="text-sm text-gray-500">Выполнено</p>
           </div>
           <div>
-            <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
-            <p className="text-sm text-gray-500">Класс</p>
+            <p className="text-lg font-semibold text-indigo-600">{formatGrade(profile.grade)}</p>
+            <p className="text-sm text-gray-500">Класс/Статус</p>
           </div>
         </div>
       </div>
@@ -144,8 +154,8 @@ const ProfileStats = ({ profile }) => {
           <p className="text-sm text-gray-500">Создано запросов</p>
         </div>
         <div>
-          <p className="text-lg font-semibold text-indigo-600">{profile.grade || 'Н/Д'}</p>
-          <p className="text-sm text-gray-500">Класс</p>
+          <p className="text-lg font-semibold text-indigo-600">{formatGrade(profile.grade)}</p>
+          <p className="text-sm text-gray-500">Класс/Статус</p>
         </div>
       </div>
     </div>
@@ -346,6 +356,259 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
   );
 };
 
+// КОМПОНЕНТ СМЕНЫ ПАРОЛЯ
+const PasswordChangeSection = ({ hasPassword }) => {
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+    // Очищаем ошибку для этого поля
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validatePassword = () => {
+    const newErrors = {};
+
+    // Если есть пароль, требуем текущий
+    if (hasPassword && !passwordData.currentPassword) {
+      newErrors.currentPassword = 'Введите текущий пароль';
+    }
+
+    // Проверка нового пароля
+    if (!passwordData.newPassword) {
+      newErrors.newPassword = 'Введите новый пароль';
+    } else if (passwordData.newPassword.length < 8) {
+      newErrors.newPassword = 'Пароль должен содержать минимум 8 символов';
+    } else if (!/^(?=.*[A-Za-z])(?=.*\d)/.test(passwordData.newPassword)) {
+      newErrors.newPassword = 'Пароль должен содержать буквы и цифры';
+    }
+
+    // Проверка совпадения паролей
+    if (!passwordData.confirmPassword) {
+      newErrors.confirmPassword = 'Подтвердите новый пароль';
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      newErrors.confirmPassword = 'Пароли не совпадают';
+    }
+
+    // Проверка, что новый пароль отличается от текущего
+    if (hasPassword && passwordData.currentPassword === passwordData.newPassword) {
+      newErrors.newPassword = 'Новый пароль должен отличаться от текущего';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validatePassword()) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await authService.changePassword(
+        passwordData.currentPassword,
+        passwordData.newPassword,
+        passwordData.confirmPassword
+      );
+      
+      toast.success(response.data.msg || 'Пароль успешно изменен!');
+      
+      // Очищаем форму
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      console.error('Ошибка смены пароля:', error);
+      const errorMsg = error.response?.data?.msg || 'Ошибка при смене пароля';
+      toast.error(errorMsg);
+      
+      // Устанавливаем ошибку для соответствующего поля
+      if (error.response?.status === 401) {
+        setErrors({ currentPassword: 'Неверный текущий пароль' });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 bg-blue-50 border border-blue-200 rounded-xl">
+      <div className="mb-4">
+        <h3 className="font-bold text-blue-900 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          {hasPassword ? 'Изменить пароль' : 'Установить пароль'}
+        </h3>
+        <p className="text-sm text-blue-700 mt-1">
+          {hasPassword 
+            ? 'Регулярно меняйте пароль для повышения безопасности аккаунта' 
+            : 'Установите пароль для входа по логину и паролю'}
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {hasPassword && (
+          <div className="space-y-2">
+            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
+              Текущий пароль
+            </label>
+            <div className="relative">
+              <input
+                type={showCurrentPassword ? 'text' : 'password'}
+                id="currentPassword"
+                name="currentPassword"
+                value={passwordData.currentPassword}
+                onChange={handleChange}
+                className={`block w-full pr-10 py-3 border ${
+                  errors.currentPassword ? 'border-red-300' : 'border-gray-300'
+                } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300`}
+                placeholder="Введите текущий пароль"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                {showCurrentPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {errors.currentPassword && (
+              <p className="text-sm text-red-600">{errors.currentPassword}</p>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+            Новый пароль
+          </label>
+          <div className="relative">
+            <input
+              type={showNewPassword ? 'text' : 'password'}
+              id="newPassword"
+              name="newPassword"
+              value={passwordData.newPassword}
+              onChange={handleChange}
+              className={`block w-full pr-10 py-3 border ${
+                errors.newPassword ? 'border-red-300' : 'border-gray-300'
+              } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300`}
+              placeholder="Минимум 8 символов, буквы и цифры"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            >
+              {showNewPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {passwordData.newPassword && (
+            <PasswordStrengthMeter 
+              password={passwordData.newPassword} 
+              score={zxcvbn(passwordData.newPassword).score}
+            />
+          )}
+          {errors.newPassword && (
+            <p className="text-sm text-red-600">{errors.newPassword}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            Подтвердите новый пароль
+          </label>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              id="confirmPassword"
+              name="confirmPassword"
+              value={passwordData.confirmPassword}
+              onChange={handleChange}
+              className={`block w-full pr-10 py-3 border ${
+                errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+              } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300`}
+              placeholder="Повторите новый пароль"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            >
+              {showConfirmPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="text-sm text-red-600">{errors.confirmPassword}</p>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+        >
+          {isLoading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Сохранение...
+            </>
+          ) : (
+            hasPassword ? 'Изменить пароль' : 'Установить пароль'
+          )}
+        </button>
+      </form>
+    </div>
+  );
+};
+
 // ИСПРАВЛЕННЫЙ КОМПОНЕНТ РЕДАКТИРОВАНИЯ ПРОФИЛЯ
 const ProfileEditor = ({ 
   profileData, 
@@ -500,14 +763,12 @@ const ProfileEditor = ({
 
               <div className="space-y-2">
                 <label htmlFor="grade" className="block text-sm font-medium text-gray-700">
-                  Класс
+                  Класс/Статус
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path d="M12 14l9-5-9-5-9 5 9 5z" />
-                      <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                   </div>
                   <select
@@ -517,18 +778,26 @@ const ProfileEditor = ({
                     onChange={handleProfileChange}
                     className="block w-full pl-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 appearance-none bg-white"
                   >
-                    <option value="">Выберите класс</option>
-                    {[...Array(5)].map((_, i) => (
-                      <option key={i + 7} value={i + 7}>{i + 7} класс</option>
-                    ))}
+                    <option value="">Выберите класс/статус</option>
+                    <optgroup label="Школьники">
+                      <option value="7">7 класс</option>
+                      <option value="8">8 класс</option>
+                      <option value="9">9 класс</option>
+                      <option value="10">10 класс</option>
+                      <option value="11">11 класс</option>
+                    </optgroup>
+                    <optgroup label="Другие">
+                      <option value="student">Студент</option>
+                      <option value="adult">Взрослый</option>
+                    </optgroup>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </div>
                 </div>
-                </div>
+              </div>
               </div>
 
             <div className="space-y-2">
@@ -700,6 +969,19 @@ const ProfileEditor = ({
                         </button>
                     </div>
                 )}
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Безопасность</span>
+            </div>
+          </div>
+
+          <PasswordChangeSection 
+            hasPassword={profileData?.hasPassword ?? currentUser?.hasPassword}
+          />
 
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
@@ -1054,6 +1336,11 @@ const ProfilePage = () => {
 
   if (loading || authLoading) return <Loader />;
   if (error) return <ProfileNotFound />;
+  
+  // Проверка загрузки данных профиля для редактирования
+  if (!identifier && (!profileData || !profileData._id)) {
+    return <Loader />;
+  }
   
   return (
     <>

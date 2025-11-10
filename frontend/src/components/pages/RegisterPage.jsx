@@ -224,7 +224,7 @@ const RegisterPage = () => {
     }
     
     if (role === 'student' && !grade) {
-      newErrors.grade = 'Укажите ваш класс';
+      newErrors.grade = 'Укажите ваш класс/статус';
     }
     
     if (role === 'helper' && subjects.length === 0) {
@@ -249,13 +249,21 @@ const RegisterPage = () => {
         registrationData.subjects = subjects;
       }
       
-      await register(registrationData);
+      const result = await register(registrationData);
       
-      toast.success('Регистрация прошла успешно! Теперь вы можете войти.');
-      navigate('/login');
+      // Редирект и toast только при успешной регистрации
+      if (result.success) {
+        toast.success('Регистрация прошла успешно! Теперь вы можете войти.');
+        navigate('/login');
+      } else {
+        // Если register вернул ошибку без выброса исключения
+        const errorMessage = result.error || 'Ошибка регистрации. Попробуйте еще раз.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
       
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Ошибка регистрации. Попробуйте еще раз.';
+      const errorMessage = err.response?.data?.message || err.response?.data?.msg || 'Ошибка регистрации. Попробуйте еще раз.';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -482,7 +490,7 @@ const RegisterPage = () => {
 
               {(role === 'student' || role === 'helper') && (
                 <div className="space-y-2 mt-4">
-                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс</label>
+                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700">Класс/Статус</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <HiOutlineAcademicCap className="h-5 w-5 text-gray-400" />
@@ -496,11 +504,19 @@ const RegisterPage = () => {
                         errors.grade ? 'border-red-300' : 'border-gray-300'
                       } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 appearance-none`}
                     >
-                    <option value="">Выберите ваш класс</option>
-                    {[...Array(5)].map((_, i) => (
-                      <option key={i + 7} value={i + 7}>{i + 7} класс</option>
-                    ))}
-                  </select>
+                      <option value="">Выберите ваш класс/статус</option>
+                      <optgroup label="Школьники">
+                        <option value="7">7 класс</option>
+                        <option value="8">8 класс</option>
+                        <option value="9">9 класс</option>
+                        <option value="10">10 класс</option>
+                        <option value="11">11 класс</option>
+                      </optgroup>
+                      <optgroup label="Другие">
+                        <option value="student">Студент</option>
+                        <option value="adult">Взрослый</option>
+                      </optgroup>
+                    </select>
                   </div>
                   {errors.grade && (
                     <p className="text-sm text-red-600 flex items-center animate-fade-in">

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { FaTelegramPlane } from 'react-icons/fa';
@@ -23,7 +24,7 @@ const LinkTelegramModal = ({ isOpen, onClose, linkUrl, isLoading }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto p-4"
           onClick={onClose}
           ref={modalRef}
         >

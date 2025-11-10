@@ -244,9 +244,10 @@ export const AuthProvider = ({ children }) => {
         } else {
             console.warn('AuthContext: Ответ не содержит токен или пользователя.');
             // На всякий случай обрабатываем ситуацию, когда чего-то не хватает
-            setError('Не удалось завершить сессию после регистрации.');
-            toast.error('Не удалось завершить сессию после регистрации.');
-            return { success: false, error: 'Missing token or user data' };
+            const errorMsg = 'Не удалось завершить сессию после регистрации.';
+            setError(errorMsg);
+            // toast.error убран - будет показан в RegisterPage
+            return { success: false, error: errorMsg };
         }
       } else {
         console.error('AuthContext: Неожиданный формат ответа:', response);
@@ -272,7 +273,7 @@ export const AuthProvider = ({ children }) => {
       
       const errorMessage = err.response?.data?.msg || err.message || 'Ошибка регистрации';
       setError(errorMessage);
-      toast.error(errorMessage);
+      // toast.error убран - будет показан в RegisterPage
       setLoading(false);
       setIsReadOnly(true);
       

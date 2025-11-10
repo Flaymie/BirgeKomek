@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -33,7 +34,7 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto p-4">
         <motion.div
           ref={modalRef}
           initial={{ y: -50, opacity: 0 }}

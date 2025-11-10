@@ -14,6 +14,7 @@ import LinkToken from '../models/LinkToken.js';
 import { analyzeIp } from '../services/ipAnalysisService.js';
 import { calculateRegistrationScore } from '../services/scoringService.js';
 import SystemReport from '../models/SystemReport.js';
+import BlockedIP from '../models/BlockedIP.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 import { 
   isIPTrusted, 
@@ -114,10 +115,10 @@ router.post('/register', checkBlockedIP, registrationLimiter,
     .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания')
     .custom(value => {
         const lowerCaseValue = value.toLowerCase();
-        // Проверяем, не СОДЕРЖИТ ли имя пользователя запрещенное слово
-        const isReserved = RESERVED_USERNAMES.some(reserved => lowerCaseValue.includes(reserved));
+        // Проверяем точное совпадение с зарезервированными именами
+        const isReserved = RESERVED_USERNAMES.includes(lowerCaseValue);
         if (isReserved) {
-            return Promise.reject('Имя пользователя содержит зарезервированные слова.');
+            return Promise.reject('Это имя пользователя зарезервировано системой.');
         }
         return true;
     }),
@@ -128,7 +129,8 @@ router.post('/register', checkBlockedIP, registrationLimiter,
   
   body('grade')
     .optional()
-    .isInt({ min: 7, max: 11 }).withMessage('Класс должен быть от 7 до 11'),
+    .isIn(['7', '8', '9', '10', '11', 'student', 'adult'])
+    .withMessage('Класс/статус должен быть: 7-11, student или adult'),
   body('helperSubjects')
     .optional()
     .isArray().withMessage('helperSubjects должен быть массивом')
@@ -288,17 +290,12 @@ router.post('/register', checkBlockedIP, registrationLimiter,
         { expiresIn: '7d' }
     );
     
+    // Получаем полные данные пользователя без пароля
+    const userWithoutPassword = await User.findById(user._id).select('-password');
+    
     res.status(201).json({
       token,
-        user: {
-            _id: user.id,
-            username: user.username,
-            roles: user.roles,
-            rating: user.rating,
-            averageRating: user.averageRating || 0,
-            avatar: user.avatar,
-            grade: user.grade,
-        }
+      user: userWithoutPassword
     });
 
   } catch (err) {
@@ -411,9 +408,19 @@ router.post('/login', checkBlockedIP, generalLimiter, [
     }
     
     // Проверяем, доверенный ли IP
-    const isTrusted = isIPTrusted(user, currentIP);
+    let isTrusted = isIPTrusted(user, currentIP);
     
-    // Если IP новый - отправляем КОД подтверждения в Telegram
+    // Если у пользователя НЕТ Telegram, автоматически доверяем IP
+    if (!user.telegramId && !isTrusted) {
+      user.trustedIPs.push({
+        ip: currentIP,
+        userAgent: userAgent,
+        addedAt: new Date()
+      });
+      isTrusted = true;
+    }
+    
+    // Если IP новый И есть Telegram - отправляем КОД подтверждения
     if (!isTrusted && user.telegramId) {
       const ipInfo = await analyzeIp(currentIP);
       const location = ipInfo ? `${ipInfo.city}, ${ipInfo.country}` : 'Unknown';
@@ -438,19 +445,12 @@ router.post('/login', checkBlockedIP, generalLimiter, [
     
     await user.save();
     
+    // Получаем полные данные пользователя без пароля
+    const userWithoutPassword = await User.findById(user._id).select('-password');
+    
     res.json({
       token,
-      user: {
-        _id: user.id,
-        username: user.username,
-        roles: user.roles,
-        avatar: user.avatar,
-        rating: user.rating,
-        averageRating: user.averageRating || 0,
-        grade: user.grade,
-        lastSeen: user.lastSeen,
-        telegramId: user.telegramId
-      },
+      user: userWithoutPassword,
       requireIPVerification: !isTrusted,
       currentIP
     });
@@ -494,9 +494,10 @@ router.post('/check-username', [
     try {
         const username = req.body.username.toLowerCase();
 
-        const isReserved = RESERVED_USERNAMES.some(reserved => username.includes(reserved));
+        // Проверяем точное совпадение с зарезервированными именами
+        const isReserved = RESERVED_USERNAMES.includes(username);
         if (isReserved) {
-            return res.json({ available: false, message: 'Имя пользователя содержит зарезервированные слова.' });
+            return res.json({ available: false, message: 'Это имя пользователя зарезервировано системой.' });
         }
 
         const user = await User.findOne({ username });
@@ -1134,6 +1135,16 @@ router.post('/forgot-password', generalLimiter, [
     }
 
     const { username } = req.body;
+    const currentIP = req.headers['x-test-ip'] || req.ip;
+
+    // Проверяем, заблокирован ли IP
+    const ipBlocked = await isIPBlocked(currentIP);
+    if (ipBlocked) {
+        return res.status(403).json({ 
+            msg: 'Ваш IP заблокирован на 24 часа из-за превышения количества попыток',
+            blocked: true
+        });
+    }
     
     if (!req.app.locals.passwordResetTokens) {
         req.app.locals.passwordResetTokens = new Map();
@@ -1170,7 +1181,12 @@ router.post('/forgot-password', generalLimiter, [
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = Date.now() + 10 * 60 * 1000;
 
-        passwordResetTokens.set(lowerCaseUsername, { code, expires });
+        // Явно сбрасываем счетчик попыток при новом запросе кода
+        passwordResetTokens.set(lowerCaseUsername, { 
+            code, 
+            expires, 
+            attempts: 0  // Всегда сбрасываем при новом коде
+        });
         passwordResetRateLimiter.set(lowerCaseUsername, Date.now());
 
         // Отправляем код через апи телеграма
@@ -1245,11 +1261,21 @@ router.post('/reset-password', generalLimiter, [
 
     const { username, code, password } = req.body;
     const { passwordResetTokens } = req.app.locals;
+    const currentIP = req.headers['x-test-ip'] || req.ip;
+
+    // Проверяем, заблокирован ли IP
+    const ipBlocked = await isIPBlocked(currentIP);
+    if (ipBlocked) {
+        return res.status(403).json({ 
+            msg: 'Ваш IP заблокирован на 24 часа из-за превышения количества попыток',
+            blocked: true
+        });
+    }
 
     const storedToken = passwordResetTokens.get(username.toLowerCase());
 
-    if (!storedToken || storedToken.code !== code) {
-        return res.status(400).json({ msg: 'Неверный или устаревший код.' });
+    if (!storedToken) {
+        return res.status(400).json({ msg: 'Код не найден или истек. Запросите новый.' });
     }
 
     if (Date.now() > storedToken.expires) {
@@ -1257,10 +1283,48 @@ router.post('/reset-password', generalLimiter, [
         return res.status(400).json({ msg: 'Срок действия кода истек. Запросите новый.' });
     }
 
+    // Проверяем код
+    if (storedToken.code !== code) {
+        // Увеличиваем счетчик попыток
+        storedToken.attempts = (storedToken.attempts || 0) + 1;
+        const remainingAttempts = 3 - storedToken.attempts;
+
+        // Если исчерпаны попытки - блокируем IP
+        if (storedToken.attempts >= 3) {
+            try {
+                const user = await User.findOne({ username: username.toLowerCase() });
+                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+                
+                await BlockedIP.create({
+                    ip: currentIP,
+                    userId: user?._id,
+                    reason: 'Превышено количество попыток сброса пароля',
+                    expiresAt
+                });
+
+                passwordResetTokens.delete(username.toLowerCase());
+                
+                console.log(`🚫 IP ${currentIP} заблокирован на 24 часа (сброс пароля)`);
+                
+                return res.status(403).json({ 
+                    msg: 'Превышено количество попыток. Ваш IP заблокирован на 24 часа.',
+                    blocked: true,
+                    remainingAttempts: 0
+                });
+            } catch (err) {
+                console.error('Ошибка блокировки IP:', err);
+            }
+        }
+
+        return res.status(400).json({ 
+            msg: `Неверный код. Осталось попыток: ${remainingAttempts}`,
+            remainingAttempts
+        });
+    }
+
     try {
         const user = await User.findOne({ username: username.toLowerCase() }).select('+password');
         if (!user) {
-            // Этого не должно произойти, если код был найден, но кто его знает
             return res.status(404).json({ msg: 'Пользователь не найден.' });
         }
 
@@ -1273,7 +1337,7 @@ router.post('/reset-password', generalLimiter, [
         }
 
         user.password = password; // хэширование произойдет в pre-save хуке
-        user.hasPassword = true; // Теперь у юзера есть пароль(ура)
+        user.hasPassword = true;
         await user.save();
 
         passwordResetTokens.delete(username.toLowerCase());
@@ -1381,7 +1445,7 @@ router.post('/verify-ip', protect, async (req, res) => {
     
     const code = generateVerificationCode();
     saveVerificationCode(user._id.toString(), currentIP, code);
-    incrementResendCount(user._id.toString(), currentIP);
+    const { resendCount } = incrementResendCount(user._id.toString(), currentIP);
     
     const message = `🔐 *Подтверждение нового IP адреса*\n\n` +
                    `Обнаружен вход с нового IP: \`${currentIP}\`\n\n` +
@@ -1391,9 +1455,15 @@ router.post('/verify-ip', protect, async (req, res) => {
     
     await sendTelegramMessage(user.telegramId, message);
     
+    // Расчет следующего ожидания до повторной отправки
+    let nextWaitTime = 0; // секунды
+    if (resendCount === 1) nextWaitTime = 60; // после 1-й повторной отправки ждать 60 сек
+    else if (resendCount === 2) nextWaitTime = 5 * 60; // после 2-й — 5 минут
+
     res.json({ 
       msg: 'Код подтверждения отправлен в Telegram',
-      remainingResends: resendCheck.remainingResends - 1
+      remainingResends: resendCheck.remainingResends - 1,
+      nextWaitTime
     });
   } catch (error) {
     console.error('Ошибка отправки кода:', error);
@@ -1477,6 +1547,114 @@ router.post('/confirm-ip', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Ошибка подтверждения IP:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Изменить пароль пользователя
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Текущий пароль (не требуется, если пароля нет)
+ *               newPassword:
+ *                 type: string
+ *                 description: Новый пароль
+ *               confirmPassword:
+ *                 type: string
+ *                 description: Подтверждение нового пароля
+ *     responses:
+ *       200:
+ *         description: Пароль успешно изменен
+ *       400:
+ *         description: Ошибка валидации
+ *       401:
+ *         description: Неверный текущий пароль
+ */
+router.post('/change-password', protect, [
+  body('newPassword')
+    .isLength({ min: 8 }).withMessage('Новый пароль должен содержать минимум 8 символов')
+    .matches(/^(?=.*[A-Za-z])(?=.*\d)/).withMessage('Новый пароль должен содержать буквы и цифры'),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.newPassword) {
+      throw new Error('Пароли не совпадают');
+    }
+    return true;
+  })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        msg: errors.array()[0].msg,
+        errors: errors.array() 
+      });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ msg: 'Пользователь не найден' });
+    }
+
+    // Если у пользователя есть пароль, проверяем текущий
+    if (user.password) {
+      if (!currentPassword) {
+        return res.status(400).json({ msg: 'Необходимо указать текущий пароль' });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ msg: 'Неверный текущий пароль' });
+      }
+
+      // Проверяем, что новый пароль отличается от текущего
+      const isSamePassword = await bcrypt.compare(newPassword, user.password);
+      if (isSamePassword) {
+        return res.status(400).json({ msg: 'Новый пароль должен отличаться от текущего' });
+      }
+    }
+
+    // Запоминаем, был ли пароль ДО изменения
+    const hadPassword = !!user.password;
+
+    // Присваиваем новый пароль напрямую — хэширование произойдет в pre-save хуке
+    user.password = newPassword;
+    user.hasPassword = true;
+    await user.save();
+
+    // Отправляем уведомление в Telegram
+    if (user.telegramId) {
+      const message = hadPassword ? 
+        '🔐 *Пароль изменен*\n\nВаш пароль был успешно изменен.\n\nЕсли это были не вы, срочно свяжитесь с поддержкой!' :
+        '🔐 *Пароль установлен*\n\nВы успешно установили пароль для входа.\n\nТеперь вы можете входить как через Telegram, так и по логину/паролю.';
+      
+      try {
+        await sendTelegramMessage(user.telegramId, message);
+      } catch (err) {
+        console.error('Ошибка отправки уведомления в Telegram:', err);
+      }
+    }
+
+    res.json({ 
+      msg: hadPassword ? 'Пароль успешно изменен' : 'Пароль успешно установлен',
+      hasPassword: true
+    });
+  } catch (error) {
+    console.error('Ошибка изменения пароля:', error);
     res.status(500).json({ msg: 'Ошибка сервера' });
   }
 });

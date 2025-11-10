@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import Modal from './Modal';
 import { FaTelegramPlane } from 'react-icons/fa';
 
 const RequireTelegramModal = ({ isOpen, onLinkTelegram }) => {
@@ -16,7 +17,7 @@ const RequireTelegramModal = ({ isOpen, onLinkTelegram }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black bg-opacity-80 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto"
     >
       <div ref={modalRef} className="bg-white rounded-lg shadow-xl p-8 w-full max-w-lg mx-4">
         <div className="text-center">

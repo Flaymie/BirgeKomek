@@ -275,6 +275,9 @@ const authService = {
   verifyIP: () => api.post('/auth/verify-ip'),
   confirmIP: (code) => api.post('/auth/confirm-ip', { code }),
   
+  // Смена пароля
+  changePassword: (currentPassword, newPassword, confirmPassword) => 
+    api.post('/auth/change-password', { currentPassword, newPassword, confirmPassword }),
 
   // Отвязка Telegram
   unlinkTelegram: () => api.post('/auth/telegram/unlink'),
@@ -282,9 +285,9 @@ const authService = {
 
 // Сервис для работы с сообщениями
 const messagesService = {
-  // Получить сообщения для запроса
-  getMessages: async (requestId) => {
-    return api.get(`/messages/${requestId}`);
+  // Получить сообщения для запроса с пагинацией
+  getMessages: async (requestId, params = {}) => {
+    return api.get(`/messages/${requestId}`, { params });
   },
   
   // Отправить сообщение

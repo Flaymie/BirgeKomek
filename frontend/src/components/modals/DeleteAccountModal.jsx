@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username, isLoading }) => {
@@ -33,7 +34,7 @@ const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username, isLoading })
   return (
     <AnimatePresence>
       <div
-        className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+        className="fixed inset-0 bg-black bg-opacity-75 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div

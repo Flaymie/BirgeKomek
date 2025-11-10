@@ -49,20 +49,40 @@ const registrationScene = new Scenes.WizardScene(
     const role = ctx.callbackQuery.data.split('_')[1];
     ctx.wizard.state.data.role = role;
     ctx.reply(
-        'Отлично. В каком классе вы учитесь? (для хелперов это поможет лучше подбирать запросы)',
+        'Отлично. Выберите ваш класс/статус:',
         Markup.keyboard([
-            ['7', '8', '9'],
-            ['10', '11']
+            ['7 класс', '8 класс', '9 класс'],
+            ['10 класс', '11 класс'],
+            ['🎓 Студент', '👔 Взрослый']
         ]).resize().oneTime()
     );
     return ctx.wizard.next();
   },
   (ctx) => {
-    const grade = parseInt(ctx.message?.text, 10);
-    if (isNaN(grade) || grade < 7 || grade > 11) {
-        ctx.reply('Пожалуйста, выберите класс от 7 до 11, используя кнопки.');
+    const text = ctx.message?.text;
+    let grade;
+    
+    // Парсим выбор пользователя
+    if (text === '🎓 Студент') {
+      grade = 'student';
+    } else if (text === '👔 Взрослый') {
+      grade = 'adult';
+    } else {
+      // Извлекаем число из "7 класс", "8 класс" и т.д.
+      const match = text?.match(/^(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num >= 7 && num <= 11) {
+          grade = num.toString();
+        }
+      }
+    }
+    
+    if (!grade) {
+        ctx.reply('Пожалуйста, выберите класс/статус, используя кнопки.');
         return;
     }
+    
     ctx.wizard.state.data.grade = grade;
 
     if (ctx.wizard.state.data.role === 'helper') {

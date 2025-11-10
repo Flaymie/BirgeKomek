@@ -116,9 +116,11 @@ const userSchema = new mongoose.Schema({
     location: String
   }],
   grade: {
-    type: Number,
-    min: [7, 'Класс не может быть меньше 7'],
-    max: [11, 'Класс не может быть больше 11'],
+    type: String,
+    enum: {
+      values: ['7', '8', '9', '10', '11', 'student', 'adult'],
+      message: 'Некорректное значение для класса/статуса'
+    },
     default: null
   },
   rating: {

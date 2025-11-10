@@ -175,7 +175,7 @@ router.get('/', [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('subjects').optional().trim().escape(),
-    query('grade').optional().isInt({ min: 1, max: 11 }).toInt(),
+    query('grade').optional().isIn(['7', '8', '9', '10', '11', 'student', 'adult']),
     query('status').optional().custom(value => {
         const allowedStatuses = ['draft', 'open', 'in_progress', 'pending', 'assigned', 'completed', 'closed', 'cancelled'];
         const receivedStatuses = value.split(',');
@@ -287,7 +287,7 @@ router.post('/', uploadAttachments, createRequestLimiter, [
     body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Заголовок должен быть от 5 до 100 символов'),
     body('description').optional().trim(),
     body('subject').optional().trim().escape(),
-    body('grade').optional().isInt({ min: 1, max: 11 }),
+    body('grade').optional().isIn(['7', '8', '9', '10', '11', 'student', 'adult']),
     body('topic').optional().trim().escape(),
     body('isDraft').optional().isBoolean(),
 ], async (req, res) => {
@@ -852,7 +852,7 @@ router.post('/:id/cancel', protect, [
     body('title').optional().trim().isLength({ min: 5, max: 100 }),
     body('description').optional().trim().isLength({ min: 10 }),
     body('subject').optional().trim().notEmpty().escape(),
-    body('grade').optional().isInt({ min: 1, max: 11 }),
+    body('grade').optional().isIn(['7', '8', '9', '10', '11', 'student', 'adult']),
     body('editReason').optional().trim().escape(),
     body('deletedAttachments').optional().isString() // Было isArray(), меняем на isString()
   ], async (req, res) => {

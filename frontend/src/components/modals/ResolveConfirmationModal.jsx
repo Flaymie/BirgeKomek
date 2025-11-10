@@ -8,7 +8,7 @@ const ResolveConfirmationModal = ({ isOpen, onClose, onConfirm, onReject }) => {
   return (
     <AnimatePresence>
       <div
-        className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4"
+        className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100] p-4"
         onClick={onClose}
       >
         <motion.div
