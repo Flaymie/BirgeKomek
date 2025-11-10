@@ -161,6 +161,11 @@ app.use('/api/admin', adminRoutes({ sseConnections }));
 app.use('/api/reports', reportRoutes({ io }));
 app.use('/api/system-reports', systemReportsRoutes);
 
+// Healthcheck endpoint to keep server awake / uptime checks
+app.get('/ping', (req, res) => {
+  res.status(200).json({ ok: true, timestamp: new Date().toISOString(), uptime: process.uptime() });
+});
+
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
 
