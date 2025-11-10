@@ -21,7 +21,7 @@ import {
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, currentUser, error: authError } = useAuth();
+  const { login, currentUser } = useAuth();
   
   const [formData, setFormData] = useState({
     username: '',
@@ -70,20 +70,21 @@ const LoginPage = () => {
     }
   };
   
-  const validate = () => {
-    const newErrors = {};
-    
-    if (!formData.username.trim()) {
-      newErrors.username = 'Введите никнейм';
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Введите пароль';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  // Валидация формы (закомментирована, так как не используется)
+  // const validate = () => {
+  //   const newErrors = {};
+  //   
+  //   if (!formData.username.trim()) {
+  //     newErrors.username = 'Введите никнейм';
+  //   }
+  //   
+  //   if (!formData.password) {
+  //     newErrors.password = 'Введите пароль';
+  //   }
+  //   
+  //   setErrors(newErrors);
+  //   return Object.keys(newErrors).length === 0;
+  // };
   
   const handleSubmit = async (e) => {
     e.preventDefault();

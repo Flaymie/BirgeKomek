@@ -88,6 +88,8 @@ const MyRequestsPage = () => {
     setEditingRequest(null);
   };
 
+  // Функция удаления черновика (закомментирована, так как не используется)
+  // eslint-disable-next-line no-unused-vars
   const handleDeleteDraft = async (requestId) => {
     if (!window.confirm('Вы уверены, что хотите удалить этот черновик? Это действие необратимо.')) {
       return;

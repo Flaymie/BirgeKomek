@@ -11,7 +11,7 @@ import RequestNotFound from '../shared/RequestNotFound';
 import { useSocket } from '../../context/SocketContext';
 import StatusBadge from '../shared/StatusBadge';
 import RoleBadge from '../shared/RoleBadge';
-import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, EyeIcon, PaperClipIcon, ArrowDownTrayIcon, DocumentIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, PaperClipIcon, ArrowDownTrayIcon, DocumentIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import { motion } from 'framer-motion';

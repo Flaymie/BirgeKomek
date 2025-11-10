@@ -1,5 +1,4 @@
 import React, { useRef, useEffect } from 'react';
-import Modal from './Modal';
 import { FaTelegramPlane } from 'react-icons/fa';
 
 const RequireTelegramModal = ({ isOpen, onLinkTelegram }) => {

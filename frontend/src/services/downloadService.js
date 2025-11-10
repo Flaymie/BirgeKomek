@@ -53,8 +53,8 @@ export const downloadFile = async (file) => {
     window.URL.revokeObjectURL(blobUrl);
   } catch (error) {
     console.error('Ошибка при скачивании файла:', error);
-    const status = error?.response?.status;
-    const msg = error?.response?.data?.msg || error?.message;
+    // const status = error?.response?.status;
+    // const msg = error?.response?.data?.msg || error?.message;
     // Падаем в запасной вариант: открываем файл напрямую в новой вкладке/скачивании браузером
     try {
       const raw = file?.fileUrl || file?.path || file?.url;
@@ -74,6 +74,6 @@ export const downloadFile = async (file) => {
     } catch (fallbackErr) {
       console.error('Fallback download failed:', fallbackErr);
     }
-    toast.error(status ? `Не удалось скачать файл (HTTP ${status})` : 'Не удалось скачать файл. Попробуйте снова.');
+    toast.error('Не удалось скачать файл. Попробуйте снова.');
   }
 };

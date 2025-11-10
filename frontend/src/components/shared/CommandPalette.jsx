@@ -11,7 +11,7 @@ const CommandPalette = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
-  const allCommands = [
+  const allCommands = React.useMemo(() => [
     // Основные команды
     { name: 'Главная', description: 'Перейти на главную страницу', action: () => navigate('/') },
     { name: 'Все заявки', description: 'Посмотреть все активные заявки', action: () => navigate('/requests') },
@@ -34,9 +34,9 @@ const CommandPalette = () => {
     { name: 'О нас', description: 'Узнать больше о проекте', action: () => navigate('/about') },
     { name: 'Условия использования', description: 'Прочитать правила сервиса', action: () => navigate('/terms') },
     { name: 'Политика конфиденциальности', description: 'Как мы обрабатываем ваши данные', action: () => navigate('/privacy') },
-  ];
+  ], [navigate, currentUser, logout]);
 
-  const getAvailableCommands = () => {
+  const getAvailableCommands = React.useCallback(() => {
     const baseCommands = allCommands.filter(c => !c.requiresAuth && !c.requiresGuest && !c.requiresRole);
     const guestCommands = allCommands.filter(c => c.requiresGuest);
     const authCommands = allCommands.filter(c => c.requiresAuth);
@@ -53,13 +53,13 @@ const CommandPalette = () => {
         const minimalGuestCommands = baseCommands.filter(c => publicCommands.includes(c.name));
         return [...minimalGuestCommands, ...guestCommands];
     }
-  }
+  }, [currentUser, allCommands]);
   
   const [availableCommands, setAvailableCommands] = useState(getAvailableCommands());
 
   useEffect(() => {
     setAvailableCommands(getAvailableCommands());
-  }, [currentUser]);
+  }, [getAvailableCommands]);
 
   const filteredCommands = query === ''
     ? availableCommands

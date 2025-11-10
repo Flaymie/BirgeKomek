@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Modal from './Modal';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
@@ -13,7 +12,6 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
   const [loginUrl, setLoginUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [loginToken, setLoginToken] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
   const modalRef = useRef(null);
 
@@ -24,7 +22,6 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
       setLoginUrl('');
       setError('');
       setIsLoading(false);
-      setLoginToken('');
       setIsCompleted(false);
       if (intervalId) clearInterval(intervalId);
       return;
@@ -36,7 +33,6 @@ const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
       try {
         const { data } = await authService.generateTelegramToken();
         const token = data.loginToken;
-        setLoginToken(token);
 
         const botUsername = process.env.REACT_APP_TELEGRAM_BOT_USERNAME || 'birgekomek_bot';
         const url = `https://t.me/${botUsername}?start=${authAction}_${token}`;

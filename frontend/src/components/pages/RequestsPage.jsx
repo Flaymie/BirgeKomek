@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';

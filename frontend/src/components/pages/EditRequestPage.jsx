@@ -3,14 +3,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { SUBJECTS } from '../../services/constants';
-import { ArrowUturnLeftIcon, ServerIcon, XMarkIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { ServerIcon, XMarkIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 import FileUploader from '../shared/FileUploader';
 
 const MAX_TITLE_LENGTH = 100;
 const MIN_TITLE_LENGTH = 5;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MIN_DESCRIPTION_LENGTH = 20;
-const MAX_FILE_SIZE_MB = 10;
 const MAX_FILES = 10;
 
 const EditRequestPage = () => {
@@ -129,8 +128,8 @@ const EditRequestPage = () => {
   const titleCharCounterClass = titleRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
   const descriptionCharCounterClass = descriptionRemainingChars < 0 ? 'text-red-500' : 'text-gray-500';
   
-  // Вычисляем общее количество файлов
-  const totalFiles = (existingAttachments?.length || 0) + newFiles.length;
+  // Вычисляем общее количество файлов (используется в FileUploader)
+  // const totalFiles = (existingAttachments?.length || 0) + newFiles.length;
 
   if (loading) {
     return (

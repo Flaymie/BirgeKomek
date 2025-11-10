@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { FaTelegramPlane } from 'react-icons/fa';

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
 import { toast } from 'react-toastify';
 import { FiSearch, FiUser } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { formatAvatarUrl } from '../../../services/avatarUtils';
 import RoleBadge from '../../shared/RoleBadge';
 import classNames from 'classnames';
@@ -54,7 +53,7 @@ const UsersPage = () => {
 
     useEffect(() => {
         fetchUsers(1); // Загружаем первую страницу при смене фильтров
-    }, [filters.role, filters.status]);
+    }, [filters.role, filters.status, fetchUsers]);
     
     // Отложенный поиск
     useEffect(() => {

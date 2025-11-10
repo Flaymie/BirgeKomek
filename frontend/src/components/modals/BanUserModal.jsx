@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Ban, Clock, AlertTriangle, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Modal from './Modal';
@@ -17,18 +17,18 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const isAdmin = currentUser?.roles?.admin;
   
   // Единицы времени
-  const timeUnits = [
+  const timeUnits = React.useMemo(() => [
     { value: 'hours', label: 'Часов', multiplier: 1 },
     { value: 'days', label: 'Дней', multiplier: 24 },
     { value: 'months', label: 'Месяцев', multiplier: 720 }
-  ];
+  ], []);
   
   // Получить максимальное значение для текущей единицы времени
-  const getMaxValueForUnit = () => {
+  const getMaxValueForUnit = useCallback(() => {
     const unit = timeUnits.find(u => u.value === timeUnit);
     const maxHours = isModeratorOnly ? 72 : 87600;
     return Math.floor(maxHours / unit.multiplier);
-  };
+  }, [timeUnit, isModeratorOnly, timeUnits]);
   
   // Преобразовать в часы
   const getDurationInHours = () => {
@@ -56,7 +56,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
     if (duration > maxValue) {
       setDuration(maxValue);
     }
-  }, [timeUnit, duration, isModeratorOnly]);
+  }, [timeUnit, duration, isModeratorOnly, getMaxValueForUnit]);
   
   const handleSubmit = () => {
     if (!reason.trim()) {

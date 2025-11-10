@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Modal from './Modal';
 import { FiShield, FiUserCheck } from 'react-icons/fi';
 import classNames from 'classnames';
 

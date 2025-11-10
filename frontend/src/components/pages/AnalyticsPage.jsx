@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../services/api';
 import { toast } from 'react-hot-toast';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { FiUsers, FiFileText, FiCheckSquare, FiMessageSquare, FiAlertTriangle, FiFlag } from 'react-icons/fi';
 
 const StatCard = ({ icon, title, value, color }) => (

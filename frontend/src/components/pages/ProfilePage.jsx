@@ -79,7 +79,8 @@ const Container = ({ children }) => (
   </div>
 );
 
-// Функция для получения текста роли
+// Функция для получения текста роли (не используется, но может понадобиться)
+// eslint-disable-next-line no-unused-vars
 const getRoleText = (profile) => {
   if (!profile || !profile.roles) return 'Пользователь';
   
@@ -1040,7 +1041,6 @@ const ProfilePage = () => {
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isReportLoading, setIsReportLoading] = useState(false);
   
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileErrors, setProfileErrors] = useState({});

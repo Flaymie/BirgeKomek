@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Camera, Upload, X } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { api, serverURL } from '../../services/api';
 

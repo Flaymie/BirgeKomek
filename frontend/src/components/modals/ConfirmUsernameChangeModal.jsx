@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import Modal from './Modal';
 
 const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername }) => {
   const modalRef = useRef(null);

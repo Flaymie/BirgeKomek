@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username, isLoading }) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
 import { toast } from 'react-toastify';
-import { Eye, CheckCircle, User, AlertTriangle, Hash, Activity } from 'lucide-react';
+import { Eye, User, AlertTriangle, Hash, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 

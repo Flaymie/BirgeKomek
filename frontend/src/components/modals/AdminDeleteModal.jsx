@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import Modal from './Modal';
 
 const AdminDeleteModal = ({ isOpen, onClose, onConfirm, requestTitle }) => {
   const [reason, setReason] = useState('');

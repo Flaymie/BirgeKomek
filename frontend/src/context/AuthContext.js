@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { authService, usersService, notificationsService, baseURL } from '../services/api';
+import { authService, usersService } from '../services/api';
 import { formatAvatarUrl } from '../services/avatarUtils';
 import { getAuthToken, setAuthToken as storeToken, clearAuthToken as removeToken } from '../services/tokenStorage';
 
@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
-  const [linkTelegramHandler, setLinkTelegramHandler] = useState(null);
   
   // --- НОВЫЕ ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ ПРИВЯЗКИ TELEGRAM ---
   const [isLinkTelegramModalOpen, setLinkTelegramModalOpen] = useState(false);
@@ -25,7 +24,8 @@ export const AuthProvider = ({ children }) => {
   const [isTelegramLoading, setIsTelegramLoading] = useState(false);
   const [pollingIntervalId, setPollingIntervalId] = useState(null);
 
-  // Компонент для кастомного тоста, вынесен для стабильности
+  // Компонент для кастомного тоста (не используется напрямую)
+  // eslint-disable-next-line no-unused-vars
   const ToastBody = ({ title, message, link }) => (
     <a href={link} className="block w-full" onClick={() => toast.dismiss()}>
       <p className="font-bold text-gray-800">{title}</p>

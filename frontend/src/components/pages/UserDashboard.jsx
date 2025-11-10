@@ -54,7 +54,7 @@ const UserDashboard = () => {
 
     const fetchData = useCallback(async () => {
         try {
-            const [generalRes, userRes, activityRes, pendingReviewsRes, requestsRes] = await Promise.allSettled([
+            const [generalRes, userRes, activityRes, , requestsRes] = await Promise.allSettled([
                 statsService.getGeneralStats(),
                 currentUser?._id ? statsService.getUserStats(currentUser._id) : Promise.resolve(null),
                 currentUser?._id ? statsService.getActivitySummary(currentUser._id) : Promise.resolve(null),
@@ -116,7 +116,7 @@ const UserDashboard = () => {
         // --- Логика для Хелпера ---
         if (user.roles?.helper && stats.completedRequestsAsHelper > 0) {
             const count = stats.completedRequestsAsHelper;
-            const rating = stats.averageRatingAsHelper > 0 ? stats.averageRatingAsHelper.toFixed(1) : null;
+            // const rating = stats.averageRatingAsHelper > 0 ? stats.averageRatingAsHelper.toFixed(1) : null;
             
             const milestones = {
                 100: `${count} заявок! Ты — магистр помощи!`,

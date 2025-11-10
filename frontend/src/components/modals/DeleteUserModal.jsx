@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Modal from './Modal';
 import { FaTrashAlt } from 'react-icons/fa';
 
 const DeleteUserModal = ({ isOpen, onClose, onConfirm, username }) => {

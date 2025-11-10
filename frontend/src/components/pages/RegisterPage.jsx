@@ -21,7 +21,6 @@ import {
   HiOutlineX,
   HiOutlineRefresh,
   HiOutlineUserCircle,
-  HiOutlineSupport,
 } from 'react-icons/hi';
 import { LiaSchoolSolid } from 'react-icons/lia';
 
@@ -113,6 +112,8 @@ const RegisterPage = () => {
     setFormData({ ...formData, avatar: avatarData });
   };
 
+  // Обработчик изменения предметов (не используется напрямую)
+  // eslint-disable-next-line no-unused-vars
   const handleSubjectChange = (e) => {
     const { name, checked } = e.target;
     if (checked) {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Modal from './Modal';
 
 const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) => {
   const [code, setCode] = useState('');

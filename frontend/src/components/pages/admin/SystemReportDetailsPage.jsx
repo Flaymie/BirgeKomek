@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api, usersService } from '../../../services/api';
 import { toast } from 'react-hot-toast';
-import { FiUser, FiArrowLeft, FiAlertCircle, FiCheckCircle, FiShield, FiXCircle, FiClock, FiList, FiHome, FiGlobe, FiInfo } from 'react-icons/fi';
+import { FiArrowLeft, FiAlertCircle, FiCheckCircle, FiShield, FiClock, FiList, FiHome, FiGlobe, FiInfo } from 'react-icons/fi';
 import BanUserModal from '../../modals/BanUserModal'; 
 import ModeratorCommentModal from '../../modals/ModeratorCommentModal';
 
@@ -60,6 +60,7 @@ const SystemReportDetailsPage = () => {
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // eslint-disable-next-line no-unused-vars
     const [isUpdating, setIsUpdating] = useState(false);
     const [isBanModalOpen, setBanModalOpen] = useState(false);
     const [isResolveModalOpen, setResolveModalOpen] = useState(false);

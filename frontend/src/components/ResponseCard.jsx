@@ -2,14 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { responsesService } from '../services/api';
 import { toast } from 'react-toastify';
-import { useAuth } from '../context/AuthContext';
 import { formatAvatarUrl } from '../services/avatarUtils';
 import RoleBadge from './shared/RoleBadge';
 
 const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile }) => {
-  const { currentUser } = useAuth();
   const helper = fullHelperProfile || response.helper;
-  const { comment, createdAt } = response;
 
   const handleAccept = async () => {
     try {
