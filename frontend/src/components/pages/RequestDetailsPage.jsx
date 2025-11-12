@@ -155,18 +155,38 @@ const RequestDetailPage = () => {
     useEffect(() => {
         if (!socket) return;
         
+    // Присоединяемся к комнате запроса
+    socket.emit('join_request', id);
+        
     const handleNewResponse = (newResponse) => {
-      if (newResponse.request === id) {
+      // Сравниваем как строки чтобы избежать проблем с типами ObjectId
+      if (newResponse.request?.toString() === id || newResponse.request === id) {
         setResponses(prev => [...prev, newResponse]);
             }
         };
 
     const handleResponseUpdate = (updatedResponse) => {
+      // Обновляем список откликов
       setResponses(prev => prev.map(r => r._id === updatedResponse._id ? updatedResponse : r));
-      if (updatedResponse.helper._id === currentUser?._id) {
+
+      // Сопоставляем requestId независимо от формата (ObjectId | string | populated)
+      const updatedRequestId = (updatedResponse.request && updatedResponse.request._id)
+        ? updatedResponse.request._id
+        : updatedResponse.request;
+      const isSameRequest = updatedRequestId?.toString() === id;
+
+      // Если это наш отклик — обновляем локальное состояние и при принятии редиректим в чат
+      if (updatedResponse.helper._id === currentUser?._id && isSameRequest) {
         setMyResponse(updatedResponse);
-            }
-        };
+
+        if (updatedResponse.status === 'accepted') {
+          // Обновляем карточку заявки и показываем кнопку действий как у автора
+          setRequest(prev => prev ? { ...prev, status: 'in_progress', helper: updatedResponse.helper } : prev);
+          // Редирект в чат как у ученика
+          navigate(`/requests/${id}/chat`);
+        }
+      }
+    };
 
     socket.on('new_response', handleNewResponse);
     socket.on('response_updated', handleResponseUpdate);
@@ -174,6 +194,7 @@ const RequestDetailPage = () => {
         return () => {
       socket.off('new_response', handleNewResponse);
       socket.off('response_updated', handleResponseUpdate);
+      socket.emit('leave_request', id);
         };
   }, [socket, id, currentUser]);
 

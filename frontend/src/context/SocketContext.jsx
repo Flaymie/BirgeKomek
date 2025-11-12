@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { serverURL } from '../services/api';
 import { toast } from 'react-toastify';
+import { usersService } from '../services/api';
 
 const SocketContext = createContext(null);
 
@@ -22,10 +23,11 @@ const SOCKET_URL = serverURL;
 
 export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
-  const { token, showBanModal } = useAuth();
+  const { token, showBanModal, closeBanModal, _updateCurrentUserState } = useAuth();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -73,6 +75,43 @@ export const SocketProvider = ({ children }) => {
           showBanModal(data);
         });
 
+        newSocket.on('profile_updated', async (updatedFields) => {
+          try {
+            const response = await usersService.getCurrentUser();
+            _updateCurrentUserState(response.data);
+            toast.success('Ваш профиль обновлен');
+          } catch (error) {
+            console.error('Ошибка при обновлении профиля:', error);
+          }
+        });
+
+        newSocket.on('response_updated', (updatedResponse) => {
+          // Это событие обновляет откликы глобально
+          // Компоненты, которые слушают это событие, обновят свое состояние
+        });
+
+        newSocket.on('account_banned', (details) => {
+          if (typeof showBanModal === 'function') {
+            showBanModal(details);
+          }
+        });
+
+        newSocket.on('account_unbanned', async () => {
+          try {
+            const response = await usersService.getCurrentUser();
+            _updateCurrentUserState(response.data);
+          } finally {
+            if (typeof closeBanModal === 'function') closeBanModal();
+          }
+        });
+
+        newSocket.on('redirect_to_chat', (data) => {
+          // Сохраняем URL редиректа в состояние
+          if (data && data.chatUrl) {
+            setRedirectUrl(data.chatUrl);
+          }
+        });
+
         const pingInterval = setInterval(() => {
             if (newSocket.connected) {
                 newSocket.emit('user_ping');
@@ -92,13 +131,21 @@ export const SocketProvider = ({ children }) => {
         setIsConnected(false);
       }
     }
-  }, [token, showBanModal]);
+  }, [token, showBanModal, _updateCurrentUserState]);
 
   useEffect(() => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('user_navigate', { path: location.pathname });
     }
   }, [location.pathname]);
+
+  // Эффект для редиректа при получении события redirect_to_chat
+  useEffect(() => {
+    if (redirectUrl) {
+      window.location.href = redirectUrl;
+      setRedirectUrl(null);
+    }
+  }, [redirectUrl]);
 
   const markAllAsRead = () => {
     if (socketRef.current && socketRef.current.connected) {

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import BlockedIP from '../models/BlockedIP.js';
+import User from '../models/User.js';
 
 /**
  * Проверяет, является ли IP доверенным для пользователя
@@ -287,16 +288,59 @@ export const cleanupExpiredBans = async () => {
 };
 
 /**
+ * Авто-разбан аккаунтов с истекшим сроком бана
+ * @param {Server} io - экземпляр Socket.IO
+ */
+export const cleanupExpiredAccountBans = async (io) => {
+  try {
+    // Проверяем подключение к MongoDB
+    const mongoose = (await import('mongoose')).default;
+    if (mongoose.connection.readyState !== 1) return;
+
+    const now = new Date();
+    // Находим всех пользователей с истекшим баном
+    const expiredBannedUsers = await User.find({
+      'banDetails.isBanned': true,
+      'banDetails.expiresAt': { $ne: null, $lte: now }
+    }).select('_id banDetails username');
+
+    if (!expiredBannedUsers || expiredBannedUsers.length === 0) return;
+
+    for (const user of expiredBannedUsers) {
+      // Сбрасываем бан
+      user.banDetails.isBanned = false;
+      user.banDetails.reason = null;
+      user.banDetails.bannedAt = null;
+      user.banDetails.expiresAt = null;
+      await user.save();
+
+      // Уведомляем клиента по сокету, чтобы закрыть модалку
+      if (io) {
+        io.to(`user_${user._id.toString()}`).emit('account_unbanned', {});
+      }
+    }
+  } catch (error) {
+    console.error('❌ Ошибка авто-разбана аккаунтов:', error);
+  }
+};
+
+/**
  * Запускает периодическую очистку истекших банов
  * Очистка происходит каждые 10 минут
  */
-export const startBanCleanupScheduler = () => {
+export const startBanCleanupScheduler = (io) => {
   // Первая очистка через 30 секунд после старта (даем время MongoDB подключиться)
-  setTimeout(cleanupExpiredBans, 30 * 1000);
-  
+  setTimeout(() => {
+    cleanupExpiredBans();
+    cleanupExpiredAccountBans(io);
+  }, 30 * 1000);
+
   // Затем каждые 10 минут
-  setInterval(cleanupExpiredBans, 10 * 60 * 1000);
-  
-  console.log('✅ Планировщик очистки банов запущен (первая очистка через 30 сек, затем каждые 10 минут)');
+  setInterval(() => {
+    cleanupExpiredBans();
+    cleanupExpiredAccountBans(io);
+  }, 10 * 60 * 1000);
+
+  console.log('✅ Планировщик очистки банов запущен (IP и аккаунты). Первая очистка через 30 сек, затем каждые 10 минут');
 };
 

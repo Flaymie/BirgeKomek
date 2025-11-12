@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { formatAvatarUrl } from '../services/avatarUtils';
 import RoleBadge from './shared/RoleBadge';
 
-const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile }) => {
+const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile, isMyResponse }) => {
   const helper = fullHelperProfile || response.helper;
 
   const handleAccept = async () => {
@@ -51,7 +51,7 @@ const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile 
   
   const getStatusBadge = () => {
     if (response.status === 'pending') {
-      return null;
+      return isMyResponse ? <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Ожидание</span> : null;
     } else if (response.status === 'accepted') {
       return <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Принят</span>;
     } else if (response.status === 'rejected') {
@@ -107,6 +107,18 @@ const ResponseCard = ({ response, isAuthor, onResponseAction, fullHelperProfile 
       <div className="text-gray-700 whitespace-pre-line">
         {response.message}
       </div>
+      
+      {isMyResponse && response.status === 'accepted' && (
+        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-800 font-semibold">✓ Ваш отклик принят! Вы можете приступить к помощи.</p>
+        </div>
+      )}
+      
+      {isMyResponse && response.status === 'rejected' && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800 font-semibold">✗ Ваш отклик отклонен</p>
+        </div>
+      )}
       
       <div className="mt-2 text-xs text-gray-500">
         {new Date(response.createdAt).toLocaleString('ru-RU', {

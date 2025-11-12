@@ -80,13 +80,22 @@ const moderateRequest = async (title, description) => {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = getModerationPrompt(title, description);
 
-    const result = await model.generateContent(prompt);
+    // Добавляем таймаут 30 секунд для Gemini запроса
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini API timeout')), 30000)
+    );
+
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      timeoutPromise
+    ]);
     const response = await result.response;
 
     const moderatedContent = parseGeminiResponse(response.text());
+    console.log('[Gemini] Модерация завершена за', Date.now(), 'мс');
     return moderatedContent;
   } catch (error) {
-    console.error("Ошибка при обращении к Gemini API:", error);
+    console.error("Ошибка при обращении к Gemini API:", error.message);
     // В случае ошибки возвращаем исходные данные, чтобы не ломать основной флоу
     return {
       is_safe: true, // Считаем безопасным, чтобы не блокировать по ошибке

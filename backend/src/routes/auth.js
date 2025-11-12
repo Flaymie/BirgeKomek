@@ -745,7 +745,11 @@ router.post('/telegram/register', checkBlockedIP, async (req, res) => {
                 }
             },
             suspicionScore: 0,
-            suspicionLog: ['Регистрация через Telegram бота']
+            suspicionLog: [{
+                reason: 'Регистрация через Telegram бота',
+                points: 0,
+                timestamp: new Date()
+            }]
         });
 
         await newUser.save();
@@ -995,6 +999,16 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
       link: '/profile/me'
     });
 
+    // Отправляем обновление профиля через Socket.IO в реал-тайме
+    const { io } = req.app.locals;
+    if (io) {
+      io.to(`user_${req.user.id}`).emit('profile_updated', {
+        telegramId: undefined,
+        telegramUsername: undefined,
+        telegramNotificationsEnabled: undefined
+      });
+    }
+
     const updatedUser = user.toObject();
     delete updatedUser.password;
 
@@ -1087,6 +1101,17 @@ router.post('/finalizelink', async (req, res) => {
           message: `Ваш аккаунт был успешно привязан к Telegram${telegramUsername ? ' @' + telegramUsername : ''}.`,
           link: '/profile/me'
         });
+
+        // Отправляем обновление профиля через Socket.IO в реал-тайме
+        const { io } = req.app.locals;
+        if (io) {
+          io.to(`user_${userToUpdate._id}`).emit('profile_updated', {
+            telegramId: String(telegramId),
+            telegramUsername: telegramUsername || undefined,
+            telegramNotificationsEnabled: true,
+            phone: phone || undefined
+          });
+        }
         
         res.status(200).json({ msg: 'Аккаунт успешно привязан' });
 

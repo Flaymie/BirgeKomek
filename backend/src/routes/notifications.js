@@ -13,6 +13,11 @@ export const createAndSendNotification = async (notificationData) => {
   try {
     const { user, type, title, message, link, relatedEntity } = notificationData;
     
+    if (!user) {
+      console.error('Попытка создать уведомление без указания пользователя');
+      return;
+    }
+    
     const userToSend = await User.findById(user);
     if (!userToSend) {
       console.error(`Попытка создать уведомление для несуществующего пользователя: ${user}`);

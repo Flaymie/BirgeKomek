@@ -101,10 +101,16 @@ export default ({ io }) => {
       const populatedResponse = await Response.findById(newResponse._id)
                                             .populate('helper', 'username avatar');
       
+      // Преобразуем в обычный объект для отправки по сокету
+      const responseData = populatedResponse.toObject();
+      
       // Отправляем сокет автору заявки
       if(request.author) {
-        io.to(request.author.toString()).emit('new_response', populatedResponse);
+        io.to(request.author.toString()).emit('new_response', responseData);
       }
+      
+      // Также отправляем всем в комнате запроса (RequestDetailsPage)
+      io.to(`request_${requestId}`).emit('new_response', responseData);
 
       // Создаем уведомление для автора запроса
       await createAndSendNotification({
@@ -237,9 +243,20 @@ export default ({ io }) => {
       response.status = status;
       await response.save();
 
+      // Получаем обновленный отклик с заполненными данными
+      const updatedResponse = await Response.findById(responseId)
+        .populate('helper', 'username avatar')
+        .populate('request', '_id title');
+      
+      const responseData = updatedResponse.toObject();
+
+      // Отправляем обновление хелперу
       if (response.helper) {
-          io.to(response.helper._id.toString()).emit('response_updated', response);
+          io.to(response.helper._id.toString()).emit('response_updated', responseData);
       }
+      
+      // Отправляем обновление в комнату запроса (для автора)
+      io.to(`request_${response.request._id.toString()}`).emit('response_updated', responseData);
 
       // Если отклик принят, обновляем статус запроса и назначаем хелпера
       if (status === 'accepted') {
@@ -248,6 +265,13 @@ export default ({ io }) => {
           request.status = 'in_progress';
           request.helper = response.helper._id;
           await request.save();
+          
+          // Отправляем Socket.IO событие хелперу для редиректа в чат (персональная комната user_${id})
+          const helperId = response.helper._id.toString();
+          io.to(`user_${helperId}`).emit('redirect_to_chat', {
+            requestId: request._id,
+            chatUrl: `/requests/${request._id}/chat`
+          });
           
           // Уведомление хелперу, что его отклик приняли
           await createAndSendNotification({

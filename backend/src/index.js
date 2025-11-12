@@ -90,6 +90,9 @@ export const io = new Server(server, {
   }
 });
 
+// Присваиваем io в app.locals ПОСЛЕ его определения
+app.locals.io = io;
+
 // мидлвари
 app.use(express.json());
 // ЗАЩИТА ОТ ИНЪЕКЦИЙ
@@ -113,6 +116,14 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(multiAccountDetector);
 
+// Middleware для проверки подключения к MongoDB
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    console.warn(`⚠️ MongoDB не подключена (состояние: ${mongoose.connection.readyState}). Запрос: ${req.method} ${req.path}`);
+  }
+  next();
+});
+
 app.get('/uploads/:folder/:filename', (req, res) => {
   const { folder, filename } = req.params;
 
@@ -134,11 +145,34 @@ app.get('/uploads/:folder/:filename', (req, res) => {
 
 app.disable('x-powered-by');
 
-// подрубаем к монге с безопасными настройками
+// подрубаем к монге с безопасными настройками и автореконнектом
 mongoose.connect(process.env.MONGODB_URI, {
   autoIndex: process.env.NODE_ENV === 'development',
+  retryWrites: true,
+  w: 'majority',
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  minPoolSize: 2,
 })
   .catch(err => console.error('MongoDB не подключена:', err));
+
+// Обработчик событий подключения к MongoDB
+mongoose.connection.on('connected', () => {
+  console.log('✅ MongoDB подключена');
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB отключена');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ Ошибка MongoDB:', err.message);
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('🔄 MongoDB переподключена');
+});
 
 // документация API
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { 
@@ -157,7 +191,7 @@ app.use('/api/notifications', notificationRoutes({ sseConnections }));
 app.use('/api/stats', statsRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
-app.use('/api/admin', adminRoutes({ sseConnections }));
+app.use('/api/admin', adminRoutes({ sseConnections, io }));
 app.use('/api/reports', reportRoutes({ io }));
 app.use('/api/system-reports', systemReportsRoutes);
 
@@ -178,6 +212,9 @@ io.on('connection', (socket) => {
 
   const userId = socket.user.id;
   const onlineKey = `online:${userId}`;
+
+  // Присоединяем пользователя к комнате для получения персональных обновлений
+  socket.join(`user_${userId}`);
 
   if (isRedisConnected()) {
     // Устанавливаем ключ с TTL (time-to-live) в 300 секунд (5 минут).
@@ -201,6 +238,14 @@ io.on('connection', (socket) => {
 
   socket.on('leave_chat', (requestId) => {
     socket.leave(requestId);
+  });
+
+  socket.on('join_request', (requestId) => {
+    socket.join(`request_${requestId}`);
+  });
+
+  socket.on('leave_request', (requestId) => {
+    socket.leave(`request_${requestId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -338,6 +383,6 @@ server.listen(PORT, '0.0.0.0', () => {
   
   console.log(`🔌 Внутренний порт: ${PORT}`);
   
-  // Запускаем планировщик очистки истекших банов
-  startBanCleanupScheduler();
+  // Запускаем планировщик очистки истекших банов (IP и аккаунтов) с доступом к io
+  startBanCleanupScheduler(io);
 }); 

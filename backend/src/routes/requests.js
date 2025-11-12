@@ -325,19 +325,29 @@ router.post('/', uploadAttachments, createRequestLimiter, [
                 });
             }
 
-            // А теперь модерация
-            const moderatedContent = await geminiService.moderateRequest(title, description);
-
-            if (!moderatedContent.is_safe) {
-                return res.status(400).json({
-                    errors: [{
-                        msg: `Ваша заявка отклонена модерацией: ${moderatedContent.rejection_reason}`,
-                        param: "description",
-                    }],
-                });
+            // Модерация через Gemini (если включена)
+            // Запускаем асинхронно в фоне, чтобы не блокировать ответ
+            let moderationError = null;
+            if (process.env.GEMINI_AUTOMOD_ENABLED === "true") {
+                try {
+                    const moderatedContent = await geminiService.moderateRequest(title, description);
+                    
+                    if (!moderatedContent.is_safe) {
+                        return res.status(400).json({
+                            errors: [{
+                                msg: `Ваша заявка отклонена модерацией: ${moderatedContent.rejection_reason}`,
+                                param: "description",
+                            }],
+                        });
+                    }
+                    finalTitle = moderatedContent.suggested_title;
+                    finalDescription = moderatedContent.suggested_description;
+                } catch (error) {
+                    console.error('Ошибка модерации Gemini:', error);
+                    moderationError = error;
+                    // Продолжаем с исходными данными, если модерация упала
+                }
             }
-            finalTitle = moderatedContent.suggested_title;
-            finalDescription = moderatedContent.suggested_description;
         }
 
         const request = new Request({

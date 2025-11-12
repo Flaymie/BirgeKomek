@@ -905,6 +905,11 @@ export default ({ io }) => {
       const telegramMessage = `🚫 *Ваш аккаунт был заблокирован.*\n\n*Причина:* ${reason}\n*Срок:* ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}`;
       await sendTelegramMessage(userToBan.telegramId, telegramMessage);
 
+      // Сокет-событие для мгновенного показа бан-модалки на фронтенде
+      if (io) {
+        io.to(`user_${userToBan._id.toString()}`).emit('account_banned', userToBan.banDetails);
+      }
+
       res.json({ msg: `Пользователь ${userToBan.username} успешно забанен.` });
 
     } catch (err) {
@@ -962,6 +967,11 @@ export default ({ io }) => {
       // Отправляем уведомление в Telegram
       const telegramMessage = `✅ *Ваш аккаунт был разблокирован.*\n\nТеперь вы снова можете пользоваться платформой Бірге Көмек.`;
       await sendTelegramMessage(userToUnban.telegramId, telegramMessage);
+      
+      // Сокет-событие для мгновенного скрытия бан-модалки/обновления состояния на фронтенде
+      if (io) {
+        io.to(`user_${userToUnban._id.toString()}`).emit('account_unbanned', {});
+      }
       
       res.json({ msg: `Пользователь ${userToUnban.username} успешно разбанен`, user: userToUnban });
     } catch (err) {

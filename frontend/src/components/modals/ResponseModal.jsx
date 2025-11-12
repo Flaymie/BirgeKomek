@@ -39,10 +39,9 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
         request: requestId,
         message,
       });
-      toast.success('Ваш отклик успешно отправлен! Перезагружаем...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      toast.success('Ваш отклик успешно отправлен!');
+      // Закрываем модалку - Socket.IO автоматически обновит список откликов
+      onClose();
     } catch (err) {
       const errorMessage = err.response?.data?.msg || 'Произошла ошибка при отправке отклика';
       setError(errorMessage);

@@ -19,6 +19,7 @@ const MAX_FILES = 10;
 const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingMessage, setSubmittingMessage] = useState('');
   
   const [newFiles, setNewFiles] = useState([]);
   const [existingAttachments, setExistingAttachments] = useState([]);
@@ -92,6 +93,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
     if (!validateForm(isDraft)) return;
     
     setIsSubmitting(true);
+    setSubmittingMessage('');
     setErrors({});
     
     const requestData = new FormData();
@@ -108,9 +110,11 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
           requestData.append('attachments', file);
         });
 
+        setSubmittingMessage('Сохранение...');
         await requestsService.updateRequest(requestToEdit._id, requestData);
 
         if (actionType === 'publish') {
+            setSubmittingMessage('Публикация...');
             const response = await requestsService.publishDraft(requestToEdit._id);
             toast.success('Черновик успешно опубликован!');
             if (onSuccess) onSuccess(response?.data);
@@ -122,6 +126,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
         newFiles.forEach(file => {
           requestData.append('attachments', file);
         });
+        setSubmittingMessage('Проверка содержимого...');
         const response = await requestsService.createRequest(requestData, isDraft);
         toast.success(isDraft ? 'Черновик успешно сохранен!' : 'Запрос успешно создан!');
         if (onSuccess) onSuccess(response?.data);
@@ -134,6 +139,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
+      setSubmittingMessage('');
     }
   };
 
@@ -311,8 +317,9 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
       onClick={() => handleAction('publish')}
       disabled={isSubmitting}
       className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition flex items-center gap-2"
+      title={isSubmitting && submittingMessage ? submittingMessage : ''}
     >
-      {isSubmitting ? 'Публикация...' : (isEditing ? 'Опубликовать' : 'Создать запрос')}
+      {isSubmitting ? (submittingMessage || 'Обработка...') : (isEditing ? 'Опубликовать' : 'Создать запрос')}
       {!isSubmitting && <PaperAirplaneIcon className="h-5 w-5" />}
     </button>
   </div>
