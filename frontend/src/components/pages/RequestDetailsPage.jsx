@@ -196,7 +196,7 @@ const RequestDetailPage = () => {
       socket.off('response_updated', handleResponseUpdate);
       socket.emit('leave_request', id);
         };
-  }, [socket, id, currentUser]);
+  }, [socket, id, currentUser, navigate]);
 
   const isPrivilegedUser = useMemo(() => {
     return currentUser?.roles?.admin || currentUser?.roles?.moderator;

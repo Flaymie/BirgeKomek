@@ -131,7 +131,7 @@ export const SocketProvider = ({ children }) => {
         setIsConnected(false);
       }
     }
-  }, [token, showBanModal, _updateCurrentUserState]);
+  }, [token, showBanModal, closeBanModal, _updateCurrentUserState]);
 
   useEffect(() => {
     if (socketRef.current && socketRef.current.connected) {
