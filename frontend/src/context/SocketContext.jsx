@@ -28,14 +28,18 @@ export const SocketProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState(null);
+  const currentRoomRef = useRef(null);
 
   useEffect(() => {
     if (token) {
       if (!socketRef.current) {
       const newSocket = io(SOCKET_URL, {
         auth: { token },
-          transports: ['websocket'],
-          reconnectionAttempts: 5,
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
       });
         socketRef.current = newSocket;
 
@@ -45,9 +49,23 @@ export const SocketProvider = ({ children }) => {
           newSocket.emit('get_unread_notifications_count', (count) => {
             setUnreadCount(count || 0);
           });
+          
+          // Восстанавливаем комнату при реконнекте
+          if (currentRoomRef.current) {
+            newSocket.emit('join_request', currentRoomRef.current);
+          }
+      });
+
+      newSocket.on('reconnect', (attemptNumber) => {
+        console.log('Socket reconnected after', attemptNumber, 'attempts');
+        // Восстанавливаем комнату при реконнекте
+        if (currentRoomRef.current) {
+          newSocket.emit('join_request', currentRoomRef.current);
+        }
       });
 
         newSocket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error.message);
           if (error.message === 'TOKEN_EXPIRED') {
             localStorage.removeItem('token');
             sessionStorage.setItem('auth_message', 'Ваша сессия истекла. Пожалуйста, войдите снова.');
@@ -55,8 +73,23 @@ export const SocketProvider = ({ children }) => {
           }
         });
 
-        newSocket.on('disconnect', () => {
+        newSocket.on('reconnect_attempt', (attemptNumber) => {
+          console.log('Attempting to reconnect...', attemptNumber);
+        });
+
+        newSocket.on('reconnect_failed', () => {
+          console.error('Failed to reconnect to server');
+          toast.error('Потеряно соединение с сервером. Обновите страницу.');
+        });
+
+        newSocket.on('disconnect', (reason) => {
+          console.log('Socket disconnected:', reason);
           setIsConnected(false);
+          
+          // Если сервер отключил, пытаемся переподключиться
+          if (reason === 'io server disconnect') {
+            newSocket.connect();
+          }
         });
         
         newSocket.on('update_unread_count', (count) => {
@@ -117,9 +150,26 @@ export const SocketProvider = ({ children }) => {
                 newSocket.emit('user_ping');
             }
         }, 90000);
+
+        // Обработка Page Visibility API для мобильных устройств
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible') {
+            // Страница стала видимой - проверяем соединение
+            if (!newSocket.connected) {
+              console.log('Page became visible, reconnecting socket...');
+              newSocket.connect();
+            } else if (currentRoomRef.current) {
+              // Переприсоединяемся к комнате на всякий случай
+              newSocket.emit('join_request', currentRoomRef.current);
+            }
+          }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
       
       return () => {
           clearInterval(pingInterval);
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
         newSocket.disconnect();
           socketRef.current = null;
       };
@@ -160,11 +210,27 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
+  const joinRoom = (roomId) => {
+    currentRoomRef.current = roomId;
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('join_request', roomId);
+    }
+  };
+
+  const leaveRoom = () => {
+    if (currentRoomRef.current && socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('leave_request', currentRoomRef.current);
+    }
+    currentRoomRef.current = null;
+  };
+
   const value = {
     socket: socketRef.current,
     isConnected,
     unreadCount,
     markAllAsRead,
+    joinRoom,
+    leaveRoom,
   };
 
   return (

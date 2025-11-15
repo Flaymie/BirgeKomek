@@ -34,7 +34,7 @@ const RequestDetailPage = () => {
   const [responses, setResponses] = useState([]);
   const [responsesLoading, setResponsesLoading] = useState(true);
   const { currentUser, loading: authLoading } = useAuth();
-  const { socket } = useSocket();
+  const { socket, joinRoom, leaveRoom } = useSocket();
   const [myResponse, setMyResponse] = useState(null);
   
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
@@ -153,10 +153,10 @@ const RequestDetailPage = () => {
   }, [responses, currentUser]);
 
     useEffect(() => {
-        if (!socket) return;
+        if (!socket || !joinRoom || !leaveRoom) return;
         
-    // Присоединяемся к комнате запроса
-    socket.emit('join_request', id);
+    // Присоединяемся к комнате запроса через новую функцию
+    joinRoom(id);
         
     const handleNewResponse = (newResponse) => {
       // Сравниваем как строки чтобы избежать проблем с типами ObjectId
@@ -194,9 +194,9 @@ const RequestDetailPage = () => {
         return () => {
       socket.off('new_response', handleNewResponse);
       socket.off('response_updated', handleResponseUpdate);
-      socket.emit('leave_request', id);
+      leaveRoom();
         };
-  }, [socket, id, currentUser, navigate]);
+  }, [socket, id, currentUser, navigate, joinRoom, leaveRoom]);
 
   const isPrivilegedUser = useMemo(() => {
     return currentUser?.roles?.admin || currentUser?.roles?.moderator;
