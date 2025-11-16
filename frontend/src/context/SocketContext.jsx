@@ -58,7 +58,6 @@ export const SocketProvider = ({ children }) => {
       });
 
       newSocket.on('reconnect', (attemptNumber) => {
-        console.log('Socket reconnected after', attemptNumber, 'attempts');
         // Восстанавливаем комнату при реконнекте
         if (currentRoomRef.current) {
           newSocket.emit('join_request', currentRoomRef.current);
@@ -74,17 +73,12 @@ export const SocketProvider = ({ children }) => {
           }
         });
 
-        newSocket.on('reconnect_attempt', (attemptNumber) => {
-          console.log('Attempting to reconnect...', attemptNumber);
-        });
-
         newSocket.on('reconnect_failed', () => {
           console.error('Failed to reconnect to server');
           toast.error('Потеряно соединение с сервером. Обновите страницу.');
         });
 
         newSocket.on('disconnect', (reason) => {
-          console.log('Socket disconnected:', reason);
           setIsConnected(false);
           
           // Если сервер отключил, пытаемся переподключиться
@@ -166,7 +160,6 @@ export const SocketProvider = ({ children }) => {
           if (document.visibilityState === 'visible') {
             // Страница стала видимой - проверяем соединение
             if (!newSocket.connected) {
-              console.log('Page became visible, reconnecting socket...');
               newSocket.connect();
             } else if (currentRoomRef.current) {
               // Переприсоединяемся к комнате на всякий случай
