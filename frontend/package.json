@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "version": "0.7.0",
-  "description": "Клиентская часть (React) для платформы социальной помощи 'Бірге Көмек'.",
+  "description": "Клиентская часть(React) для платформы социальной помощи 'Бірге Көмек'.",
   "author": "Flaymie",
   "private": true,
   "dependencies": {
