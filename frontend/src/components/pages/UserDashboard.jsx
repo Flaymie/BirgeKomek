@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import StatusBadge from '../shared/StatusBadge';
 import CreateRequestModal from '../modals/CreateRequestModal';
+import { useSocket } from '../../context/SocketContext';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-6 rounded-xl shadow-md animate-pulse">
@@ -45,12 +46,14 @@ const ActivityItemSkeleton = () => (
 
 const UserDashboard = () => {
     const { currentUser } = useAuth();
+    const { onlineUsers, onlineHelpers } = useSocket();
     const [generalStats, setGeneralStats] = useState(null);
     const [userStats, setUserStats] = useState(null);
     const [relevantRequests, setRelevantRequests] = useState([]);
     const [activitySummary, setActivitySummary] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [welcomeMessage, setWelcomeMessage] = useState('');
 
     const fetchData = useCallback(async () => {
         try {
@@ -70,7 +73,11 @@ const UserDashboard = () => {
             ]);
 
             if (generalRes.status === 'fulfilled') setGeneralStats(generalRes.value.data);
-            if (userRes.status === 'fulfilled' && userRes.value) setUserStats(userRes.value.data);
+            if (userRes.status === 'fulfilled' && userRes.value) {
+                setUserStats(userRes.value.data);
+                // Фиксируем приветственное сообщение один раз после загрузки статистики
+                setWelcomeMessage(getPersonalizedMessage(currentUser, userRes.value.data));
+            }
             if (activityRes.status === 'fulfilled' && activityRes.value) setActivitySummary(activityRes.value.data);
             if (requestsRes.status === 'fulfilled' && requestsRes.value) setRelevantRequests(requestsRes.value.data.requests);
 
@@ -176,7 +183,9 @@ const UserDashboard = () => {
                 С возвращением, {currentUser.username}!
             </h1>
             <p className="text-lg text-gray-600 mb-8">
-                {loading ? 'Загружаем вашу статистику...' : getPersonalizedMessage(currentUser, userStats)}
+                {loading
+                  ? 'Загружаем вашу статистику...'
+                  : (welcomeMessage || getPersonalizedMessage(currentUser, userStats))}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -186,6 +195,25 @@ const UserDashboard = () => {
                     <>
                         <StatCard icon={<FiBookOpen />} label="Активных заявок на сайте" value={generalStats?.activeRequests || 0} colorClass="text-blue-500" />
                         <StatCard icon={<FiCheckSquare />} label="Всего выполнено" value={generalStats?.completedRequests || 0} colorClass="text-green-500" />
+
+                        {currentUser.roles?.student && (
+                            <StatCard
+                                icon={<FiUser />}
+                                label="Хелперов онлайн сейчас"
+                                value={onlineHelpers ?? generalStats?.onlineHelpers ?? 0}
+                                colorClass="text-emerald-500"
+                            />
+                        )}
+
+                        {currentUser.roles?.helper && (
+                            <StatCard
+                                icon={<FiUser />}
+                                label="Участников онлайн сейчас"
+                                value={onlineUsers ?? generalStats?.onlineUsers ?? 0}
+                                colorClass="text-purple-500"
+                            />
+                        )}
+
                         {userStats?.averageRatingAsHelper !== null && (
                             <StatCard icon={<FiStar />} label="Ваш рейтинг" value={userStats?.averageRatingAsHelper.toFixed(1) || 'N/A'} colorClass="text-yellow-500" />
                         )}

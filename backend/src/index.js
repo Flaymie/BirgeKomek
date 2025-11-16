@@ -90,6 +90,33 @@ export const io = new Server(server, {
   }
 });
 
+const broadcastOnlineStats = async () => {
+  if (!isRedisConnected()) return;
+
+  try {
+    const keys = await redis.keys('online:*');
+    const onlineUsers = keys.length;
+    let onlineHelpers = 0;
+
+    if (keys.length > 0) {
+      const userIds = keys
+        .map((key) => key.split(':')[1])
+        .filter(Boolean);
+
+      if (userIds.length > 0) {
+        onlineHelpers = await User.countDocuments({
+          _id: { $in: userIds },
+          'roles.helper': true,
+        });
+      }
+    }
+
+    io.emit('online_stats_updated', { onlineUsers, onlineHelpers });
+  } catch (error) {
+    console.error('Ошибка при отправке онлайн-статистики:', error.message);
+  }
+};
+
 // Присваиваем io в app.locals ПОСЛЕ его определения
 app.locals.io = io;
 
@@ -220,6 +247,7 @@ io.on('connection', (socket) => {
     // Устанавливаем ключ с TTL (time-to-live) в 300 секунд (5 минут).
     // Если в течение этого времени не будет 'user_ping', Redis сам удалит ключ.
     redis.setex(onlineKey, 180, '1');
+    broadcastOnlineStats();
   }
 
   // Разово обновляем lastSeen при подключении, для надежности
@@ -348,6 +376,7 @@ io.on('connection', (socket) => {
     if (isRedisConnected()) {
       redis.del(onlineKey);
     }
+    broadcastOnlineStats();
   });
 });
 

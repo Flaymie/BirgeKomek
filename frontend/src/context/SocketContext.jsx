@@ -29,6 +29,7 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState(null);
   const currentRoomRef = useRef(null);
+  const [onlineStats, setOnlineStats] = useState({ onlineUsers: 0, onlineHelpers: 0 });
 
   useEffect(() => {
     if (token) {
@@ -103,6 +104,15 @@ export const SocketProvider = ({ children }) => {
             { closeButton: true, autoClose: 8000 }
           );
       });
+
+        newSocket.on('online_stats_updated', (stats) => {
+          if (stats && typeof stats === 'object') {
+            setOnlineStats({
+              onlineUsers: stats.onlineUsers || 0,
+              onlineHelpers: stats.onlineHelpers || 0,
+            });
+          }
+        });
 
         newSocket.on('user_banned', (data) => {
           showBanModal(data);
@@ -231,6 +241,8 @@ export const SocketProvider = ({ children }) => {
     markAllAsRead,
     joinRoom,
     leaveRoom,
+    onlineUsers: onlineStats.onlineUsers,
+    onlineHelpers: onlineStats.onlineHelpers,
   };
 
   return (

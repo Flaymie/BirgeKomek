@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Request from '../models/Request.js';
 import { protect } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rateLimiters.js';
+import redis, { isRedisConnected } from '../config/redis.js';
 
 const router = express.Router();
 
@@ -29,6 +30,8 @@ const router = express.Router();
  *               properties:
  *                 totalUsers: { type: 'integer' }
  *                 totalHelpers: { type: 'integer' }
+ *                 onlineUsers: { type: 'integer' }
+ *                 onlineHelpers: { type: 'integer' }
  *                 activeRequests: { type: 'integer' }
  *                 completedRequests: { type: 'integer' }
  *                 totalRequests: { type: 'integer' }
@@ -43,9 +46,36 @@ router.get('/general', async (req, res) => {
     const completedRequests = await Request.countDocuments({ status: 'completed' });
     const totalRequests = await Request.countDocuments();
 
+    let onlineUsers = 0;
+    let onlineHelpers = 0;
+
+    if (isRedisConnected()) {
+      try {
+        const keys = await redis.keys('online:*');
+        onlineUsers = keys.length;
+
+        if (keys.length > 0) {
+          const userIds = keys
+            .map((key) => key.split(':')[1])
+            .filter(Boolean);
+
+          if (userIds.length > 0) {
+            onlineHelpers = await User.countDocuments({
+              _id: { $in: userIds },
+              'roles.helper': true,
+            });
+          }
+        }
+      } catch (redisError) {
+        console.error('Ошибка при получении онлайна из Redis:', redisError.message);
+      }
+    }
+
     res.json({
       totalUsers,
       totalHelpers,
+      onlineUsers,
+      onlineHelpers,
       activeRequests,
       completedRequests,
       totalRequests,

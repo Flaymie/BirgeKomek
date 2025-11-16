@@ -28,6 +28,8 @@ const CommandPalette = () => {
     
     // Команды для персонала
     { name: 'Жалобы', description: 'Перейти к списку жалоб', action: () => navigate('/reports'), requiresRole: ['admin', 'moderator'] },
+    { name: 'Системные репорты', description: 'Просмотреть системные отчеты и логи', action: () => navigate('/admin/system-reports'), requiresRole: ['admin', 'moderator'] },
+    { name: 'Пользователи', description: 'Управление пользователями платформы', action: () => navigate('/admin/users'), requiresRole: ['admin'] },
     { name: 'Аналитика', description: 'Просмотреть статистику платформы', action: () => navigate('/analytics'), requiresRole: ['admin'] },
     
     // Информационные страницы
