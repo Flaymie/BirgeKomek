@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, Fragment } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { formatAvatarUrl } from '../../services/avatarUtils';
@@ -21,6 +21,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   
   const chatPageMatch = location.pathname.match(/^\/requests\/(.+)\/chat$/);
@@ -42,6 +43,9 @@ const Header = () => {
     e.preventDefault();
     try {
       await logout();
+      if (location.pathname === '/requests') {
+        navigate('/login');
+      }
     } catch (err) {
       console.error('Ошибка при выходе:', err);
     }

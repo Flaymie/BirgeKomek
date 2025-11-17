@@ -309,26 +309,13 @@ const UserProfileView = ({ profile, currentUser, onBack, onBan, onUnban, onNotif
             {hasAnyContactInfo && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {hasLocation && (
+            <div className="w-full">
                 <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Город</h3>
                   <p className="text-gray-800 font-semibold">{profile.location}</p>
-                  </div>
-                )}
-                
-                {hasTelegramUsername && (
-                 <div className="bg-gray-50 p-4 rounded-xl hover:shadow-md transition-shadow">
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Telegram</h3>
-                     <a 
-                        href={`https://t.me/${profile.telegramUsername}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-800 font-semibold flex items-center"
-                      >
-                       <FaTelegramPlane className="mr-2" />
-                       @{profile.telegramUsername}
-                      </a>
-                   </div>
-                )}
+                </div>
+            </div>
+            )}
             </div>
             )}
                 
