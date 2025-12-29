@@ -49,18 +49,26 @@ const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (isLoading) return;
+
         if (!reason.trim()) {
             toast.error('Необходимо указать причину редактирования.');
             return;
         }
-        
+
         const finalUserData = { ...userData };
         if (user?.roles.helper) {
             finalUserData.subjects = subjects.split(',').map(s => s.trim()).filter(Boolean);
         }
 
-        onConfirm(finalUserData, reason);
+        try {
+            setIsLoading(true);
+            await onConfirm(finalUserData, reason);
+        } catch (err) {
+            console.error('Error in AdminEditProfileModal:', err);
+            setIsLoading(false);
+        }
     };
 
     if (!isOpen || !user) return null;
@@ -96,82 +104,82 @@ const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
                     <div className="flex justify-center mb-4">
                         <AvatarUpload currentAvatar={userData.avatar} onUpload={handleAvatarUpload} isLoading={isLoading} />
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Никнейм</label>
-                            <input 
-                                type="text" 
-                                name="username" 
-                                value={userData.username} 
-                                onChange={handleChange} 
-                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            <input
+                                type="text"
+                                name="username"
+                                value={userData.username}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
-                            <input 
-                                type="text" 
-                                name="phone" 
-                                value={userData.phone} 
-                                onChange={handleChange} 
-                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            <input
+                                type="text"
+                                name="phone"
+                                value={userData.phone}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
-                            <input 
-                                type="text" 
-                                name="location" 
-                                value={userData.location} 
-                                onChange={handleChange} 
-                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            <input
+                                type="text"
+                                name="location"
+                                value={userData.location}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
-                            <input 
-                                type="text" 
-                                name="grade" 
-                                value={userData.grade} 
-                                onChange={handleChange} 
-                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            <input
+                                type="text"
+                                name="grade"
+                                value={userData.grade}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
-                        
+
                         {user.roles.helper && (
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Предметы (через запятую)</label>
-                                <input 
-                                    type="text" 
-                                    name="subjects" 
-                                    value={subjects} 
-                                    onChange={(e) => setSubjects(e.target.value)} 
-                                    className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                                <input
+                                    type="text"
+                                    name="subjects"
+                                    value={subjects}
+                                    onChange={(e) => setSubjects(e.target.value)}
+                                    className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 />
                             </div>
                         )}
 
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">О себе (Bio)</label>
-                            <textarea 
-                                name="bio" 
-                                value={userData.bio} 
-                                onChange={handleChange} 
-                                rows="3" 
-                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                            <textarea
+                                name="bio"
+                                value={userData.bio}
+                                onChange={handleChange}
+                                rows="3"
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
 
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Причина редактирования *</label>
-                            <textarea 
-                                name="reason" 
-                                value={reason} 
-                                onChange={(e) => setReason(e.target.value)} 
-                                rows="2" 
-                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                                placeholder="Обязательно для заполнения" 
+                            <textarea
+                                name="reason"
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                rows="2"
+                                className="w-full px-4 py-2 text-base border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Обязательно для заполнения"
                             />
                         </div>
                     </div>
@@ -179,17 +187,17 @@ const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
 
                 {/* Кнопки */}
                 <div className="flex justify-end gap-3 p-5 border-t border-gray-200">
-                    <button 
-                        type="button" 
-                        onClick={onClose} 
+                    <button
+                        type="button"
+                        onClick={onClose}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors"
                     >
                         Отмена
                     </button>
-                    <button 
-                        type="button" 
-                        onClick={handleSubmit} 
-                        disabled={isLoading || !reason.trim()} 
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={isLoading || !reason.trim()}
                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Сохранить и запросить код

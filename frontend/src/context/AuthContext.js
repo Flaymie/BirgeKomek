@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [isRequireTgModalOpen, setIsRequireTgModalOpen] = useState(false);
-  
+
   // --- НОВЫЕ ГЛОБАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ ПРИВЯЗКИ TELEGRAM ---
   const [isLinkTelegramModalOpen, setLinkTelegramModalOpen] = useState(false);
   const [telegramLinkUrl, setTelegramLinkUrl] = useState('');
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }) => {
 
     loadUser();
   }, [processAndCheckBan]);
-  
+
   // Управление SSE-соединением УДАЛЕНО
 
   // Функция для входа пользователя
@@ -124,26 +124,26 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { data } = await authService.login(credentials);
-      
+
       // Проверяем, требуется ли подтверждение IP
       if (data.requireIPVerification) {
         // Сохраняем токен, чтобы можно было подтвердить IP
         storeToken(data.token);
         setToken(data.token);
         setLoading(false);
-        return { 
-          success: true, 
+        return {
+          success: true,
           requireIPVerification: true,
           currentIP: data.currentIP || 'Unknown'
         };
       }
-      
+
       storeToken(data.token);
       setToken(data.token);
-      
+
       processAndCheckBan(data.user);
       setIsReadOnly(!data.user.telegramId);
-      
+
       setLoading(false);
       toast.success('Вход выполнен успешно!');
       return { success: true };
@@ -164,8 +164,8 @@ export const AuthProvider = ({ children }) => {
       toast.error(errorMessage);
       setLoading(false);
       setIsReadOnly(true);
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: errorMessage,
         code: err.response?.data?.code
       };
@@ -193,14 +193,14 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
-      
+
       // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
       let formData = new FormData();
       let hasAvatar = false;
-      
+
       // Копируем все поля из userData в formData, кроме аватара
       Object.keys(userData).forEach(key => {
         if (key === 'avatar') {
@@ -223,31 +223,31 @@ export const AuthProvider = ({ children }) => {
           formData.append(key, userData[key]);
         }
       });
-      
+
       if (!hasAvatar) {
         console.log('AuthContext: Аватар не предоставлен в данных регистрации');
       }
-      
+
       const response = await authService.register(formData);
       console.log('AuthContext: Ответ сервера о регистрации:', response);
-      
+
       if (response && response.data) {
         console.log('AuthContext: Регистрация успешна, данные ответа:', response.data);
-        
+
         // Проверяем, содержит ли ответ токен, который нужно сохранить
         if (response.data.token && response.data.user) {
-            console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
-            // Используем loginWithToken для установки состояния
-            loginWithToken(response.data.token, response.data.user);
-            // Возвращаем успех, чтобы компонент мог среагировать
-            return { success: true };
+          console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
+          // Используем loginWithToken для установки состояния
+          loginWithToken(response.data.token, response.data.user);
+          // Возвращаем успех, чтобы компонент мог среагировать
+          return { success: true };
         } else {
-            console.warn('AuthContext: Ответ не содержит токен или пользователя.');
-            // На всякий случай обрабатываем ситуацию, когда чего-то не хватает
-            const errorMsg = 'Не удалось завершить сессию после регистрации.';
-            setError(errorMsg);
-            // toast.error убран - будет показан в RegisterPage
-            return { success: false, error: errorMsg };
+          console.warn('AuthContext: Ответ не содержит токен или пользователя.');
+          // На всякий случай обрабатываем ситуацию, когда чего-то не хватает
+          const errorMsg = 'Не удалось завершить сессию после регистрации.';
+          setError(errorMsg);
+          // toast.error убран - будет показан в RegisterPage
+          return { success: false, error: errorMsg };
         }
       } else {
         console.error('AuthContext: Неожиданный формат ответа:', response);
@@ -256,13 +256,13 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('AuthContext: Ошибка при регистрации:', err);
-      
+
       // Расширенное логирование информации об ошибке
       if (err.response) {
         console.error('AuthContext: Данные ошибки:', err.response.data);
         console.error('AuthContext: Статус ошибки:', err.response.status);
         console.error('AuthContext: Заголовки ответа:', err.response.headers);
-        
+
         // Полезно для отладки - сериализуем полностью ответ об ошибке
         try {
           console.error('AuthContext: Полный объект ответа:', JSON.stringify(err.response));
@@ -270,16 +270,29 @@ export const AuthProvider = ({ children }) => {
           console.error('AuthContext: Не удалось сериализовать объект ответа');
         }
       }
-      
-      const errorMessage = err.response?.data?.msg || err.message || 'Ошибка регистрации';
+
+      let errorMessage = 'Ошибка регистрации';
+      if (err.response && err.response.data) {
+        if (err.response.data.errors && Array.isArray(err.response.data.errors) && err.response.data.errors.length > 0) {
+          // Собираем сообщения из массива ошибок
+          errorMessage = err.response.data.errors.map(e => e.msg).join('. ');
+        } else if (err.response.data.msg) {
+          errorMessage = err.response.data.msg;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
       setError(errorMessage);
       // toast.error убран - будет показан в RegisterPage
       setLoading(false);
       setIsReadOnly(true);
-      
-      return { 
-        success: false, 
-        error: errorMessage 
+
+      return {
+        success: false,
+        error: errorMessage
       };
     }
   };
@@ -287,8 +300,8 @@ export const AuthProvider = ({ children }) => {
   // Функция для обновления аватара пользователя
   const updateAvatar = (avatarUrl) => {
     if (currentUser) {
-      const updatedUser = { 
-        ...currentUser, 
+      const updatedUser = {
+        ...currentUser,
         avatar: avatarUrl,
         formattedAvatar: formatAvatarUrl(avatarUrl, currentUser.username)
       };
@@ -310,23 +323,23 @@ export const AuthProvider = ({ children }) => {
 
       console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
       const response = await usersService.updateProfile(payload);
-      
+
       // Сохраняем telegramId из текущего пользователя, если его нет в ответе
-      const mergedData = {...currentUser, ...response.data};
+      const mergedData = { ...currentUser, ...response.data };
       if (response.data.telegramId === undefined && currentUser.telegramId) {
         mergedData.telegramId = currentUser.telegramId;
       }
-      
+
       const updatedUserData = processUserData(mergedData);
       setCurrentUser(updatedUserData);
       setIsReadOnly(!updatedUserData.telegramId);
-      
+
       setLoading(false);
       return { success: true, user: response.data };
     } catch (err) {
       console.error('Ошибка обновления профиля:', err);
       console.error('Детали ошибки:', JSON.stringify(err.response?.data || {}));
-      
+
       let errorMessage = 'Ошибка при обновлении профиля';
       if (err.response) {
         if (err.response.data.errors && err.response.data.errors.length > 0) {
@@ -335,7 +348,7 @@ export const AuthProvider = ({ children }) => {
           errorMessage = err.response.data.msg;
         }
       }
-      
+
       setError(errorMessage);
       toast.error(errorMessage); // Показываем тост с ошибкой здесь
       setLoading(false);
@@ -366,20 +379,20 @@ export const AuthProvider = ({ children }) => {
   const logout = async (showToast = true) => {
     console.log('Выполняется выход...');
     try {
-        const token = getAuthToken();
-        if (token) {
-            await authService.logout();
-        }
+      const token = getAuthToken();
+      if (token) {
+        await authService.logout();
+      }
     } catch (err) {
-        console.error("Ошибка при выходе на сервере, но выходим локально", err);
+      console.error("Ошибка при выходе на сервере, но выходим локально", err);
     } finally {
-        setCurrentUser(null);
-        removeToken();
-        setToken(null);
-        // Закрываем все модальные окна и сбрасываем состояния
-        setIsBannedModalOpen(false);
-        setBanDetails(null);
-        setIsReadOnly(true);
+      setCurrentUser(null);
+      removeToken();
+      setToken(null);
+      // Закрываем все модальные окна и сбрасываем состояния
+      setIsBannedModalOpen(false);
+      setBanDetails(null);
+      setIsReadOnly(true);
     }
   };
 
@@ -419,10 +432,10 @@ export const AuthProvider = ({ children }) => {
             closeLinkTelegramModal(); // Закроет модалку и очистит интервал
           }
         } catch (pollError) {
-           console.error('Ошибка опроса статуса привязки:', pollError);
-           if (pollError.response?.status === 404) {
-               closeLinkTelegramModal();
-           }
+          console.error('Ошибка опроса статуса привязки:', pollError);
+          if (pollError.response?.status === 404) {
+            closeLinkTelegramModal();
+          }
         }
       }, 3000);
       setPollingIntervalId(intervalId);
@@ -437,16 +450,16 @@ export const AuthProvider = ({ children }) => {
 
   const handleUnlinkTelegram = useCallback(async () => {
     if (window.confirm('Вы уверены, что хотите отвязать Telegram? Это действие нельзя будет отменить.')) {
-        setIsTelegramLoading(true);
-        try {
-            const res = await authService.unlinkTelegram();
-            toast.success(res.data.msg);
-            _updateCurrentUserState(res.data.user);
-        } catch (err) {
-            toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
-        } finally {
-            setIsTelegramLoading(false);
-        }
+      setIsTelegramLoading(true);
+      try {
+        const res = await authService.unlinkTelegram();
+        toast.success(res.data.msg);
+        _updateCurrentUserState(res.data.user);
+      } catch (err) {
+        toast.error(err.response?.data?.msg || 'Не удалось отвязать Telegram.');
+      } finally {
+        setIsTelegramLoading(false);
+      }
     }
   }, [_updateCurrentUserState]);
 

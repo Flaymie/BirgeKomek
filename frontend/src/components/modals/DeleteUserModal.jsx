@@ -4,15 +4,19 @@ import { FaTrashAlt } from 'react-icons/fa';
 const DeleteUserModal = ({ isOpen, onClose, onConfirm, username }) => {
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setReason('');
             setError('');
+            setIsLoading(false);
         }
     }, [isOpen]);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (isLoading) return;
+
         if (!reason.trim()) {
             setError('Причина удаления обязательна.');
             return;
@@ -21,7 +25,14 @@ const DeleteUserModal = ({ isOpen, onClose, onConfirm, username }) => {
             setError('Причина должна быть не менее 10 символов.');
             return;
         }
-        onConfirm(reason);
+
+        try {
+            setIsLoading(true);
+            await onConfirm(reason);
+        } catch (err) {
+            console.error('Error in DeleteUserModal:', err);
+            setIsLoading(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -52,7 +63,8 @@ const DeleteUserModal = ({ isOpen, onClose, onConfirm, username }) => {
                             id="reason"
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 shadow-sm focus:border-red-500 focus:ring-1 focus:ring-red-200 transition resize-none"
+                            disabled={isLoading}
+                            className="w-full rounded-lg border border-gray-300 shadow-sm focus:border-red-500 focus:ring-1 focus:ring-red-200 transition resize-none disabled:bg-gray-100 disabled:text-gray-500"
                             rows="3"
                             placeholder="Опишите причину удаления..."
                             maxLength={200}
@@ -60,21 +72,29 @@ const DeleteUserModal = ({ isOpen, onClose, onConfirm, username }) => {
                         {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
                     </div>
                 </div>
-                
+
                 <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-lg">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Отмена
                     </button>
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     >
-                        Удалить и запросить код
+                        {isLoading && (
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        )}
+                        {isLoading ? 'Запрос кода...' : 'Удалить и запросить код'}
                     </button>
                 </div>
             </div>
