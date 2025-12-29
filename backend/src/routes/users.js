@@ -44,7 +44,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
@@ -104,7 +104,7 @@ export default ({ io }) => {
       const user = await User.findById(req.user.id)
         .select('-password')
         .populate('banDetails.bannedBy', 'username');
-        
+
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
@@ -197,8 +197,8 @@ export default ({ io }) => {
 
       if (newPassword) {
         if (!currentPassword) {
-          return res.status(400).json({ 
-            errors: [{ msg: 'Текущий пароль обязателен для установки нового пароля.' }] 
+          return res.status(400).json({
+            errors: [{ msg: 'Текущий пароль обязателен для установки нового пароля.' }]
           });
         }
         const isMatch = await user.comparePassword(currentPassword);
@@ -206,29 +206,29 @@ export default ({ io }) => {
           return res.status(401).json({ errors: [{ msg: 'Неверный текущий пароль.' }] });
         }
       }
-      
+
       // Новая логика смены никнейма
       if (username && username.toLowerCase() !== user.username) {
-          // 1. Проверка на уникальность (без учета регистра)
-          const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
-          if (existingUser && existingUser._id.toString() !== userId) {
-              return res.status(400).json({ msg: 'Этот никнейм уже занят.' });
-          }
+        // 1. Проверка на уникальность (без учета регистра)
+        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+        if (existingUser && existingUser._id.toString() !== userId) {
+          return res.status(400).json({ msg: 'Этот никнейм уже занят.' });
+        }
 
-          // 2. Проверка на время смены
-          const lastChange = user.lastUsernameChange;
-          const now = new Date();
-          const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+        // 2. Проверка на время смены
+        const lastChange = user.lastUsernameChange;
+        const now = new Date();
+        const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
 
-          if (lastChange && (now.getTime() - lastChange.getTime()) < thirtyDaysInMs) {
-              const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
-              return res.status(400).json({
-                  msg: `Вы сможете изменить никнейм только после ${nextDate.toLocaleDateString('ru-RU')}.`
-              });
-          }
+        if (lastChange && (now.getTime() - lastChange.getTime()) < thirtyDaysInMs) {
+          const nextDate = new Date(lastChange.getTime() + thirtyDaysInMs);
+          return res.status(400).json({
+            msg: `Вы сможете изменить никнейм только после ${nextDate.toLocaleDateString('ru-RU')}.`
+          });
+        }
 
-          user.username = username;
-          user.lastUsernameChange = now;
+        user.username = username;
+        user.lastUsernameChange = now;
       }
 
       if (newPassword) {
@@ -244,7 +244,7 @@ export default ({ io }) => {
       }
 
       await user.save();
-      
+
       // Явно возвращаем пользователя без пароля, но со всеми нужными полями
       const updatedUser = await User.findById(userId).select('-password').lean();
       res.json(updatedUser);
@@ -252,8 +252,8 @@ export default ({ io }) => {
     } catch (err) {
       console.error('Ошибка при обновлении пользователя:', err);
       if (err.name === 'ValidationError') {
-          const messages = Object.values(err.errors).map(val => val.message);
-          return res.status(400).json({ msg: messages.join(', ') });
+        const messages = Object.values(err.errors).map(val => val.message);
+        return res.status(400).json({ msg: messages.join(', ') });
       }
       res.status(500).json({ msg: 'Ошибка сервера' });
     }
@@ -310,9 +310,9 @@ export default ({ io }) => {
           ...icon
         };
       }
-      
+
       await user.save();
-      
+
       const updatedUser = user.toObject();
       delete updatedUser.password;
 
@@ -372,7 +372,7 @@ export default ({ io }) => {
    *       500:
    *         description: Внутренняя ошибка сервера
    */
-  router.get('/:identifier', [
+  router.get('/:identifier', protect, [
     param('identifier').notEmpty().withMessage('Необходим идентификатор пользователя').trim()
   ], async (req, res) => {
     const errors = validationResult(req);
@@ -383,20 +383,23 @@ export default ({ io }) => {
       const { identifier } = req.params;
       let user;
 
+      // Ограничиваем поля, которые мы запрашиваем из базы
+      const publicFields = '_id username roles grade averageRating rating subjects avatar lastSeen createdAt bio location telegramUsername banDetails profileCustomization';
+
       // Сначала пытаемся найти по ID, если это валидный ObjectId
       if (mongoose.Types.ObjectId.isValid(identifier)) {
-        user = await User.findById(identifier).select('-password').lean();
+        user = await User.findById(identifier).select(publicFields).lean();
       }
 
       // Если по ID не нашли или это был не ObjectId, ищем по username
       if (!user) {
-        user = await User.findOne({ username: identifier }).select('-password').lean();
+        user = await User.findOne({ username: identifier }).select(publicFields).lean();
       }
 
       if (!user) {
         return res.status(404).json({ msg: 'Пользователь не найден' });
       }
-      
+
       // Новая проверка онлайн-статуса через Redis
       let isOnline = false;
       if (isRedisConnected()) {
@@ -404,15 +407,35 @@ export default ({ io }) => {
         const result = await redis.exists(onlineKey);
         isOnline = result === 1;
       }
-      
+
       const createdRequests = await Request.countDocuments({ author: user._id });
       const completedRequests = await Request.countDocuments({ helper: user._id, status: 'completed' });
+
       const publicProfile = {
-        ...user,
-        isOnline: isOnline,
+        _id: user._id,
+        username: user.username,
+        roles: user.roles,
+        grade: user.grade,
+        averageRating: user.averageRating,
+        rating: user.rating,
+        subjects: user.subjects,
+        avatar: user.avatar,
+        lastSeen: user.lastSeen,
+        createdAt: user.createdAt,
+        bio: user.bio,
+        location: user.location,
+        telegramUsername: user.telegramUsername,
+        banDetails: {
+          isBanned: user.banDetails?.isBanned,
+          reason: user.banDetails?.reason,
+          expiresAt: user.banDetails?.expiresAt
+        },
+        profileCustomization: user.profileCustomization,
+        isOnline,
         createdRequests,
         completedRequests
       };
+
       res.json(publicProfile);
     } catch (err) {
       console.error('Ошибка при получении профиля пользователя:', err.message);
@@ -513,8 +536,8 @@ export default ({ io }) => {
 
       const sortParams = {};
       if (sortBy) {
-          const parts = sortBy.split('_');
-          sortParams[parts[0]] = parts[1] === 'desc' ? -1 : 1;
+        const parts = sortBy.split('_');
+        sortParams[parts[0]] = parts[1] === 'desc' ? -1 : 1;
       }
 
 
@@ -523,8 +546,8 @@ export default ({ io }) => {
         .sort(sortParams)
         .skip((page - 1) * limit)
         .limit(limit)
-        .lean(); 
-        
+        .lean();
+
       const totalHelpers = await User.countDocuments(queryOptions);
 
       const helpersWithStats = await Promise.all(helpers.map(async (helper) => {
@@ -609,7 +632,7 @@ export default ({ io }) => {
 
       user.password = newPassword;
       await user.save();
-      
+
       // Уведомление о смене пароля
       await createAndSendNotification(req.app.locals.sseConnections, {
         user: req.user.id,
@@ -680,57 +703,57 @@ export default ({ io }) => {
       res.status(500).json({ msg: 'Ошибка сервера при запросе на удаление аккаунта.' });
     }
   });
-  
+
   router.post('/me/delete', protect, generalLimiter, setCodeProtectionContext('delete'), [
-      body('confirmationCode').notEmpty().isLength({ min: 6, max: 6 }).withMessage('Код подтверждения должен состоять из 6 цифр.'),
+    body('confirmationCode').notEmpty().isLength({ min: 6, max: 6 }).withMessage('Код подтверждения должен состоять из 6 цифр.'),
   ], async (req, res, next) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const userId = req.user._id;
+      const { confirmationCode } = req.body;
+      const redisKey = `delete-confirm:${userId}`;
+
+      const storedCode = await redis.get(redisKey);
+
+      if (!storedCode) {
+        return res.status(400).json({ msg: 'Код подтверждения истек или не был запрошен. Попробуйте снова.' });
       }
 
-      try {
-          const userId = req.user._id;
-          const { confirmationCode } = req.body;
-          const redisKey = `delete-confirm:${userId}`;
-
-          const storedCode = await redis.get(redisKey);
-
-          if (!storedCode) {
-              return res.status(400).json({ msg: 'Код подтверждения истек или не был запрошен. Попробуйте снова.' });
-          }
-
-          if (storedCode !== confirmationCode) {
-              // Неверный код - используем middleware для обработки
-              return handleFailedCodeAttempt(req, res, next);
-          }
-          
-          // Код верный - сбрасываем счетчик попыток
-          await resetAttempts(userId, 'delete');
-          
-          await Request.updateMany(
-            { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
-            { $set: { status: 'open' }, $unset: { helper: 1 } }
-          );
-          const userRequests = await Request.find({ author: userId }).select('_id');
-          const requestIds = userRequests.map(r => r._id);
-          if (requestIds.length > 0) {
-            await Message.deleteMany({ requestId: { $in: requestIds } });
-            await Review.deleteMany({ requestId: { $in: requestIds } });
-            await Request.deleteMany({ _id: { $in: requestIds } });
-          }
-          await Review.deleteMany({ reviewerId: userId });
-          await Notification.deleteMany({ user: userId });
-          await User.findByIdAndDelete(userId);
-
-          await redis.del(redisKey);
-
-          res.status(200).json({ msg: 'Аккаунт и все связанные данные были успешно удалены.' });
-
-      } catch (err) {
-          console.error('Ошибка при подтверждении удаления аккаунта:', err);
-          res.status(500).json({ msg: 'Ошибка сервера при удалении аккаунта.' });
+      if (storedCode !== confirmationCode) {
+        // Неверный код - используем middleware для обработки
+        return handleFailedCodeAttempt(req, res, next);
       }
+
+      // Код верный - сбрасываем счетчик попыток
+      await resetAttempts(userId, 'delete');
+
+      await Request.updateMany(
+        { helper: userId, status: { $in: ['assigned', 'in_progress'] } },
+        { $set: { status: 'open' }, $unset: { helper: 1 } }
+      );
+      const userRequests = await Request.find({ author: userId }).select('_id');
+      const requestIds = userRequests.map(r => r._id);
+      if (requestIds.length > 0) {
+        await Message.deleteMany({ requestId: { $in: requestIds } });
+        await Review.deleteMany({ requestId: { $in: requestIds } });
+        await Request.deleteMany({ _id: { $in: requestIds } });
+      }
+      await Review.deleteMany({ reviewerId: userId });
+      await Notification.deleteMany({ user: userId });
+      await User.findByIdAndDelete(userId);
+
+      await redis.del(redisKey);
+
+      res.status(200).json({ msg: 'Аккаунт и все связанные данные были успешно удалены.' });
+
+    } catch (err) {
+      console.error('Ошибка при подтверждении удаления аккаунта:', err);
+      res.status(500).json({ msg: 'Ошибка сервера при удалении аккаунта.' });
+    }
   });
 
   /**
@@ -804,41 +827,41 @@ export default ({ io }) => {
       if (isTargetModerator && !isModeratorAdmin) {
         return res.status(403).json({ msg: 'Модератор не может заблокировать другого модератора.' });
       }
-      
+
       // Новая логика 2FA
-      
+
       if (!isModeratorAdmin) {
         if (!moderator.telegramId) {
-            return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
+          return res.status(403).json({ msg: 'Для выполнения этого действия ваш аккаунт должен быть привязан к Telegram.' });
         }
-        
+
         const redisKey = `mod-action:ban:${moderator.id}:${targetUserId}`;
-        
+
         if (!confirmationCode) {
-            // Этап 1: Кода нет, генерируем и отправляем
-            const code = crypto.randomInt(100000, 999999).toString();
-            await redis.set(redisKey, code, 'EX', 300); // Код живет 5 минут
+          // Этап 1: Кода нет, генерируем и отправляем
+          const code = crypto.randomInt(100000, 999999).toString();
+          await redis.set(redisKey, code, 'EX', 300); // Код живет 5 минут
 
-            const message = `Для подтверждения бана пользователя **${userToBan.username}** введите этот код:\n\n` +
-                            `\`${code}\`\n\n` +
-                            `Если это были не вы, срочно смените пароль и обратитесь к администрации.`;
-            await sendTelegramMessage(moderator.telegramId, message);
+          const message = `Для подтверждения бана пользователя **${userToBan.username}** введите этот код:\n\n` +
+            `\`${code}\`\n\n` +
+            `Если это были не вы, срочно смените пароль и обратитесь к администрации.`;
+          await sendTelegramMessage(moderator.telegramId, message);
 
-            return res.status(400).json({ 
-                confirmationRequired: true,
-                message: 'Требуется подтверждение. Код отправлен вам в Telegram.' 
-            });
+          return res.status(400).json({
+            confirmationRequired: true,
+            message: 'Требуется подтверждение. Код отправлен вам в Telegram.'
+          });
         } else {
-            // Этап 2: Код есть, проверяем
-            const storedCode = await redis.get(redisKey);
-            if (storedCode !== confirmationCode) {
-                // Устанавливаем targetId для отслеживания попыток конкретного бана
-                req.codeProtection.targetId = targetUserId;
-                return handleFailedCodeAttempt(req, res, next);
-            }
-            // Код верный, удаляем его и сбрасываем счетчик попыток
-            await redis.del(redisKey);
-            await resetAttempts(moderator.id, 'ban', targetUserId);
+          // Этап 2: Код есть, проверяем
+          const storedCode = await redis.get(redisKey);
+          if (storedCode !== confirmationCode) {
+            // Устанавливаем targetId для отслеживания попыток конкретного бана
+            req.codeProtection.targetId = targetUserId;
+            return handleFailedCodeAttempt(req, res, next);
+          }
+          // Код верный, удаляем его и сбрасываем счетчик попыток
+          await redis.del(redisKey);
+          await resetAttempts(moderator.id, 'ban', targetUserId);
         }
       }
 
@@ -846,23 +869,23 @@ export default ({ io }) => {
       userToBan.banDetails.isBanned = true;
       userToBan.banDetails.reason = reason;
       userToBan.banDetails.bannedBy = moderator.id;
-      
+
       let expiresAt = null;
       if (duration !== 'permanent') {
         const durationStr = String(duration).trim();
         const unit = durationStr.slice(-1);
         const isLetter = /[a-zA-Z]/.test(unit);
-        
+
         const date = new Date();
         let value;
         let finalUnit;
 
         if (isLetter) {
-            value = parseInt(durationStr.slice(0, -1), 10);
-            finalUnit = unit;
+          value = parseInt(durationStr.slice(0, -1), 10);
+          finalUnit = unit;
         } else {
-            value = parseInt(durationStr, 10);
-            finalUnit = 'd'; // По умолчанию дни, если пришло просто число
+          value = parseInt(durationStr, 10);
+          finalUnit = 'd'; // По умолчанию дни, если пришло просто число
         }
 
         if (isNaN(value) || value <= 0) {
@@ -894,11 +917,11 @@ export default ({ io }) => {
 
       // Отправляем уведомление в систему
       await createAndSendNotification({
-          user: userToBan._id,
-          type: 'account_banned',
-          title: 'Ваш аккаунт заблокирован',
-          message: `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}.`,
-          link: `/profile/${userToBan.username}`
+        user: userToBan._id,
+        type: 'account_banned',
+        title: 'Ваш аккаунт заблокирован',
+        message: `Ваш аккаунт был заблокирован. Причина: ${reason}. Срок: ${duration === 'permanent' ? 'навсегда' : expiresAt.toLocaleDateString('ru-RU')}.`,
+        link: `/profile/${userToBan.username}`
       });
 
       // Отправляем уведомление в Telegram
@@ -948,7 +971,7 @@ export default ({ io }) => {
     try {
       const userToUnban = await User.findById(req.params.id);
       if (!userToUnban) return res.status(404).json({ msg: 'Пользователь не найден' });
-      
+
       userToUnban.banDetails.isBanned = false;
       userToUnban.banDetails.reason = null;
       userToUnban.banDetails.bannedAt = null;
@@ -957,22 +980,22 @@ export default ({ io }) => {
 
       // Отправляем уведомление в систему
       await createAndSendNotification({
-          user: userToUnban._id,
-          type: 'account_unbanned',
-          title: 'Ваш аккаунт разблокирован',
-          message: 'Ваш аккаунт был разблокирован. Теперь вы снова можете пользоваться платформой.',
-          link: `/profile/${userToUnban.username}`
+        user: userToUnban._id,
+        type: 'account_unbanned',
+        title: 'Ваш аккаунт разблокирован',
+        message: 'Ваш аккаунт был разблокирован. Теперь вы снова можете пользоваться платформой.',
+        link: `/profile/${userToUnban.username}`
       });
 
       // Отправляем уведомление в Telegram
       const telegramMessage = `✅ *Ваш аккаунт был разблокирован.*\n\nТеперь вы снова можете пользоваться платформой Бірге Көмек.`;
       await sendTelegramMessage(userToUnban.telegramId, telegramMessage);
-      
+
       // Сокет-событие для мгновенного скрытия бан-модалки/обновления состояния на фронтенде
       if (io) {
         io.to(`user_${userToUnban._id.toString()}`).emit('account_unbanned', {});
       }
-      
+
       res.json({ msg: `Пользователь ${userToUnban.username} успешно разбанен`, user: userToUnban });
     } catch (err) {
       console.error('Ошибка при разбане пользователя:', err);
@@ -1086,7 +1109,7 @@ export default ({ io }) => {
       if (user.avatar && user.avatar.includes('cloudinary.com')) {
         const oldPublicId = extractPublicId(user.avatar);
         if (oldPublicId) {
-          await deleteFromCloudinary(oldPublicId, 'image').catch(err => 
+          await deleteFromCloudinary(oldPublicId, 'image').catch(err =>
             console.error('Ошибка при удалении старого аватара:', err)
           );
         }
