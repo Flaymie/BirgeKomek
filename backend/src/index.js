@@ -10,6 +10,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 // ГЛОБАЛЬНЫЕ ПРЕДОХРАНИТЕЛИ ОТ КРАШЕЙ
 process.on('uncaughtException', (err) => {
@@ -157,14 +158,14 @@ app.get('/uploads/:folder/:filename', (req, res) => {
   if (filename.includes('..') || folder.includes('..')) {
     return res.status(400).send('Invalid path');
   }
-  
+
   const filePath = path.join(__dirname, '..', 'uploads', folder, filename);
 
   res.sendFile(filePath, (err) => {
     if (err) {
       // Это предотвратит краш ERR_HTTP_HEADERS_SENT
       if (!res.headersSent) {
-          res.status(404).send('Resource not found');
+        res.status(404).send('Resource not found');
       }
     }
   });
@@ -202,7 +203,7 @@ mongoose.connection.on('reconnected', () => {
 });
 
 // документация API
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'Бірге Көмек API Docs'
 }));
@@ -222,10 +223,30 @@ app.use('/api/admin', adminRoutes({ sseConnections, io }));
 app.use('/api/reports', reportRoutes({ io }));
 app.use('/api/system-reports', systemReportsRoutes);
 
-// Healthcheck endpoint to keep server awake / uptime checks
 app.get('/ping', (req, res) => {
   res.status(200).json({ ok: true, timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
+
+const startSelfPing = () => {
+  const externalUrl = process.env.RENDER_EXTERNAL_URL;
+  if (!externalUrl) {
+    console.log('ℹ️ Самопинг не запущен: RENDER_EXTERNAL_URL не определен');
+    return;
+  }
+
+  const PING_INTERVAL = 10 * 60 * 1000;
+
+  console.log(`🚀 Самопинг запущен для ${externalUrl} (интервал: 10 мин)`);
+
+  setInterval(async () => {
+    try {
+      const response = await axios.get(`${externalUrl}/ping`);
+      console.log(`📡 Самопинг успешно выполнен: ${response.data.timestamp}`);
+    } catch (error) {
+      console.error('❌ Ошибка самопинга:', error.message);
+    }
+  }, PING_INTERVAL);
+};
 
 // ПРАВИЛЬНАЯ Socket.IO логика
 io.use(protectSocket);
@@ -297,33 +318,33 @@ io.on('connection', (socket) => {
       const senderId = socket.user.id;
       const isAuthor = request.author.toString() === senderId;
       const recipientId = isAuthor ? request.helper : request.author;
-      
+
       const message = new Message({
         requestId: requestId,
         sender: senderId,
         content,
         // Сразу помечаем сообщение прочитанным для всех, кто в чате
-        readBy: userIdsInRoom 
+        readBy: userIdsInRoom
       });
       await message.save();
       await message.populate('sender', 'username avatar');
 
       io.to(requestId).emit('new_message', message);
-      
+
       if (recipientId) {
         // Проверка, что получатель - не отправитель, и его нет в комнате
         const isRecipientInChat = userIdsInRoom.includes(recipientId.toString());
-        
+
         if (senderId !== recipientId.toString() && !isRecipientInChat) {
-            const senderUser = await User.findById(senderId).lean();
-            await createAndSendNotification({
-              user: recipientId,
-              type: 'new_message_in_request',
-              title: `Новое сообщение в заявке "${request.title}"`,
-              message: `Пользователь ${senderUser.username} написал: ${content}`,
-              link: `/requests/${requestId}/chat`,
-              relatedEntity: { requestId: requestId, userId: senderId }
-            });
+          const senderUser = await User.findById(senderId).lean();
+          await createAndSendNotification({
+            user: recipientId,
+            type: 'new_message_in_request',
+            title: `Новое сообщение в заявке "${request.title}"`,
+            message: `Пользователь ${senderUser.username} написал: ${content}`,
+            link: `/requests/${requestId}/chat`,
+            relatedEntity: { requestId: requestId, userId: senderId }
+          });
         }
       }
     } catch (error) {
@@ -338,11 +359,11 @@ io.on('connection', (socket) => {
     const { id, username } = socket.user;
     if (chatId) {
       // Транслируем то же самое событие, которое пришло, всем в комнате, кроме отправителя
-      socket.to(chatId).emit(eventName, { 
-        userId: id, 
+      socket.to(chatId).emit(eventName, {
+        userId: id,
         username: username,
         isTyping: eventName === 'typing_started',
-        chatId: chatId 
+        chatId: chatId
       });
     }
   };
@@ -352,8 +373,8 @@ io.on('connection', (socket) => {
 
   // Продление активности при навигации
   socket.on('user_navigate', () => {
-    if(isRedisConnected()) {
-      redis.expire(onlineKey, 180); 
+    if (isRedisConnected()) {
+      redis.expire(onlineKey, 180);
     }
   });
 
@@ -399,9 +420,9 @@ app.all('/api/*', (req, res) => {
 // Запускаем сервер
 server.listen(PORT, '0.0.0.0', () => {
   const isProduction = NODE_ENV === 'production';
-  
+
   console.log(`✅ Сервер запущен (${NODE_ENV})`);
-  
+
   if (isProduction) {
     console.log(`📡 Внешний URL: ${process.env.RENDER_EXTERNAL_URL || 'см. настройки Render'}`);
     console.log(`📚 API Docs: ${process.env.RENDER_EXTERNAL_URL || ''}/api-docs`);
@@ -409,9 +430,14 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`🔧 Локальный адрес: http://localhost:${PORT}`);
     console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
   }
-  
+
   console.log(`🔌 Внутренний порт: ${PORT}`);
-  
+
   // Запускаем планировщик очистки истекших банов (IP и аккаунтов) с доступом к io
   startBanCleanupScheduler(io);
+
+  // Запускаем самопинг в продакшене
+  if (NODE_ENV === 'production') {
+    startSelfPing();
+  }
 }); 
