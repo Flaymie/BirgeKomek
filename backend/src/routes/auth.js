@@ -1684,14 +1684,4 @@ router.post('/change-password', protect, [
   }
 });
 
-/**
- * DEV ONLY: Очистить кэш заблокированных IP
- */
-if (process.env.NODE_ENV === 'development') {
-  router.post('/dev/clear-cache', (req, res) => {
-    clearBlockedIPsCache();
-    res.json({ msg: 'Кэш заблокированных IP очищен' });
-  });
-}
-
 export default router; 
