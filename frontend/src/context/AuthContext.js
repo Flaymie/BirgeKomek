@@ -179,6 +179,7 @@ export const AuthProvider = ({ children }) => {
       storeToken(token);
       setToken(token);
       processAndCheckBan(user);
+      setIsReadOnly(!user.telegramId);
       toast.success(`Добро пожаловать, ${user.username}!`);
     } catch (error) {
       console.error('Ошибка при обработке токена:', error);
