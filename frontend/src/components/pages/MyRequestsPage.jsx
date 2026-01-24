@@ -28,8 +28,14 @@ const MyRequestsPage = () => {
     search: ''
   });
 
+  const lastRequestIdRef = React.useRef(0);
+
   const fetchRequests = useCallback(async () => {
     if (!currentUser) return;
+
+    // Increment request ID
+    const requestId = ++lastRequestIdRef.current;
+
     setLoading(true);
     setError(null);
     try {
@@ -53,18 +59,25 @@ const MyRequestsPage = () => {
 
       const response = await requestsService.getRequests(params);
 
-      setRequests(response.data.requests);
-      setTotalPages(response.data.totalPages);
+      // Check if this is still the latest request
+      if (requestId === lastRequestIdRef.current) {
+        setRequests(response.data.requests);
+        setTotalPages(response.data.totalPages);
+      }
 
     } catch (err) {
-      console.error('Ошибка при получении запросов:', err);
-      if (err.response && err.response.status === 401) {
-        navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
-      } else {
-        setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
+      if (requestId === lastRequestIdRef.current) {
+        console.error('Ошибка при получении запросов:', err);
+        if (err.response && err.response.status === 401) {
+          navigate('/login', { state: { message: 'Сессия истекла, пожалуйста, авторизуйтесь снова' } });
+        } else {
+          setError(err.response?.data?.msg || 'Произошла ошибка при загрузке запросов');
+        }
       }
     } finally {
-      setLoading(false);
+      if (requestId === lastRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [currentUser, currentPage, filters, activeTab, navigate]);
 
@@ -174,8 +187,8 @@ const MyRequestsPage = () => {
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${activeTab === tabName
-          ? 'bg-primary-600 text-white shadow'
-          : 'text-gray-600 hover:bg-gray-200'
+        ? 'bg-primary-600 text-white shadow'
+        : 'text-gray-600 hover:bg-gray-200'
         }`}
     >
       {label}
