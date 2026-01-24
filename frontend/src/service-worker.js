@@ -93,9 +93,31 @@ self.addEventListener('push', function (event) {
 });
 
 self.addEventListener('notificationclick', function (event) {
-    console.log('Notification click received.');
     event.notification.close();
+    const urlToOpen = event.notification.data?.url || '/';
+
     event.waitUntil(
-        self.clients.openWindow(event.notification.data.url)
+        clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true
+        }).then(function (windowClients) {
+            // Check if there is already a window/tab open with the target URL
+            for (let i = 0; i < windowClients.length; i++) {
+                const client = windowClients[i];
+                // If so, just focus it.
+                // Match root URL or specific path if needed. For now, just bringing app to front.
+                if (client.url === urlToOpen || (urlToOpen === '/' && client.url.endsWith('/'))) {
+                    return client.focus();
+                }
+                // Broad check: any window of this origin?
+                if (client.url.startsWith(self.registration.scope)) {
+                    return client.focus(); // Simplified: just focus ANY open tab of this app
+                }
+            }
+            // If not, open a new window
+            if (clients.openWindow) {
+                return clients.openWindow(urlToOpen);
+            }
+        })
     );
 });

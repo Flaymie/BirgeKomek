@@ -1,6 +1,7 @@
 {
   "short_name": "Бірге Көмек",
   "name": "Бірге Көмек: Школьная взаимопомощь",
+  "description": "Платформа для школьной взаимопомощи: находите менторов, помогайте другим и учитесь вместе.",
   "icons": [
     {
       "src": "img/logo_site_192.png",
@@ -18,9 +19,24 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "id": "/",
   "display": "standalone",
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "screenshots": [
+    {
+      "src": "img/architecture.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
 }
