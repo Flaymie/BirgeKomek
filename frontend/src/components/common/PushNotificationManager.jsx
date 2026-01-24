@@ -40,24 +40,24 @@ const PushNotificationManager = () => {
         try {
             if (!registration) return;
 
-            // VAPID Public Key - in production this should be in env
-            // This is a placeholder public key. You need to generate a real pair: npx web-push generate-vapid-keys
-            const publicVapidKey = 'BPh2H3Zq8M9L5K4N1O7P0Q3R6S9T2U5V8W1X4Y7Z0A3B6C9D2E5F8G1H4I7J0K3L6M9N2O5P8Q1R4S7T0';
+            // VAPID Public Key (Generated just now)
+            const publicVapidKey = 'BA5CEaD6DYK2pdQUiWJ_XTraje5ECyomQylU1DeUl-G74llOvrHmY46yyvM3acto0ZKEatRPzfwQSUX810fvHnU';
 
+            console.log('Push: Requesting subscription...');
             const sub = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
             });
 
-            console.log('Push Subscription:', JSON.stringify(sub));
+            console.log('Push Subscription Success:', JSON.stringify(sub));
             setSubscription(sub);
             setIsSubscribed(true);
 
-            // TODO: Send specific 'sub' object to backend to store against the user
-            toast.success('Уведомления включены! (Тестовый режим)');
+            toast.success('Уведомления включены! (Токен в консоли)');
         } catch (error) {
             console.error('Failed to subscribe:', error);
-            toast.error('Ошибка при включении уведомлений');
+            // Show detailed error to user for debugging
+            toast.error(`Ошибка Push: ${error.message || 'Неизвестная ошибка'}`);
         }
     };
 
@@ -82,8 +82,8 @@ const PushNotificationManager = () => {
         <button
             onClick={isSubscribed ? unsubscribeUser : subscribeUser}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isSubscribed
-                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
         >
             {isSubscribed ? <Bell size={18} /> : <BellOff size={18} />}
