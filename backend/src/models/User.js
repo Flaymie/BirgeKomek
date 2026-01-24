@@ -159,7 +159,7 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   }
-}, { 
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -185,9 +185,9 @@ userSchema.virtual('completedRequests', {
 
 
 // хеширование пароля перед сохранением
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -198,7 +198,7 @@ userSchema.pre('save', async function(next) {
 });
 
 // метод сравнения пароля
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (err) {
@@ -208,7 +208,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // статический метод для обновления среднего рейтинга хелпера
 userSchema.statics.updateAverageRating = async function (userId) {
-    const Review = mongoose.model('Review');
+  const Review = mongoose.model('Review');
   try {
     const reviews = await Review.find({ helperId: userId });
     if (reviews.length > 0) {
