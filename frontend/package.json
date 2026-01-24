@@ -46,6 +46,11 @@
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^3.4.17",
     "web-vitals": "^2.1.4",
+    "workbox-core": "^7.4.0",
+    "workbox-expiration": "^7.4.0",
+    "workbox-precaching": "^7.4.0",
+    "workbox-routing": "^7.4.0",
+    "workbox-strategies": "^7.4.0",
     "zxcvbn": "^4.4.2"
   },
   "scripts": {

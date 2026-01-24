@@ -79,7 +79,9 @@ const Header = () => {
     if (currentUser) {
       return (
         <div className="hidden md:flex items-center gap-4">
-          <PushNotificationManager />
+          <div className="hidden lg:block">
+            <PushNotificationManager />
+          </div>
           <NotificationBell />
 
           {/* Меню Панели Управления */}
@@ -255,6 +257,11 @@ const Header = () => {
                         </span>
                       )}
                     </Link>
+
+                    {/* Push Toggle for Mobile */}
+                    <div className="px-4 py-2">
+                      <PushNotificationManager />
+                    </div>
                     <Link to="/chats" className={`flex items-center gap-4 px-4 py-4 rounded-xl text-lg transition-all duration-300 hover:scale-105 ${location.pathname === '/chats' ? 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-600'}`}>
                       <FiMessageSquare className="w-6 h-6" /> Чаты
                     </Link>

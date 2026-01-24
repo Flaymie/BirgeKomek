@@ -22,12 +22,12 @@ const MyRequestsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
   const [activeTab, setActiveTab] = useState('published');
-  
+
   const [filters, setFilters] = useState({
     subject: '',
     search: ''
   });
-  
+
   const fetchRequests = useCallback(async () => {
     if (!currentUser) return;
     setLoading(true);
@@ -45,14 +45,14 @@ const MyRequestsPage = () => {
 
       if (!filters.subject) delete params.subject;
       if (!filters.search) delete params.search;
-      
+
       if (params.subject) {
         params.subjects = params.subject;
         delete params.subject;
       }
-      
+
       const response = await requestsService.getRequests(params);
-      
+
       setRequests(response.data.requests);
       setTotalPages(response.data.totalPages);
 
@@ -71,10 +71,11 @@ const MyRequestsPage = () => {
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
-  
+
   // Сбрасываем страницу при смене фильтров или таба
   useEffect(() => {
     setCurrentPage(1);
+    setRequests([]); // Clear list to avoid race conditions/flashing
   }, [filters, activeTab]);
 
 
@@ -109,26 +110,26 @@ const MyRequestsPage = () => {
     const handleNewOrUpdatedRequest = (request) => {
       // Проверяем, что это наша заявка
       if (request.author?._id !== currentUser._id) return;
-      
+
       const isDraft = request.status === 'draft';
       const isCurrentTabDrafts = activeTab === 'drafts';
 
       // Обновляем список, если статус заявки соответствует текущему табу
       if (isDraft === isCurrentTabDrafts) {
-          setRequests(prev => {
-              const exists = prev.some(r => r._id === request._id);
-              if (exists) {
-                  // Обновить существующую
-                  return prev.map(r => r._id === request._id ? request : r);
-              } else {
-                  // Добавить новую в начало
-                  return [request, ...prev];
-              }
-          });
+        setRequests(prev => {
+          const exists = prev.some(r => r._id === request._id);
+          if (exists) {
+            // Обновить существующую
+            return prev.map(r => r._id === request._id ? request : r);
+          } else {
+            // Добавить новую в начало
+            return [request, ...prev];
+          }
+        });
       } else {
-          // Если статус не соответствует (например, черновик стал опубликованным),
-          // просто удаляем его из текущего списка
-          setRequests(prev => prev.filter(r => r._id !== request._id));
+        // Если статус не соответствует (например, черновик стал опубликованным),
+        // просто удаляем его из текущего списка
+        setRequests(prev => prev.filter(r => r._id !== request._id));
       }
     };
 
@@ -155,7 +156,7 @@ const MyRequestsPage = () => {
     if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
     const diffHours = Math.round(diffMinutes / 60);
     if (diffHours < 24) return `${diffHours} ч. назад`;
-    
+
     return date.toLocaleDateString('ru-RU', {
       day: '2-digit', month: 'short', year: 'numeric'
     });
@@ -164,7 +165,7 @@ const MyRequestsPage = () => {
   const getStatusClass = (status) => {
     return STATUS_COLORS[status] || { bg: 'bg-gray-100', text: 'text-gray-800' };
   };
-  
+
   const getStatusLabel = (status) => {
     return REQUEST_STATUS_LABELS[status] || 'Неизвестно';
   };
@@ -172,74 +173,73 @@ const MyRequestsPage = () => {
   const TabButton = ({ tabName, label, activeTab, setActiveTab }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-        activeTab === tabName
+      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${activeTab === tabName
           ? 'bg-primary-600 text-white shadow'
           : 'text-gray-600 hover:bg-gray-200'
-      }`}
+        }`}
     >
       {label}
     </button>
   );
 
-      return (
+  return (
     <div className="bg-gray-50 min-h-screen">
-       <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
         {/* Заголовок и кнопка */}
         <div className="flex justify-between items-center mb-6">
-           <h1 className="text-3xl font-bold text-gray-900">Мои заявки</h1>
-             <button
-                onClick={() => setIsModalOpen(true)}
-              className="btn btn-primary inline-flex items-center gap-2"
-              >
-              <FiPlus />
-              Создать запрос
-              </button>
+          <h1 className="text-3xl font-bold text-gray-900">Мои заявки</h1>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="btn btn-primary inline-flex items-center gap-2"
+          >
+            <FiPlus />
+            Создать запрос
+          </button>
         </div>
 
         {/* Фильтры и табы */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
-              {/* Табы */}
-              <div className="flex items-center gap-2">
-                <TabButton tabName="published" label="Опубликованные" activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton tabName="drafts" label="Черновики" activeTab={activeTab} setActiveTab={setActiveTab} />
+            {/* Табы */}
+            <div className="flex items-center gap-2">
+              <TabButton tabName="published" label="Опубликованные" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton tabName="drafts" label="Черновики" activeTab={activeTab} setActiveTab={setActiveTab} />
+            </div>
+
+            <div className="w-full border-t md:border-t-0 md:border-l border-gray-200 md:pl-4 flex flex-col md:flex-row gap-4">
+              {/* Фильтры */}
+              <div className="relative flex-grow">
+                <label htmlFor="search" className="sr-only">Поиск</label>
+                <FiSearch className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  id="search"
+                  name="search"
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  placeholder="Поиск по моим заявкам..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                />
               </div>
 
-              <div className="w-full border-t md:border-t-0 md:border-l border-gray-200 md:pl-4 flex flex-col md:flex-row gap-4">
-                {/* Фильтры */}
-                <div className="relative flex-grow">
-                  <label htmlFor="search" className="sr-only">Поиск</label>
-                  <FiSearch className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    id="search"
-                    name="search"
-                    value={filters.search}
-                    onChange={handleFilterChange}
-                    placeholder="Поиск по моим заявкам..."
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                  />
-                </div>
-                
-                <div className="w-full md:max-w-xs">
-                  <label htmlFor="subject" className="sr-only">Предмет</label>
-                  <select
-                    id="subject"
-                    name="subject"
-                    value={filters.subject}
-                    onChange={handleFilterChange}
-                    className="w-full py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                  >
-                    <option value="">Все предметы</option>
-                    {SUBJECTS.map((subject) => (
-                      <option key={subject} value={subject}>{subject}</option>
-                    ))}
-                  </select>
-                </div>
-                </div>
+              <div className="w-full md:max-w-xs">
+                <label htmlFor="subject" className="sr-only">Предмет</label>
+                <select
+                  id="subject"
+                  name="subject"
+                  value={filters.subject}
+                  onChange={handleFilterChange}
+                  className="w-full py-2 rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                >
+                  <option value="">Все предметы</option>
+                  {SUBJECTS.map((subject) => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))}
+                </select>
               </div>
             </div>
+          </div>
+        </div>
 
         {error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
@@ -250,12 +250,12 @@ const MyRequestsPage = () => {
         {loading && requests.length === 0 ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mx-auto"></div>
-      </div>
+          </div>
         ) : (
           <>
             {requests.length > 0 ? (
               <AnimatePresence>
-                <motion.div 
+                <motion.div
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                   initial="hidden"
                   animate="visible"
@@ -281,16 +281,16 @@ const MyRequestsPage = () => {
                         <div className="bg-white rounded-xl shadow-lg h-full flex flex-col overflow-hidden border-b-4 border-yellow-400">
                           <div className="p-6 flex-grow">
                             <div className="flex justify-between items-start mb-3">
-                                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                  Черновик
-                                </span>
+                              <span className="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Черновик
+                              </span>
                               <span className="text-xs text-gray-500 whitespace-nowrap pl-2">{formatDate(request.updatedAt)}</span>
                             </div>
-                            
+
                             <h3 className="text-lg font-bold text-gray-800 mb-2">
-                               {request.title || <span className="italic text-gray-400">Без заголовка</span>}
+                              {request.title || <span className="italic text-gray-400">Без заголовка</span>}
                             </h3>
-                            
+
                             <p className="text-sm text-gray-600 line-clamp-3">
                               {request.description || <span className="italic text-gray-400">Нет описания</span>}
                             </p>
@@ -307,37 +307,37 @@ const MyRequestsPage = () => {
                           </div>
                         </div>
                       ) : (
-                       <Link to={`/request/${request._id}`} state={{ from: '/my-requests' }} className="block h-full">
-                        <div className="bg-white rounded-xl shadow-lg h-full flex flex-col overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 ease-in-out group border-b-4 border-transparent hover:border-primary-500">
-                          <div className="p-6 flex-grow">
-                            <div className="flex justify-between items-center mb-3">
-                              <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text}`}>
-                                {getStatusLabel(request.status)}
-                              </span>
-                              <span className="text-xs text-gray-500">{formatDate(request.updatedAt)}</span>
-      </div>
-      
-                            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-primary-600 transition-colors">
-                               {request.title || <span className="italic text-gray-400">Без заголовка</span>}
-                            </h3>
-                            
-                            <p className="text-sm text-gray-600 line-clamp-2 mb-4">
-                              {request.description || <span className="italic text-gray-400">Нет описания</span>}
-                            </p>
-      </div>
+                        <Link to={`/request/${request._id}`} state={{ from: '/my-requests' }} className="block h-full">
+                          <div className="bg-white rounded-xl shadow-lg h-full flex flex-col overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 ease-in-out group border-b-4 border-transparent hover:border-primary-500">
+                            <div className="p-6 flex-grow">
+                              <div className="flex justify-between items-center mb-3">
+                                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusClass(request.status).bg} ${getStatusClass(request.status).text}`}>
+                                  {getStatusLabel(request.status)}
+                                </span>
+                                <span className="text-xs text-gray-500">{formatDate(request.updatedAt)}</span>
+                              </div>
 
-                          <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
-                            <div className="flex justify-between items-center text-sm">
+                              <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-primary-600 transition-colors">
+                                {request.title || <span className="italic text-gray-400">Без заголовка</span>}
+                              </h3>
+
+                              <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+                                {request.description || <span className="italic text-gray-400">Нет описания</span>}
+                              </p>
+                            </div>
+
+                            <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
+                              <div className="flex justify-between items-center text-sm">
                                 <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-medium">
                                   {request.subject || "Без предмета"}
                                 </span>
-                                  <div className="text-gray-600">
-                                      {/* Тут можно что-то еще добавить, если нужно */}
-                                  </div>
+                                <div className="text-gray-600">
+                                  {/* Тут можно что-то еще добавить, если нужно */}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </Link>
+                        </Link>
                       )}
                     </motion.div>
                   ))}
@@ -346,24 +346,24 @@ const MyRequestsPage = () => {
             ) : (
               <div className="text-center py-16">
                 <h3 className="text-xl font-semibold text-gray-700">
-                    {activeTab === 'drafts' ? 'У вас нет черновиков' : 'Запросы не найдены'}
+                  {activeTab === 'drafts' ? 'У вас нет черновиков' : 'Запросы не найдены'}
                 </h3>
                 <p className="text-gray-500 mt-2">
-                    {activeTab === 'drafts' ? 'Все ваши черновики будут здесь.' : 'Попробуйте изменить фильтры или создайте новый запрос.'}
+                  {activeTab === 'drafts' ? 'Все ваши черновики будут здесь.' : 'Попробуйте изменить фильтры или создайте новый запрос.'}
                 </p>
-        </div>
-      )}
+              </div>
+            )}
 
             {/* ЗАМЕНЯЕМ КНОПКУ "ПОКАЗАТЬ ЕЩЕ" НА ПАГИНАЦИЮ */}
             <div className="flex justify-center mt-12">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-          />
+              />
             </div>
           </>
-          )}
+        )}
       </div>
 
       <CreateRequestModal

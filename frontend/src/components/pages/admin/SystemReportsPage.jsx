@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const SystemReportCard = ({ report, onResolve }) => {
   const { targetUser, details, createdAt } = report;
-  
+
   // Используем готовое значение с бэкенда, если оно есть
   const totalPoints = targetUser?.suspicionScore ?? details.log.reduce((acc, entry) => acc + entry.points, 0);
 
@@ -40,25 +40,25 @@ const SystemReportCard = ({ report, onResolve }) => {
               {new Date(createdAt).toLocaleDateString('ru-RU')}
             </span>
           </div>
-          
+
           {/* Информация о пользователе */}
           <div className="flex items-center gap-3 mb-3">
-            <img 
-              src={targetUser.avatar || '/img/default-avatar.png'} 
-              alt={targetUser.username} 
-              className="w-12 h-12 rounded-full border-2 border-gray-200" 
+            <img
+              src={targetUser?.avatar || '/img/default-avatar.png'}
+              alt={targetUser?.username || 'Удаленный пользователь'}
+              className="w-12 h-12 rounded-full border-2 border-gray-200"
             />
             <div className="flex-1">
               <div className="flex items-center gap-2 text-gray-600 mb-1">
                 <User className="w-4 h-4" />
                 <span className="text-sm font-medium">Пользователь:</span>
               </div>
-              <h3 className="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate" title={targetUser.username}>
-                {targetUser.username}
+              <h3 className="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate" title={targetUser?.username}>
+                {targetUser?.username || 'Пользователь удален'}
               </h3>
             </div>
           </div>
-          
+
           {/* Счетчик очков */}
           <div className="bg-gray-50 p-3 rounded-lg mb-3">
             <div className="flex items-center justify-between">
@@ -89,7 +89,7 @@ const SystemReportCard = ({ report, onResolve }) => {
             </div>
           </div>
         </div>
-        
+
         {/* Footer */}
         <div className="border-t border-gray-100 bg-gray-50 px-5 py-3">
           <div className="flex justify-between items-center text-xs text-gray-500">
@@ -153,7 +153,7 @@ const SystemReportsPage = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Системные репорты</h1>
         </div>
-        
+
         {/* Фильтры */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-8">
           <div className="flex gap-4">
@@ -161,11 +161,10 @@ const SystemReportsPage = () => {
               <button
                 key={value}
                 onClick={() => setFilter(value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === value
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === value
                     ? 'bg-indigo-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -183,7 +182,7 @@ const SystemReportsPage = () => {
           <>
             {reports.length > 0 ? (
               <AnimatePresence>
-                <motion.div 
+                <motion.div
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   initial="hidden"
                   animate="visible"
