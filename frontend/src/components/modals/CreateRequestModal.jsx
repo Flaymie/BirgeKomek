@@ -135,7 +135,14 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
       onClose();
     } catch (error) {
       console.error('Ошибка при операции с запросом:', error);
-      const errorMessage = error.response?.data?.errors?.[0]?.msg || error.response?.data?.msg || 'Произошла ошибка';
+      if (error.response?.data) {
+        console.error('Детали ошибки сервера:', error.response.data);
+      }
+
+      let errorMessage = error.response?.data?.errors?.[0]?.msg || error.response?.data?.msg || 'Произошла ошибка';
+      if (typeof errorMessage !== 'string') {
+        errorMessage = 'Неизвестная ошибка (ответ сервера не строка)';
+      }
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);

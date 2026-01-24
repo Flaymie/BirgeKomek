@@ -16,11 +16,11 @@ import { calculateRegistrationScore } from '../services/scoringService.js';
 import SystemReport from '../models/SystemReport.js';
 import BlockedIP from '../models/BlockedIP.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
-import { 
-  isIPTrusted, 
-  addTrustedIP, 
-  generateVerificationCode, 
-  saveVerificationCode, 
+import {
+  isIPTrusted,
+  addTrustedIP,
+  generateVerificationCode,
+  saveVerificationCode,
   verifyCode,
   isIPBlocked,
   canResendCode,
@@ -34,10 +34,10 @@ const router = express.Router();
 
 // Список запрещенных имен пользователей
 const RESERVED_USERNAMES = [
-    'admin', 'administrator', 'moderator', 'moder', 'support', 'root', 'system', 'api', 'backend', 'auth', 'login', 'logout', 'register',
-    'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo', 'undefined', 'NaN', 'true', 'false', 'me', 'profile', 'user',
-    'birge', 'komek', 'birgekomek', 'guest', 'user', 'dev', 'developer', 'sysadmin', 'telegram', 'tg_bot', 'null', 'test', 'anonymous',
-    'хелпер', 'админ', 'модератор', 'саппорт', 'поддержка', 'помощь'
+  'admin', 'administrator', 'moderator', 'moder', 'support', 'root', 'system', 'api', 'backend', 'auth', 'login', 'logout', 'register',
+  'info', 'contact', 'help', 'api', 'bot', 'owner', 'creator', 'sudo', 'undefined', 'NaN', 'true', 'false', 'me', 'profile', 'user',
+  'birge', 'komek', 'birgekomek', 'guest', 'user', 'dev', 'developer', 'sysadmin', 'telegram', 'tg_bot', 'null', 'test', 'anonymous',
+  'хелпер', 'админ', 'модератор', 'саппорт', 'поддержка', 'помощь'
 ];
 
 /**
@@ -108,35 +108,35 @@ const RESERVED_USERNAMES = [
 router.post('/register', checkBlockedIP, registrationLimiter,
   uploadAvatar,
   [
-  body('username')
-    .trim()
-    .not().isEmpty().withMessage('Имя пользователя обязательно')
-    .isLength({ min: 3, max: 10 }).withMessage('Имя пользователя должно быть от 3 до 10 символов')
-    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания')
-    .custom(value => {
+    body('username')
+      .trim()
+      .not().isEmpty().withMessage('Имя пользователя обязательно')
+      .isLength({ min: 3, max: 10 }).withMessage('Имя пользователя должно быть от 3 до 10 символов')
+      .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Имя пользователя может содержать только латинские буквы, цифры, дефис и подчеркивания')
+      .custom(value => {
         const lowerCaseValue = value.toLowerCase();
         // Проверяем точное совпадение с зарезервированными именами
         const isReserved = RESERVED_USERNAMES.includes(lowerCaseValue);
         if (isReserved) {
-            return Promise.reject('Это имя пользователя зарезервировано системой.');
+          return Promise.reject('Это имя пользователя зарезервировано системой.');
         }
         return true;
-    }),
-  
-  body('password')
-    .trim()
-    .isLength({ min: 6 }).withMessage('Пароль должен быть минимум 6 символов'),
-  
-  body('grade')
-    .optional()
-    .isIn(['7', '8', '9', '10', '11', 'student', 'adult'])
-    .withMessage('Класс/статус должен быть: 7-11, student или adult'),
-  body('helperSubjects')
-    .optional()
-    .isArray().withMessage('helperSubjects должен быть массивом')
-    .custom((subjects) => !subjects.some(s => typeof s !== 'string' || s.trim() === ''))
-    .withMessage('Все предметы в helperSubjects должны быть непустыми строками'),
-  body('role', 'Роль обязательна').isIn(['student', 'helper']),
+      }),
+
+    body('password')
+      .trim()
+      .isLength({ min: 6 }).withMessage('Пароль должен быть минимум 6 символов'),
+
+    body('grade')
+      .optional()
+      .isIn(['7', '8', '9', '10', '11', 'student', 'adult'])
+      .withMessage('Класс/статус должен быть: 7-11, student или adult'),
+    body('helperSubjects')
+      .optional()
+      .isArray().withMessage('helperSubjects должен быть массивом')
+      .custom((subjects) => !subjects.some(s => typeof s !== 'string' || s.trim() === ''))
+      .withMessage('Все предметы в helperSubjects должны быть непустыми строками'),
+    body('role', 'Роль обязательна').isIn(['student', 'helper']),
     body('subjects').optional().custom((value) => {
       try {
         const subjects = JSON.parse(value);
@@ -145,11 +145,11 @@ router.post('/register', checkBlockedIP, registrationLimiter,
         }
         return true;
       } catch (e) {
-        if(Array.isArray(value)) return true;
+        if (Array.isArray(value)) return true;
         throw new Error('Некорректный формат предметов.');
       }
     }),
-  ], 
+  ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -167,141 +167,141 @@ router.post('/register', checkBlockedIP, registrationLimiter,
       }
     }
 
-  try {
-    const lowerCaseUsername = username.toLowerCase();
+    try {
+      const lowerCaseUsername = username.toLowerCase();
 
-    // --- ПЕРЕНОСИМ ПРОВЕРКИ В НАЧАЛО ---
-    let user = await User.findOne({ username: lowerCaseUsername });
-    if (user) {
-      return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
-    }
-    // Тут можно добавить и другие проверки, например, на схожесть имен и т.д.
-    // --- КОНЕЦ ПРОВЕРОК ---
-
-    let avatarUrl = '';
-    if (req.file) {
-      // Загружаем файл в Cloudinary
-      const cloudinaryResult = await uploadToCloudinary(req.file.path, 'birgekomek/avatars', 'image');
-      avatarUrl = cloudinaryResult.url;
-    } else {
-      avatarUrl = generateAvatar(username);
-    }
-
-    const newUser = {
-      username,
-      password,
-      hasPassword: true,
-      roles: {
-        student: role === 'student',
-        helper: role === 'helper',
-      },
-      avatar: avatarUrl,
-    };
-
-    if (role === 'student') {
-      if (!grade) {
-        return res.status(400).json({ msg: 'Класс обязателен для ученика' });
+      // --- ПЕРЕНОСИМ ПРОВЕРКИ В НАЧАЛО ---
+      let user = await User.findOne({ username: lowerCaseUsername });
+      if (user) {
+        return res.status(400).json({ msg: 'Пользователь с таким именем уже существует' });
       }
-      newUser.grade = grade;
-    }
+      // Тут можно добавить и другие проверки, например, на схожесть имен и т.д.
+      // --- КОНЕЦ ПРОВЕРОК ---
 
-    if (role === 'helper') {
-      if (grade) {
+      let avatarUrl = '';
+      if (req.file) {
+        // Загружаем файл в Cloudinary
+        const cloudinaryResult = await uploadToCloudinary(req.file.path, 'birgekomek/avatars', 'image');
+        avatarUrl = cloudinaryResult.url;
+      } else {
+        avatarUrl = generateAvatar(username);
+      }
+
+      const newUser = {
+        username,
+        password,
+        hasPassword: true,
+        roles: {
+          student: role === 'student',
+          helper: role === 'helper',
+        },
+        avatar: avatarUrl,
+      };
+
+      if (role === 'student') {
+        if (!grade) {
+          return res.status(400).json({ msg: 'Класс обязателен для ученика' });
+        }
         newUser.grade = grade;
       }
-      if (subjects && subjects.length > 0) {
-        newUser.subjects = subjects;
-      } else {
-        newUser.subjects = [];
+
+      if (role === 'helper') {
+        if (grade) {
+          newUser.grade = grade;
+        }
+        if (subjects && subjects.length > 0) {
+          newUser.subjects = subjects;
+        } else {
+          newUser.subjects = [];
+        }
       }
-    }
-    
-    user = new User(newUser);
-    
-    const ip = req.headers['x-test-ip'] || req.ip;
-    const ipInfo = await analyzeIp(ip);
 
-    if (ipInfo) {
-      user.registrationDetails = {
-        ip: ip,
-        ipInfo: {
-          country: ipInfo.country,
-          city: ipInfo.city,
-          isHosting: ipInfo.hosting,
-          isProxy: ipInfo.proxy,
-        }
-      };
-    }
-    
-    const { score, log } = calculateRegistrationScore(user);
+      user = new User(newUser);
 
-    if (score > 0) {
-      user.suspicionScore = score;
-      user.suspicionLog = log;
-    }
-    
-    await user.save(); // Первичное сохранение со всеми данными
+      const ip = req.headers['x-test-ip'] || req.ip;
+      const ipInfo = await analyzeIp(ip);
 
-    if (score >= 51) {
-      const banExpires = new Date();
-      banExpires.setDate(banExpires.getDate() + 7); 
+      if (ipInfo) {
+        user.registrationDetails = {
+          ip: ip,
+          ipInfo: {
+            country: ipInfo.country,
+            city: ipInfo.city,
+            isHosting: ipInfo.hosting,
+            isProxy: ipInfo.proxy,
+          }
+        };
+      }
 
-      user.banDetails = {
-        isBanned: true,
-        reason: 'Автоматический бан: высокий уровень подозрительности при регистрации.',
-        bannedAt: new Date(),
-        expiresAt: banExpires,
-        bannedBy: null,
-      };
-      
-      await user.save(); 
+      const { score, log } = calculateRegistrationScore(user);
 
-      return res.status(403).json({ 
+      if (score > 0) {
+        user.suspicionScore = score;
+        user.suspicionLog = log;
+      }
+
+      await user.save(); // Первичное сохранение со всеми данными
+
+      if (score >= 51) {
+        const banExpires = new Date();
+        banExpires.setDate(banExpires.getDate() + 7);
+
+        user.banDetails = {
+          isBanned: true,
+          reason: 'Автоматический бан: высокий уровень подозрительности при регистрации.',
+          bannedAt: new Date(),
+          expiresAt: banExpires,
+          bannedBy: null,
+        };
+
+        await user.save();
+
+        return res.status(403).json({
           msg: 'Ваша регистрация не может быть завершена из-за срабатывания автоматической системы защиты. Пожалуйста, свяжитесь с поддержкой.',
-          code: 'AUTO_BAN_ON_REGISTRATION' 
-      });
-    }
-
-    if (score >= 21) {
-        await SystemReport.create({
-            targetUser: user._id, // Теперь user._id 100% существует
-            type: 'suspicion_registration',
-            details: {
-                score,
-                log,
-                ip: user.registrationDetails.ip
-            }
+          code: 'AUTO_BAN_ON_REGISTRATION'
         });
-    }
-    
-    // Повторное сохранение не нужно, так как репорт не меняет юзера
-    // await user.save();
-    
-    const payload = {
+      }
+
+      if (score >= 21) {
+        await SystemReport.create({
+          targetUser: user._id, // Теперь user._id 100% существует
+          type: 'suspicion_registration',
+          details: {
+            score,
+            log,
+            ip: user.registrationDetails.ip
+          }
+        });
+      }
+
+      // Повторное сохранение не нужно, так как репорт не меняет юзера
+      // await user.save();
+
+      const payload = {
         user: {
-            id: user.id,
-            roles: user.roles
+          id: user.id,
+          roles: user.roles
         }
-    };
+      };
 
-    const token = jwt.sign(
+      const token = jwt.sign(
         payload,
-      process.env.JWT_SECRET, 
+        process.env.JWT_SECRET,
         { expiresIn: '7d' }
-    );
-    
-    // Получаем полные данные пользователя без пароля
-    const userWithoutPassword = await User.findById(user._id).select('-password');
-    
-    res.status(201).json({
-      token,
-      user: userWithoutPassword
-    });
+      );
 
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: 'Что-то сломалось при регистрации' });
-  }
+      // Получаем полные данные пользователя без пароля
+      const userWithoutPassword = await User.findById(user._id).select('-password');
+
+      res.status(201).json({
+        token,
+        user: userWithoutPassword
+      });
+
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({ msg: 'Что-то сломалось при регистрации' });
+    }
   }
 );
 
@@ -356,18 +356,18 @@ router.post('/login', checkBlockedIP, generalLimiter, [
   body('username', 'Введите имя пользователя').not().isEmpty(),
   body('password', 'Пароль обязателен').exists(),
 ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { username, password } = req.body;
 
   try {
     const identifier = username.toLowerCase();
-    
+
     let user = await User.findOne({ username: identifier }).select('+password +hasPassword');
-    
+
     if (!user) {
       return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
@@ -380,7 +380,7 @@ router.post('/login', checkBlockedIP, generalLimiter, [
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    
+
     if (!isMatch) {
       return res.status(400).json({ msg: 'Неверные учетные данные' });
     }
@@ -394,22 +394,22 @@ router.post('/login', checkBlockedIP, generalLimiter, [
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-    
+
     // Обновляем lastSeen
     user.lastSeen = Date.now();
-    
+
     // Проверяем IP и добавляем в доверенные если нужно
     const currentIP = req.headers['x-test-ip'] || req.ip;
     const userAgent = req.headers['user-agent'] || '';
-    
+
     // Если это первый вход (основной IP при регистрации)
     if (user.registrationDetails?.ip && !user.trustedIPs) {
       user.trustedIPs = [];
     }
-    
+
     // Проверяем, доверенный ли IP
     let isTrusted = isIPTrusted(user, currentIP);
-    
+
     // Если у пользователя НЕТ Telegram, автоматически доверяем IP
     if (!user.telegramId && !isTrusted) {
       user.trustedIPs.push({
@@ -419,35 +419,35 @@ router.post('/login', checkBlockedIP, generalLimiter, [
       });
       isTrusted = true;
     }
-    
+
     // Если IP новый И есть Telegram - отправляем КОД подтверждения
     if (!isTrusted && user.telegramId) {
       const ipInfo = await analyzeIp(currentIP);
       const location = ipInfo ? `${ipInfo.city}, ${ipInfo.country}` : 'Unknown';
-      
+
       // Генерируем код подтверждения
       const code = generateVerificationCode();
       saveVerificationCode(user._id.toString(), currentIP, code, true); // true = новый вход, сбрасываем таймеры
-      
+
       const message = `🔐 *Подтверждение нового IP адреса*\n\n` +
-                     `Обнаружен вход с нового IP: \`${currentIP}\`\n` +
-                     `Локация: ${location}\n\n` +
-                     `Ваш код подтверждения: *${code}*\n\n` +
-                     `⚠️ Никому не сообщайте этот код!\n` +
-                     `Если это были не вы, срочно смените пароль!`;
-      
+        `Обнаружен вход с нового IP: \`${currentIP}\`\n` +
+        `Локация: ${location}\n\n` +
+        `Ваш код подтверждения: *${code}*\n\n` +
+        `⚠️ Никому не сообщайте этот код!\n` +
+        `Если это были не вы, срочно смените пароль!`;
+
       try {
         await sendTelegramMessage(user.telegramId, message);
       } catch (err) {
         console.error('Ошибка отправки кода:', err);
       }
     }
-    
+
     await user.save();
-    
+
     // Получаем полные данные пользователя без пароля
     const userWithoutPassword = await User.findById(user._id).select('-password');
-    
+
     res.json({
       token,
       user: userWithoutPassword,
@@ -485,26 +485,26 @@ router.post('/login', checkBlockedIP, generalLimiter, [
  *                 available: { type: 'boolean' }
  */
 router.post('/check-username', [
-    body('username').trim().notEmpty().withMessage('Имя пользователя не может быть пустым')
+  body('username').trim().notEmpty().withMessage('Имя пользователя не может быть пустым')
 ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-        const username = req.body.username.toLowerCase();
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  try {
+    const username = req.body.username.toLowerCase();
 
-        // Проверяем точное совпадение с зарезервированными именами
-        const isReserved = RESERVED_USERNAMES.includes(username);
-        if (isReserved) {
-            return res.json({ available: false, message: 'Это имя пользователя зарезервировано системой.' });
-        }
-
-        const user = await User.findOne({ username });
-        res.json({ available: !user });
-    } catch (e) {
-        res.status(500).json({ message: 'Ошибка сервера' });
+    // Проверяем точное совпадение с зарезервированными именами
+    const isReserved = RESERVED_USERNAMES.includes(username);
+    if (isReserved) {
+      return res.json({ available: false, message: 'Это имя пользователя зарезервировано системой.' });
     }
+
+    const user = await User.findOne({ username });
+    res.json({ available: !user });
+  } catch (e) {
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
 });
 
 /**
@@ -529,17 +529,17 @@ router.post('/check-username', [
  *         description: Ошибка сервера при генерации токена.
  */
 router.post('/telegram/generate-token', checkBlockedIP, generalLimiter, (req, res) => {
-    try {
-        const token = crypto.randomBytes(20).toString('hex');
-        
-        const { loginTokens } = req.app.locals; 
-        loginTokens.set(token, { status: 'pending', userId: null, expires: Date.now() + 3 * 60 * 1000 });
+  try {
+    const token = crypto.randomBytes(20).toString('hex');
 
-        res.json({ loginToken: token });
-    } catch (error) {
-        console.error('Ошибка генерации токена для входа:', error);
-        res.status(500).send('Ошибка сервера');
-    }
+    const { loginTokens } = req.app.locals;
+    loginTokens.set(token, { status: 'pending', userId: null, expires: Date.now() + 3 * 60 * 1000 });
+
+    res.json({ loginToken: token });
+  } catch (error) {
+    console.error('Ошибка генерации токена для входа:', error);
+    res.status(500).send('Ошибка сервера');
+  }
 });
 
 /**
@@ -580,73 +580,91 @@ router.post('/telegram/generate-token', checkBlockedIP, generalLimiter, (req, re
  *         description: Внутренняя ошибка сервера.
  */
 router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
-    const { token } = req.params;
-    const { loginTokens } = req.app.locals;
-    const tokenData = loginTokens.get(token);
+  const { token } = req.params;
+  const { loginTokens } = req.app.locals;
+  const tokenData = loginTokens.get(token);
 
-    if (!tokenData) {
-        return res.status(404).json({ status: 'invalid', message: 'Токен не найден или истек' });
-    }
+  if (!tokenData) {
+    return res.status(404).json({ status: 'invalid', message: 'Токен не найден или истек' });
+  }
 
-    if (Date.now() > tokenData.expires) {
-        loginTokens.delete(token);
-        return res.status(410).json({ status: 'expired', message: 'Срок действия токена истек' });
-    }
-    
-    if (tokenData.status === 'completed' && tokenData.userId) {
-        try {
-            const user = await User.findById(tokenData.userId).select('-password');
-            if (!user) {
-                return res.status(404).json({ status: 'error', message: 'Пользователь не найден' });
-            }
+  if (Date.now() > tokenData.expires) {
+    loginTokens.delete(token);
+    return res.status(410).json({ status: 'expired', message: 'Срок действия токена истек' });
+  }
 
-            // Если это первый вход после регистрации через Telegram (IP = 'telegram-bot'), обновляем IP
-            if (user.registrationDetails?.ip === 'telegram-bot') {
-                const ip = req.headers['x-test-ip'] || req.ip;
-                const { analyzeIp } = await import('../services/ipAnalysisService.js');
-                const ipInfo = await analyzeIp(ip);
-                
-                if (ipInfo) {
-                    user.registrationDetails.ip = ip;
-                    user.registrationDetails.ipInfo = {
-                        country: ipInfo.country,
-                        city: ipInfo.city,
-                        isHosting: ipInfo.hosting,
-                        isProxy: ipInfo.proxy,
-                    };
-                    
-                    // Пересчитываем suspicion score с реальным IP
-                    const { calculateRegistrationScore } = await import('../services/scoringService.js');
-                    const { score, log } = calculateRegistrationScore(user);
-                    user.suspicionScore = score;
-                    user.suspicionLog = log;
-                    
-                    await user.save();
-                }
-            }
+  if (tokenData.status === 'completed' && tokenData.userId) {
+    try {
+      const user = await User.findById(tokenData.userId).select('-password');
+      if (!user) {
+        return res.status(404).json({ status: 'error', message: 'Пользователь не найден' });
+      }
 
-            const jwtToken = jwt.sign(
-                { 
-                  user: {
-                    id: user._id, 
-                    roles: user.roles 
-                  }
-                },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRES_IN }
-            );
+      // Если это первый вход после регистрации через Telegram (IP = 'telegram-bot'), обновляем IP
+      if (user.registrationDetails?.ip === 'telegram-bot') {
+        const ip = req.headers['x-test-ip'] || req.ip;
+        const { analyzeIp } = await import('../services/ipAnalysisService.js');
+        const ipInfo = await analyzeIp(ip);
 
-            loginTokens.delete(token);
-            
-            return res.json({ status: 'completed', token: jwtToken, user });
+        if (ipInfo) {
+          user.registrationDetails.ip = ip;
+          user.registrationDetails.ipInfo = {
+            country: ipInfo.country,
+            city: ipInfo.city,
+            isHosting: ipInfo.hosting,
+            isProxy: ipInfo.proxy,
+          };
 
-        } catch (error) {
-            console.error('Ошибка при поиске пользователя или генерации JWT:', error);
-            return res.status(500).json({ status: 'error', message: 'Внутренняя ошибка сервера' });
+          // Пересчитываем suspicion score с реальным IP
+          const { calculateRegistrationScore } = await import('../services/scoringService.js');
+          const { score, log } = calculateRegistrationScore(user);
+          user.suspicionScore = score;
+          user.suspicionLog = log;
         }
-    }
+      }
 
-    res.json({ status: tokenData.status });
+      // --- ФИКС ДЛЯ 403 ERROR --- 
+      // Поскольку вход через Telegram считается подтвержденным (2FA), 
+      // мы должны ДОВЕРИТЬ текущему IP, с которого происходит поллинг (браузер клиента).
+      const currentIP = req.headers['x-test-ip'] || req.ip;
+      const { isIPTrusted, addTrustedIP } = await import('../utils/sessionManager.js'); // Динамический импорт, чтобы избежать циклов, если они есть, или просто использовать утилиту
+
+      // Если IP еще не доверенный, добавляем его
+      if (!isIPTrusted(user, currentIP)) {
+        const userAgent = req.headers['user-agent'] || '';
+        // Можно попробовать определить локацию, но это асинхронно и может занять время. 
+        // Для скорости просто добавим Unknown или попробуем быстро определить.
+        // Лучше использовать существующую утилиту addTrustedIP (она сама сохраняет user)
+        await addTrustedIP(user, currentIP, userAgent, 'Verified via Telegram Login');
+      } else {
+        // Если IP доверенный, но мы всё равно хотим обновить lastSeen или что-то такое, можно просто save.
+        // Но addTrustedIP делает save внутри. 
+        // Если не вызывали addTrustedIP, то сохраним изменения (если были выше)
+        await user.save();
+      }
+
+      const jwtToken = jwt.sign(
+        {
+          user: {
+            id: user._id,
+            roles: user.roles
+          }
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+      );
+
+      loginTokens.delete(token);
+
+      return res.json({ status: 'completed', token: jwtToken, user });
+
+    } catch (error) {
+      console.error('Ошибка при поиске пользователя или генерации JWT:', error);
+      return res.status(500).json({ status: 'error', message: 'Внутренняя ошибка сервера' });
+    }
+  }
+
+  res.json({ status: tokenData.status });
 });
 
 /**
@@ -682,100 +700,100 @@ router.get('/telegram/check-token/:token', generalLimiter, async (req, res) => {
  *         description: Ошибка сервера.
  */
 router.post('/telegram/register', checkBlockedIP, async (req, res) => {
-    try {
-        const {
-            role,
-            grade,
-            subjects,
-            phone,
-            telegramId,
-            username,
-            firstName,
-            lastName
-        } = req.body;
-        // Логика регистрации через тг бота
+  try {
+    const {
+      role,
+      grade,
+      subjects,
+      phone,
+      telegramId,
+      username,
+      firstName,
+      lastName
+    } = req.body;
+    // Логика регистрации через тг бота
 
 
-        // 1. Проверяем, что ID телеграма есть
-        if (!telegramId) {
-            return res.status(400).json({ msg: 'Необходим ID пользователя Telegram' });
-        }
-        
-        // 2. ИЩЕМ ПОЛЬЗОВАТЕЛЯ ПО TELEGRAM ID
-        const existingUserByTgId = await User.findOne({ telegramId });
-        if (existingUserByTgId) {
-             // Если юзер уже есть - просто возвращаем его ID, НИЧЕГО НЕ МЕНЯЕМ
-             return res.status(200).json({ userId: existingUserByTgId._id, message: 'Пользователь уже существует.' });
-        }
-
-        // 3. Проверяем, что все нужные данные для НОВОГО юзера есть
-        if (!role || !username) {
-            return res.status(400).json({ msg: 'Не хватает данных для регистрации нового пользователя.' });
-        }
-
-        // 4. Проверяем, не занят ли username
-        const existingUserByUsername = await User.findOne({ username: username.toLowerCase() });
-        if (existingUserByUsername) {
-            return res.status(400).json({ msg: `Имя пользователя '${username}' уже занято.` });
-        }
-
-        // 5. Создаем нового пользователя
-        const newUser = new User({
-            username,
-            phone,
-            firstName,
-            lastName,
-            telegramId,
-            telegramUsername: username,
-            hasPassword: false,
-            roles: {
-                student: role === 'student',
-                helper: role === 'helper',
-            },
-            grade: grade || undefined,
-            subjects: subjects || [],
-            isVerified: true, // Считаем верифицированным, раз пришел из телеги
-            registrationDetails: {
-                ip: 'telegram-bot',
-                ipInfo: {
-                    country: 'Unknown',
-                    city: 'Telegram Registration',
-                    isHosting: false,
-                    isProxy: false,
-                }
-            },
-            suspicionScore: 0,
-            suspicionLog: [{
-                reason: 'Регистрация через Telegram бота',
-                points: 0,
-                timestamp: new Date()
-            }]
-        });
-
-        await newUser.save();
-
-        // 7. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но почему бы и да)
-        const jwtToken = jwt.sign(
-            { 
-              user: {
-                id: newUser._id, 
-                roles: newUser.roles
-              }
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '5m' } 
-        );
-        
-        // Отправляем ID нового юзера, чтобы бот мог его использовать
-        res.status(201).json({ userId: newUser._id, token: jwtToken });
-
-    } catch (error) {
-        console.error('Ошибка регистрации через Telegram:', error.message);
-        if (error.code === 11000) {
-            return res.status(400).json({ msg: `Имя пользователя уже занято.` });
-        }
-        res.status(500).json({ msg: 'Ошибка на сервере' });
+    // 1. Проверяем, что ID телеграма есть
+    if (!telegramId) {
+      return res.status(400).json({ msg: 'Необходим ID пользователя Telegram' });
     }
+
+    // 2. ИЩЕМ ПОЛЬЗОВАТЕЛЯ ПО TELEGRAM ID
+    const existingUserByTgId = await User.findOne({ telegramId });
+    if (existingUserByTgId) {
+      // Если юзер уже есть - просто возвращаем его ID, НИЧЕГО НЕ МЕНЯЕМ
+      return res.status(200).json({ userId: existingUserByTgId._id, message: 'Пользователь уже существует.' });
+    }
+
+    // 3. Проверяем, что все нужные данные для НОВОГО юзера есть
+    if (!role || !username) {
+      return res.status(400).json({ msg: 'Не хватает данных для регистрации нового пользователя.' });
+    }
+
+    // 4. Проверяем, не занят ли username
+    const existingUserByUsername = await User.findOne({ username: username.toLowerCase() });
+    if (existingUserByUsername) {
+      return res.status(400).json({ msg: `Имя пользователя '${username}' уже занято.` });
+    }
+
+    // 5. Создаем нового пользователя
+    const newUser = new User({
+      username,
+      phone,
+      firstName,
+      lastName,
+      telegramId,
+      telegramUsername: username,
+      hasPassword: false,
+      roles: {
+        student: role === 'student',
+        helper: role === 'helper',
+      },
+      grade: grade || undefined,
+      subjects: subjects || [],
+      isVerified: true, // Считаем верифицированным, раз пришел из телеги
+      registrationDetails: {
+        ip: 'telegram-bot',
+        ipInfo: {
+          country: 'Unknown',
+          city: 'Telegram Registration',
+          isHosting: false,
+          isProxy: false,
+        }
+      },
+      suspicionScore: 0,
+      suspicionLog: [{
+        reason: 'Регистрация через Telegram бота',
+        points: 0,
+        timestamp: new Date()
+      }]
+    });
+
+    await newUser.save();
+
+    // 7. Генерируем JWT токен для авто-логина (он здесь не используется ботом, но почему бы и да)
+    const jwtToken = jwt.sign(
+      {
+        user: {
+          id: newUser._id,
+          roles: newUser.roles
+        }
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+
+    // Отправляем ID нового юзера, чтобы бот мог его использовать
+    res.status(201).json({ userId: newUser._id, token: jwtToken });
+
+  } catch (error) {
+    console.error('Ошибка регистрации через Telegram:', error.message);
+    if (error.code === 11000) {
+      return res.status(400).json({ msg: `Имя пользователя уже занято.` });
+    }
+    res.status(500).json({ msg: 'Ошибка на сервере' });
+  }
 });
 
 /**
@@ -807,43 +825,43 @@ router.post('/telegram/register', checkBlockedIP, async (req, res) => {
  *         description: Ошибка сервера.
  */
 router.post('/telegram/complete-login', async (req, res) => {
-    const { loginToken, telegramId, userId } = req.body;
-    const { loginTokens } = req.app.locals;
+  const { loginToken, telegramId, userId } = req.body;
+  const { loginTokens } = req.app.locals;
 
-    if (!loginToken || !telegramId) {
-        return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
+  if (!loginToken || !telegramId) {
+    return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
+  }
+
+  const tokenData = loginTokens.get(loginToken);
+  if (!tokenData) {
+    return res.status(404).json({ msg: 'Сессия для входа не найдена или истекла.' });
+  }
+
+  try {
+    let finalUserId = userId;
+
+    if (!finalUserId) {
+      const user = await User.findOne({ telegramId });
+      if (!user) {
+        // Если пользователь не найден, отправляем команду на регистрацию
+        return res.status(404).json({
+          action: 'register',
+          msg: 'Вы не зарегистрированы. Давайте начнем регистрацию прямо здесь!'
+        });
+      }
+      finalUserId = user._id;
     }
 
-    const tokenData = loginTokens.get(loginToken);
-    if (!tokenData) {
-        return res.status(404).json({ msg: 'Сессия для входа не найдена или истекла.' });
-    }
-    
-    try {
-        let finalUserId = userId;
+    tokenData.status = 'completed';
+    tokenData.userId = finalUserId;
+    loginTokens.set(loginToken, tokenData);
 
-        if (!finalUserId) {
-            const user = await User.findOne({ telegramId });
-            if (!user) {
-                // Если пользователь не найден, отправляем команду на регистрацию
-                return res.status(404).json({ 
-                    action: 'register',
-                    msg: 'Вы не зарегистрированы. Давайте начнем регистрацию прямо здесь!' 
-                });
-            }
-            finalUserId = user._id;
-        }
+    res.status(200).json({ msg: 'Вход подтвержден! Можете возвращаться на сайт, вы уже вошли в систему.' });
 
-        tokenData.status = 'completed';
-        tokenData.userId = finalUserId;
-        loginTokens.set(loginToken, tokenData);
-        
-        res.status(200).json({ msg: 'Вход подтвержден! Можете возвращаться на сайт, вы уже вошли в систему.' });
-
-    } catch (error) {
-        console.error('Ошибка при завершении входа через Telegram:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-    }
+  } catch (error) {
+    console.error('Ошибка при завершении входа через Telegram:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
+  }
 });
 /**
  * @swagger
@@ -871,22 +889,22 @@ router.post('/telegram/complete-login', async (req, res) => {
  *         description: Ошибка сервера.
  */
 router.post('/generate-link-token', protect, generalLimiter, async (req, res) => {
-    try {
-        const linkToken = `link_${crypto.randomBytes(15).toString('hex')}`;
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 минут
+  try {
+    const linkToken = `link_${crypto.randomBytes(15).toString('hex')}`;
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 минут
 
-        await LinkToken.create({
-            token: linkToken,
-            userId: req.user.id,
-            expiresAt
-        });
+    await LinkToken.create({
+      token: linkToken,
+      userId: req.user.id,
+      expiresAt
+    });
 
-        res.json({ linkToken });
+    res.json({ linkToken });
 
-    } catch (error) {
-        console.error('Ошибка генерации токена для привязки:', error);
-        res.status(500).send('Ошибка сервера');
-    }
+  } catch (error) {
+    console.error('Ошибка генерации токена для привязки:', error);
+    res.status(500).send('Ошибка сервера');
+  }
 });
 
 /**
@@ -922,27 +940,27 @@ router.post('/generate-link-token', protect, generalLimiter, async (req, res) =>
  *         description: Токен не найден.
  */
 router.get('/check-link-status/:token', protect, generalLimiter, async (req, res) => {
-    const { token } = req.params;
-    
-    // Ищем токен в базе
-    const tokenData = await LinkToken.findOne({ token, expiresAt: { $gt: new Date() } });
-    if (!tokenData) {
-      return res.status(404).json({ msg: 'Токен не найден или истек.' });
+  const { token } = req.params;
+
+  // Ищем токен в базе
+  const tokenData = await LinkToken.findOne({ token, expiresAt: { $gt: new Date() } });
+  if (!tokenData) {
+    return res.status(404).json({ msg: 'Токен не найден или истек.' });
+  }
+
+  if (tokenData.status === 'linked') {
+    // Находим пользователя по ID, который был сохранен в токене
+    const user = await User.findById(tokenData.userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'Связанный пользователь не найден.' });
     }
 
-    if (tokenData.status === 'linked') {
-      // Находим пользователя по ID, который был сохранен в токене
-      const user = await User.findById(tokenData.userId);
-      if (!user) {
-         return res.status(404).json({ msg: 'Связанный пользователь не найден.' });
-      }
+    await tokenData.deleteOne();
 
-      await tokenData.deleteOne();
-      
-      return res.json({ status: 'linked', user });
-    } else {
-      return res.json({ status: tokenData.status });
-    }
+    return res.json({ status: 'linked', user });
+  } else {
+    return res.json({ status: tokenData.status });
+  }
 });
 
 /**
@@ -980,8 +998,8 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
 
     // ПРОВЕРКА: если нет пароля, не даем отвязать телегу
     if (!user.password && user.hasPassword === false) {
-      return res.status(403).json({ 
-        msg: 'Нельзя отвязать Telegram, так как у вас не установлен пароль. Сначала установите пароль в профиле.' 
+      return res.status(403).json({
+        msg: 'Нельзя отвязать Telegram, так как у вас не установлен пароль. Сначала установите пароль в профиле.'
       });
     }
 
@@ -1053,72 +1071,72 @@ router.post('/telegram/unlink', protect, generalLimiter, async (req, res) => {
  *         description: Ошибка сервера.
  */
 router.post('/finalizelink', async (req, res) => {
-    const { linkToken, telegramId, telegramUsername, phone } = req.body;
+  const { linkToken, telegramId, telegramUsername, phone } = req.body;
 
-    if (!linkToken || !telegramId) {
-        return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
+  if (!linkToken || !telegramId) {
+    return res.status(400).json({ msg: 'Отсутствует токен или ID телеграма' });
+  }
+
+  // Ищем токен в монге
+  const tokenData = await LinkToken.findOne({
+    token: linkToken,
+    expiresAt: { $gt: new Date() }
+  });
+
+  if (!tokenData) {
+    return res.status(404).json({ msg: 'Токен для привязки не найден или недействителен' });
+  }
+
+  try {
+    const existingTelegramUser = await User.findOne({ telegramId: String(telegramId) });
+    if (existingTelegramUser && existingTelegramUser._id.toString() !== tokenData.userId) {
+      return res.status(409).json({ msg: 'Этот аккаунт Telegram уже привязан к другому профилю.' });
     }
 
-    // Ищем токен в монге
-    const tokenData = await LinkToken.findOne({ 
-        token: linkToken, 
-        expiresAt: { $gt: new Date() } 
+    const userToUpdate = await User.findById(tokenData.userId);
+    if (!userToUpdate) {
+      return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });
+    }
+
+    // Обновляем только ID, а не username, чтобы ничего не сломать
+    userToUpdate.telegramId = String(telegramId);
+    if (telegramUsername) { // Сохраним, только если он есть
+      userToUpdate.telegramUsername = telegramUsername;
+    }
+    if (phone) { // Сохраняем телефон, если он был передан(надеюсь, что он будет передан)
+      userToUpdate.phone = phone;
+    }
+    await userToUpdate.save();
+
+    // Удаляем токен из базы после использования
+    await tokenData.deleteOne();
+
+    // Уведомление о привязке телеграма
+    await createAndSendNotification(req.app.locals.sseConnections, {
+      user: userToUpdate._id,
+      type: 'security_alert',
+      title: 'Telegram успешно привязан',
+      message: `Ваш аккаунт был успешно привязан к Telegram${telegramUsername ? ' @' + telegramUsername : ''}.`,
+      link: '/profile/me'
     });
 
-    if (!tokenData) {
-        return res.status(404).json({ msg: 'Токен для привязки не найден или недействителен' });
+    // Отправляем обновление профиля через Socket.IO в реал-тайме
+    const { io } = req.app.locals;
+    if (io) {
+      io.to(`user_${userToUpdate._id}`).emit('profile_updated', {
+        telegramId: String(telegramId),
+        telegramUsername: telegramUsername || undefined,
+        telegramNotificationsEnabled: true,
+        phone: phone || undefined
+      });
     }
 
-    try {
-        const existingTelegramUser = await User.findOne({ telegramId: String(telegramId) });
-        if (existingTelegramUser && existingTelegramUser._id.toString() !== tokenData.userId) {
-            return res.status(409).json({ msg: 'Этот аккаунт Telegram уже привязан к другому профилю.' });
-        }
+    res.status(200).json({ msg: 'Аккаунт успешно привязан' });
 
-        const userToUpdate = await User.findById(tokenData.userId);
-        if (!userToUpdate) {
-            return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });
-        }
-
-        // Обновляем только ID, а не username, чтобы ничего не сломать
-        userToUpdate.telegramId = String(telegramId);
-        if (telegramUsername) { // Сохраним, только если он есть
-           userToUpdate.telegramUsername = telegramUsername;
-        }
-        if (phone) { // Сохраняем телефон, если он был передан(надеюсь, что он будет передан)
-            userToUpdate.phone = phone;
-        }
-        await userToUpdate.save();
-
-        // Удаляем токен из базы после использования
-        await tokenData.deleteOne();
-        
-        // Уведомление о привязке телеграма
-        await createAndSendNotification(req.app.locals.sseConnections, {
-          user: userToUpdate._id,
-          type: 'security_alert',
-          title: 'Telegram успешно привязан',
-          message: `Ваш аккаунт был успешно привязан к Telegram${telegramUsername ? ' @' + telegramUsername : ''}.`,
-          link: '/profile/me'
-        });
-
-        // Отправляем обновление профиля через Socket.IO в реал-тайме
-        const { io } = req.app.locals;
-        if (io) {
-          io.to(`user_${userToUpdate._id}`).emit('profile_updated', {
-            telegramId: String(telegramId),
-            telegramUsername: telegramUsername || undefined,
-            telegramNotificationsEnabled: true,
-            phone: phone || undefined
-          });
-        }
-        
-        res.status(200).json({ msg: 'Аккаунт успешно привязан' });
-
-    } catch (error) {
-        console.error('Ошибка при финализации привязки:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-    }
+  } catch (error) {
+    console.error('Ошибка при финализации привязки:', error);
+    res.status(500).json({ msg: 'Ошибка сервера' });
+  }
 });
 
 /**
@@ -1152,95 +1170,95 @@ router.post('/finalizelink', async (req, res) => {
  *         description: Ошибка сервера.
  */
 router.post('/forgot-password', generalLimiter, [
-    body('username', 'Введите имя пользователя').not().isEmpty()
+  body('username', 'Введите имя пользователя').not().isEmpty()
 ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { username } = req.body;
+  const currentIP = req.headers['x-test-ip'] || req.ip;
+
+  // Проверяем, заблокирован ли IP
+  const ipBlocked = await isIPBlocked(currentIP);
+  if (ipBlocked) {
+    return res.status(403).json({
+      msg: 'Ваш IP заблокирован на 24 часа из-за превышения количества попыток',
+      blocked: true
+    });
+  }
+
+  if (!req.app.locals.passwordResetTokens) {
+    req.app.locals.passwordResetTokens = new Map();
+  }
+  if (!req.app.locals.passwordResetRateLimiter) {
+    req.app.locals.passwordResetRateLimiter = new Map();
+  }
+
+  const { passwordResetTokens, passwordResetRateLimiter } = req.app.locals;
+  const lowerCaseUsername = username.toLowerCase();
+
+  // ПРОВЕРКА ЛИМИТА ЧАСТОТЫ ЗАПРОСОВ(чтоб не абузили)
+  const lastRequestTimestamp = passwordResetRateLimiter.get(lowerCaseUsername);
+  const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
+
+  if (lastRequestTimestamp && (Date.now() - lastRequestTimestamp < TEN_MINUTES_IN_MS)) {
+    const timeLeftMs = TEN_MINUTES_IN_MS - (Date.now() - lastRequestTimestamp);
+    const timeLeftMin = Math.ceil(timeLeftMs / (1000 * 60));
+    return res.status(429).json({ msg: `Вы недавно сбрасывали пароль. Пожалуйста, подождите еще ${timeLeftMin} мин.` });
+  }
+
+  try {
+    const user = await User.findOne({ username: lowerCaseUsername });
+
+    if (!user) {
+      // Больше не притворяемся. Если юзера нет - так и говорим.
+      return res.status(404).json({ msg: 'Пользователь с таким именем не найден.' });
     }
 
-    const { username } = req.body;
-    const currentIP = req.headers['x-test-ip'] || req.ip;
-
-    // Проверяем, заблокирован ли IP
-    const ipBlocked = await isIPBlocked(currentIP);
-    if (ipBlocked) {
-        return res.status(403).json({ 
-            msg: 'Ваш IP заблокирован на 24 часа из-за превышения количества попыток',
-            blocked: true
-        });
-    }
-    
-    if (!req.app.locals.passwordResetTokens) {
-        req.app.locals.passwordResetTokens = new Map();
-    }
-    if (!req.app.locals.passwordResetRateLimiter) {
-        req.app.locals.passwordResetRateLimiter = new Map();
-    }
-    
-    const { passwordResetTokens, passwordResetRateLimiter } = req.app.locals;
-    const lowerCaseUsername = username.toLowerCase();
-
-    // ПРОВЕРКА ЛИМИТА ЧАСТОТЫ ЗАПРОСОВ(чтоб не абузили)
-    const lastRequestTimestamp = passwordResetRateLimiter.get(lowerCaseUsername);
-    const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
-
-    if (lastRequestTimestamp && (Date.now() - lastRequestTimestamp < TEN_MINUTES_IN_MS)) {
-        const timeLeftMs = TEN_MINUTES_IN_MS - (Date.now() - lastRequestTimestamp);
-        const timeLeftMin = Math.ceil(timeLeftMs / (1000 * 60));
-        return res.status(429).json({ msg: `Вы недавно сбрасывали пароль. Пожалуйста, подождите еще ${timeLeftMin} мин.` });
+    if (!user.telegramId) {
+      return res.status(400).json({ msg: 'К этому аккаунту не привязан Telegram. Сброс пароля невозможен.' });
     }
 
-    try {
-        const user = await User.findOne({ username: lowerCaseUsername });
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + 10 * 60 * 1000;
 
-        if (!user) {
-            // Больше не притворяемся. Если юзера нет - так и говорим.
-            return res.status(404).json({ msg: 'Пользователь с таким именем не найден.' });
-        }
+    // Явно сбрасываем счетчик попыток при новом запросе кода
+    passwordResetTokens.set(lowerCaseUsername, {
+      code,
+      expires,
+      attempts: 0  // Всегда сбрасываем при новом коде
+    });
+    passwordResetRateLimiter.set(lowerCaseUsername, Date.now());
 
-        if (!user.telegramId) {
-            return res.status(400).json({ msg: 'К этому аккаунту не привязан Telegram. Сброс пароля невозможен.' });
-        }
+    // Отправляем код через апи телеграма
+    const botToken = process.env.BOT_TOKEN;
+    const message = `Ваш код для сброса пароля на Birge Kömek: *${code}*\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это сообщение.`;
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const expires = Date.now() + 10 * 60 * 1000;
+    await axios.post(url, {
+      chat_id: user.telegramId,
+      text: message,
+      parse_mode: 'Markdown'
+    });
 
-        // Явно сбрасываем счетчик попыток при новом запросе кода
-        passwordResetTokens.set(lowerCaseUsername, { 
-            code, 
-            expires, 
-            attempts: 0  // Всегда сбрасываем при новом коде
-        });
-        passwordResetRateLimiter.set(lowerCaseUsername, Date.now());
+    // Удаляем токен после истечения срока
+    setTimeout(() => {
+      passwordResetTokens.delete(lowerCaseUsername);
+    }, 10 * 60 * 1000);
 
-        // Отправляем код через апи телеграма
-        const botToken = process.env.BOT_TOKEN;
-        const message = `Ваш код для сброса пароля на Birge Kömek: *${code}*\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это сообщение.`;
-        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        
-        await axios.post(url, {
-            chat_id: user.telegramId,
-            text: message,
-            parse_mode: 'Markdown'
-        });
+    // Удаляем метку времени лимита, чтобы не засорять память
+    setTimeout(() => {
+      passwordResetRateLimiter.delete(lowerCaseUsername);
+    }, TEN_MINUTES_IN_MS);
 
-        // Удаляем токен после истечения срока
-        setTimeout(() => {
-            passwordResetTokens.delete(lowerCaseUsername);
-        }, 10 * 60 * 1000);
-        
-        // Удаляем метку времени лимита, чтобы не засорять память
-        setTimeout(() => {
-            passwordResetRateLimiter.delete(lowerCaseUsername);
-        }, TEN_MINUTES_IN_MS);
+    res.status(200).json({ msg: 'Код для сброса пароля отправлен в ваш Telegram.' });
 
-        res.status(200).json({ msg: 'Код для сброса пароля отправлен в ваш Telegram.' });
-
-    } catch (error) {
-        console.error('Ошибка при запросе на сброс пароля:', error.response ? error.response.data : error.message);
-        res.status(500).send('Ошибка сервера при отправке кода.');
-    }
+  } catch (error) {
+    console.error('Ошибка при запросе на сброс пароля:', error.response ? error.response.data : error.message);
+    res.status(500).send('Ошибка сервера при отправке кода.');
+  }
 });
 
 /**
@@ -1275,146 +1293,146 @@ router.post('/forgot-password', generalLimiter, [
  *         description: Ошибка сервера.
  */
 router.post('/reset-password', generalLimiter, [
-    body('username', 'Введите имя пользователя').not().isEmpty(),
-    body('code', 'Код должен состоять из 6 цифр').isLength({ min: 6, max: 6 }).isNumeric(),
-    body('password', 'Пароль должен быть минимум 6 символов').isLength({ min: 6 })
+  body('username', 'Введите имя пользователя').not().isEmpty(),
+  body('code', 'Код должен состоять из 6 цифр').isLength({ min: 6, max: 6 }).isNumeric(),
+  body('password', 'Пароль должен быть минимум 6 символов').isLength({ min: 6 })
 ], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
-    const { username, code, password } = req.body;
-    const { passwordResetTokens } = req.app.locals;
-    const currentIP = req.headers['x-test-ip'] || req.ip;
+  const { username, code, password } = req.body;
+  const { passwordResetTokens } = req.app.locals;
+  const currentIP = req.headers['x-test-ip'] || req.ip;
 
-    // Проверяем, заблокирован ли IP
-    const ipBlocked = await isIPBlocked(currentIP);
-    if (ipBlocked) {
-        return res.status(403).json({ 
-            msg: 'Ваш IP заблокирован на 24 часа из-за превышения количества попыток',
-            blocked: true
+  // Проверяем, заблокирован ли IP
+  const ipBlocked = await isIPBlocked(currentIP);
+  if (ipBlocked) {
+    return res.status(403).json({
+      msg: 'Ваш IP заблокирован на 24 часа из-за превышения количества попыток',
+      blocked: true
+    });
+  }
+
+  const storedToken = passwordResetTokens.get(username.toLowerCase());
+
+  if (!storedToken) {
+    return res.status(400).json({ msg: 'Код не найден или истек. Запросите новый.' });
+  }
+
+  if (Date.now() > storedToken.expires) {
+    passwordResetTokens.delete(username.toLowerCase());
+    return res.status(400).json({ msg: 'Срок действия кода истек. Запросите новый.' });
+  }
+
+  // Проверяем код
+  if (storedToken.code !== code) {
+    // Увеличиваем счетчик попыток
+    storedToken.attempts = (storedToken.attempts || 0) + 1;
+    const remainingAttempts = 3 - storedToken.attempts;
+
+    // Если исчерпаны попытки - блокируем IP
+    if (storedToken.attempts >= 3) {
+      try {
+        const user = await User.findOne({ username: username.toLowerCase() });
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        await BlockedIP.create({
+          ip: currentIP,
+          userId: user?._id,
+          reason: 'Превышено количество попыток сброса пароля',
+          expiresAt
         });
-    }
-
-    const storedToken = passwordResetTokens.get(username.toLowerCase());
-
-    if (!storedToken) {
-        return res.status(400).json({ msg: 'Код не найден или истек. Запросите новый.' });
-    }
-
-    if (Date.now() > storedToken.expires) {
-        passwordResetTokens.delete(username.toLowerCase());
-        return res.status(400).json({ msg: 'Срок действия кода истек. Запросите новый.' });
-    }
-
-    // Проверяем код
-    if (storedToken.code !== code) {
-        // Увеличиваем счетчик попыток
-        storedToken.attempts = (storedToken.attempts || 0) + 1;
-        const remainingAttempts = 3 - storedToken.attempts;
-
-        // Если исчерпаны попытки - блокируем IP
-        if (storedToken.attempts >= 3) {
-            try {
-                const user = await User.findOne({ username: username.toLowerCase() });
-                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-                
-                await BlockedIP.create({
-                    ip: currentIP,
-                    userId: user?._id,
-                    reason: 'Превышено количество попыток сброса пароля',
-                    expiresAt
-                });
-
-                passwordResetTokens.delete(username.toLowerCase());
-                
-                console.log(`🚫 IP ${currentIP} заблокирован на 24 часа (сброс пароля)`);
-                
-                return res.status(403).json({ 
-                    msg: 'Превышено количество попыток. Ваш IP заблокирован на 24 часа.',
-                    blocked: true,
-                    remainingAttempts: 0
-                });
-            } catch (err) {
-                console.error('Ошибка блокировки IP:', err);
-            }
-        }
-
-        return res.status(400).json({ 
-            msg: `Неверный код. Осталось попыток: ${remainingAttempts}`,
-            remainingAttempts
-        });
-    }
-
-    try {
-        const user = await User.findOne({ username: username.toLowerCase() }).select('+password');
-        if (!user) {
-            return res.status(404).json({ msg: 'Пользователь не найден.' });
-        }
-
-        // ПРОВЕРКА НА СОВПАДЕНИЕ СО СТАРЫМ ПАРОЛЕМ
-        if(user.password) {
-            const isSamePassword = await user.comparePassword(password);
-            if (isSamePassword) {
-                return res.status(400).json({ msg: 'Новый пароль не может совпадать со старым.' });
-            }
-        }
-
-        user.password = password; // хэширование произойдет в pre-save хуке
-        user.hasPassword = true;
-        await user.save();
 
         passwordResetTokens.delete(username.toLowerCase());
 
-        res.status(200).json({ msg: 'Пароль успешно сброшен. Теперь вы можете войти.' });
+        console.log(`🚫 IP ${currentIP} заблокирован на 24 часа (сброс пароля)`);
 
-    } catch (error) {
-        console.error('Ошибка при сбросе пароля:', error);
-        res.status(500).send('Ошибка сервера при обновлении пароля.');
+        return res.status(403).json({
+          msg: 'Превышено количество попыток. Ваш IP заблокирован на 24 часа.',
+          blocked: true,
+          remainingAttempts: 0
+        });
+      } catch (err) {
+        console.error('Ошибка блокировки IP:', err);
+      }
+    }
+
+    return res.status(400).json({
+      msg: `Неверный код. Осталось попыток: ${remainingAttempts}`,
+      remainingAttempts
+    });
+  }
+
+  try {
+    const user = await User.findOne({ username: username.toLowerCase() }).select('+password');
+    if (!user) {
+      return res.status(404).json({ msg: 'Пользователь не найден.' });
+    }
+
+    // ПРОВЕРКА НА СОВПАДЕНИЕ СО СТАРЫМ ПАРОЛЕМ
+    if (user.password) {
+      const isSamePassword = await user.comparePassword(password);
+      if (isSamePassword) {
+        return res.status(400).json({ msg: 'Новый пароль не может совпадать со старым.' });
+      }
+    }
+
+    user.password = password; // хэширование произойдет в pre-save хуке
+    user.hasPassword = true;
+    await user.save();
+
+    passwordResetTokens.delete(username.toLowerCase());
+
+    res.status(200).json({ msg: 'Пароль успешно сброшен. Теперь вы можете войти.' });
+
+  } catch (error) {
+    console.error('Ошибка при сбросе пароля:', error);
+    res.status(500).send('Ошибка сервера при обновлении пароля.');
   }
 });
 
 // Callback от Telegram бота после того, как юзер нажал /start {token}
 // Этот эндпоинт вызывается ИЗ ТЕЛЕГРАМ-БОТА, а не с фронтенда
 router.post('/telegram/link-user', async (req, res) => {
-    const { token, telegramId, telegramUsername, phone } = req.body;
-    
-    // Секретный ключ для авторизации бота
-    if (req.headers['x-bot-secret'] !== process.env.BOT_INTERNAL_SECRET) {
-        return res.status(403).json({ msg: 'Forbidden' });
+  const { token, telegramId, telegramUsername, phone } = req.body;
+
+  // Секретный ключ для авторизации бота
+  if (req.headers['x-bot-secret'] !== process.env.BOT_INTERNAL_SECRET) {
+    return res.status(403).json({ msg: 'Forbidden' });
+  }
+
+  try {
+    const tokenData = await LinkToken.findOne({ token, expiresAt: { $gt: new Date() } });
+    if (!tokenData) {
+      return res.status(404).json({ msg: 'Токен не найден или истек.' });
     }
 
-    try {
-        const tokenData = await LinkToken.findOne({ token, expiresAt: { $gt: new Date() } });
-        if (!tokenData) {
-            return res.status(404).json({ msg: 'Токен не найден или истек.' });
-        }
-        
-        const userToUpdate = await User.findById(tokenData.userId);
-        if (!userToUpdate) {
-            return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });
-        }
+    const userToUpdate = await User.findById(tokenData.userId);
+    if (!userToUpdate) {
+      return res.status(404).json({ msg: 'Пользователь для привязки не найден.' });
+    }
 
-        userToUpdate.telegramId = telegramId;
-        userToUpdate.telegramUsername = telegramUsername;
-        if (phone) {
-            userToUpdate.phone = phone;
-        }
-        // Если у пользователя уже есть пароль, НЕ МЕНЯЕМ hasPassword на false
-        if (!userToUpdate.hasPassword) {
-            userToUpdate.hasPassword = false;
-        }
-        
-        await userToUpdate.save();
+    userToUpdate.telegramId = telegramId;
+    userToUpdate.telegramUsername = telegramUsername;
+    if (phone) {
+      userToUpdate.phone = phone;
+    }
+    // Если у пользователя уже есть пароль, НЕ МЕНЯЕМ hasPassword на false
+    if (!userToUpdate.hasPassword) {
+      userToUpdate.hasPassword = false;
+    }
 
-        tokenData.status = 'linked';
-        await tokenData.save();
+    await userToUpdate.save();
 
-        res.json({ success: true, username: userToUpdate.username });
-    } catch (err) {
-        console.error('Ошибка привязки пользователя через бота:', err);
-        res.status(500).json({ msg: 'Ошибка сервера' });
+    tokenData.status = 'linked';
+    await tokenData.save();
+
+    res.json({ success: true, username: userToUpdate.username });
+  } catch (err) {
+    console.error('Ошибка привязки пользователя через бота:', err);
+    res.status(500).json({ msg: 'Ошибка сервера' });
   }
 });
 
@@ -1450,42 +1468,42 @@ router.post('/logout', (req, res) => {
 router.post('/verify-ip', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
+
     if (!user.telegramId) {
       return res.status(403).json({ msg: 'Для подтверждения нового IP необходимо привязать Telegram' });
     }
-    
+
     const currentIP = req.headers['x-test-ip'] || req.ip;
-    
+
     // Проверяем лимиты на повторную отправку
     const resendCheck = canResendCode(user._id.toString(), currentIP);
-    
+
     if (!resendCheck.canResend) {
-      return res.status(429).json({ 
+      return res.status(429).json({
         msg: resendCheck.message,
         waitTime: resendCheck.waitTime,
         remainingResends: resendCheck.remainingResends
       });
     }
-    
+
     const code = generateVerificationCode();
     saveVerificationCode(user._id.toString(), currentIP, code);
     const { resendCount } = incrementResendCount(user._id.toString(), currentIP);
-    
+
     const message = `🔐 *Подтверждение нового IP адреса*\n\n` +
-                   `Обнаружен вход с нового IP: \`${currentIP}\`\n\n` +
-                   `Ваш код подтверждения: *${code}*\n\n` +
-                   `⚠️ Никому не сообщайте этот код!\n` +
-                   `Если это были не вы, срочно смените пароль!`;
-    
+      `Обнаружен вход с нового IP: \`${currentIP}\`\n\n` +
+      `Ваш код подтверждения: *${code}*\n\n` +
+      `⚠️ Никому не сообщайте этот код!\n` +
+      `Если это были не вы, срочно смените пароль!`;
+
     await sendTelegramMessage(user.telegramId, message);
-    
+
     // Расчет следующего ожидания до повторной отправки
     let nextWaitTime = 0; // секунды
     if (resendCount === 1) nextWaitTime = 60; // после 1-й повторной отправки ждать 60 сек
     else if (resendCount === 2) nextWaitTime = 5 * 60; // после 2-й — 5 минут
 
-    res.json({ 
+    res.json({
       msg: 'Код подтверждения отправлен в Telegram',
       remainingResends: resendCheck.remainingResends - 1,
       nextWaitTime
@@ -1524,49 +1542,49 @@ router.post('/confirm-ip', protect, async (req, res) => {
     const { code } = req.body;
     const user = await User.findById(req.user.id);
     const currentIP = req.headers['x-test-ip'] || req.ip;
-    
+
     const result = await verifyCode(user._id.toString(), currentIP, code);
-    
+
     if (result.blocked) {
       // IP заблокирован - отправляем уведомление в Telegram
       if (user.telegramId) {
         const message = `🚨 *ВНИМАНИЕ: Подозрительная активность!*\n\n` +
-                       `Обнаружена неудачная попытка входа в ваш аккаунт с IP: \`${currentIP}\`\n\n` +
-                       `IP адрес заблокирован на 24 часа из-за превышения количества попыток подтверждения.\n\n` +
-                       `⚠️ Если это были вы, свяжитесь с поддержкой.\n` +
-                       `Если это были не вы, ваш аккаунт в безопасности - смените пароль для дополнительной защиты.`;
+          `Обнаружена неудачная попытка входа в ваш аккаунт с IP: \`${currentIP}\`\n\n` +
+          `IP адрес заблокирован на 24 часа из-за превышения количества попыток подтверждения.\n\n` +
+          `⚠️ Если это были вы, свяжитесь с поддержкой.\n` +
+          `Если это были не вы, ваш аккаунт в безопасности - смените пароль для дополнительной защиты.`;
         await sendTelegramMessage(user.telegramId, message);
       }
       return res.status(403).json({ msg: 'IP адрес заблокирован на 24 часа из-за превышения количества попыток' });
     }
-    
+
     if (!result.success) {
-      return res.status(400).json({ 
-        msg: 'Неверный код', 
-        remainingAttempts: result.remainingAttempts 
+      return res.status(400).json({
+        msg: 'Неверный код',
+        remainingAttempts: result.remainingAttempts
       });
     }
-    
+
     // Добавляем IP в доверенные
     const userAgent = req.headers['user-agent'] || '';
     const { analyzeIp } = await import('../services/ipAnalysisService.js');
     const ipInfo = await analyzeIp(currentIP);
     const location = ipInfo ? `${ipInfo.city}, ${ipInfo.country}` : 'Unknown';
-    
+
     await addTrustedIP(user, currentIP, userAgent, location);
-    
+
     // Отправляем уведомление об успешном добавлении
     if (user.telegramId) {
       const message = `✅ *IP адрес подтвержден*\n\n` +
-                     `IP \`${currentIP}\` добавлен в список доверенных.\n` +
-                     `Локация: ${location}`;
+        `IP \`${currentIP}\` добавлен в список доверенных.\n` +
+        `Локация: ${location}`;
       await sendTelegramMessage(user.telegramId, message);
     }
-    
+
     // Возвращаем данные пользователя для автоматического входа
     const userWithoutPassword = await User.findById(user._id).select('-password');
-    
-    res.json({ 
+
+    res.json({
       msg: 'IP адрес успешно подтвержден',
       user: userWithoutPassword
     });
@@ -1622,9 +1640,9 @@ router.post('/change-password', protect, [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         msg: errors.array()[0].msg,
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -1663,10 +1681,10 @@ router.post('/change-password', protect, [
 
     // Отправляем уведомление в Telegram
     if (user.telegramId) {
-      const message = hadPassword ? 
+      const message = hadPassword ?
         '🔐 *Пароль изменен*\n\nВаш пароль был успешно изменен.\n\nЕсли это были не вы, срочно свяжитесь с поддержкой!' :
         '🔐 *Пароль установлен*\n\nВы успешно установили пароль для входа.\n\nТеперь вы можете входить как через Telegram, так и по логину/паролю.';
-      
+
       try {
         await sendTelegramMessage(user.telegramId, message);
       } catch (err) {
@@ -1674,7 +1692,7 @@ router.post('/change-password', protect, [
       }
     }
 
-    res.json({ 
+    res.json({
       msg: hadPassword ? 'Пароль успешно изменен' : 'Пароль успешно установлен',
       hasPassword: true
     });
