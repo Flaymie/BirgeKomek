@@ -53,7 +53,7 @@ registerRoute(
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
             if (event.notification.data.url) {
                 let client = null;
                 for (let i = 0; i < clientList.length; i++) {
@@ -69,8 +69,8 @@ self.addEventListener('notificationclick', function (event) {
                     }
                     return client.focus();
                 }
-                if (clients.openWindow) {
-                    return clients.openWindow(event.notification.data.url);
+                if (self.clients.openWindow) {
+                    return self.clients.openWindow(event.notification.data.url);
                 }
             }
         })
@@ -122,7 +122,7 @@ self.addEventListener('push', function (event) {
         };
 
         event.waitUntil(
-            clients.matchAll({ type: 'window' }).then(windowClients => {
+            self.clients.matchAll({ type: 'window' }).then(windowClients => {
                 const isFocused = windowClients.some(client => client.focused);
                 if (isFocused) return;
                 return self.registration.showNotification(data.title, options);
