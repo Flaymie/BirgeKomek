@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, isLoading, error }) => {
@@ -32,9 +32,9 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <SafeAnimatePresence>
       <div className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-[100] pt-20 md:pt-24 overflow-y-auto p-4">
-        <motion.div
+        <SafeMotionDiv
           ref={modalRef}
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -53,7 +53,7 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
                   ⚠️ Осталось попыток: {remainingAttempts}
                 </p>
                 <p className="text-sm mt-1">
-                  {remainingAttempts === 1 
+                  {remainingAttempts === 1
                     ? 'Последняя попытка! При неверном вводе аккаунт будет заблокирован на 7 дней.'
                     : 'После 3 неудачных попыток аккаунт будет заблокирован из-за подозрения во взломе.'}
                 </p>
@@ -94,9 +94,9 @@ const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, 
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
-        </motion.div>
+        </SafeMotionDiv>
       </div>
-    </AnimatePresence>
+    </SafeAnimatePresence>
   );
 };
 

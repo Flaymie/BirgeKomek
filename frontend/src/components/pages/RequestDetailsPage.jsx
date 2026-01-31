@@ -14,20 +14,20 @@ import RoleBadge from '../shared/RoleBadge';
 import { CheckBadgeIcon, PencilSquareIcon, TrashIcon, Cog6ToothIcon, ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowUturnLeftIcon, UserCircleIcon, CalendarIcon, TagIcon, PaperClipIcon, ArrowDownTrayIcon, DocumentIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import ModeratorActionConfirmModal from '../modals/ModeratorActionConfirmModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import { downloadFile } from '../../services/downloadService';
 import ReportModal from '../modals/ReportModal';
 import ImageViewerModal from '../modals/ImageViewerModal';
 
- 
+
 
 
 const RequestDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
   const location = useLocation();
-    const [request, setRequest] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [request, setRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
@@ -36,7 +36,7 @@ const RequestDetailPage = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const { socket, joinRoom, leaveRoom } = useSocket();
   const [myResponse, setMyResponse] = useState(null);
-  
+
   const [isAdminEditModalOpen, setAdminEditModalOpen] = useState(false);
   const [isAdminDeleteModalOpen, setAdminDeleteModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -60,7 +60,7 @@ const RequestDetailPage = () => {
       setLightboxImage(imageUrl);
     }
   };
-  
+
   // Определяем, откуда пришел пользователь
   const fromMyRequests = location.state?.from === '/my-requests';
 
@@ -102,12 +102,12 @@ const RequestDetailPage = () => {
     }
 
     const fetchRequestDetails = async () => {
-        try {
+      try {
         setLoading(true);
-            const response = await requestsService.getRequestById(id);
-            setRequest(response.data);
+        const response = await requestsService.getRequestById(id);
+        setRequest(response.data);
         setError(null);
-        } catch (err) {
+      } catch (err) {
         if (err.response?.status !== 404 && err.response?.status !== 400) {
           console.error('Ошибка при получении данных запроса:', err);
           toast.error(err.response?.data?.msg || 'Произошла ошибка при загрузке данных запроса');
@@ -117,11 +117,11 @@ const RequestDetailPage = () => {
           return;
         }
         setError(true);
-        } finally {
-            setLoading(false);
+      } finally {
+        setLoading(false);
       }
     };
-    
+
     fetchRequestDetails();
   }, [id, navigate, currentUser, authLoading]);
 
@@ -138,10 +138,10 @@ const RequestDetailPage = () => {
       console.error('Ошибка при получении откликов:', err);
     } finally {
       setResponsesLoading(false);
-        }
-    }, [id]);
+    }
+  }, [id]);
 
-    useEffect(() => {
+  useEffect(() => {
     fetchResponses();
   }, [fetchResponses]);
 
@@ -152,18 +152,18 @@ const RequestDetailPage = () => {
     setMyResponse(ownResponse || null);
   }, [responses, currentUser]);
 
-    useEffect(() => {
-        if (!socket || !joinRoom || !leaveRoom) return;
-        
+  useEffect(() => {
+    if (!socket || !joinRoom || !leaveRoom) return;
+
     // Присоединяемся к комнате запроса через новую функцию
     joinRoom(id);
-        
+
     const handleNewResponse = (newResponse) => {
       // Сравниваем как строки чтобы избежать проблем с типами ObjectId
       if (newResponse.request?.toString() === id || newResponse.request === id) {
         setResponses(prev => [...prev, newResponse]);
-            }
-        };
+      }
+    };
 
     const handleResponseUpdate = (updatedResponse) => {
       // Обновляем список откликов
@@ -191,20 +191,20 @@ const RequestDetailPage = () => {
     socket.on('new_response', handleNewResponse);
     socket.on('response_updated', handleResponseUpdate);
 
-        return () => {
+    return () => {
       socket.off('new_response', handleNewResponse);
       socket.off('response_updated', handleResponseUpdate);
       leaveRoom();
-        };
+    };
   }, [socket, id, currentUser, navigate, joinRoom, leaveRoom]);
 
   const isPrivilegedUser = useMemo(() => {
     return currentUser?.roles?.admin || currentUser?.roles?.moderator;
   }, [currentUser]);
-    
+
   // Обработчик удаления запроса
   const handleDeleteRequest = async () => {
-        try {
+    try {
       await requestsService.deleteRequest(id);
       toast.success('Запрос успешно удален');
       // После удаления перенаправляем на страницу "Мои запросы"
@@ -219,15 +219,15 @@ const RequestDetailPage = () => {
     setAdminEditModalOpen(false);
     navigate(`/request/${id}/edit`, { state: { editReason: reason, fromAdmin: true } });
   };
-  
+
   const confirmAdminDelete = useCallback(async (confirmationCode) => {
     if (!modActionArgs) return;
-    
+
     setModActionLoading(true);
     try {
-      await requestsService.deleteRequest(id, { 
-        deleteReason: modActionArgs.reason, 
-        confirmationCode 
+      await requestsService.deleteRequest(id, {
+        deleteReason: modActionArgs.reason,
+        confirmationCode
       });
       toast.success('Заявка успешно удалена модератором');
       setIsConfirmingModAction(false);
@@ -250,7 +250,7 @@ const RequestDetailPage = () => {
       await requestsService.deleteRequest(id, { deleteReason: reason });
       toast.success('Заявка успешно удалена модератором');
       navigate('/requests');
-        } catch (err) {
+    } catch (err) {
       if (err.response && err.response.data.confirmationRequired) {
         // Если требуется код
         setModActionArgs({ reason }); // Сохраняем причину для второго шага
@@ -261,9 +261,9 @@ const RequestDetailPage = () => {
         console.error('Ошибка при удалении:', err);
         toast.error(err.response?.data?.msg || 'Не удалось удалить заявку');
       }
-        }
-    };
-    
+    }
+  };
+
   // Обработка действий с откликами (принятие/отклонение)
   const handleResponseAction = (action, responseId) => {
     if (action === 'accepted') {
@@ -286,11 +286,11 @@ const RequestDetailPage = () => {
 
   // Проверка, является ли пользователь хелпером
   const isHelper = () => {
-    return currentUser?.roles?.helper === true || 
-           currentUser?.roles?.moderator === true || 
-           currentUser?.roles?.admin === true;
+    return currentUser?.roles?.helper === true ||
+      currentUser?.roles?.moderator === true ||
+      currentUser?.roles?.admin === true;
   };
-  
+
   // Функция для преобразования текста с специальными символами в HTML
   const formatDescription = (text) => {
     if (!text) return '';
@@ -306,10 +306,10 @@ const RequestDetailPage = () => {
   // Новая переменная для проверки, может ли хелпер откликнуться
   const canHelperRespond = useMemo(() => {
     if (!currentUser || !request) return false;
-    return currentUser.roles.helper && 
-           request.status === 'open' && 
-           request.author._id !== currentUser._id && 
-           !myResponse;
+    return currentUser.roles.helper &&
+      request.status === 'open' &&
+      request.author._id !== currentUser._id &&
+      !myResponse;
   }, [currentUser, request, myResponse]);
 
   useEffect(() => {
@@ -322,7 +322,7 @@ const RequestDetailPage = () => {
           .filter(r => r.helper)
           .map(r => r.helper._id)
       )];
-      
+
       if (responderIds.length === 0) return; // Если все отклики от удаленных юзеров
 
       // 2. Делаем запросы для каждого ID
@@ -371,7 +371,7 @@ const RequestDetailPage = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Запрос не найден</h2>
-          <Link 
+          <Link
             to={fromMyRequests ? "/my-requests" : "/requests"}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -387,41 +387,41 @@ const RequestDetailPage = () => {
       {/* Hero Section */}
       <div className="bg-white pt-12 pb-12">
         <div className="container mx-auto px-4">
-          <motion.div
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.5 }}
+          <SafeMotionDiv
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
-        <Link 
-          to={fromMyRequests ? "/my-requests" : "/requests"}
+            <Link
+              to={fromMyRequests ? "/my-requests" : "/requests"}
               className="inline-flex items-center text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors mb-4"
             >
               <ArrowUturnLeftIcon className="h-4 w-4 mr-2" />
               {fromMyRequests ? "К моим запросам" : "Ко всем запросам"}
-        </Link>
+            </Link>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-               <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-                                {request.title}
-                            </h1>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                {request.title}
+              </h1>
               <StatusBadge status={request.status} large />
             </div>
-              {request.editReason && (
-              <p 
+            {request.editReason && (
+              <p
                 className="mt-2 text-sm text-gray-500 italic"
-                  title={`Причина редактирования: ${request.editReason}`}
-                >
+                title={`Причина редактирования: ${request.editReason}`}
+              >
                 (отредактировано модератором)
               </p>
-              )}
-          </motion.div>
-            </div>
-                        </div>
+            )}
+          </SafeMotionDiv>
+        </div>
+      </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Левая (основная) колонка */}
-          <motion.div 
+          <SafeMotionDiv
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -438,51 +438,51 @@ const RequestDetailPage = () => {
             {/* Вложения */}
             {request.attachments && request.attachments.length > 0 && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                      <PaperClipIcon className="h-6 w-6 mr-2 text-gray-400" />
-                      Вложения ({request.attachments.length})
-                  </h3>
-                  <ul className="space-y-3">
-                      {request.attachments.map((file, index) => (
-                          <li key={index} className="flex items-center justify-between bg-gray-50 p-2.5 rounded-lg">
-                              <div className="flex items-center gap-4 min-w-0 flex-1">
-                                  {/* Иконка или миниатюра */}
-                                  <div
-                                      className={`flex-shrink-0 ${isImageFile(file.originalName) ? 'cursor-pointer' : ''}`}
-                                      onClick={() => handlePreviewClick(file)}
-                                  >
-                                      {isImageFile(file.originalName) ? (
-                                          <img src={file.path.startsWith('http') ? file.path : `${serverURL}${file.path}`} alt={file.originalName} className="h-14 w-14 object-cover rounded-md bg-gray-200 hover:ring-2 hover:ring-primary-500 transition-all" />
-                                      ) : (
-                                          <div className="h-14 w-14 flex items-center justify-center bg-gray-200 rounded-md">
-                                              <DocumentIcon className="h-8 w-8 text-gray-500" />
-                                          </div>
-                                      )}
-                                  </div>
-                                  {/* Имя и размер файла */}
-                                  <div className="min-w-0">
-                                      <p className="text-sm text-gray-800 font-medium truncate" title={file.originalName}>
-                                          {file.originalName}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                          ({(file.size / 1024 / 1024).toFixed(2)} МБ)
-                                      </p>
-                                    </div>
-                                </div>
-                              {/* Кнопка скачать */}
-                              <button
-                                  onClick={() => downloadFile({ 
-                                    fileUrl: file.path, 
-                                    fileName: file.originalName 
-                                  })}
-                                  className="ml-4 flex-shrink-0 p-2 rounded-full hover:bg-gray-200 transition-colors group"
-                                  title="Скачать"
-                              >
-                                  <ArrowDownTrayIcon className="h-6 w-6 text-gray-500 group-hover:text-primary-600" />
-                              </button>
-                          </li>
-                      ))}
-                  </ul>
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <PaperClipIcon className="h-6 w-6 mr-2 text-gray-400" />
+                  Вложения ({request.attachments.length})
+                </h3>
+                <ul className="space-y-3">
+                  {request.attachments.map((file, index) => (
+                    <li key={index} className="flex items-center justify-between bg-gray-50 p-2.5 rounded-lg">
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                        {/* Иконка или миниатюра */}
+                        <div
+                          className={`flex-shrink-0 ${isImageFile(file.originalName) ? 'cursor-pointer' : ''}`}
+                          onClick={() => handlePreviewClick(file)}
+                        >
+                          {isImageFile(file.originalName) ? (
+                            <img src={file.path.startsWith('http') ? file.path : `${serverURL}${file.path}`} alt={file.originalName} className="h-14 w-14 object-cover rounded-md bg-gray-200 hover:ring-2 hover:ring-primary-500 transition-all" />
+                          ) : (
+                            <div className="h-14 w-14 flex items-center justify-center bg-gray-200 rounded-md">
+                              <DocumentIcon className="h-8 w-8 text-gray-500" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Имя и размер файла */}
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-800 font-medium truncate" title={file.originalName}>
+                            {file.originalName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            ({(file.size / 1024 / 1024).toFixed(2)} МБ)
+                          </p>
+                        </div>
+                      </div>
+                      {/* Кнопка скачать */}
+                      <button
+                        onClick={() => downloadFile({
+                          fileUrl: file.path,
+                          fileName: file.originalName
+                        })}
+                        className="ml-4 flex-shrink-0 p-2 rounded-full hover:bg-gray-200 transition-colors group"
+                        title="Скачать"
+                      >
+                        <ArrowDownTrayIcon className="h-6 w-6 text-gray-500 group-hover:text-primary-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -490,49 +490,49 @@ const RequestDetailPage = () => {
             {/* Показываем блок, только если пользователь НЕ автор И (он может откликнуться ИЛИ он уже откликнулся) */}
             {!isAuthor && (canHelperRespond || myResponse) && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                 <h2 className="text-xl font-bold text-gray-800 mb-4">Ваш отклик</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Ваш отклик</h2>
                 {canHelperRespond && (
-                    <button
-                      onClick={() => setIsResponseModalOpen(true)}
+                  <button
+                    onClick={() => setIsResponseModalOpen(true)}
                     className="btn btn-primary w-full inline-flex items-center justify-center gap-2"
-                    >
+                  >
                     <PaperAirplaneIcon className="h-5 w-5" />
-                      Предложить помощь
-                    </button>
+                    Предложить помощь
+                  </button>
                 )}
                 {myResponse && <ResponseCard response={myResponse} isMyResponse={true} fullHelperProfile={responderProfiles[myResponse.helper._id] || currentUser} />}
-                            </div>
-                        )}
+              </div>
+            )}
 
             {/* Отклики для автора */}
-      {isAuthor && request.status === 'open' && (
+            {isAuthor && request.status === 'open' && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">
-            Отклики ({responses.length})
+                  Отклики ({responses.length})
                 </h2>
-          {responsesLoading ? (
+                {responsesLoading ? (
                   <div className="text-center py-6 text-gray-500">Загрузка откликов...</div>
-          ) : responses.length > 0 ? (
-            <div className="space-y-4">
-              {responses.map(response => (
-                <ResponseCard 
-                  key={response._id} 
-                  response={response}
+                ) : responses.length > 0 ? (
+                  <div className="space-y-4">
+                    {responses.map(response => (
+                      <ResponseCard
+                        key={response._id}
+                        response={response}
                         fullHelperProfile={responderProfiles[response.helper?._id]}
-                  isAuthor={isAuthor} 
-                  onResponseAction={handleResponseAction} 
-                />
-              ))}
-            </div>
-          ) : (
+                        isAuthor={isAuthor}
+                        onResponseAction={handleResponseAction}
+                      />
+                    ))}
+                  </div>
+                ) : (
                   <div className="text-center py-6 text-gray-500">На ваш запрос пока нет откликов.</div>
-          )}
-                        </div>
-      )}
-          </motion.div>
+                )}
+              </div>
+            )}
+          </SafeMotionDiv>
 
           {/* Правая (сайдбар) колонка */}
-          <motion.div 
+          <SafeMotionDiv
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -541,8 +541,8 @@ const RequestDetailPage = () => {
             {/* ИСПРАВЛЕНИЕ: Скрываем блок, если он пустой */}
             {showActionsBlock && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                 <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>
-                 <div className="space-y-3">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Действия</h3>
+                <div className="space-y-3">
                   {isAuthor && request.status === 'open' && (
                     <>
                       <button
@@ -556,39 +556,39 @@ const RequestDetailPage = () => {
                         onClick={() => setIsDeleteModalOpen(true)}
                         className="btn btn-danger-outline w-full inline-flex items-center justify-center gap-2"
                       >
-                         <TrashIcon className="h-5 w-5" />
+                        <TrashIcon className="h-5 w-5" />
                         Удалить
                       </button>
                     </>
                   )}
-                   {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
-                                <button 
-                        className="btn bg-green-600 hover:bg-green-700 text-white w-full inline-flex items-center justify-center gap-2"
-                        onClick={() => navigate(`/requests/${request._id}/chat`)}
-                                >
-                       <ChatBubbleLeftRightIcon className="h-5 w-5" />
-                       Перейти в чат
-                                </button>
-                            )}
-                   {request.status === 'open' && !isAuthor && !isHelper() && (
-                      <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
-                   )}
-                   {currentUser && !isAuthor && (
+                  {request.status === 'in_progress' && (isAuthor || request.helper?._id === currentUser?._id) && (
                     <button
-                        onClick={() => setIsReportModalOpen(true)}
-                        className="btn bg-red-100 text-red-700 hover:bg-red-200 w-full inline-flex items-center justify-center gap-2"
-                      >
-                        <ExclamationTriangleIcon className="h-5 w-5" />
-                        Пожаловаться
-                      </button>
-                   )}
-                   {['closed', 'completed', 'cancelled'].includes(request.status) && (
-                      <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
-          )}
-          </div>
-        </div>
-      )}
-      
+                      className="btn bg-green-600 hover:bg-green-700 text-white w-full inline-flex items-center justify-center gap-2"
+                      onClick={() => navigate(`/requests/${request._id}/chat`)}
+                    >
+                      <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                      Перейти в чат
+                    </button>
+                  )}
+                  {request.status === 'open' && !isAuthor && !isHelper() && (
+                    <div className="text-center text-sm text-gray-500">Чтобы помочь, вам нужен статус хелпера.</div>
+                  )}
+                  {currentUser && !isAuthor && (
+                    <button
+                      onClick={() => setIsReportModalOpen(true)}
+                      className="btn bg-red-100 text-red-700 hover:bg-red-200 w-full inline-flex items-center justify-center gap-2"
+                    >
+                      <ExclamationTriangleIcon className="h-5 w-5" />
+                      Пожаловаться
+                    </button>
+                  )}
+                  {['closed', 'completed', 'cancelled'].includes(request.status) && (
+                    <div className="text-center text-sm text-gray-500">Заявка закрыта, действия недоступны.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Карта информации */}
             <div className="bg-white rounded-xl shadow-lg">
               <div className="p-6">
@@ -603,23 +603,23 @@ const RequestDetailPage = () => {
                           {request.author.username}
                         </Link>
                         <RoleBadge user={authorProfile} />
-                        </div>
+                      </div>
                     </div>
                   </li>
-                   {request.helper && (
-                     <li className="flex items-center gap-3">
-                        <CheckBadgeIcon className="h-6 w-6 text-green-500" />
-                        <div>
-                          <span className="text-gray-500">Помогает</span>
-                          <div className="font-semibold text-gray-800 flex items-center gap-1">
-                            <Link to={`/profile/${request.helper.username}`} className="hover:text-primary-600 hover:underline">
-                              {request.helper.username}
-                            </Link>
-                            <RoleBadge user={helperProfile} />
-                </div>
+                  {request.helper && (
+                    <li className="flex items-center gap-3">
+                      <CheckBadgeIcon className="h-6 w-6 text-green-500" />
+                      <div>
+                        <span className="text-gray-500">Помогает</span>
+                        <div className="font-semibold text-gray-800 flex items-center gap-1">
+                          <Link to={`/profile/${request.helper.username}`} className="hover:text-primary-600 hover:underline">
+                            {request.helper.username}
+                          </Link>
+                          <RoleBadge user={helperProfile} />
                         </div>
-                     </li>
-                   )}
+                      </div>
+                    </li>
+                  )}
                   <li className="flex items-center gap-3">
                     <CalendarIcon className="h-6 w-6 text-gray-400" />
                     <div>
@@ -635,32 +635,32 @@ const RequestDetailPage = () => {
                     </div>
                   </li>
                 </ul>
-                </div>
+              </div>
             </div>
 
             {/* Панель модератора */}
             {isPrivilegedUser && !isAuthor && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Cog6ToothIcon className="h-6 w-6"/>Панель модератора</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Cog6ToothIcon className="h-6 w-6" />Панель модератора</h3>
                 <div className="space-y-3">
                   <button
-                      onClick={() => setAdminEditModalOpen(true)}
-                        className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
+                    onClick={() => setAdminEditModalOpen(true)}
+                    className="btn btn-primary-outline w-full inline-flex items-center justify-center gap-2"
                   >
-                        <PencilSquareIcon className="h-5 w-5" />
-                      Редактировать
+                    <PencilSquareIcon className="h-5 w-5" />
+                    Редактировать
                   </button>
                   <button
-                      onClick={() => setAdminDeleteModalOpen(true)}
-                        className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
+                    onClick={() => setAdminDeleteModalOpen(true)}
+                    className="btn btn-danger w-full inline-flex items-center justify-center gap-2"
                   >
-                        <TrashIcon className="h-5 w-5" />
-                      Удалить
+                    <TrashIcon className="h-5 w-5" />
+                    Удалить
                   </button>
+                </div>
               </div>
-          </div>
             )}
-          </motion.div>
+          </SafeMotionDiv>
         </div>
       </div>
 
@@ -673,15 +673,15 @@ const RequestDetailPage = () => {
       <ModeratorActionConfirmModal isOpen={isConfirmingModAction} onClose={() => setIsConfirmingModAction(false)} onConfirm={confirmAdminDelete} actionTitle={`Удаление заявки "${request?.title}"`} isLoading={modActionLoading} />
       {isReportModalOpen && (
         <ReportModal
-            isOpen={isReportModalOpen}
-            onClose={() => setIsReportModalOpen(false)}
-            targetId={request._id}
-            targetType="Request"
-            targetName={`"${request.title}"`}
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          targetId={request._id}
+          targetType="Request"
+          targetName={`"${request.title}"`}
         />
       )}
-        </div>
-    );
+    </div>
+  );
 };
 
 export default RequestDetailPage; 

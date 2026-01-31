@@ -4,7 +4,7 @@ import { reviewsService, usersService } from '../../services/api';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import DefaultAvatarIcon from '../shared/DefaultAvatarIcon';
 import { StarIcon } from '@heroicons/react/24/solid';
-import { AnimatePresence, motion } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from './SafeMotion';
 import RoleBadge from './RoleBadge';
 
 const StarRating = ({ rating }) => (
@@ -22,13 +22,12 @@ const ReviewItem = ({ review, fullAuthorProfile }) => {
   if (!review || !review.author || !review.request) {
     return null;
   }
-  
+
   const author = fullAuthorProfile || review.author;
   const avatarUrl = formatAvatarUrl(author);
 
   return (
-    <motion.div
-      layout
+    <SafeMotionDiv
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -57,11 +56,10 @@ const ReviewItem = ({ review, fullAuthorProfile }) => {
                 <span>по заявке</span>
                 <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>
                 {review.isResolved !== undefined && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    review.isResolved
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${review.isResolved
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                    }`}>
                     {review.isResolved ? 'Решено' : 'Не решено'}
                   </span>
                 )}
@@ -74,7 +72,7 @@ const ReviewItem = ({ review, fullAuthorProfile }) => {
           )}
         </div>
       </div>
-    </motion.div>
+    </SafeMotionDiv>
   );
 };
 
@@ -96,7 +94,7 @@ const ReviewsBlock = ({ userId, showAll = false }) => {
         if (reviewsData.length === 0) return;
 
         const authorIds = [...new Set(reviewsData.map(r => r.author._id))];
-        
+
         const profilePromises = authorIds.map(id => usersService.getUserById(id));
         const profileResponses = await Promise.all(profilePromises);
 
@@ -141,7 +139,7 @@ const ReviewsBlock = ({ userId, showAll = false }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          <AnimatePresence>
+          <SafeAnimatePresence mode="wait">
             {(showAll ? reviews : reviews.slice(0, 3)).map(review => (
               <ReviewItem
                 key={review._id}
@@ -149,7 +147,7 @@ const ReviewsBlock = ({ userId, showAll = false }) => {
                 fullAuthorProfile={authorProfiles[review.author._id]}
               />
             ))}
-          </AnimatePresence>
+          </SafeAnimatePresence>
           {reviews.length > 3 && !showAll && (
             <div className="text-center pt-4">
               <Link

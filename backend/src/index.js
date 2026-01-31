@@ -378,6 +378,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Обработчик для получения количества непрочитанных уведомлений
+  socket.on('get_unread_notifications_count', async (callback) => {
+    try {
+      const userId = socket.user.id;
+      const count = await Notification.countDocuments({ user: userId, isRead: false });
+      callback(count);
+    } catch (error) {
+      console.error('Ошибка при получении количества непрочитанных уведомлений:', error);
+      callback(0);
+    }
+  });
+
   // Обработчик для отметки всех уведомлений как прочитанных
   socket.on('mark_notifications_read', async (callback) => {
     try {
@@ -390,6 +402,41 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Ошибка при отметке уведомлений как прочитанных:', error);
       callback({ success: false, error: 'Ошибка сервера' });
+    }
+  });
+
+  // Обработчик для отметки уведомлений как прочитанных по сущности (например, когда зашел в чат)
+  socket.on('mark_notifications_read_by_entity', async (data, callback) => {
+    try {
+      const { relatedEntityId } = data;
+      const userId = socket.user.id;
+
+      // Ищем уведомления, которые связаны с этой сущностью (например, requestId)
+      // В поле relatedEntity у нас обычно объект.
+      // Если relatedEntity.requestId === relatedEntityId ИЛИ relatedEntity === relatedEntityId
+
+      await Notification.updateMany(
+        {
+          user: userId,
+          isRead: false,
+          $or: [
+            { 'relatedEntity.requestId': relatedEntityId },
+            { relatedEntity: relatedEntityId } // Для старых уведомлений или если формат простой
+          ]
+        },
+        { $set: { isRead: true } }
+      );
+
+      // Возвращаем обновленный count
+      const count = await Notification.countDocuments({ user: userId, isRead: false });
+      callback({ success: true, unreadCount: count });
+
+      // Также можно сразу отправить событие клиенту, чтобы обновил UI
+      socket.emit('update_unread_count', count);
+
+    } catch (error) {
+      console.error('Ошибка при отметке уведомлений по сущности:', error);
+      if (callback) callback({ success: false, error: 'Ошибка сервера' });
     }
   });
 

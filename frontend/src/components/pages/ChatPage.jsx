@@ -20,7 +20,7 @@ import {
   LockClosedIcon
 } from '@heroicons/react/24/solid';
 import { LuArrowDown } from 'react-icons/lu';
-import { AnimatePresence, motion } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { useDropzone } from 'react-dropzone';
 import AttachmentModal from '../modals/AttachmentModal';
 import Rating from './Rating';
@@ -91,11 +91,11 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
   if (isImage) {
     return (
       <div onClick={() => onImageClick(file)} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
-        <img 
-          src={fileUrl} 
-          alt={file.fileName} 
+        <img
+          src={fileUrl}
+          alt={file.fileName}
           loading="lazy"
-          className="w-full h-auto object-cover" 
+          className="w-full h-auto object-cover"
         />
       </div>
     );
@@ -131,7 +131,7 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
 // Новый компонент для рендера текста сообщения с поддержкой "Читать далее"
 const MessageContent = ({ text, isOwnMessage }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Простое определение, нужно ли скрывать часть текста
   // Считаем и по строкам, и по общей длине
   const lineCount = (text.match(/\n/g) || []).length + 1;
@@ -142,12 +142,12 @@ const MessageContent = ({ text, isOwnMessage }) => {
       <div className="whitespace-pre-wrap">
         {text}
         {isLong && (
-           <button 
-             onClick={() => setIsExpanded(false)}
-             className={`ml-2 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-indigo-600'}`}
-           >
-             Свернуть
-           </button>
+          <button
+            onClick={() => setIsExpanded(false)}
+            className={`ml-2 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-indigo-600'}`}
+          >
+            Свернуть
+          </button>
         )}
       </div>
     );
@@ -160,7 +160,7 @@ const MessageContent = ({ text, isOwnMessage }) => {
       <div className="whitespace-pre-wrap">
         {truncatedText + '...'}
       </div>
-      <button 
+      <button
         onClick={() => setIsExpanded(true)}
         className={`mt-1 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-gray-600'}`}
       >
@@ -178,8 +178,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
   const avatarUrl = formatAvatarUrl(msg.sender);
 
   return (
-    <motion.div
-      layout
+    <SafeMotionDiv
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -239,18 +238,18 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
           <button onClick={() => onDelete(msg)} title="Удалить" className="p-1 text-gray-400 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
           </button>
-    </div>
+        </div>
       )}
-    </motion.div>
+    </SafeMotionDiv>
   );
 };
 
 const ChatPage = () => {
   const { id: requestId } = useParams();
   const { currentUser } = useAuth();
-  const { socket } = useSocket();
+  const { socket, markAsReadByEntity, joinRoom, leaveRoom, isConnected } = useSocket();
   const navigate = useNavigate();
-  
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [requestDetails, setRequestDetails] = useState(null);
@@ -351,11 +350,11 @@ const ChatPage = () => {
       // Теперь, в зависимости от статуса, пытаемся получить сообщения
       // Это предотвратит ошибку 403, если мы уже знаем, что чат заархивирован
       if (detailsRes.data.chatIsArchived) {
-          setIsArchived(true);
-          setLoading(false);
-          return;
+        setIsArchived(true);
+        setLoading(false);
+        return;
       }
-      
+
       const messagesRes = await messagesService.getMessages(requestId);
       // Новый формат ответа с пагинацией
       if (messagesRes.data.messages) {
@@ -373,7 +372,7 @@ const ChatPage = () => {
         setIsArchived(true);
       } else {
         // Все остальные ошибки показываем как обычно
-      setError('Произошла ошибка при загрузке чата.');
+        setError('Произошла ошибка при загрузке чата.');
         console.error("Chat loading error:", err);
       }
     } finally {
@@ -388,11 +387,11 @@ const ChatPage = () => {
   // Функция для подгрузки старых сообщений
   const loadMoreMessages = useCallback(async () => {
     if (loadingMore || !hasMore || !oldestMessageId) return;
-    
+
     setLoadingMore(true);
     try {
       const messagesRes = await messagesService.getMessages(requestId, { before: oldestMessageId });
-      
+
       if (messagesRes.data.messages) {
         setMessages(prev => [...messagesRes.data.messages, ...prev]);
         setHasMore(messagesRes.data.hasMore);
@@ -443,7 +442,7 @@ const ChatPage = () => {
       );
     }
   }, [requestId]);
-  
+
   const handleTypingBroadcast = useCallback(({ userId, username, isTyping, chatId }) => {
     if (chatId !== requestId || userId === currentUser?._id) return;
     setTypingUsers(prev => {
@@ -456,6 +455,19 @@ const ChatPage = () => {
       return newTypingUsers;
     });
   }, [requestId, currentUser]);
+
+  useEffect(() => {
+    if (requestId) {
+      if (isConnected) {
+        joinRoom(requestId);
+        markAsReadByEntity(requestId); // Автоматически читаем уведомления
+      }
+    }
+
+    return () => {
+      leaveRoom();
+    };
+  }, [requestId, isConnected, joinRoom, leaveRoom, markAsReadByEntity]);
 
   const handleConnectError = useCallback((err) => {
     console.error('Socket connection error:', err.message);
@@ -475,14 +487,14 @@ const ChatPage = () => {
       }
     };
     markMessagesAsRead();
-    
+
     // Обработчик обновления статуса заявки
     const handleRequestUpdate = (updatedRequest) => {
       if (updatedRequest._id === requestId) {
         setRequestDetails(updatedRequest);
       }
     };
-    
+
     socket.on('new_message', handleNewMessage);
     socket.on('message_updated', handleUpdateMessage);
     socket.on('typing_started', handleTypingBroadcast);
@@ -543,13 +555,13 @@ const ChatPage = () => {
       });
     }
   };
-  
+
   const handleSendMessage = async (e) => {
     // Проверяем наличие `e`, так как функция может быть вызвана без него
-    if (e) e.preventDefault(); 
-    
+    if (e) e.preventDefault();
+
     if (checkAndShowModal()) return;
-    
+
     if ((!newMessage.trim() && !attachment) || !socket || isSending) return;
 
     // Перед отправкой гасим наш индикатор печати
@@ -570,14 +582,14 @@ const ChatPage = () => {
         );
         setIsSending(false);
       } else {
-      socket.emit('send_message', {
-        requestId: requestId,
-        content: newMessage,
-      });
-    }
-    
-    setNewMessage('');
-    setAttachment(null);
+        socket.emit('send_message', {
+          requestId: requestId,
+          content: newMessage,
+        });
+      }
+
+      setNewMessage('');
+      setAttachment(null);
     } catch (error) {
       setIsSending(false);
       toast.error('Ошибка при отправке сообщения');
@@ -631,13 +643,13 @@ const ChatPage = () => {
 
   const isParticipant = () => {
     if (!requestDetails || !currentUser) return false;
-    
+
     return (
-      requestDetails.author._id === currentUser._id || 
+      requestDetails.author._id === currentUser._id ||
       (requestDetails.helper && requestDetails.helper._id === currentUser._id)
     );
   };
-  
+
   const handleOpenResolveModal = () => {
     setIsResolveModalOpen(true);
   };
@@ -665,12 +677,12 @@ const ChatPage = () => {
 
     try {
       setHasSubmittedReview(true);
-      
+
       const isResolved = ratingContext === 'complete';
 
-      await reviewsService.createReview({ 
-        requestId, 
-        rating, 
+      await reviewsService.createReview({
+        requestId,
+        rating,
         comment,
         isResolved
       });
@@ -679,7 +691,7 @@ const ChatPage = () => {
       if (ratingContext === 'complete') {
         await requestsService.updateRequestStatus(requestId, 'completed');
         toast.success('Заявка успешно завершена!');
-        setRequestDetails(prev => ({...prev, status: 'completed'}));
+        setRequestDetails(prev => ({ ...prev, status: 'completed' }));
         window.location.reload();
       } else {
         const response = await requestsService.reopenRequest(requestId);
@@ -696,7 +708,7 @@ const ChatPage = () => {
   const isAuthor = currentUser?._id === requestDetails?.author._id;
   // ИСПРАВЛЕННАЯ ЛОГИКА: Чат активен, если есть хелпер и заявка не закрыта
   const isChatActive = requestDetails?.helper && ['assigned', 'in_progress'].includes(requestDetails?.status);
-  
+
   const textareaRef = useRef(null);
 
   // Эффект для авто-ресайза textarea
@@ -706,7 +718,7 @@ const ChatPage = () => {
       textarea.style.height = 'auto'; // Сначала сбрасываем
       const scrollHeight = textarea.scrollHeight;
       // Устанавливаем максимальную высоту, например, 200px
-      const maxHeight = 200; 
+      const maxHeight = 200;
       textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
       // Если контент больше, показываем скролл
       textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
@@ -724,12 +736,12 @@ const ChatPage = () => {
       if (!typingTimeoutRef.current) {
         socket.emit('typing_started', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
       }
-      
+
       // Сбрасываем предыдущий таймаут, чтобы начать отсчет заново
       if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
+        clearTimeout(typingTimeoutRef.current);
       }
-      
+
       // Устанавливаем новый таймаут для 'typing_stopped'
       typingTimeoutRef.current = setTimeout(() => {
         socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
@@ -748,9 +760,9 @@ const ChatPage = () => {
   const handleKeyDown = (e) => {
     // Для Shift+Enter просто ничего не делаем, позволяя создать новую строку
     if (e.key === 'Enter' && e.shiftKey) {
-      return; 
+      return;
     }
-    
+
     // Для обычного Enter - отправляем
     if (e.key === 'Enter') {
       e.preventDefault(); // Предотвращаем создание новой строки в любом случае
@@ -764,9 +776,9 @@ const ChatPage = () => {
 
   const TypingIndicator = () => {
     const users = Object.keys(typingUsers);
-    
+
     if (users.length === 0) return null;
-    
+
     let text = '';
     if (users.length === 1) {
       text = `${users[0]} печатает...`;
@@ -775,20 +787,20 @@ const ChatPage = () => {
     }
 
     return (
-      <motion.div
+      <SafeMotionDiv
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
         className="text-sm text-gray-500 italic px-4 pb-2"
       >
         {text}
-      </motion.div>
+      </SafeMotionDiv>
     );
   };
 
   if (isArchived) {
     const isAuthorViewing = currentUser?._id === requestDetails?.author?._id;
-    
+
     return (
       <div className="container mx-auto px-4 py-12 mt-16 text-center">
         <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-6 rounded-md shadow-md max-w-2xl mx-auto">
@@ -835,7 +847,7 @@ const ChatPage = () => {
           {error}
         </div>
         <div className="text-center mt-4">
-          <Link 
+          <Link
             to="/chats"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -851,7 +863,7 @@ const ChatPage = () => {
       <div className="container mx-auto px-4 py-12 mt-16">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Запрос не найден</h2>
-          <Link 
+          <Link
             to="/chats"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -861,7 +873,7 @@ const ChatPage = () => {
       </div>
     );
   }
-  
+
   if (!isParticipant()) {
     return (
       <div className="container mx-auto px-4 py-12 mt-16">
@@ -869,7 +881,7 @@ const ChatPage = () => {
           У вас нет доступа к этому чату
         </div>
         <div className="text-center mt-4">
-          <Link 
+          <Link
             to="/chats"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -890,9 +902,9 @@ const ChatPage = () => {
       </div>
 
       <div {...getRootProps()} className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-[85vh] relative focus:outline-none">
-        <AnimatePresence>
+        <SafeAnimatePresence>
           {isDragActive && (
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -900,9 +912,9 @@ const ChatPage = () => {
             >
               <ArrowDownCircleIcon className="h-24 w-24 text-white animate-bounce" />
               <p className="mt-4 text-2xl font-bold text-white">Перетащите файл сюда</p>
-            </motion.div>
+            </SafeMotionDiv>
           )}
-        </AnimatePresence>
+        </SafeAnimatePresence>
 
         <header className="bg-gray-50 p-4 border-b border-gray-200 rounded-t-lg flex-shrink-0">
           <div className="flex flex-col items-start gap-y-3 sm:flex-row sm:items-center sm:justify-between">
@@ -910,27 +922,27 @@ const ChatPage = () => {
               <h1 className="text-xl font-bold text-gray-800">{requestDetails.title}</h1>
               <div className="flex items-center gap-3 mt-1">
                 <StatusBadge status={requestDetails.status} />
-              <p className="text-sm text-gray-500">
-                {requestDetails.subject} • {requestDetails.grade} класс
-              </p>
-            </div>
+                <p className="text-sm text-gray-500">
+                  {requestDetails.subject} • {requestDetails.grade} класс
+                </p>
+              </div>
             </div>
             <div className="flex w-full flex-col items-end gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-            <Link 
-              to={`/request/${requestId}`}
+              <Link
+                to={`/request/${requestId}`}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
-            >
-              К деталям запроса
-            </Link>
+              >
+                К деталям запроса
+              </Link>
               {isAuthor && isChatActive && (
                 <button
-                   onClick={handleOpenResolveModal}
-                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
-                 >
+                  onClick={handleOpenResolveModal}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                >
                   <CheckBadgeIcon className="h-5 w-5" />
                   Завершить и оценить
-                 </button>
-               )}
+                </button>
+              )}
             </div>
           </div>
           <div className="mt-2 text-sm">
@@ -947,10 +959,10 @@ const ChatPage = () => {
               <div className="flex items-center mt-1">
                 <span className="font-medium text-gray-500 w-16 flex-shrink-0">Хелпер:</span>
                 <div className="flex items-center">
-                    <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline">
-                      {requestDetails.helper.username}
-                    </Link>
-                    <RoleBadge user={helperProfile} />
+                  <Link to={`/profile/${requestDetails.helper.username}`} className="hover:underline">
+                    {requestDetails.helper.username}
+                  </Link>
+                  <RoleBadge user={helperProfile} />
                 </div>
               </div>
             )}
@@ -967,7 +979,7 @@ const ChatPage = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
           )}
-          <AnimatePresence initial={false}>
+          <SafeAnimatePresence initial={false}>
             {messages.map((msg, index) => {
               const prevMsg = messages[index - 1];
               const showDateSeparator = index === 0 || !isSameDay(msg.createdAt, prevMsg.createdAt);
@@ -993,31 +1005,31 @@ const ChatPage = () => {
                       </div>
                     </div>
                   )}
-              <div ref={index === 0 ? firstMessageRef : null}>
-                <Message
-                  msg={msg}
-                  isOwnMessage={currentUser && msg.sender._id === currentUser._id}
-                  onImageClick={setViewerFile}
-                  onEdit={handleStartEdit}
-                  onDelete={setMessageToDelete}
-                  isChatActive={isChatActive || requestDetails.status === 'open'}
-                  isSenderOnline={isSenderOnline}
-                />
-              </div>
+                  <div ref={index === 0 ? firstMessageRef : null}>
+                    <Message
+                      msg={msg}
+                      isOwnMessage={currentUser && msg.sender._id === currentUser._id}
+                      onImageClick={setViewerFile}
+                      onEdit={handleStartEdit}
+                      onDelete={setMessageToDelete}
+                      isChatActive={isChatActive || requestDetails.status === 'open'}
+                      isSenderOnline={isSenderOnline}
+                    />
+                  </div>
                 </React.Fragment>
               );
             })}
-          </AnimatePresence>
+          </SafeAnimatePresence>
 
           <TypingIndicator />
         </div>
-        
+
         {viewerFile && <AttachmentModal file={viewerFile} onClose={() => setViewerFile(null)} />}
 
         <footer ref={footerRef} className="relative bg-white border-t border-gray-200 rounded-b-lg">
-          <AnimatePresence>
+          <SafeAnimatePresence>
             {showScrollDown && (
-              <motion.div
+              <SafeMotionDiv
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -1031,34 +1043,34 @@ const ChatPage = () => {
                 >
                   <LuArrowDown className="h-6 w-6" />
                 </button>
-              </motion.div>
+              </SafeMotionDiv>
             )}
-          </AnimatePresence>
+          </SafeAnimatePresence>
           {(() => {
             if (requestDetails.status === 'completed' || requestDetails.status === 'cancelled' || requestDetails.status === 'closed' || requestDetails.chatIsArchived) {
-                return (
-                  <div className="p-4 text-center text-gray-500">
-                    <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
-                    <p className="font-semibold">Чат закрыт</p>
-        </div>
-                );
+              return (
+                <div className="p-4 text-center text-gray-500">
+                  <LockClosedIcon className="h-6 w-6 mx-auto mb-2 text-gray-400" />
+                  <p className="font-semibold">Чат закрыт</p>
+                </div>
+              );
             }
-            
+
             const handleAttachmentButtonClick = () => {
               if (!dropzoneDisabled) {
                 fileInputRef.current?.click();
               } else {
-                
+
               }
             };
-            
+
             const handleFileSelect = (e) => {
               const file = e.target.files?.[0];
               if (file) {
                 handleFileAdded(file);
               }
               // Сбрасываем значение, чтобы можно было выбрать тот же файл снова
-              if(e.target) e.target.value = null;
+              if (e.target) e.target.value = null;
             };
 
             if ((isChatActive || requestDetails.status === 'open') && !requestDetails.chatIsArchived) {
@@ -1072,15 +1084,15 @@ const ChatPage = () => {
                         <div>
                           <p className="font-bold">Редактирование</p>
                           <p className="text-sm italic truncate">"{editingMessage.content}"</p>
-            </div>
+                        </div>
                         <button onClick={handleCancelEdit} title="Отменить редактирование">
                           <XCircleIcon className="h-6 w-6 text-yellow-600 hover:text-yellow-800" />
                         </button>
-            </div>
-          )}
+                      </div>
+                    )}
 
                     <form onSubmit={editingMessage ? handleSaveEdit : handleSendMessage} className="flex items-end gap-3">
-                       <input
+                      <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileSelect}
@@ -1138,17 +1150,17 @@ const ChatPage = () => {
 
       {isRatingModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-             <h2 className="text-2xl font-bold mb-4 text-center">Оцените помощь</h2>
-             <p className="text-center text-gray-600 mb-6">
-                Пожалуйста, оцените работу хелпера <span className="font-bold">{requestDetails?.helper?.username}</span>.
-             </p>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4 text-center">Оцените помощь</h2>
+            <p className="text-center text-gray-600 mb-6">
+              Пожалуйста, оцените работу хелпера <span className="font-bold">{requestDetails?.helper?.username}</span>.
+            </p>
             <Rating onSubmit={handleCompleteOrReopen} />
-             <button
-                onClick={() => setIsRatingModalOpen(false)}
-                className="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            <button
+              onClick={() => setIsRatingModalOpen(false)}
+              className="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
             >
-                Отмена
+              Отмена
             </button>
           </div>
         </div>

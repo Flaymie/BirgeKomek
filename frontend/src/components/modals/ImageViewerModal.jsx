@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
 const ImageViewerModal = ({ src, alt, onClose }) => {
@@ -8,7 +8,7 @@ const ImageViewerModal = ({ src, alt, onClose }) => {
 
   return (
     <Modal isOpen={!!src} onClose={onClose}>
-      <motion.div
+      <SafeMotionDiv
         initial={{ scale: 0.98, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.98, opacity: 0 }}
@@ -30,7 +30,7 @@ const ImageViewerModal = ({ src, alt, onClose }) => {
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
-      </motion.div>
+      </SafeMotionDiv>
     </Modal>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Ban, Clock, AlertTriangle, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Modal from './Modal';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 
 const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const { currentUser } = useAuth();
@@ -12,30 +12,30 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
   const [isPermanent, setIsPermanent] = useState(false);
   const [error, setError] = useState('');
   const modalRef = useRef(null);
-  
+
   const isModeratorOnly = currentUser?.roles?.moderator && !currentUser?.roles?.admin;
   const isAdmin = currentUser?.roles?.admin;
-  
+
   // Единицы времени
   const timeUnits = React.useMemo(() => [
     { value: 'hours', label: 'Часов', multiplier: 1 },
     { value: 'days', label: 'Дней', multiplier: 24 },
     { value: 'months', label: 'Месяцев', multiplier: 720 }
   ], []);
-  
+
   // Получить максимальное значение для текущей единицы времени
   const getMaxValueForUnit = useCallback(() => {
     const unit = timeUnits.find(u => u.value === timeUnit);
     const maxHours = isModeratorOnly ? 72 : 87600;
     return Math.floor(maxHours / unit.multiplier);
   }, [timeUnit, isModeratorOnly, timeUnits]);
-  
+
   // Преобразовать в часы
   const getDurationInHours = () => {
     const unit = timeUnits.find(u => u.value === timeUnit);
     return duration * unit.multiplier;
   };
-  
+
   // Сброс состояния при открытии модального окна
   useEffect(() => {
     if (isOpen) {
@@ -49,7 +49,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
       }
     }
   }, [isOpen]);
-  
+
   // Валидация при смене единицы времени
   useEffect(() => {
     const maxValue = getMaxValueForUnit();
@@ -57,29 +57,29 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
       setDuration(maxValue);
     }
   }, [timeUnit, duration, isModeratorOnly, getMaxValueForUnit]);
-  
+
   const handleSubmit = () => {
     if (!reason.trim()) {
       setError('Причина бана обязательна');
       return;
     }
-    
+
     if (reason.trim().length < 5) {
       setError('Причина должна содержать минимум 5 символов');
       return;
     }
-    
+
     if (!isPermanent && duration < 1) {
       setError('Длительность должна быть больше 0');
       return;
     }
-    
+
     const durationInHours = getDurationInHours();
     if (isModeratorOnly && durationInHours > 72) {
       setError('Модераторы могут банить максимум на 72 часа');
       return;
     }
-    
+
     let finalDuration;
     if (isPermanent) {
       finalDuration = 'permanent';
@@ -88,17 +88,17 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
       const finalUnitChar = unitChar === 'm' ? 'M' : unitChar;
       finalDuration = `${duration}${finalUnitChar}`;
     }
-    
+
     onConfirm(reason.trim(), finalDuration);
     setError('');
   };
-  
-  
+
+
   if (!isOpen) return null;
-  
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <motion.div
+      <SafeMotionDiv
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -112,7 +112,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
           {/* Декоративные элементы */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
-          
+
           <div className="relative flex items-center gap-3">
             <div className="w-12 h-12 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
               <Ban className="w-6 h-6 text-white" />
@@ -123,7 +123,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="px-6 py-5 space-y-5">
           {/* Предупреждение о роли */}
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 flex items-start gap-3">
@@ -133,13 +133,13 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
                 {isAdmin ? 'Администратор' : 'Модератор'}
               </p>
               <p className="text-xs text-amber-700 mt-0.5">
-                {isModeratorOnly 
-                  ? 'Вы можете банить пользователей максимум на 72 часа' 
+                {isModeratorOnly
+                  ? 'Вы можете банить пользователей максимум на 72 часа'
                   : 'У вас есть полный доступ к управлению банами'}
               </p>
             </div>
           </div>
-          
+
           {/* Ошибка */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3 animate-shake">
@@ -147,7 +147,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
               <p className="text-red-700 text-sm font-medium">{error}</p>
             </div>
           )}
-          
+
           {/* Причина */}
           <div>
             <label htmlFor="reason" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
@@ -171,7 +171,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
               </div>
             </div>
           </div>
-          
+
           {/* Длительность */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -180,7 +180,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
               </span>
               Длительность блокировки
             </label>
-            
+
             {/* Кастомная длительность */}
             {!isPermanent && (
               <div className="flex gap-2">
@@ -206,15 +206,14 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
                 </select>
               </div>
             )}
-            
+
             {/* Перманентная блокировка (только для админов) */}
             {isAdmin && (
               <div className="mt-4 relative overflow-hidden">
-                <div className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
-                  isPermanent 
-                    ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-300' 
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
+                <div className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${isPermanent
+                  ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-300'
+                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                  }`}
                   onClick={() => setIsPermanent(!isPermanent)}
                 >
                   <input
@@ -236,7 +235,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
             )}
           </div>
         </div>
-        
+
         {/* Кнопки действий */}
         <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-2xl flex justify-end gap-3 border-t border-gray-200">
           <button
@@ -255,7 +254,7 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
             Заблокировать
           </button>
         </div>
-      </motion.div>
+      </SafeMotionDiv>
     </Modal>
   );
 };

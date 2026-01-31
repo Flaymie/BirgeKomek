@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 
 const Modal = ({ isOpen, onClose, children }) => {
   useEffect(() => {
@@ -20,10 +20,10 @@ const Modal = ({ isOpen, onClose, children }) => {
   }
 
   return createPortal(
-    <AnimatePresence>
+    <SafeAnimatePresence mode="wait">
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -35,9 +35,9 @@ const Modal = ({ isOpen, onClose, children }) => {
           </div>
         </div>
       )}
-    </AnimatePresence>,
+    </SafeAnimatePresence>,
     document.body
   );
 };
 
-export default Modal; 
+export default Modal;

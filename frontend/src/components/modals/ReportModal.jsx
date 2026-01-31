@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import { XMarkIcon, FlagIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { reportsService } from '../../services/api';
@@ -37,13 +37,13 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
     }
     setLoading(true);
     setError('');
-    
+
     const formData = new FormData();
     formData.append('targetId', targetId);
     formData.append('targetType', targetType);
     formData.append('reason', reason);
     attachments.forEach(file => {
-        formData.append('attachments', file);
+      formData.append('attachments', file);
     });
 
     try {
@@ -71,7 +71,7 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
-        <motion.div
+        <SafeMotionDiv
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -99,7 +99,7 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
           <div className="overflow-y-auto p-5 space-y-4">
             {error && (
               <div className="bg-red-50 p-3 rounded-lg border border-red-200 text-sm text-red-700">
-                  {error}
+                {error}
               </div>
             )}
             <div>
@@ -107,37 +107,37 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
                 <label htmlFor="reason" className="block text-sm font-medium text-gray-700">Причина жалобы</label>
                 <span className={`text-sm font-medium ${reason.length > MAX_REASON_LENGTH ? 'text-red-500' : 'text-gray-500'}`}>{reason.length}/{MAX_REASON_LENGTH}</span>
               </div>
-              <textarea 
-                  id="reason" 
-                  name="reason" 
-                  value={reason} 
-                  onChange={(e) => setReason(e.target.value)} 
-                  rows="5" 
-                  className={`w-full px-4 py-2 text-base border ${!isReasonValid && reason.length > 0 ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500`} 
-                  placeholder={`Опишите подробно, что именно нарушает правила (${MIN_REASON_LENGTH} - ${MAX_REASON_LENGTH} символов)`}
-                  disabled={loading}
-                  maxLength={MAX_REASON_LENGTH}
+              <textarea
+                id="reason"
+                name="reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows="5"
+                className={`w-full px-4 py-2 text-base border ${!isReasonValid && reason.length > 0 ? 'border-red-500' : 'border-gray-300'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500`}
+                placeholder={`Опишите подробно, что именно нарушает правила (${MIN_REASON_LENGTH} - ${MAX_REASON_LENGTH} символов)`}
+                disabled={loading}
+                maxLength={MAX_REASON_LENGTH}
               />
             </div>
-             <div>
-               <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Прикрепить доказательства (до {MAX_FILES} изображений)
-                </label>
-                <FileUploader 
-                  files={attachments} 
-                  setFiles={setAttachments} 
-                  maxFiles={MAX_FILES} 
-                  accept={{ 
-                    'image/jpeg': ['.jpeg', '.jpg'],
-                    'image/png': ['.png'],
-                    'image/gif': ['.gif'],
-                    'image/webp': ['.webp']
-                  }}
-                  acceptLabel="Разрешены только изображения: .jpg, .png, .gif, .webp"
-                />
-             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Прикрепить доказательства (до {MAX_FILES} изображений)
+              </label>
+              <FileUploader
+                files={attachments}
+                setFiles={setAttachments}
+                maxFiles={MAX_FILES}
+                accept={{
+                  'image/jpeg': ['.jpeg', '.jpg'],
+                  'image/png': ['.png'],
+                  'image/gif': ['.gif'],
+                  'image/webp': ['.webp']
+                }}
+                acceptLabel="Разрешены только изображения: .jpg, .png, .gif, .webp"
+              />
+            </div>
           </div>
-          
+
           <div className="flex justify-end items-center p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl gap-3">
             <button
               type="button"
@@ -157,7 +157,7 @@ const ReportModal = ({ isOpen, onClose, targetId, targetType, targetName, onRepo
               {!loading && <PaperAirplaneIcon className="h-5 w-5" />}
             </button>
           </div>
-        </motion.div>
+        </SafeMotionDiv>
       </Modal>
       <TelegramRequiredModal isOpen={showTelegramModal} onClose={() => setShowTelegramModal(false)} />
     </>

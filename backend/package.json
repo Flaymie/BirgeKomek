@@ -1,6 +1,6 @@
 {
   "name": "birgekomek-backend",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Серверная часть (Node.js, Express) для платформы 'Бірге Көмек', включая API и WebSocket.",
   "main": "src/index.js",
   "author": "Flaymie",
@@ -37,6 +37,7 @@
     "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
+    "web-push": "^3.6.7",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

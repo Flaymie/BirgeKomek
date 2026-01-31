@@ -1,6 +1,6 @@
 import React from 'react';
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import Modal from './Modal';
 
 const RateLimitModal = ({ isOpen, onClose }) => {
@@ -8,7 +8,7 @@ const RateLimitModal = ({ isOpen, onClose }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <motion.div
+      <SafeMotionDiv
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -27,8 +27,8 @@ const RateLimitModal = ({ isOpen, onClose }) => {
               <p className="text-sm text-gray-500">Превышен лимит действий</p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="text-gray-400 hover:text-gray-600 p-2 rounded-full"
           >
             <XMarkIcon className="h-6 w-6" />
@@ -52,7 +52,7 @@ const RateLimitModal = ({ isOpen, onClose }) => {
             Понятно
           </button>
         </div>
-      </motion.div>
+      </SafeMotionDiv>
     </Modal>
   );
 };

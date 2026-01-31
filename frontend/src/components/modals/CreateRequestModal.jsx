@@ -3,7 +3,7 @@ import { requestsService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { SUBJECTS } from '../../services/constants';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import { XMarkIcon, PaperAirplaneIcon, DocumentPlusIcon, DocumentCheckIcon, ArchiveBoxIcon, TrashIcon, ServerIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
@@ -180,7 +180,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
-        <motion.div
+        <SafeMotionDiv
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -331,7 +331,7 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess, requestToEdit }) => {
               </button>
             </div>
           </div>
-        </motion.div>
+        </SafeMotionDiv>
       </Modal>
       <ReadOnlyModalComponent />
     </>

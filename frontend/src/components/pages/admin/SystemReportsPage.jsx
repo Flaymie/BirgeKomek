@@ -3,7 +3,7 @@ import { api } from '../../../services/api';
 import { toast } from 'react-toastify';
 import { Eye, User, AlertTriangle, Hash, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../../shared/SafeMotion';
 
 const SystemReportCard = ({ report, onResolve }) => {
   const { targetUser, details, createdAt } = report;
@@ -162,8 +162,8 @@ const SystemReportsPage = () => {
                 key={value}
                 onClick={() => setFilter(value)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
               >
                 {label}
@@ -181,8 +181,8 @@ const SystemReportsPage = () => {
         ) : (
           <>
             {reports.length > 0 ? (
-              <AnimatePresence>
-                <motion.div
+              <SafeAnimatePresence>
+                <SafeMotionDiv
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   initial="hidden"
                   animate="visible"
@@ -193,7 +193,7 @@ const SystemReportsPage = () => {
                   }}
                 >
                   {reports.map((report) => (
-                    <motion.div
+                    <SafeMotionDiv
                       key={report._id}
                       variants={{
                         hidden: { y: 20, opacity: 0 },
@@ -202,10 +202,10 @@ const SystemReportsPage = () => {
                       className="h-full"
                     >
                       <SystemReportCard report={report} onResolve={handleResolveReport} />
-                    </motion.div>
+                    </SafeMotionDiv>
                   ))}
-                </motion.div>
-              </AnimatePresence>
+                </SafeMotionDiv>
+              </SafeAnimatePresence>
             ) : (
               <div className="text-center py-16 bg-white rounded-xl shadow">
                 <Hash size={48} className="mx-auto text-gray-400" />

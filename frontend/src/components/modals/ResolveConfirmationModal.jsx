@@ -1,17 +1,17 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
 const ResolveConfirmationModal = ({ isOpen, onClose, onConfirm, onReject }) => {
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <SafeAnimatePresence>
       <div
         className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100] p-4"
         onClick={onClose}
       >
-        <motion.div
+        <SafeMotionDiv
           className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-auto"
           onClick={(e) => e.stopPropagation()}
           initial={{ y: -50, opacity: 0 }}
@@ -26,7 +26,7 @@ const ResolveConfirmationModal = ({ isOpen, onClose, onConfirm, onReject }) => {
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            
+
             <p className="text-gray-600 mb-6">
               Ваш вопрос был решен? Если да, вы сможете оценить работу помощника. Если нет, заявка будет снова открыта для поиска нового специалиста, а текущий чат будет архивирован.
             </p>
@@ -46,9 +46,9 @@ const ResolveConfirmationModal = ({ isOpen, onClose, onConfirm, onReject }) => {
               </button>
             </div>
           </div>
-        </motion.div>
+        </SafeMotionDiv>
       </div>
-    </AnimatePresence>
+    </SafeAnimatePresence>
   );
 };
 

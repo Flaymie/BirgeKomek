@@ -3,7 +3,7 @@ import { responsesService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useReadOnlyCheck } from '../../hooks/useReadOnlyCheck';
 import { XMarkIcon, PaperAirplaneIcon, HandRaisedIcon } from '@heroicons/react/24/outline';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import Modal from './Modal';
 
 const ResponseModal = ({ isOpen, onClose, requestId }) => {
@@ -16,9 +16,9 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
 
   useEffect(() => {
     if (isOpen) {
-        setMessage('');
-        setError(null);
-        setLoading(false);
+      setMessage('');
+      setError(null);
+      setLoading(false);
     }
   }, [isOpen]);
 
@@ -53,7 +53,7 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
-        <motion.div
+        <SafeMotionDiv
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -73,8 +73,8 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
                 <p className="text-sm text-gray-500">Отправьте отклик автору заявки</p>
               </div>
             </div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="text-gray-400 hover:text-gray-600 p-2 rounded-full"
             >
               <XMarkIcon className="h-6 w-6" />
@@ -119,15 +119,15 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
 
               {/* Кнопки действий */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button 
+                <button
                   type="button"
                   onClick={onClose}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors"
                 >
                   Отмена
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={loading || !message.trim()}
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -149,7 +149,7 @@ const ResponseModal = ({ isOpen, onClose, requestId }) => {
               </div>
             </form>
           </div>
-        </motion.div>
+        </SafeMotionDiv>
       </Modal>
       <ReadOnlyModalComponent />
     </>

@@ -21,7 +21,7 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator) {
         // The URL constructor is available in all browsers that support SW.
         const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
         if (publicUrl.origin !== window.location.origin) {
@@ -32,7 +32,10 @@ export function register(config) {
         }
 
         window.addEventListener('load', () => {
-            const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
+            // CHANGE: Use dev-sw.js in development, service-worker.js in production
+            const swUrl = process.env.NODE_ENV === 'production'
+                ? `${process.env.PUBLIC_URL}/service-worker.js`
+                : `${process.env.PUBLIC_URL}/dev-sw.js`;
 
             if (isLocalhost) {
                 // This is running on localhost. Let's check if a service worker still exists or not.

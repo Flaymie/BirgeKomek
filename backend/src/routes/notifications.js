@@ -1,4 +1,5 @@
 import express from 'express';
+import webpush from 'web-push';
 import { param, validationResult } from 'express-validator';
 import Notification from '../models/Notification.js';
 import { protect } from '../middleware/auth.js';
@@ -9,76 +10,178 @@ import { io } from '../index.js';
 
 const router = express.Router();
 
+// Настройка Web Push
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        process.env.VAPID_MAILTO || 'mailto:admin@birgekomek.kz',
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
+
 export const createAndSendNotification = async (notificationData) => {
-  try {
-    const { user, type, title, message, link, relatedEntity } = notificationData;
-    
-    if (!user) {
-      console.error('Попытка создать уведомление без указания пользователя');
-      return;
-    }
-    
-    const userToSend = await User.findById(user);
-    if (!userToSend) {
-      console.error(`Попытка создать уведомление для несуществующего пользователя: ${user}`);
-      return;
-    }
+    try {
+        const { user, type, title, message, link, relatedEntity } = notificationData;
 
-    const notification = new Notification({
-      user,
-      userTelegramId: userToSend.telegramId,
-      type,
-      title,
-      message,
-      link,
-      relatedEntity,
-    });
-    
-    await notification.save();
-
-    const sockets = await io.fetchSockets();
-    const userSocket = sockets.find(s => s.user && s.user.id === user.toString());
-    
-    if (userSocket) {
-        userSocket.emit('new_notification', notification);
-    }
-    
-    if (userToSend.telegramId && userToSend.telegramNotificationsEnabled) {
-        const botToken = process.env.BOT_TOKEN;
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        
-        let tgMessage = `*${title.replace(/([_*\[\]()~`>#+-=|{}.!])/g, '\\$1')}*\n\n`;
-        if (message) {
-            const cleanMessage = message.replace(/<\/?[^>]+(>|$)/g, "");
-            tgMessage += `${cleanMessage.replace(/([_*\[\]()~`>#+-=|{}.!])/g, '\\$1')}\n\n`;
+        if (!user) {
+            console.error('Попытка создать уведомление без указания пользователя');
+            return;
         }
-        
-        const inlineKeyboard = {
-            inline_keyboard: [[{ text: '🔗 Перейти', url: `${frontendUrl}${link}` }]]
-        };
 
-        const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        const userToSend = await User.findById(user);
+        if (!userToSend) {
+            console.error(`Попытка создать уведомление для несуществующего пользователя: ${user}`);
+            return;
+        }
 
-        try {
-            await axios.post(apiUrl, {
-                chat_id: userToSend.telegramId,
-                text: tgMessage,
-                parse_mode: 'MarkdownV2',
-                reply_markup: inlineKeyboard
+        const notification = new Notification({
+            user,
+            userTelegramId: userToSend.telegramId,
+            type,
+            title,
+            message,
+            link,
+            relatedEntity,
+        });
+
+        await notification.save();
+
+        const sockets = await io.fetchSockets();
+        const userSocket = sockets.find(s => s.user && s.user.id === user.toString());
+
+        if (userSocket) {
+            userSocket.emit('new_notification', notification);
+        }
+
+        // --- PUSH УВЕДОМЛЕНИЯ ---
+        if (userToSend.pushSubscriptions && userToSend.pushSubscriptions.length > 0) {
+            const payload = JSON.stringify({
+                title: title || 'Новое уведомление',
+                body: message ? message.replace(/<\/?[^>]+(>|$)/g, "") : 'Проверьте приложение',
+                icon: '/logo192.png', // Убедитесь, что логотип доступен
+                url: link ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}${link}` : (process.env.FRONTEND_URL || 'http://localhost:3000')
             });
-        } catch (tgError) {
-            console.error(`Ошибка отправки уведомления в Telegram для ${userToSend.username}:`, tgError.response ? tgError.response.data : tgError.message);
-        }
-    }
 
-  } catch (error) {
-    console.error('Ошибка при создании и отправке уведомления:', error);
-  }
+            // Отправляем пуши параллельно и удаляем мертвые подписки
+            const pushPromises = userToSend.pushSubscriptions.map(async (sub) => {
+                try {
+                    await webpush.sendNotification(sub, payload);
+                } catch (error) {
+                    if (error.statusCode === 410 || error.statusCode === 404) {
+                        // Подписка умерла, удаляем
+                        await User.updateOne(
+                            { _id: user },
+                            { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }
+                        );
+                    } else {
+                        console.error('Ошибка отправки Push:', error);
+                    }
+                }
+            });
+
+            await Promise.all(pushPromises);
+        }
+
+        if (userToSend.telegramId && userToSend.telegramNotificationsEnabled) {
+            const botToken = process.env.BOT_TOKEN;
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+            let tgMessage = `*${title.replace(/([_*\[\]()~`>#+-=|{}.!])/g, '\\$1')}*\n\n`;
+            if (message) {
+                const cleanMessage = message.replace(/<\/?[^>]+(>|$)/g, "");
+                tgMessage += `${cleanMessage.replace(/([_*\[\]()~`>#+-=|{}.!])/g, '\\$1')}\n\n`;
+            }
+
+            const inlineKeyboard = {
+                inline_keyboard: [[{ text: '🔗 Перейти', url: `${frontendUrl}${link}` }]]
+            };
+
+            const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+            try {
+                await axios.post(apiUrl, {
+                    chat_id: userToSend.telegramId,
+                    text: tgMessage,
+                    parse_mode: 'MarkdownV2',
+                    reply_markup: inlineKeyboard
+                });
+            } catch (tgError) {
+                console.error(`Ошибка отправки уведомления в Telegram для ${userToSend.username}:`, tgError.response ? tgError.response.data : tgError.message);
+            }
+        }
+
+    } catch (error) {
+        console.error('Ошибка при создании и отправке уведомления:', error);
+    }
 };
 
 
 // Главный экспорт - функция, которая принимает зависимости и возвращает роутер
 export default () => {
+    /**
+     * @swagger
+     * /api/notifications/vapid-public-key:
+     *   get:
+     *     summary: Получить публичный ключ VAPID
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Публичный ключ
+     *       500:
+     *         description: Ошибка сервера
+     */
+    router.get('/vapid-public-key', protect, (req, res) => {
+        res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+    });
+
+    /**
+     * @swagger
+     * /api/notifications/subscribe:
+     *   post:
+     *     summary: Подписаться на Push-уведомления
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - subscription
+     *             properties:
+     *               subscription:
+     *                 type: object
+     *     responses:
+     *       201:
+     *         description: Подписка сохранена
+     */
+    router.post('/subscribe', protect, async (req, res) => {
+        const { subscription } = req.body;
+        if (!subscription || !subscription.endpoint) {
+            return res.status(400).json({ msg: 'Некорректная подписка' });
+        }
+
+        try {
+            // Проверяем, есть ли уже такая подписка (чтобы не дублировать)
+            const user = await User.findById(req.user.id);
+            const exists = user.pushSubscriptions.some(s => s.endpoint === subscription.endpoint);
+
+            if (!exists) {
+                user.pushSubscriptions.push(subscription);
+                await user.save();
+            }
+
+            res.status(201).json({ msg: 'Подписка сохранена' });
+        } catch (error) {
+            console.error('Ошибка сохранения Push-подписки:', error);
+            res.status(500).json({ msg: 'Ошибка сервера' });
+        }
+    });
+
     /**
      * @swagger
      * /api/notifications:
@@ -110,43 +213,43 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.get('/', protect, generalLimiter, async (req, res) => {
-      try {
-        const userId = req.user.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        try {
+            const userId = req.user.id;
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const skip = (page - 1) * limit;
 
-                const query = { user: userId };
+            const query = { user: userId };
 
-                if (req.query.isRead === 'true') {
+            if (req.query.isRead === 'true') {
                 query.isRead = true;
-                } else if (req.query.isRead === 'false') {
+            } else if (req.query.isRead === 'false') {
                 query.isRead = false;
-                }
+            }
 
-                const notifications = await Notification.find(query)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean();
+            const notifications = await Notification.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean();
 
-                const total = await Notification.countDocuments(query);
+            const total = await Notification.countDocuments(query);
 
-                const unreadCount = req.query.isRead === undefined 
+            const unreadCount = req.query.isRead === undefined
                 ? await Notification.countDocuments({ user: userId, isRead: false })
                 : (query.isRead === false ? total : await Notification.countDocuments({ user: userId, isRead: false }));
 
-        res.json({
-          notifications,
-          totalPages: Math.ceil(total / limit),
+            res.json({
+                notifications,
+                totalPages: Math.ceil(total / limit),
                 currentPage: page,
-          total,
+                total,
                 unreadCount,
-        });
-      } catch (error) {
-        console.error('Ошибка при получении уведомлений:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-      }
+            });
+        } catch (error) {
+            console.error('Ошибка при получении уведомлений:', error);
+            res.status(500).json({ msg: 'Ошибка сервера' });
+        }
     });
 
     /**
@@ -164,14 +267,14 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.get('/unread', protect, generalLimiter, async (req, res) => {
-      try {
-        const notifications = await Notification.find({ user: req.user._id, isRead: false })
-          .sort({ createdAt: -1 });
-        res.json({ notifications });
-      } catch (error) {
-        console.error('Ошибка при получении непрочитанных уведомлений:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-      }
+        try {
+            const notifications = await Notification.find({ user: req.user._id, isRead: false })
+                .sort({ createdAt: -1 });
+            res.json({ notifications });
+        } catch (error) {
+            console.error('Ошибка при получении непрочитанных уведомлений:', error);
+            res.status(500).json({ msg: 'Ошибка сервера' });
+        }
     });
 
     /**
@@ -189,13 +292,13 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.get('/unread/count', protect, generalLimiter, async (req, res) => {
-      try {
-        const count = await Notification.countDocuments({ user: req.user._id, isRead: false });
-        res.json({ count });
-      } catch (error) {
-        console.error('Ошибка при получении количества непрочитанных уведомлений:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-      }
+        try {
+            const count = await Notification.countDocuments({ user: req.user._id, isRead: false });
+            res.json({ count });
+        } catch (error) {
+            console.error('Ошибка при получении количества непрочитанных уведомлений:', error);
+            res.status(500).json({ msg: 'Ошибка сервера' });
+        }
     });
 
     /**
@@ -213,16 +316,16 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.put('/read-all', protect, generalLimiter, async (req, res) => {
-      try {
-        await Notification.updateMany(
-          { user: req.user._id, isRead: false },
-          { $set: { isRead: true } }
-        );
-        res.json({ msg: 'Все уведомления отмечены как прочитанные' });
-      } catch (error) {
-        console.error('Ошибка при отметке всех уведомлений как прочитанных:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-      }
+        try {
+            await Notification.updateMany(
+                { user: req.user._id, isRead: false },
+                { $set: { isRead: true } }
+            );
+            res.json({ msg: 'Все уведомления отмечены как прочитанные' });
+        } catch (error) {
+            console.error('Ошибка при отметке всех уведомлений как прочитанных:', error);
+            res.status(500).json({ msg: 'Ошибка сервера' });
+        }
     });
 
     /**
@@ -251,29 +354,29 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.put('/:id/read', protect, generalLimiter, [
-      param('id').isMongoId().withMessage('Некорректный ID уведомления'),
+        param('id').isMongoId().withMessage('Некорректный ID уведомления'),
     ], async (req, res) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      try {
-        const notification = await Notification.findOneAndUpdate(
-          { _id: req.params.id, user: req.user._id },
-          { isRead: true },
-          { new: true }
-        );
-
-        if (!notification) {
-          return res.status(404).json({ msg: 'Уведомление не найдено или нет прав доступа' });
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
         }
 
-        res.json(notification);
-      } catch (error) {
-        console.error('Ошибка при отметке уведомления как прочитанного:', error);
-        res.status(500).json({ msg: 'Ошибка сервера' });
-      }
+        try {
+            const notification = await Notification.findOneAndUpdate(
+                { _id: req.params.id, user: req.user._id },
+                { isRead: true },
+                { new: true }
+            );
+
+            if (!notification) {
+                return res.status(404).json({ msg: 'Уведомление не найдено или нет прав доступа' });
+            }
+
+            res.json(notification);
+        } catch (error) {
+            console.error('Ошибка при отметке уведомления как прочитанного:', error);
+            res.status(500).json({ msg: 'Ошибка сервера' });
+        }
     });
 
     /**
@@ -302,7 +405,7 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.delete('/:id', protect, generalLimiter, [
-      param('id').isMongoId().withMessage('Некорректный ID уведомления'),
+        param('id').isMongoId().withMessage('Некорректный ID уведомления'),
     ], async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -352,26 +455,26 @@ export default () => {
      *         description: Ошибка сервера
      */
     router.get('/:id', protect, async (req, res) => {
-      try {
-        const notification = await Notification.findById(req.params.id);
+        try {
+            const notification = await Notification.findById(req.params.id);
 
-        if (!notification) {
-          return res.status(404).json({ msg: 'Уведомление не найдено' });
-        }
+            if (!notification) {
+                return res.status(404).json({ msg: 'Уведомление не найдено' });
+            }
 
-        // Убедимся, что пользователь запрашивает свое уведомление
-        if (notification.user.toString() !== req.user.id) {
-          return res.status(403).json({ msg: 'Доступ запрещен' });
-        }
+            // Убедимся, что пользователь запрашивает свое уведомление
+            if (notification.user.toString() !== req.user.id) {
+                return res.status(403).json({ msg: 'Доступ запрещен' });
+            }
 
-        res.json(notification);
-      } catch (error) {
-        console.error(error.message);
-        if (error.kind === 'ObjectId') {
-            return res.status(404).json({ msg: 'Уведомление не найдено' });
+            res.json(notification);
+        } catch (error) {
+            console.error(error.message);
+            if (error.kind === 'ObjectId') {
+                return res.status(404).json({ msg: 'Уведомление не найдено' });
+            }
+            res.status(500).send('Ошибка сервера');
         }
-        res.status(500).send('Ошибка сервера');
-      }
     });
 
     return router;

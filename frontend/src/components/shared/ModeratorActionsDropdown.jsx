@@ -1,29 +1,44 @@
-import React, { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState, useRef, useCallback } from 'react';
+import { SafeAnimatePresence, SafeMotionDiv } from './SafeMotion';
 import { EllipsisVerticalIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/react/24/solid';
 import { FaGavel, FaCheckCircle } from 'react-icons/fa';
 
 const ModeratorActionsDropdown = ({ isBanned, onBan, onUnban, onNotify }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimeoutRef = useRef(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsOpen(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 150);
+  }, []);
 
   return (
-    <div 
+    <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <button className="p-2 text-gray-500 hover:text-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
         <EllipsisVerticalIcon className="h-6 w-6" />
       </button>
 
-      <AnimatePresence>
+      <SafeAnimatePresence>
         {isOpen && (
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.1 }}
-            className="absolute right-0 mt-1 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20 origin-top-right"
+            className="absolute right-0 top-full w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20 origin-top-right"
           >
             <div className="py-1">
               <button
@@ -54,11 +69,11 @@ const ModeratorActionsDropdown = ({ isBanned, onBan, onUnban, onNotify }) => {
                 </button>
               )}
             </div>
-          </motion.div>
+          </SafeMotionDiv>
         )}
-      </AnimatePresence>
+      </SafeAnimatePresence>
     </div>
   );
 };
 
-export default ModeratorActionsDropdown; 
+export default ModeratorActionsDropdown;

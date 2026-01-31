@@ -79,17 +79,6 @@ const Container = ({ children }) => (
   </div>
 );
 
-// Функция для получения текста роли (не используется, но может понадобиться)
-// eslint-disable-next-line no-unused-vars
-const getRoleText = (profile) => {
-  if (!profile || !profile.roles) return 'Пользователь';
-  
-  if (profile.roles.admin) return 'Администратор';
-  if (profile.roles.moderator) return 'Модератор';
-  if (profile.roles.helper) return 'Помощник (хелпер)';
-  return 'Ученик';
-};
-
 // ПРАВИЛЬНЫЙ СПИСОК ПРЕДМЕТОВ
 const subjectOptions = [
   { value: 'Математика', label: 'Математика' },
@@ -106,10 +95,9 @@ const subjectOptions = [
   { value: 'Другое', label: 'Другое' },
 ];
 
-// НОВАЯ ФУНКЦИЯ ФОРМАТИРОВАНИЯ ТЕЛЕФОНА
 const formatPhoneNumber = (phone) => {
   if (!phone) return '';
-  const phoneNumber = parsePhoneNumberFromString(phone, 'KZ'); // KZ - Казахстан как страна по умолчанию
+  const phoneNumber = parsePhoneNumberFromString(phone, 'KZ');
   if (phoneNumber) {
     return phoneNumber.formatInternational();
   }

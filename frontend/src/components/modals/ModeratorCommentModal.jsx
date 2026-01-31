@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 
 const ModeratorCommentModal = ({ isOpen, onClose, onSubmit, title }) => {
@@ -25,7 +25,7 @@ const ModeratorCommentModal = ({ isOpen, onClose, onSubmit, title }) => {
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
-            <motion.div
+            <SafeMotionDiv
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -58,7 +58,7 @@ const ModeratorCommentModal = ({ isOpen, onClose, onSubmit, title }) => {
                         {!loading && <PaperAirplaneIcon className="h-5 w-5" />}
                     </button>
                 </div>
-            </motion.div>
+            </SafeMotionDiv>
         </Modal>
     );
 };

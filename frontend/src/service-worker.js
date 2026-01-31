@@ -46,8 +46,36 @@ registerRoute(
     createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html')
 );
 
-// An example runtime caching route for requests that aren't handled by the
-// precache, in this case same-origin .png requests like those from in public/
+// Any other custom service worker logic can go here.
+
+
+
+self.addEventListener('notificationclick', function (event) {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+            if (event.notification.data.url) {
+                let client = null;
+                for (let i = 0; i < clientList.length; i++) {
+                    const item = clientList[i];
+                    if (item.url) {
+                        client = item;
+                        break;
+                    }
+                }
+                if (client && 'focus' in client) {
+                    if (client.url !== event.notification.data.url) {
+                        return client.navigate(event.notification.data.url).then(c => c.focus());
+                    }
+                    return client.focus();
+                }
+                if (clients.openWindow) {
+                    return clients.openWindow(event.notification.data.url);
+                }
+            }
+        })
+    );
+});
 registerRoute(
     // Add in any other file extensions or routing criteria as needed.
     ({ url }) => url.origin === self.location.origin && url.pathname.endsWith('.png'), // Customize this strategy as needed, e.g., by changing to CacheFirst.
@@ -74,10 +102,16 @@ self.addEventListener('message', (event) => {
 // Any other custom service worker logic can go here.
 self.addEventListener('push', function (event) {
     if (event.data) {
-        const data = event.data.json();
+        let data;
+        try {
+            data = event.data.json();
+        } catch (e) {
+            data = { title: 'Уведомление', body: event.data.text(), url: '/' };
+        }
+
         const options = {
             body: data.body,
-            icon: data.icon || '/img/logo_site_192.png',
+            icon: '/img/logo_site_192.png',
             badge: '/img/logo_site_192.png',
             vibrate: [100, 50, 100],
             data: {
@@ -86,8 +120,13 @@ self.addEventListener('push', function (event) {
                 url: data.url || '/'
             }
         };
+
         event.waitUntil(
-            self.registration.showNotification(data.title, options)
+            clients.matchAll({ type: 'window' }).then(windowClients => {
+                const isFocused = windowClients.some(client => client.focused);
+                if (isFocused) return;
+                return self.registration.showNotification(data.title, options);
+            })
         );
     }
 });

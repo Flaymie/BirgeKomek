@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { XMarkIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
 import AvatarUpload from '../layout/AvatarUpload';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from '../shared/SafeMotion';
 import Modal from './Modal';
 
 const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
@@ -75,7 +75,7 @@ const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
-            <motion.div
+            <SafeMotionDiv
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -203,7 +203,7 @@ const AdminEditProfileModal = ({ isOpen, onClose, user, onConfirm }) => {
                         Сохранить и запросить код
                     </button>
                 </div>
-            </motion.div>
+            </SafeMotionDiv>
         </Modal>
     );
 };

@@ -7,7 +7,7 @@ import PushNotificationManager from '../common/PushNotificationManager';
 import { formatAvatarUrl } from '../../services/avatarUtils';
 import { FiMenu, FiX, FiUser, FiLogOut, FiGrid, FiMessageSquare, FiInfo, FiHelpCircle, FiBell, FiFlag, FiBarChart2, FiShield } from 'react-icons/fi';
 import { AlertTriangle } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 
 const Username = ({ user }) => {
   if (!user) return null;
@@ -198,9 +198,9 @@ const Header = () => {
         </div>
       </header>
 
-      <AnimatePresence>
+      <SafeAnimatePresence>
         {isMenuOpen && (
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -208,7 +208,7 @@ const Header = () => {
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
             onClick={() => setIsMenuOpen(false)}
           >
-            <motion.div
+            <SafeMotionDiv
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -321,10 +321,10 @@ const Header = () => {
                   </div>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </SafeMotionDiv>
+          </SafeMotionDiv>
         )}
-      </AnimatePresence>
+      </SafeAnimatePresence>
     </>
   );
 };

@@ -6,7 +6,7 @@ import { useSocket } from '../../context/SocketContext';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { SUBJECTS, REQUEST_STATUS_LABELS, STATUS_COLORS } from '../../services/constants';
 import { FiPlus, FiSearch } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
+import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { PencilIcon } from '@heroicons/react/24/solid';
 import Pagination from '../shared/Pagination';
 
@@ -267,8 +267,8 @@ const MyRequestsPage = () => {
         ) : (
           <>
             {requests.length > 0 ? (
-              <AnimatePresence>
-                <motion.div
+              <SafeAnimatePresence mode="wait">
+                <SafeMotionDiv
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                   initial="hidden"
                   animate="visible"
@@ -281,9 +281,8 @@ const MyRequestsPage = () => {
                   }}
                 >
                   {requests.map((request) => (
-                    <motion.div
+                    <SafeMotionDiv
                       key={request._id}
-                      layout
                       variants={{
                         hidden: { y: 20, opacity: 0 },
                         visible: { y: 0, opacity: 1 },
@@ -352,10 +351,10 @@ const MyRequestsPage = () => {
                           </div>
                         </Link>
                       )}
-                    </motion.div>
+                    </SafeMotionDiv>
                   ))}
-                </motion.div>
-              </AnimatePresence>
+                </SafeMotionDiv>
+              </SafeAnimatePresence>
             ) : (
               <div className="text-center py-16">
                 <h3 className="text-xl font-semibold text-gray-700">

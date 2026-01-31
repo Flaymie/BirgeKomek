@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { SafeMotionDiv } from './SafeMotion';
 
 const ProfileNotFound = () => {
   const navigate = useNavigate();
@@ -8,7 +8,7 @@ const ProfileNotFound = () => {
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
       <div className="text-center max-w-3xl mx-auto">
-        <motion.div
+        <SafeMotionDiv
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -17,9 +17,9 @@ const ProfileNotFound = () => {
           <svg className="mx-auto h-24 w-24 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-        </motion.div>
-        
-        <motion.div
+        </SafeMotionDiv>
+
+        <SafeMotionDiv
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
@@ -31,20 +31,20 @@ const ProfileNotFound = () => {
           <p className="text-lg text-gray-600 mb-6">
             Профиль, который вы ищете, не существует или был удален.
           </p>
-        </motion.div>
+        </SafeMotionDiv>
 
-        <motion.div
+        <SafeMotionDiv
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
         >
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-300"
           >
             Вернуться назад
           </button>
-        </motion.div>
+        </SafeMotionDiv>
       </div>
     </div>
   );

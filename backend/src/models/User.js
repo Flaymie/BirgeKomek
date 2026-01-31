@@ -94,6 +94,15 @@ const userSchema = new mongoose.Schema({
     default: 0,
     index: true
   },
+  pushSubscriptions: [{
+    endpoint: { type: String, required: true },
+    keys: {
+      p256dh: String,
+      auth: String
+    },
+    userAgent: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
   suspicionLog: [{
     reason: String,
     points: Number,

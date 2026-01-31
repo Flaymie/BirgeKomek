@@ -5,7 +5,7 @@ const options = {
     openapi: '3.0.0',
     info: {
       title: 'Бірге Көмек API',
-      version: '1.0.0',
+      version: '1.1.0',
       description: 'Документация API для платформы взаимопомощи школьников Бірге Көмек',
     },
     servers: [
@@ -46,13 +46,30 @@ const options = {
                 example: '60d21b4967d0d8992e610c85'
               }
             },
-            helperSubjects: { 
+            helperSubjects: {
               type: 'array',
-              items: { 
+              items: {
                 type: 'string',
-                example: 'Математика' 
+                example: 'Математика'
               },
               description: 'Предметы, по которым пользователь может помогать'
+            },
+            pushSubscriptions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  endpoint: { type: 'string' },
+                  keys: {
+                    type: 'object',
+                    properties: {
+                      p256dh: { type: 'string' },
+                      auth: { type: 'string' }
+                    }
+                  }
+                }
+              },
+              description: 'Подписки на Web Push уведомления'
             },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },

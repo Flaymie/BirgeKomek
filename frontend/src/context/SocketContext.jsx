@@ -34,35 +34,35 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (token) {
       if (!socketRef.current) {
-      const newSocket = io(SOCKET_URL, {
-        auth: { token },
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-      });
+        const newSocket = io(SOCKET_URL, {
+          auth: { token },
+          transports: ['websocket', 'polling'],
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          timeout: 20000,
+        });
         socketRef.current = newSocket;
 
 
-      newSocket.on('connect', () => {
+        newSocket.on('connect', () => {
           setIsConnected(true);
           newSocket.emit('get_unread_notifications_count', (count) => {
             setUnreadCount(count || 0);
           });
-          
+
           // Восстанавливаем комнату при реконнекте
           if (currentRoomRef.current) {
             newSocket.emit('join_request', currentRoomRef.current);
           }
-      });
+        });
 
-      newSocket.on('reconnect', (attemptNumber) => {
-        // Восстанавливаем комнату при реконнекте
-        if (currentRoomRef.current) {
-          newSocket.emit('join_request', currentRoomRef.current);
-        }
-      });
+        newSocket.on('reconnect', (attemptNumber) => {
+          // Восстанавливаем комнату при реконнекте
+          if (currentRoomRef.current) {
+            newSocket.emit('join_request', currentRoomRef.current);
+          }
+        });
 
         newSocket.on('connect_error', (error) => {
           console.error('Socket connection error:', error.message);
@@ -80,13 +80,13 @@ export const SocketProvider = ({ children }) => {
 
         newSocket.on('disconnect', (reason) => {
           setIsConnected(false);
-          
+
           // Если сервер отключил, пытаемся переподключиться
           if (reason === 'io server disconnect') {
             newSocket.connect();
           }
         });
-        
+
         newSocket.on('update_unread_count', (count) => {
           setUnreadCount(count || 0);
         });
@@ -94,10 +94,10 @@ export const SocketProvider = ({ children }) => {
         newSocket.on('new_notification', (notification) => {
           setUnreadCount(prevCount => prevCount + 1);
           toast.info(
-            <ToastBody title={notification.title} message={notification.message} link={notification.link} />, 
+            <ToastBody title={notification.title} message={notification.message} link={notification.link} />,
             { closeButton: true, autoClose: 8000 }
           );
-      });
+        });
 
         newSocket.on('online_stats_updated', (stats) => {
           if (stats && typeof stats === 'object') {
@@ -150,9 +150,9 @@ export const SocketProvider = ({ children }) => {
         });
 
         const pingInterval = setInterval(() => {
-            if (newSocket.connected) {
-                newSocket.emit('user_ping');
-            }
+          if (newSocket.connected) {
+            newSocket.emit('user_ping');
+          }
         }, 90000);
 
         // Обработка Page Visibility API для мобильных устройств
@@ -167,15 +167,15 @@ export const SocketProvider = ({ children }) => {
             }
           }
         };
-        
+
         document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      return () => {
+
+        return () => {
           clearInterval(pingInterval);
           document.removeEventListener('visibilitychange', handleVisibilityChange);
-        newSocket.disconnect();
+          newSocket.disconnect();
           socketRef.current = null;
-      };
+        };
       }
     } else {
       if (socketRef.current) {
@@ -204,7 +204,7 @@ export const SocketProvider = ({ children }) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('mark_notifications_read', (response) => {
         if (response.success) {
-      setUnreadCount(0);
+          setUnreadCount(0);
         } else {
           console.error('Failed to mark notifications as read', response.error);
           toast.error("Не удалось отметить уведомления как прочитанные");
@@ -227,11 +227,22 @@ export const SocketProvider = ({ children }) => {
     currentRoomRef.current = null;
   };
 
+  const markAsReadByEntity = (relatedEntityId) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('mark_notifications_read_by_entity', { relatedEntityId }, (response) => {
+        if (response.success && response.unreadCount !== undefined) {
+          setUnreadCount(response.unreadCount);
+        }
+      });
+    }
+  };
+
   const value = {
     socket: socketRef.current,
     isConnected,
     unreadCount,
     markAllAsRead,
+    markAsReadByEntity,
     joinRoom,
     leaveRoom,
     onlineUsers: onlineStats.onlineUsers,
