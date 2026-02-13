@@ -92,7 +92,7 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
 
   if (isImage) {
     return (
-      <div onClick={() => onImageClick(file)} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
+      <div onClick={(e) => { e.stopPropagation(); onImageClick(file); }} className="cursor-pointer max-w-[280px] rounded-lg overflow-hidden">
         <img
           src={fileUrl}
           alt={file.fileName}
@@ -110,7 +110,7 @@ const Attachment = ({ file, isOwnMessage, onImageClick }) => {
   return (
     <div className={`p-2 rounded-lg flex items-center gap-3 max-w-[280px] ${attachmentBg}`}>
       <button
-        onClick={handleFileDownload}
+        onClick={(e) => { e.stopPropagation(); handleFileDownload(); }}
         disabled={isDownloading}
         className="text-white bg-indigo-500 rounded-full p-2 hover:bg-indigo-600 transition-colors focus:outline-none disabled:bg-indigo-400 disabled:cursor-wait"
       >
@@ -145,7 +145,7 @@ const MessageContent = ({ text, isOwnMessage }) => {
         {text}
         {isLong && (
           <button
-            onClick={() => setIsExpanded(false)}
+            onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
             className={`ml-2 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-indigo-600'}`}
           >
             Свернуть
@@ -163,7 +163,7 @@ const MessageContent = ({ text, isOwnMessage }) => {
         {truncatedText + '...'}
       </div>
       <button
-        onClick={() => setIsExpanded(true)}
+        onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
         className={`mt-1 text-sm font-semibold hover:underline ${isOwnMessage ? 'text-indigo-200' : 'text-gray-600'}`}
       >
         Показать полностью
@@ -173,11 +173,13 @@ const MessageContent = ({ text, isOwnMessage }) => {
 };
 
 // Новый компонент сообщения
-const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive, isSenderOnline }) => {
+const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActive, isSenderOnline, isSelected, onToggleSelect }) => {
   const hasAttachments = msg.attachments && msg.attachments.length > 0;
   const isDeleted = msg.content === 'Сообщение удалено';
   const isImageOnly = hasAttachments && !msg.content && msg.attachments.length === 1 && msg.attachments[0].fileType.startsWith('image/');
   const avatarUrl = formatAvatarUrl(msg.sender);
+  const touchStartRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
   return (
     <SafeMotionDiv
@@ -208,7 +210,25 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
       </div>
 
       {/* Основной пузырь сообщения или просто картинка */}
-      <div className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}>
+      <div
+        onTouchStart={(e) => {
+          touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          isDraggingRef.current = false;
+        }}
+        onTouchMove={(e) => {
+          if (!touchStartRef.current) return;
+          const xDiff = Math.abs(e.touches[0].clientX - touchStartRef.current.x);
+          const yDiff = Math.abs(e.touches[0].clientY - touchStartRef.current.y);
+          if (xDiff > 5 || yDiff > 5) {
+            isDraggingRef.current = true;
+          }
+        }}
+        onClick={(e) => {
+          if (isDraggingRef.current) return;
+          onToggleSelect && onToggleSelect();
+        }}
+        className={`relative ${isDeleted ? 'italic' : ''} ${!isImageOnly ? `rounded-lg max-w-sm md:max-w-md ${isOwnMessage ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}` : ''}`}
+      >
 
         {hasAttachments && !isDeleted && (
           <div className={!isImageOnly ? (msg.content ? 'pt-1 px-1' : 'p-1') : ''}>
@@ -235,7 +255,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
 
       {/* Иконки действий (появляются при наведении на всю строку) */}
       {isOwnMessage && !isDeleted && isChatActive && (
-        <div className="self-center flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className={`self-center flex items-center transition-opacity duration-200 ${isSelected ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
           <button onClick={() => onEdit(msg)} title="Редактировать" className="p-1 text-gray-400 hover:text-gray-700">
             <PencilIcon className="h-4 w-4" />
           </button>
@@ -266,6 +286,7 @@ const ChatPage = () => {
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [viewerFile, setViewerFile] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [messageToDelete, setMessageToDelete] = useState(null);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
@@ -649,6 +670,7 @@ const ChatPage = () => {
   const handleStartEdit = (message) => {
     setEditingMessage({ id: message._id, content: message.content });
     setNewMessage(message.content);
+    setSelectedMessageId(null); // Скрываем меню действий
   };
 
   const handleCancelEdit = () => {
@@ -1061,6 +1083,8 @@ const ChatPage = () => {
                       onDelete={setMessageToDelete}
                       isChatActive={isChatActive || requestDetails.status === 'open'}
                       isSenderOnline={isSenderOnline}
+                      isSelected={selectedMessageId === msg._id}
+                      onToggleSelect={() => setSelectedMessageId(prev => prev === msg._id ? null : msg._id)}
                     />
                   </div>
                 </React.Fragment>
@@ -1129,8 +1153,10 @@ const ChatPage = () => {
                     {editingMessage && (
                       <div className="mb-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 rounded-r-lg flex justify-between items-center">
                         <div>
-                          <p className="font-bold">Редактирование</p>
-                          <p className="text-sm italic truncate">"{editingMessage.content}"</p>
+                          <p className="font-bold text-xs uppercase text-yellow-800 mb-0.5">Редактирование</p>
+                          <div className="text-sm italic text-yellow-900 overflow-hidden whitespace-nowrap" style={{ maxWidth: '150px' }}>
+                            "{editingMessage.content.length > 20 ? editingMessage.content.substring(0, 20) + '...' : editingMessage.content}"
+                          </div>
                         </div>
                         <button onClick={handleCancelEdit} title="Отменить редактирование">
                           <XCircleIcon className="h-6 w-6 text-yellow-600 hover:text-yellow-800" />
@@ -1167,7 +1193,7 @@ const ChatPage = () => {
                       />
                       <button
                         type="submit"
-                        disabled={(!newMessage.trim() && !attachment) || dropzoneDisabled || isSending}
+                        disabled={isSending || (editingMessage ? !newMessage.trim() : ((!newMessage.trim() && !attachment) || dropzoneDisabled))}
                         className="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors self-end relative"
                       >
                         {isSending ? (
@@ -1176,7 +1202,7 @@ const ChatPage = () => {
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
                         ) : (
-                          <ArrowUpCircleIcon className="h-6 w-6" />
+                          editingMessage ? <CheckBadgeIcon className="h-6 w-6" /> : <ArrowUpCircleIcon className="h-6 w-6" />
                         )}
                       </button>
                     </form>
