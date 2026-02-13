@@ -30,4 +30,4 @@ root.render(
 reportWebVitals();
 
 // PWA: Activate Service Worker
-serviceWorkerRegistration.register();
+serviceWorkerRegistration.unregister();
