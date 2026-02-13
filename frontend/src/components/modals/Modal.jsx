@@ -1,8 +1,11 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const Modal = ({ isOpen, onClose, children }) => {
+  useLockBodyScroll(isOpen);
+
   useEffect(() => {
     const handleEsc = (event) => {
       if (event.keyCode === 27) {

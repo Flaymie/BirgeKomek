@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const AdminActionConfirmModal = ({
     isOpen,
@@ -10,6 +11,7 @@ const AdminActionConfirmModal = ({
     confirmText = 'Подтвердить',
     error,
 }) => {
+    useLockBodyScroll(isOpen);
     const [code, setCode] = useState('');
     const inputRef = useRef(null);
     const [remainingAttempts, setRemainingAttempts] = useState(null);
@@ -58,7 +60,7 @@ const AdminActionConfirmModal = ({
                             ⚠️ Осталось попыток: {remainingAttempts}
                         </p>
                         <p className="text-sm mt-1">
-                            {remainingAttempts === 1 
+                            {remainingAttempts === 1
                                 ? 'Последняя попытка! При неверном вводе аккаунт будет заблокирован на 7 дней.'
                                 : 'После 3 неудачных попыток аккаунт будет заблокирован из-за подозрения во взломе.'}
                         </p>

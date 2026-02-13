@@ -3,8 +3,10 @@ import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { QRCodeSVG } from 'qrcode.react';
 import { FaTelegramPlane } from 'react-icons/fa';
 import Loader from '../shared/Loader';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const LinkTelegramModal = ({ isOpen, onClose, linkUrl, isLoading }) => {
+  useLockBodyScroll(isOpen);
   const modalRef = useRef(null);
 
   useEffect(() => {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const DeleteAccountModal = ({ isOpen, onClose, onConfirm, username, isLoading }) => {
+  useLockBodyScroll(isOpen);
   const [confirmationText, setConfirmationText] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const modalRef = useRef(null);

@@ -18,6 +18,9 @@ const StarRating = ({ rating }) => (
   </div>
 );
 
+const truncate = (str, maxLen = 30) =>
+  str && str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
+
 const ReviewItem = ({ review, fullAuthorProfile }) => {
   if (!review || !review.author || !review.request) {
     return null;
@@ -31,47 +34,52 @@ const ReviewItem = ({ review, fullAuthorProfile }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="bg-white p-4 rounded-lg border border-gray-200"
+      className="bg-white p-4 rounded-lg border border-gray-200 overflow-hidden"
     >
-      <div className="flex items-start gap-4">
-        <Link to={`/profile/${author._id}`}>
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={author.username} className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-              <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
-            </div>
-          )}
-        </Link>
-        <div className="flex-1">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="flex items-center">
-                <Link to={`/profile/${author.username}`} className="font-semibold text-gray-800 hover:underline">
-                  {author.username}
-                </Link>
-                <RoleBadge user={author} />
+      {/* Row 1: Avatar + username + stars */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link to={`/profile/${author._id}`} className="shrink-0">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={author.username} className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                <DefaultAvatarIcon className="w-6 h-6 text-gray-500" />
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                <span>по заявке</span>
-                <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline">{review.request.title}</Link>
-                {review.isResolved !== undefined && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${review.isResolved
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-                    }`}>
-                    {review.isResolved ? 'Решено' : 'Не решено'}
-                  </span>
-                )}
-              </div>
+            )}
+          </Link>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <Link to={`/profile/${author.username}`} className="font-semibold text-gray-800 hover:underline truncate max-w-[120px] sm:max-w-none block">
+                {author.username}
+              </Link>
+              <RoleBadge user={author} />
             </div>
-            <StarRating rating={review.rating} />
           </div>
-          {review.comment && (
-            <p className="mt-2 text-gray-700 bg-gray-50 p-3 rounded-md">{review.comment}</p>
-          )}
         </div>
+        <StarRating rating={review.rating} />
       </div>
+
+      {/* Row 2: Request link + badge */}
+      <div className="flex items-center gap-2 mt-2 flex-wrap text-sm text-gray-500">
+        <span className="shrink-0">по заявке</span>
+        <Link to={`/request/${review.request._id}`} className="text-indigo-600 hover:underline truncate max-w-[200px] sm:max-w-none">
+          {truncate(review.request.title, 30)}
+        </Link>
+        {review.isResolved !== undefined && (
+          <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${review.isResolved
+            ? 'bg-green-100 text-green-800'
+            : 'bg-red-100 text-red-800'
+            }`}>
+            {review.isResolved ? 'Решено' : 'Не решено'}
+          </span>
+        )}
+      </div>
+
+      {/* Row 3: Comment */}
+      {review.comment && (
+        <p className="mt-3 text-gray-700 bg-gray-50 p-3 rounded-md text-sm">{review.comment}</p>
+      )}
     </SafeMotionDiv>
   );
 };

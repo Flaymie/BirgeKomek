@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiShield, FiUserCheck } from 'react-icons/fi';
 import classNames from 'classnames';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const ToggleSwitch = ({ label, icon, enabled, onChange }) => (
     <div
@@ -30,6 +31,7 @@ const ToggleSwitch = ({ label, icon, enabled, onChange }) => (
 
 
 const ChangeRoleModal = ({ isOpen, onClose, onConfirm, user }) => {
+    useLockBodyScroll(isOpen);
     const [isModerator, setIsModerator] = useState(false);
     const [isHelper, setIsHelper] = useState(false);
 

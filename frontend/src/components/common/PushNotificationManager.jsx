@@ -56,7 +56,7 @@ const PushNotificationManager = () => {
                 throw new Error('Не удалось получить VAPID ключ');
             }
 
-            console.log('Push: Requesting subscription...');
+
             const sub = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
@@ -65,7 +65,7 @@ const PushNotificationManager = () => {
             // 2. Отправляем подписку на бэкенд
             await api.post('/notifications/subscribe', { subscription: sub });
 
-            console.log('Push Subscription Success:', JSON.stringify(sub));
+
             setSubscription(sub);
             setIsSubscribed(true);
 

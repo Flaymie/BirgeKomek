@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaTrashAlt } from 'react-icons/fa';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const DeleteUserModal = ({ isOpen, onClose, onConfirm, username }) => {
+    useLockBodyScroll(isOpen);
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);

@@ -196,7 +196,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
 
     try {
-      console.log('AuthContext: Начинаем регистрацию, данные:', JSON.stringify(userData));
+
 
       // Проверяем, есть ли данные аватара в userData и подготавливаем их к отправке
       let formData = new FormData();
@@ -210,7 +210,6 @@ export const AuthProvider = ({ children }) => {
             formData.append('avatar', userData.avatar);
             hasAvatar = true;
           } else if (userData.avatar && typeof userData.avatar === 'string' && userData.avatar.length > 0) {
-            console.log('AuthContext: В данных присутствует аватар в виде URL:', userData.avatar.substring(0, 100) + '...');
             // Если аватар - строка (URL или base64), добавляем как есть
             formData.append('avatar', userData.avatar);
             hasAvatar = true;
@@ -226,7 +225,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (!hasAvatar) {
-        console.log('AuthContext: Аватар не предоставлен в данных регистрации');
+        // console.log('AuthContext: Аватар не предоставлен в данных регистрации');
       }
 
       const response = await authService.register(formData);
@@ -237,7 +236,6 @@ export const AuthProvider = ({ children }) => {
 
         // Проверяем, содержит ли ответ токен, который нужно сохранить
         if (response.data.token && response.data.user) {
-          console.log('AuthContext: Получены токен и пользователь. Вызываем loginWithToken.');
           // Используем loginWithToken для установки состояния
           loginWithToken(response.data.token, response.data.user);
           // Возвращаем успех, чтобы компонент мог среагировать
@@ -322,7 +320,7 @@ export const AuthProvider = ({ children }) => {
       delete payload._id;
       delete payload.id;
 
-      console.log('Отправка очищенных данных на сервер:', JSON.stringify(payload));
+
       const response = await usersService.updateProfile(payload);
 
       // Сохраняем telegramId из текущего пользователя, если его нет в ответе

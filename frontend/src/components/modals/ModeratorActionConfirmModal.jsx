@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const ModeratorActionConfirmModal = ({ isOpen, onClose, onConfirm, actionTitle, isLoading, error }) => {
+  useLockBodyScroll(isOpen);
   const [code, setCode] = useState('');
   const modalRef = useRef(null);
   const [remainingAttempts, setRemainingAttempts] = useState(null);

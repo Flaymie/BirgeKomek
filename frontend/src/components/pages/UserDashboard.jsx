@@ -9,6 +9,7 @@ import { ru } from 'date-fns/locale';
 import StatusBadge from '../shared/StatusBadge';
 import CreateRequestModal from '../modals/CreateRequestModal';
 import { useSocket } from '../../context/SocketContext';
+import { getNoun } from '../../utils/declension';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-6 rounded-xl shadow-md animate-pulse">
@@ -68,7 +69,7 @@ const UserDashboard = () => {
                         status: 'open',
                         subjects: currentUser.subjects.join(','),
                         excludeAuthor: currentUser._id
-                      })
+                    })
                     : Promise.resolve(null)
             ]);
 
@@ -107,44 +108,49 @@ const UserDashboard = () => {
             <p className="text-gray-500">{label}</p>
         </div>
     );
-    
+
     const getPersonalizedMessage = (user, stats) => {
         const genericWelcomePhrases = [
-            "Рады видеть вас на платформе!",
-            "Добро пожаловать! Готовы к новым свершениям?",
-            "Привет! Чем займемся сегодня?",
-            "С возвращением! Надеемся, у вас продуктивный день."
+            "Рады видеть вас на платформе! Готовы к новым победам?",
+            "Добро пожаловать! Сегодня отличный день для достижений!",
+            "Привет! С возвращением к важным делам.",
+            "Мы скучали! Надеемся на продуктивный день."
         ];
 
         if (!user || !stats) {
-            return getRandomPhrase(genericWelcomePhrases);
+            return genericWelcomePhrases[Math.floor(Math.random() * genericWelcomePhrases.length)];
         }
 
         // --- Логика для Хелпера ---
         if (user.roles?.helper && stats.completedRequestsAsHelper > 0) {
             const count = stats.completedRequestsAsHelper;
-            // const rating = stats.averageRatingAsHelper > 0 ? stats.averageRatingAsHelper.toFixed(1) : null;
-            
+
+            // Майлстоуны — особые поздравления
             const milestones = {
-                100: `${count} заявок! Ты — магистр помощи!`,
-                50: `${count} решенных вопросов! Настоящая легенда!`,
-                25: `${count} заявок выполнено! Ты на полпути к супергерою!`,
-                10: `${count} добрых дел! Ты уже опытный помощник.`,
-                5: `${count} заявок! Врываешься как профи.`,
-                1: `${count} выполненная заявка! Отличное начало!`
+                100: `${count} заявок! Вы — настоящий титан знаний и помощи!`,
+                50: `Юбилейные ${count} заявок! Вы легенда платформы!`,
+                25: `${count} добрых дел! Ваш вклад просто неоценим!`,
+                10: `${count} выполненных заявок! Вы уже опытный наставник.`,
+                5: `${count} заявок! Отличный старт, так держать!`,
+                1: `Первая заявка выполнена! Начало большого пути положено!`
             };
-            
-            let message = milestones[count]; // Проверяем точное совпадение с майлстоуном
+
+            let message = milestones[count];
 
             if (!message) {
-                // Если не майлстоун, используем бодрые общие фразы
-                const genericHelperPhrases = [
-                    "{count} добрых дел — ты на высоте!",
-                    "{count} заявок — спасибо за помощь!",
-                    "{count} заявок позади, ты не остановим!",
-                    "{count} раз помогли. Так держать!",
+                // Склоняем слова
+                const raz = getNoun(count, 'раз', 'раза', 'раз');
+                const zayavka = getNoun(count, 'заявка', 'заявки', 'заявок');
+                const vopros = getNoun(count, 'вопрос', 'вопроса', 'вопросов');
+
+                const motivationalPhrases = [
+                    `Вы помогли уже ${count} ${raz}! Спасибо за вашу отзывчивость.`,
+                    `${count} ${zayavka} успешно ${getNoun(count, 'закрыта', 'закрыты', 'закрыто')}. Вы просто космос!`,
+                    `Ваша помощь сделала мир лучше уже ${count} ${raz}.`,
+                    `На вашем счету ${count} решенных ${vopros}. Гордимся вами!`,
+                    `Уже ${count} ${zayavka} за плечами. Только вперед к новым вершинам!`
                 ];
-                message = getRandomPhrase(genericHelperPhrases, { count });
+                message = motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
             }
             return message;
         }
@@ -152,29 +158,34 @@ const UserDashboard = () => {
         // --- Логика для Студента ---
         if (user.roles?.student && stats.createdRequests > 0) {
             const count = stats.createdRequests;
+
             const milestones = {
-                50: `${count} заявок! Настоящий искатель знаний!`,
-                25: `${count} вопросов! Твоя жажда знаний впечатляет.`,
-                10: `Уже ${count} вопросов! Так держать.`,
-                5: `${count} заявок! Любознательность — это сила!`,
-                1: `Первый вопрос задан! Отличное начало.`
+                50: `${count} вопросов! Ваша жажда знаний поистине вдохновляет!`,
+                25: `${count} заявок! Вы уверенно движетесь к успеху.`,
+                10: `${count} вопросов! Знание — сила, и вы это доказываете.`,
+                5: `${count} заявок! Отличное начало учебного пути!`,
+                1: `Первый вопрос задан! Смелее вперёд к знаниям!`
             };
 
             let message = milestones[count];
 
             if (!message) {
-                 const genericStudentPhrases = [
-                    "Вы создали {count} запросов. Отличная работа!",
-                    "Любознательность — ваше второе имя! Уже {count} созданных запросов.",
-                    "{count} вопросов задано. Путь к знаниям открыт!",
+                const zayavka = getNoun(count, 'заявка', 'заявки', 'заявок');
+                const vopros = getNoun(count, 'вопрос', 'вопроса', 'вопросов');
+
+                const motivationalPhrases = [
+                    `Вы задали ${count} ${vopros}. Любопытство двигает мир!`,
+                    `${count} ${zayavka} ${getNoun(count, 'создана', 'созданы', 'создано')}. Учение — свет!`,
+                    `Уже ${count} ${vopros}! Вы на верном пути к знаниям.`,
+                    `Ваша активность: ${count} ${zayavka}. Так держать, не останавливайтесь!`
                 ];
-                message = getRandomPhrase(genericStudentPhrases, { count });
+                message = motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
             }
             return message;
         }
 
-        // Общий случай для всех остальных
-        return getRandomPhrase(genericWelcomePhrases);
+        // Общий случай
+        return genericWelcomePhrases[Math.floor(Math.random() * genericWelcomePhrases.length)];
     };
 
     return (
@@ -184,8 +195,8 @@ const UserDashboard = () => {
             </h1>
             <p className="text-lg text-gray-600 mb-8">
                 {loading
-                  ? 'Загружаем вашу статистику...'
-                  : (welcomeMessage || getPersonalizedMessage(currentUser, userStats))}
+                    ? 'Загружаем вашу статистику...'
+                    : (welcomeMessage || getPersonalizedMessage(currentUser, userStats))}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -218,7 +229,7 @@ const UserDashboard = () => {
                             <StatCard icon={<FiStar />} label="Ваш рейтинг" value={userStats?.averageRatingAsHelper.toFixed(1) || 'N/A'} colorClass="text-yellow-500" />
                         )}
                         {currentUser.roles?.student && (
-                             <StatCard icon={<FiEdit />} label="Вы создали запросов" value={userStats?.createdRequests || 0} colorClass="text-indigo-500" />
+                            <StatCard icon={<FiEdit />} label="Вы создали запросов" value={userStats?.createdRequests || 0} colorClass="text-indigo-500" />
                         )}
                     </>
                 )}
@@ -234,7 +245,7 @@ const UserDashboard = () => {
                         <Link to="/my-requests" className="btn btn-secondary w-full flex items-center justify-center gap-2">
                             <FiList /> Мои запросы
                         </Link>
-                         <Link to="/profile/me" className="btn btn-secondary w-full flex items-center justify-center gap-2">
+                        <Link to="/profile/me" className="btn btn-secondary w-full flex items-center justify-center gap-2">
                             <FiUser /> Мой профиль
                         </Link>
                     </div>
@@ -280,36 +291,36 @@ const UserDashboard = () => {
                         ) : activitySummary.length > 0 ? (
                             <ul className="space-y-4">
                                 {activitySummary.map(act => {
-                                const parsedDate = new Date(act.updatedAt);
-                                const timeAgo = !isNaN(parsedDate)
-                                    ? formatDistanceToNow(parsedDate, { addSuffix: true, locale: ru })
-                                    : 'неизвестно когда';
+                                    const parsedDate = new Date(act.updatedAt);
+                                    const timeAgo = !isNaN(parsedDate)
+                                        ? formatDistanceToNow(parsedDate, { addSuffix: true, locale: ru })
+                                        : 'неизвестно когда';
 
-                                return (
-                                    <li key={act._id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                                        <Link to={`/request/${act._id}`} className="flex justify-between items-center">
-                                            <div>
-                                                <p className="font-semibold text-gray-800">{act.title}</p>
-                                                <p className="text-sm text-gray-500 flex items-center gap-2">
-                                                    <FiClock className="text-xs" />
-                                                    {`Обновлено ${timeAgo}`}
-                                                    <StatusBadge status={act.status} />
-                                                </p>
-                                            </div>
-                                            <FiArrowRight className="text-gray-400" />
-                                        </Link>
-                                    </li>
-                                );
-                            })}
+                                    return (
+                                        <li key={act._id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                                            <Link to={`/request/${act._id}`} className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="font-semibold text-gray-800">{act.title}</p>
+                                                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                                                        <FiClock className="text-xs" />
+                                                        {`Обновлено ${timeAgo}`}
+                                                        <StatusBadge status={act.status} />
+                                                    </p>
+                                                </div>
+                                                <FiArrowRight className="text-gray-400" />
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         ) : (
                             <p className="text-gray-600">Ваша недавняя активность будет отображаться здесь.</p>
                         )}
                     </div>
-                    
+
                 </div>
             </div>
-            <CreateRequestModal 
+            <CreateRequestModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setCreateModalOpen(false)}
                 onSuccess={handleRequestCreated}

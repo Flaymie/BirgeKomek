@@ -104,116 +104,102 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         ref={modalRef}
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
+        className="bg-white rounded-lg shadow-xl max-w-md w-full"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Градиентный заголовок */}
-        <div className="relative px-6 py-5 bg-gradient-to-r from-red-500 via-red-600 to-red-700 rounded-t-2xl overflow-hidden">
-          {/* Декоративные элементы */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
-
-          <div className="relative flex items-center gap-3">
-            <div className="w-12 h-12 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-              <Ban className="w-6 h-6 text-white" />
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+              <Ban className="w-6 h-6 text-red-500" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">Блокировка пользователя</h3>
-              <p className="text-red-100 text-sm mt-0.5">@{username}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6 py-5 space-y-5">
-          {/* Предупреждение о роли */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 flex items-start gap-3">
-            <Shield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-900">
-                {isAdmin ? 'Администратор' : 'Модератор'}
-              </p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                {isModeratorOnly
-                  ? 'Вы можете банить пользователей максимум на 72 часа'
-                  : 'У вас есть полный доступ к управлению банами'}
-              </p>
+              <h3 className="text-xl font-bold text-gray-900">Блокировка пользователя</h3>
+              <p className="text-sm text-gray-500">@{username}</p>
             </div>
           </div>
 
-          {/* Ошибка */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3 animate-shake">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <p className="text-red-700 text-sm font-medium">{error}</p>
-            </div>
-          )}
-
-          {/* Причина */}
-          <div>
-            <label htmlFor="reason" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-              <span className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <span className="text-indigo-600 text-xs">📝</span>
-              </span>
-              Причина блокировки <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <textarea
-                id="reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all duration-200 resize-none text-sm p-3"
-                rows="3"
-                placeholder="Например: Нарушение правил сообщества, спам, оскорбления..."
-                maxLength={200}
-              />
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded-md">
-                {reason.length}/200
+          <div className="space-y-4">
+            {/* Role badge */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-3">
+              <Shield className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-800">
+                  {isAdmin ? 'Администратор' : 'Модератор'}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {isModeratorOnly
+                    ? 'Вы можете банить максимум на 72 часа'
+                    : 'Полный доступ к управлению банами'}
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Длительность */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <span className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-3.5 h-3.5 text-purple-600" />
-              </span>
-              Длительность блокировки
-            </label>
-
-            {/* Кастомная длительность */}
-            {!isPermanent && (
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(Math.max(1, Math.min(Number(e.target.value), getMaxValueForUnit())))}
-                  className="flex-1 rounded-xl border-2 border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm px-4 py-2.5 font-medium"
-                  min="1"
-                  max={getMaxValueForUnit()}
-                  placeholder="Введите число"
-                />
-                <select
-                  value={timeUnit}
-                  onChange={(e) => setTimeUnit(e.target.value)}
-                  className="w-28 rounded-xl border-2 border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm bg-white px-3 py-2.5 font-medium"
-                >
-                  {timeUnits.map((unit) => (
-                    <option key={unit.value} value={unit.value}>
-                      {unit.label}
-                    </option>
-                  ))}
-                </select>
+            {/* Error */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Перманентная блокировка (только для админов) */}
-            {isAdmin && (
-              <div className="mt-4 relative overflow-hidden">
-                <div className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${isPermanent
-                  ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-300'
-                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                  }`}
+            {/* Reason */}
+            <div>
+              <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Причина блокировки <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <textarea
+                  id="reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors resize-none text-sm p-3"
+                  rows="3"
+                  placeholder="Нарушение правил, спам, оскорбления..."
+                  maxLength={200}
+                />
+                <span className="absolute bottom-2 right-2 text-xs text-gray-400">
+                  {reason.length}/200
+                </span>
+              </div>
+            </div>
+
+            {/* Duration */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Длительность
+              </label>
+
+              {!isPermanent && (
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(Math.max(1, Math.min(Number(e.target.value), getMaxValueForUnit())))}
+                    className="flex-1 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm px-3 py-2"
+                    min="1"
+                    max={getMaxValueForUnit()}
+                  />
+                  <select
+                    value={timeUnit}
+                    onChange={(e) => setTimeUnit(e.target.value)}
+                    className="w-28 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm bg-white px-3 py-2"
+                  >
+                    {timeUnits.map((unit) => (
+                      <option key={unit.value} value={unit.value}>
+                        {unit.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {isAdmin && (
+                <div
+                  className={`mt-3 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isPermanent
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    }`}
                   onClick={() => setIsPermanent(!isPermanent)}
                 >
                   <input
@@ -221,33 +207,30 @@ const BanUserModal = ({ isOpen, onClose, onConfirm, username }) => {
                     id="permanent"
                     checked={isPermanent}
                     onChange={(e) => setIsPermanent(e.target.checked)}
-                    className="h-5 w-5 text-red-600 border-gray-300 rounded-lg focus:ring-red-500 cursor-pointer"
+                    className="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer"
                   />
                   <label htmlFor="permanent" className="flex-1 cursor-pointer">
-                    <p className="text-sm font-semibold text-gray-900">Перманентная блокировка</p>
-                    <p className="text-xs text-gray-600 mt-0.5">Пользователь не сможет вернуться</p>
+                    <p className="text-sm font-medium text-gray-800">Перманентная блокировка</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Пользователь не сможет вернуться</p>
                   </label>
-                  {isPermanent && (
-                    <Ban className="w-5 h-5 text-red-500" />
-                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Кнопки действий */}
-        <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-2xl flex justify-end gap-3 border-t border-gray-200">
+        {/* Footer */}
+        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-lg border-t border-gray-100">
           <button
             type="button"
-            className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all duration-200 shadow-sm"
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
             onClick={onClose}
           >
             Отмена
           </button>
           <button
             type="button"
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-red-600 to-red-700 border-2 border-red-600 rounded-xl hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300"
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 flex items-center gap-2"
             onClick={handleSubmit}
           >
             <Ban className="w-4 h-4" />

@@ -1,8 +1,10 @@
 import React from 'react';
 import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
 import { XMarkIcon } from '@heroicons/react/24/solid';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const ResolveConfirmationModal = ({ isOpen, onClose, onConfirm, onReject }) => {
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   return (

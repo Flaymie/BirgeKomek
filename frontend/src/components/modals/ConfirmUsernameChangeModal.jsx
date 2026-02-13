@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername }) => {
+  useLockBodyScroll(isOpen);
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -8,7 +10,7 @@ const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername })
       modalRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isOpen]);
-  
+
   if (!isOpen) {
     return null;
   }
@@ -21,9 +23,9 @@ const ConfirmUsernameChangeModal = ({ isOpen, onClose, onConfirm, newUsername })
           Вы собираетесь сменить свой никнейм на <strong className="font-semibold text-indigo-600">{newUsername}</strong>.
         </p>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
-            <p className="text-sm text-yellow-800">
-                <strong>Внимание:</strong> Вы сможете снова изменить никнейм только через 30 дней.
-            </p>
+          <p className="text-sm text-yellow-800">
+            <strong>Внимание:</strong> Вы сможете снова изменить никнейм только через 30 дней.
+          </p>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <button

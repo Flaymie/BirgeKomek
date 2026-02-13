@@ -2,17 +2,12 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import UserDashboard from './UserDashboard';
 import GuestHomepage from './GuestHomepage';
+import AppLoader from '../shared/AppLoader';
 
 const HomePage = () => {
   const { currentUser, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg font-semibold text-gray-700">Загрузка платформы...</div>
-      </div>
-    );
-  }
+  if (loading) return <AppLoader />;
 
   return currentUser ? <UserDashboard /> : <GuestHomepage />;
 };

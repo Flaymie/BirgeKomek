@@ -6,8 +6,10 @@ import { authService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../shared/Loader';
 import { FaTelegramPlane } from 'react-icons/fa';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const TelegramAuthModal = ({ isOpen, onClose, authAction = 'login' }) => {
+  useLockBodyScroll(isOpen);
   const { loginWithToken } = useAuth();
   const [loginUrl, setLoginUrl] = useState('');
   const [error, setError] = useState('');

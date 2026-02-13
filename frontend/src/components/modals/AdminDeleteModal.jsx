@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const AdminDeleteModal = ({ isOpen, onClose, onConfirm, requestTitle }) => {
+  useLockBodyScroll(isOpen);
   const [reason, setReason] = useState('');
   const modalRef = useRef(null);
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) => {
+  useLockBodyScroll(isOpen);
   const [code, setCode] = useState('');
   const inputRef = useRef(null);
   const [remainingAttempts, setRemainingAttempts] = useState(null);
@@ -33,7 +35,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) =>
       setCode(value);
     }
   };
-  
+
   if (!isOpen) {
     return null;
   }
@@ -51,25 +53,25 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) =>
               ⚠️ Осталось попыток: {remainingAttempts}
             </p>
             <p className="text-sm mt-1">
-              {remainingAttempts === 1 
+              {remainingAttempts === 1
                 ? 'Последняя попытка! При неверном вводе аккаунт будет заблокирован на 7 дней.'
                 : 'После 3 неудачных попыток аккаунт будет заблокирован из-за подозрения во взломе.'}
             </p>
           </div>
         )}
         <div className="my-6">
-            <label htmlFor="confirmationCode" className="block text-sm font-medium text-gray-700 mb-2">Код подтверждения</label>
-            <input
-                ref={inputRef}
-                type="text"
-                id="confirmationCode"
-                value={code}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 text-center text-2xl tracking-[.5em] font-mono bg-gray-100 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                placeholder="------"
-                maxLength="6"
-                disabled={isLoading}
-            />
+          <label htmlFor="confirmationCode" className="block text-sm font-medium text-gray-700 mb-2">Код подтверждения</label>
+          <input
+            ref={inputRef}
+            type="text"
+            id="confirmationCode"
+            value={code}
+            onChange={handleInputChange}
+            className="w-full px-4 py-3 text-center text-2xl tracking-[.5em] font-mono bg-gray-100 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            placeholder="------"
+            maxLength="6"
+            disabled={isLoading}
+          />
         </div>
         <div className="flex justify-end gap-4 mt-6">
           <button
@@ -85,10 +87,10 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, error }) =>
             className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-red-400 disabled:cursor-not-allowed flex items-center"
           >
             {isLoading && (
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
             )}
             {isLoading ? 'Удаление...' : 'Удалить навсегда'}
           </button>
