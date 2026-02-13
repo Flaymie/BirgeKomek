@@ -17,7 +17,9 @@ import {
   PencilIcon,
   TrashIcon,
   CheckBadgeIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  ClockIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/solid';
 import { LuArrowDown } from 'react-icons/lu';
 import { SafeAnimatePresence, SafeMotionDiv } from '../shared/SafeMotion';
@@ -223,7 +225,9 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
         )}
 
         {/* Timestamp - теперь с разными стилями */}
-        <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''}`}>
+        <div className={`text-xs mt-1 text-right ${isImageOnly ? 'absolute bottom-1.5 right-1.5 bg-black bg-opacity-50 text-white px-1.5 py-0.5 rounded-lg pointer-events-none' : (isOwnMessage ? 'text-indigo-200' : 'text-gray-500')} ${!isImageOnly ? 'px-2 pb-1' : ''} flex items-center justify-end gap-1`}>
+          {msg.status === 'sending' && <ClockIcon className="w-3 h-3" />}
+          {msg.status === 'failed' && <ExclamationCircleIcon className="w-3 h-3 text-red-500" />}
           {msg.editedAt && !isDeleted && <span className="mr-1">(изм.)</span>}
           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </div>
@@ -247,7 +251,7 @@ const Message = ({ msg, isOwnMessage, onImageClick, onEdit, onDelete, isChatActi
 const ChatPage = () => {
   const { id: requestId } = useParams();
   const { currentUser } = useAuth();
-  const { socket, markAsReadByEntity, joinRoom, leaveRoom, isConnected } = useSocket();
+  const { socket, markAsReadByEntity, joinRoom, leaveRoom, joinChat, leaveChat, isConnected } = useSocket();
   const navigate = useNavigate();
 
   const [messages, setMessages] = useState([]);
@@ -431,9 +435,25 @@ const ChatPage = () => {
 
   const handleNewMessage = useCallback((message) => {
     if (message.requestId === requestId) {
-      setMessages((prevMessages) => [...prevMessages, message]);
+      setMessages((prevMessages) => {
+        // Optimistic UI reconciliation
+        const isMyMessage = message.sender._id === currentUser?._id;
+        if (isMyMessage) {
+          // Find pending message with same content
+          const pendingIndex = prevMessages.findIndex(m => m.status === 'sending' && m.content === message.content);
+          if (pendingIndex !== -1) {
+            const newMsgs = [...prevMessages];
+            newMsgs[pendingIndex] = message; // Replace pending with real
+            return newMsgs;
+          }
+        }
+        // Check for duplicates just in case
+        if (prevMessages.some(m => m._id === message._id)) return prevMessages;
+
+        return [...prevMessages, message];
+      });
     }
-  }, [requestId]);
+  }, [requestId, currentUser]);
 
   const handleUpdateMessage = useCallback((updatedMessage) => {
     if (updatedMessage.requestId === requestId) {
@@ -459,15 +479,17 @@ const ChatPage = () => {
   useEffect(() => {
     if (requestId) {
       if (isConnected) {
-        joinRoom(requestId);
+        joinRoom(requestId); // For status updates
+        joinChat(requestId); // For chat messages
         markAsReadByEntity(requestId); // Автоматически читаем уведомления
       }
     }
 
     return () => {
       leaveRoom();
+      leaveChat();
     };
-  }, [requestId, isConnected, joinRoom, leaveRoom, markAsReadByEntity]);
+  }, [requestId, isConnected, joinRoom, leaveRoom, joinChat, leaveChat, markAsReadByEntity]);
 
   const handleConnectError = useCallback((err) => {
     console.error('Socket connection error:', err.message);
@@ -477,7 +499,10 @@ const ChatPage = () => {
   useEffect(() => {
     if (!socket || !requestId) return;
 
-    socket.emit('join_chat', requestId);
+    // join_chat отправляется через joinChat в другом эффекте, 
+    // но если мы хотим быть уверены, что слушатели навешиваются всегда:
+    // joinChat(requestId); // Убрали отсюда, чтобы не дублировать
+
 
     const markMessagesAsRead = async () => {
       try {
@@ -503,7 +528,8 @@ const ChatPage = () => {
     socket.on('request_updated', handleRequestUpdate);
 
     return () => {
-      socket.emit('leave_chat', requestId);
+      // leave_chat вызывается в другом эффекте
+
 
       socket.off('new_message', handleNewMessage);
       socket.off('message_updated', handleUpdateMessage);
@@ -569,8 +595,23 @@ const ChatPage = () => {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
-    // ИСПРАВЛЕННОЕ СОБЫТИЕ
     socket.emit('typing_stopped', { chatId: requestId, userId: currentUser._id, username: currentUser.username });
+
+    const tempId = Date.now().toString();
+    // Optimistic Message
+    if (!attachment) {
+      const tempMessage = {
+        _id: tempId,
+        content: newMessage,
+        sender: currentUser,
+        createdAt: new Date().toISOString(),
+        requestId: requestId,
+        status: 'sending'
+      };
+      setMessages(prev => [...prev, tempMessage]);
+      setNewMessage('');
+      setTimeout(() => scrollToBottom('auto'), 0);
+    }
 
     try {
       if (attachment) {
@@ -581,22 +622,28 @@ const ChatPage = () => {
           attachment
         );
         setIsSending(false);
+        setNewMessage('');
+        setAttachment(null);
       } else {
         socket.emit('send_message', {
           requestId: requestId,
-          content: newMessage,
+          content: newMessage, // Используем значение из замыкания, т.к. стейт уже очистили (но здесь он еще старый? Нет, здесь мы используем переменную из closure если бы она была const, но newMessage - это стейт. 
+          // Стоп. Если мы сделали setNewMessage(''), то newMessage в следующем рендере будет пуст.
+          // Но в этом запуске функции newMessage все еще содержит текст.
         });
       }
-
-      setNewMessage('');
-      setAttachment(null);
     } catch (error) {
       setIsSending(false);
       toast.error('Ошибка при отправке сообщения');
       console.error("Failed to send message:", error);
+      if (!attachment) {
+        setMessages(prev => prev.map(m => m._id === tempId ? { ...m, status: 'failed' } : m));
+      }
     }
 
-    setTimeout(() => scrollToBottom('auto'), 0);
+    if (attachment) {
+      setTimeout(() => scrollToBottom('auto'), 0);
+    }
   };
 
   const handleStartEdit = (message) => {

@@ -28,7 +28,12 @@ export const SocketProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState(null);
+
+  // Ref for the current request status room (for 'join_request')
   const currentRoomRef = useRef(null);
+  // Ref for the current active chat room (for 'join_chat')
+  const activeChatIdRef = useRef(null);
+
   const [onlineStats, setOnlineStats] = useState({ onlineUsers: 0, onlineHelpers: 0 });
 
   useEffect(() => {
@@ -51,16 +56,22 @@ export const SocketProvider = ({ children }) => {
             setUnreadCount(count || 0);
           });
 
-          // Восстанавливаем комнату при реконнекте
+          // Восстанавливаем комнаты при реконнекте
           if (currentRoomRef.current) {
             newSocket.emit('join_request', currentRoomRef.current);
+          }
+          if (activeChatIdRef.current) {
+            newSocket.emit('join_chat', activeChatIdRef.current);
           }
         });
 
         newSocket.on('reconnect', (attemptNumber) => {
-          // Восстанавливаем комнату при реконнекте
+          // Восстанавливаем комнаты при реконнекте
           if (currentRoomRef.current) {
             newSocket.emit('join_request', currentRoomRef.current);
+          }
+          if (activeChatIdRef.current) {
+            newSocket.emit('join_chat', activeChatIdRef.current);
           }
         });
 
@@ -152,18 +163,30 @@ export const SocketProvider = ({ children }) => {
         const pingInterval = setInterval(() => {
           if (newSocket.connected) {
             newSocket.emit('user_ping');
+            // If we have an active chat, ensure we are still joined
+            if (activeChatIdRef.current) {
+              newSocket.emit('join_chat', activeChatIdRef.current);
+            }
           }
-        }, 90000);
+        }, 45000); // Increased frequency for better reliability
 
         // Обработка Page Visibility API для мобильных устройств
         const handleVisibilityChange = () => {
           if (document.visibilityState === 'visible') {
-            // Страница стала видимой - проверяем соединение
+            // Aggressive reconnection check
             if (!newSocket.connected) {
+              console.log('Socket disconnected on visibility change, reconnecting...');
               newSocket.connect();
-            } else if (currentRoomRef.current) {
-              // Переприсоединяемся к комнате на всякий случай
-              newSocket.emit('join_request', currentRoomRef.current);
+            } else {
+              // Even if connected, ensure we are in the right rooms
+              // This handles cases where socket might be "connected" but server lost state
+              if (currentRoomRef.current) {
+                newSocket.emit('join_request', currentRoomRef.current);
+              }
+              if (activeChatIdRef.current) {
+                newSocket.emit('join_chat', activeChatIdRef.current);
+              }
+              newSocket.emit('user_ping');
             }
           }
         };
@@ -227,6 +250,21 @@ export const SocketProvider = ({ children }) => {
     currentRoomRef.current = null;
   };
 
+  // New methods for Chat Room management
+  const joinChat = (chatId) => {
+    activeChatIdRef.current = chatId;
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('join_chat', chatId);
+    }
+  };
+
+  const leaveChat = () => {
+    if (activeChatIdRef.current && socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('leave_chat', activeChatIdRef.current);
+    }
+    activeChatIdRef.current = null;
+  };
+
   const markAsReadByEntity = (relatedEntityId) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('mark_notifications_read_by_entity', { relatedEntityId }, (response) => {
@@ -245,6 +283,8 @@ export const SocketProvider = ({ children }) => {
     markAsReadByEntity,
     joinRoom,
     leaveRoom,
+    joinChat, // Exported new method
+    leaveChat, // Exported new method
     onlineUsers: onlineStats.onlineUsers,
     onlineHelpers: onlineStats.onlineHelpers,
   };
