@@ -18,21 +18,6 @@ const StatCardSkeleton = () => (
     </div>
 );
 
-// Удаляем старые массивы фраз, они больше не нужны
-// const helperWelcomePhrases = [...];
-// const studentWelcomePhrases = [...];
-// const genericWelcomePhrases = [...];
-
-const getRandomPhrase = (phrases, replacements = {}) => {
-    if (!phrases || phrases.length === 0) return "";
-    let phrase = phrases[Math.floor(Math.random() * phrases.length)];
-    for (const key in replacements) {
-        phrase = phrase.replace(`{${key}}`, replacements[key]);
-    }
-    return phrase;
-};
-
-
 const ActivityItemSkeleton = () => (
     <li className="p-4 border rounded-lg animate-pulse">
         <div className="flex justify-between items-center">

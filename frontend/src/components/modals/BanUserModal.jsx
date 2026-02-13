@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Ban, Clock, AlertTriangle, Shield } from 'lucide-react';
+import { Ban, AlertTriangle, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Modal from './Modal';
 import { SafeMotionDiv } from '../shared/SafeMotion';
