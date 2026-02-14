@@ -298,7 +298,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    const { requestId, content } = data;
+    const { requestId, content, tempId } = data;
 
     if (!requestId) {
       console.error('Socket: Error - requestId is missing in received data');
@@ -329,7 +329,14 @@ io.on('connection', (socket) => {
       await message.save();
       await message.populate('sender', 'username avatar');
 
-      io.to(requestId).emit('new_message', message);
+      // Отправляем сообщение всем в комнате
+      // Преобразуем в объект и добавляем tempId, чтобы отправитель мог сопоставить
+      const messageObj = message.toObject();
+      if (tempId) {
+        messageObj.tempId = tempId;
+      }
+
+      io.to(requestId).emit('new_message', messageObj);
 
       if (recipientId) {
         // Проверка, что получатель - не отправитель, и его нет в комнате
