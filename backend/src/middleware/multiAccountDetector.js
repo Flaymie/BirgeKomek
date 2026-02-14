@@ -6,14 +6,16 @@ const IP_USER_SET_PREFIX = 'ip-users:';
 const IP_BAN_FLAG_PREFIX = 'ip-banned:';
 const WINDOW_SECONDS = 900;
 
+import { normalizeIP } from '../utils/sessionManager.js';
+
 const multiAccountDetector = async (req, res, next) => {
   // миддлваре работает только для аутентифицированных пользователей
   if (!req.user || !req.ip) {
     return next();
   }
-  
+
   const { id: userId, roles } = req.user;
-  const ip = req.ip;
+  const ip = normalizeIP(req.ip);
 
   // Админов и модераторов не трогаем, им можно все
   if (roles.admin || roles.moderator) {
@@ -38,7 +40,7 @@ const multiAccountDetector = async (req, res, next) => {
     }
 
     const ipUserSet = `${IP_USER_SET_PREFIX}${ip}`;
-    
+
     await redis.sadd(ipUserSet, userId);
     await redis.expire(ipUserSet, WINDOW_SECONDS);
 
@@ -47,7 +49,7 @@ const multiAccountDetector = async (req, res, next) => {
     // если в наборе больше одного пользователя, значит, сработал триггер
     if (usersInSet.length > 1) {
       const banReason = `Обнаружена подозрительная активность (мультиаккаунт). IP: ${ip}. Связанные аккаунты: ${usersInSet.join(', ')}`;
-      
+
       console.log(`[MultiAccount] Обнаружена подозрительная активность с IP: ${ip}. Пользователи: ${usersInSet.join(', ')}`);
 
       for (const uid of usersInSet) {
@@ -60,8 +62,8 @@ const multiAccountDetector = async (req, res, next) => {
           console.log(`[MultiAccount] Пользователь ${uid} перманентно забанен.`);
         }
       }
-      
-      await redis.set(ipBanFlag, '1', 'EX', 86400); 
+
+      await redis.set(ipBanFlag, '1', 'EX', 86400);
 
       return res.status(403).json({ msg: BAN_REASON });
     }

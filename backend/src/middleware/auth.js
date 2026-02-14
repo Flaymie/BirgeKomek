@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { isIPBlocked, isIPTrusted } from '../utils/sessionManager.js';
+import { isIPBlocked, isIPTrusted, normalizeIP } from '../utils/sessionManager.js';
 
 export const protect = async (req, res, next) => {
   let token;
-  
+
   // проверяем хедер на наличие токена
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
@@ -12,15 +12,15 @@ export const protect = async (req, res, next) => {
   else if (req.query.token) {
     token = req.query.token;
   }
-  
+
   if (!token) {
     return res.status(401).json({ msg: 'Нет токена, авторизуйтесь' });
   }
-  
+
   try {
     // проверяем токен
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
 
     const userId = decoded.user ? decoded.user.id : decoded.id;
 
@@ -29,11 +29,11 @@ export const protect = async (req, res, next) => {
     }
 
     const user = await User.findById(userId).select('-password');
-    
+
     if (!user) {
       return res.status(401).json({ msg: 'Не найден юзер с этим токеном' });
     }
-    
+
     // ПРОВЕРКА НА БАН АККАУНТА
     if (user.banDetails.isBanned) {
       const now = new Date();
@@ -51,8 +51,8 @@ export const protect = async (req, res, next) => {
         } else {
           message += ' Бан перманентный.';
         }
-        
-        return res.status(403).json({ 
+
+        return res.status(403).json({
           msg: message,
           isBanned: true,
           banDetails: user.banDetails
@@ -61,7 +61,8 @@ export const protect = async (req, res, next) => {
     }
 
     // ПРОВЕРКА НА БАН ПО IP (глобально для всех защищенных роутов)
-    const currentIP = req.headers['x-test-ip'] || req.ip;
+    const rawIP = req.headers['x-test-ip'] || req.ip;
+    const currentIP = normalizeIP(rawIP);
     if (await isIPBlocked(currentIP)) {
       return res.status(403).json({
         code: 'IP_BLOCKED',
@@ -82,20 +83,20 @@ export const protect = async (req, res, next) => {
         currentIP
       });
     }
-    
+
     // добавляем юзера в запрос
     req.user = user;
     next();
   } catch (err) {
     console.error('Ошибка авторизации:', err);
-    
+
     if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         msg: 'Токен истек. Пожалуйста, войдите снова.',
-        tokenExpired: true 
+        tokenExpired: true
       });
     }
-    
+
     res.status(401).json({ msg: 'Невалидный токен' });
   }
 };
@@ -118,11 +119,11 @@ export const protectSocket = async (socket, next) => {
 
 
     if (!userId) {
-       return next(new Error('Невалидный токен (нет ID пользователя)'));
+      return next(new Error('Невалидный токен (нет ID пользователя)'));
     }
 
     const user = await User.findById(userId).select('-password');
-    
+
     if (!user) {
       return next(new Error('Не найден юзер с этим токеном'));
     }
@@ -135,11 +136,11 @@ export const protectSocket = async (socket, next) => {
     next();
   } catch (err) {
     console.error('Socket Auth Error:', err.message);
-    
+
     if (err.name === 'TokenExpiredError') {
       return next(new Error('TOKEN_EXPIRED'));
     }
-    
+
     return next(new Error('Невалидный токен'));
   }
 };

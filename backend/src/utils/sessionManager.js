@@ -3,22 +3,38 @@ import BlockedIP from '../models/BlockedIP.js';
 import User from '../models/User.js';
 
 /**
+ * Нормализует IP-адрес, удаляя префикс ::ffff: (IPv4-mapped IPv6 addresses)
+ * @param {String} ip 
+ * @returns {String}
+ */
+export const normalizeIP = (ip) => {
+  if (!ip) return '';
+  if (ip.startsWith('::ffff:')) {
+    return ip.substring(7);
+  }
+  return ip;
+};
+
+/**
  * Проверяет, является ли IP доверенным для пользователя
  * @param {Object} user - Объект пользователя
  * @param {String} ip - IP адрес для проверки
  * @returns {Boolean}
  */
 export const isIPTrusted = (user, ip) => {
+  const cleanIP = normalizeIP(ip);
+  const regIP = normalizeIP(user.registrationDetails?.ip);
+
   // Проверяем основной IP (при регистрации)
-  if (user.registrationDetails?.ip === ip) {
+  if (regIP === cleanIP) {
     return true;
   }
-  
+
   // Проверяем дополнительные доверенные IP
   if (user.trustedIPs && user.trustedIPs.length > 0) {
-    return user.trustedIPs.some(trusted => trusted.ip === ip);
+    return user.trustedIPs.some(trusted => normalizeIP(trusted.ip) === cleanIP);
   }
-  
+
   return false;
 };
 
@@ -32,18 +48,21 @@ export const isIPTrusted = (user, ip) => {
  * @param {String} location - Локация (город, страна)
  */
 export const addTrustedIP = async (user, ip, userAgent = '', location = '') => {
+  const cleanIP = normalizeIP(ip);
+  const regIP = normalizeIP(user.registrationDetails?.ip);
+
   // Если это основной IP при регистрации - не добавляем в trustedIPs
-  if (user.registrationDetails?.ip === ip) {
+  if (regIP === cleanIP) {
     return;
   }
-  
+
   if (!user.trustedIPs) {
     user.trustedIPs = [];
   }
-  
+
   // Проверяем, есть ли уже этот IP
-  const existingIP = user.trustedIPs.find(trusted => trusted.ip === ip);
-  
+  const existingIP = user.trustedIPs.find(trusted => normalizeIP(trusted.ip) === cleanIP);
+
   if (existingIP) {
     // Обновляем lastUsed
     existingIP.lastUsed = new Date();
@@ -56,17 +75,17 @@ export const addTrustedIP = async (user, ip, userAgent = '', location = '') => {
       user.trustedIPs.sort((a, b) => a.lastUsed - b.lastUsed);
       user.trustedIPs.shift(); // Удаляем первый (самый старый)
     }
-    
+
     // Добавляем новый IP
     user.trustedIPs.push({
-      ip,
+      ip: cleanIP, // Сохраняем уже нормализованный IP
       addedAt: new Date(),
       lastUsed: new Date(),
       userAgent,
       location
     });
   }
-  
+
   await user.save();
 };
 
@@ -106,11 +125,12 @@ export const clearBlockedIPsCache = () => {
  * @param {Boolean} isNewLogin - Флаг нового входа (сбрасывает таймеры)
  */
 export const saveVerificationCode = (userId, ip, code, isNewLogin = false) => {
-  const key = `${userId}_${ip}`;
+  const cleanIP = normalizeIP(ip);
+  const key = `${userId}_${cleanIP}`;
   const existing = verificationCodes.get(key);
   const now = Date.now();
   const hasActive = existing && existing.expiresAt && now < existing.expiresAt;
-  
+
   verificationCodes.set(key, {
     code,
     expiresAt: now + 5 * 60 * 1000, // 5 минут
@@ -129,38 +149,39 @@ export const saveVerificationCode = (userId, ip, code, isNewLogin = false) => {
  * @returns {Object} { canResend: Boolean, waitTime: Number, remainingResends: Number }
  */
 export const canResendCode = (userId, ip) => {
-  const key = `${userId}_${ip}`;
+  const cleanIP = normalizeIP(ip);
+  const key = `${userId}_${cleanIP}`;
   const stored = verificationCodes.get(key);
-  
+
   if (!stored) {
     return { canResend: true, waitTime: 0, remainingResends: 3 };
   }
-  
+
   const resendCount = stored.resendCount || 0;
   const remainingResends = 3 - resendCount;
-  
+
   // Максимум 3 повторные отправки
   if (resendCount >= 3) {
     return { canResend: false, waitTime: 0, remainingResends: 0, message: 'Превышен лимит повторных отправок' };
   }
-  
+
   // Проверяем время с последней отправки
   if (stored.lastResendAt) {
     const timeSinceLastResend = Date.now() - stored.lastResendAt;
-    
+
     // После 1-й отправки - ждать 1 минуту
     if (resendCount === 1 && timeSinceLastResend < 60 * 1000) {
       const waitTime = Math.ceil((60 * 1000 - timeSinceLastResend) / 1000);
       return { canResend: false, waitTime, remainingResends, message: `Подождите ${waitTime} секунд` };
     }
-    
+
     // После 2-й отправки - ждать 5 минут
     if (resendCount === 2 && timeSinceLastResend < 5 * 60 * 1000) {
       const waitTime = Math.ceil((5 * 60 * 1000 - timeSinceLastResend) / 1000);
       return { canResend: false, waitTime, remainingResends, message: `Подождите ${Math.ceil(waitTime / 60)} минут` };
     }
   }
-  
+
   return { canResend: true, waitTime: 0, remainingResends };
 };
 
@@ -170,9 +191,10 @@ export const canResendCode = (userId, ip) => {
  * @param {String} ip - IP адрес
  */
 export const incrementResendCount = (userId, ip) => {
-  const key = `${userId}_${ip}`;
+  const cleanIP = normalizeIP(ip);
+  const key = `${userId}_${cleanIP}`;
   const stored = verificationCodes.get(key);
-  
+
   if (stored) {
     stored.resendCount = (stored.resendCount || 0) + 1;
     stored.lastResendAt = Date.now();
@@ -189,47 +211,48 @@ export const incrementResendCount = (userId, ip) => {
  * @returns {Promise<Object>} { success: Boolean, remainingAttempts: Number, blocked: Boolean }
  */
 export const verifyCode = async (userId, ip, code) => {
-  const key = `${userId}_${ip}`;
+  const cleanIP = normalizeIP(ip);
+  const key = `${userId}_${cleanIP}`;
   const stored = verificationCodes.get(key);
-  
+
   if (!stored) {
     return { success: false, remainingAttempts: 0, blocked: false };
   }
-  
+
   if (Date.now() > stored.expiresAt) {
     verificationCodes.delete(key);
     return { success: false, remainingAttempts: 0, blocked: false };
   }
-  
+
   if (stored.code === code) {
     verificationCodes.delete(key);
     return { success: true, remainingAttempts: 3, blocked: false };
   }
-  
+
   // Неверный код - увеличиваем счетчик попыток
   stored.attempts += 1;
   const remainingAttempts = 3 - stored.attempts;
-  
+
   if (stored.attempts >= 3) {
     // Блокируем IP на 24 часа ТОЛЬКО в MongoDB
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    
+
     try {
       await BlockedIP.create({
-        ip,
+        ip: cleanIP,
         userId,
         reason: 'Превышено количество попыток подтверждения IP',
         expiresAt
       });
-      console.log(`🚫 IP ${ip} заблокирован на 24 часа`);
+      console.log(`🚫 IP ${cleanIP} заблокирован на 24 часа`);
     } catch (err) {
       console.error('❌ Ошибка блокировки IP в MongoDB:', err);
     }
-    
+
     verificationCodes.delete(key);
     return { success: false, remainingAttempts: 0, blocked: true };
   }
-  
+
   return { success: false, remainingAttempts, blocked: false };
 };
 
@@ -240,21 +263,22 @@ export const verifyCode = async (userId, ip, code) => {
  * @returns {Promise<Boolean>}
  */
 export const isIPBlocked = async (ip) => {
+  const cleanIP = normalizeIP(ip);
   try {
     const now = new Date();
-    
+
     // Удаляем истекшие баны для этого IP (если есть)
-    await BlockedIP.deleteMany({ 
-      ip, 
-      expiresAt: { $lte: now } 
+    await BlockedIP.deleteMany({
+      ip: cleanIP,
+      expiresAt: { $lte: now }
     });
-    
+
     // Проверяем, есть ли активный бан
-    const blocked = await BlockedIP.findOne({ 
-      ip, 
-      expiresAt: { $gt: now } 
+    const blocked = await BlockedIP.findOne({
+      ip: cleanIP,
+      expiresAt: { $gt: now }
     });
-    
+
     return !!blocked;
   } catch (error) {
     console.error('Ошибка проверки блокировки IP:', error);
@@ -274,11 +298,11 @@ export const cleanupExpiredBans = async () => {
       // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
       return;
     }
-    
-    const result = await BlockedIP.deleteMany({ 
-      expiresAt: { $lte: new Date() } 
+
+    const result = await BlockedIP.deleteMany({
+      expiresAt: { $lte: new Date() }
     });
-    
+
     if (result.deletedCount > 0) {
       console.log(`🧹 Очищено ${result.deletedCount} истекших банов IP`);
     }
