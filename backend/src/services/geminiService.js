@@ -77,11 +77,11 @@ const moderateRequest = async (title, description) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     const prompt = getModerationPrompt(title, description);
 
     // Добавляем таймаут 30 секунд для Gemini запроса
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Gemini API timeout')), 30000)
     );
 
