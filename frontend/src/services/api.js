@@ -45,7 +45,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response;
-      
+
       // Единственная и правильная логика обработки бана
       if (status === 403 && data && data.isBanned) {
         if (authContext && typeof authContext.showBanModal === 'function') {
@@ -53,13 +53,21 @@ api.interceptors.response.use(
         }
         return Promise.reject(error);
       }
-      
+
+      // Обработка запроса на подтверждение IP (если сессия есть, но IP сменился)
+      if (status === 403 && data && data.code === 'IP_VERIFICATION_REQUIRED') {
+        clearAuthToken();
+        sessionStorage.setItem('auth_message', data.msg || 'Обнаружен вход с нового IP. Требуется повторный вход.');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
       if (status === 429) {
         const rateLimitEvent = new CustomEvent('show-rate-limit-modal');
         window.dispatchEvent(rateLimitEvent);
         return Promise.reject(error);
       }
-      
+
       // Не логируем 404 для запросов профиля или отдельных реквестов, так как это ожидаемое поведение
       const isUserNotFound = status === 404 && error.config.url.startsWith('/users/');
       const isRequestNotFound = (status === 404 || status === 400) && error.config.url.startsWith('/requests/');
@@ -67,14 +75,14 @@ api.interceptors.response.use(
       if (isUserNotFound || isRequestNotFound) {
         return Promise.reject(error);
       }
-      
+
       const isRegistrationPage = window.location.pathname.includes('/register');
-      
+
       if (status === 401 && !isRegistrationPage) {
         clearAuthToken();
         if (!window.location.pathname.includes('/login')) {
-          const message = data?.tokenExpired 
-            ? 'Ваша сессия истекла. Пожалуйста, войдите снова.' 
+          const message = data?.tokenExpired
+            ? 'Ваша сессия истекла. Пожалуйста, войдите снова.'
             : 'Сессия истекла, пожалуйста, авторизуйтесь снова';
           sessionStorage.setItem('auth_message', message);
           window.location.href = '/login';
@@ -91,21 +99,21 @@ const requestsService = {
   getRequests: async (params = {}) => {
     return api.get('/requests', { params });
   },
-  
+
   // Получить "мои" запросы с фильтрацией (включая черновики)
   getMyRequests: async (params = {}) => {
     return api.get('/requests', { params }); // Используем тот же эндпоинт, но с authorId
   },
-  
+
   // Получить запрос по ID
   getRequestById: async (id) => {
     return api.get(`/requests/${id}`);
   },
-  
+
   getRequestForEdit: async (id) => {
     return api.get(`/requests/${id}/edit`);
   },
-  
+
   // Создать новый запрос (или черновик)
   createRequest: async (requestData, isDraft = false) => {
     // Если передали FormData, значит это запрос с файлами
@@ -117,13 +125,13 @@ const requestsService = {
     // Старая логика для запросов без файлов
     return api.post('/requests', { ...requestData, isDraft });
   },
-  
+
   // Обновить запрос
   updateRequest: async (id, requestData) => {
     // Если requestData это FormData, axios сам поставит нужный Content-Type
     return api.put(`/requests/${id}`, requestData);
   },
-  
+
   // Удалить запрос
   deleteRequest: async (id, data = {}) => {
     const { deleteReason, confirmationCode } = data;
@@ -136,7 +144,7 @@ const requestsService = {
     }
     return api.delete(`/requests/${id}`, config);
   },
-  
+
   // Назначить помощника
   assignHelper: async (requestId, helperId) => {
     return api.post(`/requests/${requestId}/assign/${helperId}`);
@@ -169,7 +177,7 @@ const responsesService = {
   getResponsesForRequest: async (requestId) => {
     return api.get(`/responses/${requestId}`);
   },
-  
+
   // Отправить отклик на запрос
   createResponse: async (responseData) => {
     // Проверяем формат данных и обеспечиваем правильную структуру
@@ -179,12 +187,12 @@ const responsesService = {
     };
     return api.post('/responses', payload);
   },
-  
+
   // Принять отклик
   acceptResponse: async (responseId) => {
     return api.put(`/responses/${responseId}/status`, { status: 'accepted' });
   },
-  
+
   // Отклонить отклик
   rejectResponse: async (responseId) => {
     return api.put(`/responses/${responseId}/status`, { status: 'rejected' });
@@ -197,21 +205,21 @@ const usersService = {
   getCurrentUser: async () => {
     return api.get('/users/me');
   },
-  
+
   // Получить пользователя по ID
   getUserById: async (id) => {
     return api.get(`/users/${id}`);
   },
-  
+
   // Обновить профиль пользователя
   updateProfile: async (userData) => {
     return api.put('/users/me', userData);
   },
-  
+
   updateProfileCustomization: async (customizationData) => {
     return api.put('/users/me/customization', customizationData);
   },
-  
+
   // Обновить пароль пользователя
   updatePassword: async (currentPassword, newPassword) => {
     return api.put('/users/password', { currentPassword, newPassword });
@@ -264,19 +272,19 @@ const authService = {
 
   // Проверка статуса токена Telegram
   checkTelegramToken: (token) => api.get(`/auth/telegram/check-token/${token}`),
-  
+
   // Генерация токена для привязки Telegram
   generateLinkToken: () => api.post('/auth/generate-link-token'),
 
   // Проверка статуса привязки
   checkLinkStatus: (token) => api.get(`/auth/check-link-status/${token}`),
-  
+
   // IP верификация
   verifyIP: () => api.post('/auth/verify-ip'),
   confirmIP: (code) => api.post('/auth/confirm-ip', { code }),
-  
+
   // Смена пароля
-  changePassword: (currentPassword, newPassword, confirmPassword) => 
+  changePassword: (currentPassword, newPassword, confirmPassword) =>
     api.post('/auth/change-password', { currentPassword, newPassword, confirmPassword }),
 
   // Отвязка Telegram
@@ -289,12 +297,12 @@ const messagesService = {
   getMessages: async (requestId, params = {}) => {
     return api.get(`/messages/${requestId}`, { params });
   },
-  
+
   // Отправить сообщение
   sendMessage: async (requestId, content) => {
     return api.post('/messages', { requestId, content });
   },
-  
+
   // Отправить сообщение с вложением
   sendMessageWithAttachment: async (requestId, content, attachment) => {
     const formData = new FormData();
@@ -307,12 +315,12 @@ const messagesService = {
       },
     });
   },
-  
+
   // Отметить сообщения как прочитанные
   markAsRead: async (requestId) => {
     return api.post(`/messages/${requestId}/read`);
   },
-  
+
   // Редактировать сообщение
   editMessage: async (messageId, content) => {
     return api.put(`/messages/${messageId}`, { content });
@@ -322,7 +330,7 @@ const messagesService = {
   deleteMessage: async (messageId) => {
     return api.delete(`/messages/${messageId}`);
   },
-  
+
   // Получить список чатов пользователя
   getUserChats: async () => {
     return api.get('/chats');
@@ -335,7 +343,7 @@ const chatsService = {
   getUserChats: async () => {
     return api.get('/chats');
   },
-  
+
   // Получить количество непрочитанных сообщений
   getUnreadCount: async () => {
     return api.get('/chats/unread');
@@ -348,7 +356,7 @@ const notificationsService = {
   getNotifications: async () => {
     return api.get('/notifications');
   },
-  
+
   // Получить количество непрочитанных уведомлений
   getUnreadCount: async () => {
     return api.get('/notifications/unread');
@@ -375,7 +383,7 @@ const reviewsService = {
   createReview: (reviewData) => {
     return api.post('/reviews', reviewData);
   },
-  
+
   // Получить все отзывы для конкретного пользователя (хелпера)
   getReviewsForUser: (userId) => {
     return api.get(`/reviews/user/${userId}`);
@@ -392,14 +400,14 @@ export {
   chatsService,
   notificationsService,
   reviewsService,
-}; 
+};
 
 export const statsService = {
   getGeneralStats: () => api.get('/stats/general'),
   getUserStats: (userId) => api.get(`/stats/user/${userId}`),
   getActivitySummary: (userId) => api.get(`/stats/activity/summary/${userId}`),
   getPendingReviews: (userId) => api.get(`/stats/activity/pending-reviews/${userId}`),
-}; 
+};
 
 export const reportsService = {
   // Создать жалобу
@@ -423,7 +431,7 @@ export const reportsService = {
   updateReport: (id, data) => {
     return api.put(`/reports/${id}`, data);
   }
-}; 
+};
 
 // Сервис для административных задач
 export const adminService = {

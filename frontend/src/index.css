@@ -17,7 +17,7 @@
     font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
       monospace;
   }
-  
+
   /* Добавляем плавные переходы для всех элементов */
   * {
     transition: all 0.2s ease-in-out;
@@ -28,7 +28,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
-  
+
   .page-enter-active {
     opacity: 1;
     transform: translateY(0);
@@ -48,7 +48,7 @@
   .btn-primary {
     @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 shadow-md transform hover:-translate-y-0.5;
   }
-  
+
   .btn-secondary {
     @apply bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-4 focus:ring-gray-200 shadow-sm transform hover:-translate-y-0.5;
   }
@@ -56,7 +56,7 @@
   .btn-danger {
     @apply bg-red-600 text-white hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-md transform hover:-translate-y-0.5;
   }
-  
+
   .btn-primary-outline {
     @apply bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:ring-4 focus:ring-primary-300 font-semibold;
   }
@@ -76,36 +76,37 @@
   .form-input-error {
     @apply border-red-500 ring-red-500 focus:ring-red-500 focus:border-red-500;
   }
-  
+
   .text-shadow {
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
+
   .text-shadow-lg {
-    text-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
 
   .card {
-     @apply bg-white p-6 rounded-lg shadow-sm border border-gray-200;
+    @apply bg-white p-6 rounded-lg shadow-sm border border-gray-200;
   }
 
   .card {
     @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-300;
   }
-  
+
   /* Стили для подсказок с плавным появлением */
   .form-hint {
     @apply mt-1 text-sm text-red-600 opacity-0 transition-opacity duration-200;
   }
-  
+
   .form-hint-show {
     @apply opacity-100;
   }
-  
+
   /* Анимация для загрузки */
   .loading-pulse {
     @apply animate-pulse;
   }
-  
+
   /* Плавное появление страниц */
   .page-container {
     @apply animate-fadeIn;
@@ -118,6 +119,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -128,7 +130,7 @@
   .animate-fadeIn {
     animation: fadeIn 0.4s ease-out forwards;
   }
-  
+
   .hover-scale {
     @apply transition-transform duration-300 hover:scale-105;
   }
@@ -147,13 +149,16 @@
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #c4c4c4;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
